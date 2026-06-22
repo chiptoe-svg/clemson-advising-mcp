@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 db/gc_advisor.db
 .playwright-mcp/
+*.egg-info/
