@@ -4,3 +4,5 @@ __pycache__/
 db/gc_advisor.db
 .playwright-mcp/
 *.egg-info/
+# Student-record artifacts (audit / DegreeWorks PDFs) — record content never goes in git
+docs/*.pdf
