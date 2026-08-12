@@ -106,11 +106,43 @@ class CookieJar {
   }
 }
 
+/**
+ * Fetch a Banner endpoint on a FRESH connection (never a reused keep-alive one).
+ *
+ * Banner sits behind an F5 load balancer that pins a session to one backend via a
+ * `BIGipServer*` stickiness cookie, set on the response of a fresh connection.
+ * Node's global fetch (undici) pools keep-alive connections; on a REUSED
+ * connection the F5 does not re-issue that cookie, so we never capture it — and
+ * the term-bind POST then lands on one backend while the follow-up searchResults
+ * lands on another, where the term isn't bound. That returns `totalCount: 0`,
+ * indistinguishable from a cold session. It bit the daily full refresh hardest:
+ * its extra `getTerms` warms the pool, so `classSearch` reuses a connection and
+ * drops the cookie ~every run (snapshot frozen for days).
+ *
+ * `Connection: close` forces a new socket per request, so the F5 sets — and we
+ * capture — the stickiness cookie every time, pinning the whole session to one
+ * backend. Node's undici honors this header (browsers forbid it; this is server
+ * code). The cost is one TLS handshake per request, negligible for a daily job
+ * and worth the reliability on the interactive path too.
+ */
+async function bannerFetch(
+  url: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      Connection: "close",
+    },
+  });
+}
+
 export async function listClemsonTerms(
   max = 20,
 ): Promise<ClemsonTerm[] | null> {
   try {
-    const r = await fetch(
+    const r = await bannerFetch(
       `${SSB}/classSearch/getTerms?searchTerm=&offset=1&max=${max}`,
     );
     if (!r.ok) return null;
@@ -138,11 +170,11 @@ async function openSession(term: string): Promise<CookieJar | null> {
     const jar = new CookieJar();
     // redirect: "manual" is required — the JSESSIONID is set on the 302, and
     // fetch only exposes Set-Cookie from the response it stops on.
-    const r1 = await fetch(`${SSB}/classSearch/classSearch`, {
+    const r1 = await bannerFetch(`${SSB}/classSearch/classSearch`, {
       redirect: "manual",
     });
     jar.capture(r1);
-    const r2 = await fetch(`${SSB}/term/search?mode=search`, {
+    const r2 = await bannerFetch(`${SSB}/term/search?mode=search`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -263,7 +295,7 @@ async function runSearch(
   if (params.subject) q.set("txt_subject", params.subject.toUpperCase());
   if (params.courseNumber) q.set("txt_courseNumber", params.courseNumber);
   if (params.openOnly) q.set("chk_open_only", "true");
-  const r = await fetch(`${SSB}/searchResults/searchResults?${q}`, {
+  const r = await bannerFetch(`${SSB}/searchResults/searchResults?${q}`, {
     headers: { Cookie: jar.header() },
   });
   if (!r.ok) return null;
@@ -386,7 +418,7 @@ async function postDetail(
   term: string,
   crn: string,
 ): Promise<string> {
-  const r = await fetch(`${SSB}/searchResults/${endpoint}`, {
+  const r = await bannerFetch(`${SSB}/searchResults/${endpoint}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -480,7 +512,7 @@ async function fetchInstructors(
   query: string,
   max: number,
 ): Promise<ClemsonInstructorMatch[]> {
-  const r = await fetch(
+  const r = await bannerFetch(
     `${SSB}/classSearch/get_instructor?searchTerm=${encodeURIComponent(query)}&term=${encodeURIComponent(term)}&offset=1&max=${max}`,
     { headers: { Cookie: jar.header() } },
   );
