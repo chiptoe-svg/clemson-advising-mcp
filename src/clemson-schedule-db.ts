@@ -93,7 +93,7 @@ function hhmMToMins(t: string): number | null {
   return Number.isNaN(h) || Number.isNaN(m) ? null : h * 60 + m;
 }
 
-function minsToHHMM(m: number): string {
+export function minsToHHMM(m: number): string {
   return (
     String(Math.floor(m / 60)).padStart(2, "0") +
     String(m % 60).padStart(2, "0")
