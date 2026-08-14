@@ -22,7 +22,7 @@ const findConflictFree: McpToolDefinition = {
       "other candidate. Returns conflict_free candidates and details of any " +
       "conflicts for the rest. Reads the daily Banner snapshot. Do not use " +
       "this just to check a short, already-chosen CRN list — use " +
-      "check-schedule-conflicts for that.",
+      "check-conflicts for that.",
     inputSchema: {
       type: "object" as const,
       properties: {

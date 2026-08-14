@@ -555,3 +555,48 @@ test("get-course-details: missing course_code AND crn returns the redirect error
   const res = await getCourseDetails.handler({ term: "Spring 2027" });
   assert.match(errText(res), /course_code or crn is required/);
 });
+
+// ---------------------------------------------------------------------------
+// get-course-details: coreq pairing (findCoreqs, injected)
+// ---------------------------------------------------------------------------
+
+test("get-course-details: course_code with a coreq pair returns the coreqs array", async () => {
+  const coreqCalls: string[] = [];
+  const tool = makeGetCourseDetails({
+    getGcCourse: async (code: string) => ({ code, title: "Package and Specialty Printing" }),
+    findCoreqs: (code: string) => {
+      coreqCalls.push(code);
+      return [
+        {
+          code: "GC 4061",
+          title: "Package and Specialty Printing Laboratory",
+          credits: "0",
+          relationship: "required non-credit lab (coreq)",
+        },
+      ];
+    },
+  });
+  const res = await tool.handler({ course_code: "GC 4060" });
+  const body = json(res);
+  assert.deepEqual(coreqCalls, ["GC 4060"]);
+  assert.equal(body.code, "GC 4060");
+  assert.deepEqual(body.coreqs, [
+    {
+      code: "GC 4061",
+      title: "Package and Specialty Printing Laboratory",
+      credits: "0",
+      relationship: "required non-credit lab (coreq)",
+    },
+  ]);
+});
+
+test("get-course-details: course_code with no coreq omits the coreqs field", async () => {
+  const tool = makeGetCourseDetails({
+    getGcCourse: async (code: string) => ({ code, title: "Some Standalone Course" }),
+    findCoreqs: () => [],
+  });
+  const res = await tool.handler({ course_code: "GC 3010" });
+  const body = json(res);
+  assert.equal(body.code, "GC 3010");
+  assert.equal("coreqs" in body, false);
+});

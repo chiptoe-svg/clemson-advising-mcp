@@ -22,6 +22,7 @@ import {
   type ClemsonSection,
 } from "../clemson-classes.js";
 import { getGcCourse as getGcCourseLive } from "../gc-curriculum.js";
+import { findCoreqs as findCoreqsLive } from "./catalog.js";
 import Database from "better-sqlite3";
 import {
   openScheduleDb,
@@ -509,6 +510,7 @@ export const checkConflicts: McpToolDefinition = {
 export interface GetCourseDetailsDeps {
   getGcCourse: typeof getGcCourseLive;
   getClemsonSectionDetails: typeof getClemsonSectionDetailsLive;
+  findCoreqs: typeof findCoreqsLive;
 }
 
 export function makeGetCourseDetails(
@@ -516,6 +518,7 @@ export function makeGetCourseDetails(
 ): McpToolDefinition {
   const getCourse = deps.getGcCourse ?? getGcCourseLive;
   const getSectionDetails = deps.getClemsonSectionDetails ?? getClemsonSectionDetailsLive;
+  const findCoreqs = deps.findCoreqs ?? findCoreqsLive;
   return {
     operation: "clemson.course_details",
     tool: {
@@ -563,7 +566,12 @@ export function makeGetCourseDetails(
       if (courseCode) {
         try {
           const c = await getCourse(courseCode);
-          return okJson(c as object);
+          const coreqs = findCoreqs(courseCode);
+          const body: Record<string, unknown> = { ...(c as object) };
+          // Same convention as compactSearchResult (clemson-classes.ts):
+          // absent means "none" — omit rather than including an empty array.
+          if (coreqs.length > 0) body.coreqs = coreqs;
+          return okJson(body);
         } catch (e) {
           return err(
             `GC course lookup failed: ${e instanceof Error ? e.message : String(e)}`,
