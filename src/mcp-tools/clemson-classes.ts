@@ -77,11 +77,9 @@ const listTerms: McpToolDefinition = {
   tool: {
     name: "list-clemson-terms",
     description:
-      "Use ONLY to discover valid Clemson term codes when none is known. If " +
-      "you already have a term code (or CRNs for a term), call the operation " +
-      "directly — do not call this first. Lists academic terms in the public " +
-      "Banner class search, e.g. {code:'202608', description:'Fall 2026'}. " +
-      "Read-only, no login.",
+      "Do NOT call this if a term or any CRN is already given; use " +
+      "check-schedule-conflicts or search-clemson-classes directly. Only " +
+      "for discovering a valid term code when none is known. Read-only, no login.",
     inputSchema: {
       type: "object" as const,
       properties: {

@@ -135,11 +135,9 @@ export const catalogYears: McpToolDefinition = {
   tool: {
     name: "list-gc-catalog-years",
     description:
-      "Use ONLY to discover valid GC catalog years when none is known. If " +
-      "you already have a catalog year (or the student's term/plan), call " +
-      "the operation directly. Lists Clemson catalog years for Graphic " +
-      "Communications curriculum lookups, e.g. " +
-      '"2026-2027". Read-only, no login.',
+      "Do NOT call this if a catalog year, term, or the student's plan is " +
+      "already given; call the operation directly. Only for discovering a " +
+      "valid GC catalog year when none is known. Read-only, no login.",
     inputSchema: { type: "object" as const, properties: {} },
   },
   async handler() {
