@@ -152,7 +152,9 @@ export function resolveTerm(
 
   if (!availableTerms.includes(termCode)) {
     return {
-      error: `No snapshot available for ${termName} (${termCode}).`,
+      error:
+        `No snapshot available for ${termName} (${termCode}). ` +
+        `Available terms: ${availableTerms.join(", ")}.`,
       availableTerms,
     };
   }
