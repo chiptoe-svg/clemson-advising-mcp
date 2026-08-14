@@ -128,7 +128,9 @@ export const searchClasses: McpToolDefinition = {
       "Does not return course descriptions, prerequisites, or degree-" +
       "requirement eligibility — use get-clemson-section-details for catalog " +
       "detail on one CRN, or find-eligible-sections for GC requirement-" +
-      "eligible sections.",
+      "eligible sections. If you don't know the subject and just want any " +
+      "section that fits a time/day constraint across departments, use " +
+      "find-sections-by-schedule instead.",
     inputSchema: {
       type: "object" as const,
       properties: {

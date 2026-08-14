@@ -309,7 +309,9 @@ export const findEligibleSections: McpToolDefinition = {
       "no identity or grade data needed. Only works for the GC (Graphic " +
       "Communications) program, since the join requires a program loaded " +
       "into gc_advisor.db — for other majors use search-clemson-classes " +
-      "with course codes from get-gc-program-plan instead.",
+      "with course codes from get-gc-program-plan instead. For a schedule-" +
+      "fit search across ALL departments that isn't tied to a GC " +
+      "requirement slot, use find-sections-by-schedule instead.",
     inputSchema: {
       type: "object" as const,
       properties: {
