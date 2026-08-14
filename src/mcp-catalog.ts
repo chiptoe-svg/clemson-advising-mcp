@@ -11,7 +11,8 @@
 // 0.0.0.0 for campus reachability; off loopback the bearer is the only gate.
 import "./mcp-tools/index-catalog.js";
 import { CATALOG_SKILLS, setSkillExposure } from "./mcp-tools/skills.js";
-import { renameRegisteredTool, startMcpServer } from "./mcp-tools/server.js";
+import { startMcpServer } from "./mcp-tools/server.js";
+import { applyGcSkillRenames } from "./mcp-tools/gc-skill-renames.js";
 import {
   MCP_TRANSPORT,
   MCP_CATALOG_HTTP_HOST,
@@ -42,20 +43,9 @@ setSkillExposure(CATALOG_SKILLS);
 // text is byte-identical between the two servers and self-refers to the public
 // server's tool names, which is wrong on 8767 (a model here can't tell the two
 // corpora apart, and get-gc-skill-docs pointed at "list-skills" — the OTHER
-// server's tool).
-renameRegisteredTool(
-  "list-skills",
-  "list-gc-skills",
-  "List the Graphic Communications advisor's skill documents by name and " +
-    "description. Pass a name to get-gc-skill-docs to retrieve the full " +
-    "content.",
-);
-renameRegisteredTool(
-  "get-skill-docs",
-  "get-gc-skill-docs",
-  "Return the full documentation for a Graphic Communications advisor " +
-    "skill by name. Use list-gc-skills to discover available skill names.",
-);
+// server's tool). The renames and their override text live in
+// gc-skill-renames.ts, which is side-effect-free and importable from tests.
+applyGcSkillRenames();
 
 startMcpServer({
   name: "cuassistant-catalog",
