@@ -22,7 +22,7 @@ import {
   type ClemsonSection,
 } from "../clemson-classes.js";
 import { getGcCourse as getGcCourseLive } from "../gc-curriculum.js";
-import { findCoreqs as findCoreqsLive } from "./catalog.js";
+import { findCoreqs as findCoreqsLive } from "./gc-coreqs.js";
 import Database from "better-sqlite3";
 import {
   openScheduleDb,
