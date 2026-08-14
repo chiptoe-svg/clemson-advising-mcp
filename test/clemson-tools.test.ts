@@ -9,10 +9,11 @@ import {
 // The Clemson Browse Classes tools are public, no-auth, read-only and should be
 // exposed (their policy actions are approval=none). Handler-level behavior for
 // the four front-door tools (search-classes, find-alternatives, check-
-// conflicts, get-course-details) lives in test/core-search.test.ts — this file
-// only covers the surviving-as-is tools (list-clemson-terms, find-conflict-
-// free-schedule, find-eligible-sections) plus the policy-gate wiring shared
-// across the whole clemson surface.
+// conflicts, get-course-details) lives in test/core-search.test.ts; find-
+// requirement-sections' handler behavior lives in
+// test/find-requirement-sections.test.ts — this file only covers the
+// surviving-as-is tools (list-clemson-terms, find-conflict-free-schedule)
+// plus the policy-gate wiring shared across the whole clemson surface.
 
 test("clemson public tools are exposed", () => {
   assert.equal(isMcpOperationExposed("clemson.list_terms"), true);
@@ -21,7 +22,7 @@ test("clemson public tools are exposed", () => {
   assert.equal(isMcpOperationExposed("clemson.check_conflicts"), true);
   assert.equal(isMcpOperationExposed("clemson.course_details"), true);
   assert.equal(isMcpOperationExposed("clemson.find_conflict_free_schedule"), true);
-  assert.equal(isMcpOperationExposed("clemson.find_eligible_sections"), true);
+  assert.equal(isMcpOperationExposed("clemson.find_requirement_sections"), true);
 });
 
 test("removed operations are no longer in the allow-list", () => {
@@ -29,6 +30,9 @@ test("removed operations are no longer in the allow-list", () => {
   assert.equal(isMcpOperationExposed("clemson.instructor_classes"), false);
   assert.equal(isMcpOperationExposed("clemson.room_availability"), false);
   assert.equal(isMcpOperationExposed("clemson.check_schedule_conflicts"), false);
+  assert.equal(isMcpOperationExposed("clemson.find_eligible_sections"), false);
+  assert.equal(isMcpOperationExposed("clemson.find_sections_by_schedule"), false);
+  assert.equal(isMcpOperationExposed("clemson.gc_course"), false);
 });
 
 test("clemson tools pass the policy gate", () => {
@@ -66,10 +70,10 @@ test("schedule conflict tools pass the policy gate", () => {
     }),
   );
   assert.doesNotThrow(() =>
-    assertMcpOperation("clemson.find_eligible_sections", {
+    assertMcpOperation("clemson.find_requirement_sections", {
       input: {
         term: "202608",
-        slot_type: "Specialty Area Requirement",
+        requirement: "Specialty Area Requirement",
         completed_courses: ["GC 1010"],
       },
     }),

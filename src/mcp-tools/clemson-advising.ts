@@ -1,19 +1,25 @@
 // src/mcp-tools/clemson-advising.ts
 // Catalog + schedule join tool for GC advising.
 //
-// find-eligible-sections opens the per-term schedule DB, ATTACHes gc_advisor.db,
-// and runs the requirement → offered-sections join in SQL. Prereq eligibility is
-// checked in TypeScript (parse prereq_parsed JSON, test subset of completed_courses).
+// find-requirement-sections opens the per-term schedule DB, ATTACHes
+// gc_advisor.db, resolves the named requirement slot to its explicit course
+// list in SQL, then routes each course's section-side filtering (fits_around_
+// crns/days/exclude_days/no_meeting_before/after/open_seats_only) through the
+// shared querySectionsEngine (src/mcp-tools/section-query.ts) — one call per
+// explicit course code (the engine's own discriminator is subject+course
+// number, not a course-code list, so this tool enforces the requirement
+// discriminator itself and merges the per-course results). Prereq eligibility
+// is checked in TypeScript (parse prereq_parsed JSON, test subset of
+// completed_courses). Reshaped from the former find-eligible-sections; see
+// .superpowers/sdd/task-6-brief.md.
 import Database from "better-sqlite3";
 
 import { GC_ADVISOR_DB } from "../config.js";
-import {
-  openScheduleDb,
-  getScheduleDbMeta,
-  getMeetingsForCrns,
-  findConflicts,
-} from "../clemson-schedule-db.js";
+import { openScheduleDb, getScheduleDbMeta } from "../clemson-schedule-db.js";
 import { searchClemsonClasses } from "../clemson-classes.js";
+import { querySectionsEngine, type EngineSection } from "./section-query.js";
+import { resolveTerm } from "../term-resolve.js";
+import { getGcRequirementRules as getGcRequirementRulesLive } from "../gc-curriculum.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
@@ -143,32 +149,6 @@ interface RequirementRule {
   raw_text: string;
 }
 
-interface SectionRow {
-  crn: string;
-  subject_course: string;
-  section: string;
-  title: string;
-  credit_hours: number | null;
-  seats_available: number;
-  enrollment: number;
-  max_enrollment: number;
-  open: number;
-}
-interface MeetingRow {
-  crn: string;
-  day: string;
-  start_min: number | null;
-  end_min: number | null;
-  building: string | null;
-  room: string | null;
-  type: string | null;
-}
-interface InstructorRow {
-  crn: string;
-  name: string;
-  email: string | null;
-  primary_i: number;
-}
 interface CourseRow {
   code: string;
   prereq_text: string | null;
@@ -178,13 +158,6 @@ interface CourseRow {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function minsToHHMM(m: number): string {
-  return (
-    String(Math.floor(m / 60)).padStart(2, "0") +
-    String(m % 60).padStart(2, "0")
-  );
-}
 
 // gc_advisor stores course codes with a space ("GC 3010"); Banner's schedule DB
 // stores subject_course spaceless ("GC3010"). Normalize both sides to spaceless
@@ -227,17 +200,38 @@ function getProgramIdForCatalogYear(
   return row?.id ?? null;
 }
 
-// Parse a "HHMM" string (e.g. "0900") into minutes-since-midnight, or null
-// if malformed. Mirrors the private hhmMToMins in clemson-schedule-db.ts —
-// duplicated here only because it's a trivial parse, not the conflict
-// primitive itself (that one IS reused, see getMeetingsForCrns/findConflicts
-// below).
-function hhmmToMins(t: string): number | null {
-  if (!/^\d{4}$/.test(t)) return null;
-  const h = parseInt(t.slice(0, 2), 10);
-  const m = parseInt(t.slice(2), 10);
-  if (h > 23 || m > 59) return null;
-  return h * 60 + m;
+// The catalog_year LABEL a given program row belongs to — needed to call
+// getGcRequirementRules (the gc_advisor query.py bridge, which takes a year
+// string, not an id) when a requirement lookup misses and the valid slot
+// list must be fetched for the redirect.
+function getCatalogYearLabelForProgram(
+  db: Database.Database,
+  programId: number,
+): string | null {
+  const row = db
+    .prepare(
+      `SELECT cy.label FROM program p
+       JOIN catalog_year cy ON p.catalog_year_id = cy.id
+       WHERE p.id = ? LIMIT 1`,
+    )
+    .get(programId) as { label: string } | undefined;
+  return row?.label ?? null;
+}
+
+// Split a catalog course code ("GC 3010", "gc3010", "GC 3010H") into the
+// subject + course-number pieces querySectionsEngine's exact-match filter
+// wants ({subject, courseNumber}, both upper-cased to match Banner's
+// subject_course convention). Returns null for anything that doesn't fit the
+// pattern (e.g. a wildcard rule name rather than a real course code).
+function splitCourseCode(code: string): { subject: string; courseNumber: string } | null {
+  const m = /^\s*([A-Za-z]{2,6})\s*(\d{3,4}[A-Za-z]?)\s*$/.exec(code);
+  return m ? { subject: m[1].toUpperCase(), courseNumber: m[2].toUpperCase() } : null;
+}
+
+function nonEmptyStrArr(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const arr = v.filter((x): x is string => typeof x === "string");
+  return arr.length > 0 ? arr : undefined;
 }
 
 function getRequirementRule(
@@ -287,50 +281,96 @@ function checkPrereqEligible(
 // MCP tool
 // ---------------------------------------------------------------------------
 
-export const findEligibleSections: McpToolDefinition = {
-  operation: "clemson.find_eligible_sections",
+/** Injectable for tests — defaults to the real gc_advisor query.py bridge.
+ *  Mirrors core-search.ts's makeSearchClasses/makeGetCourseDetails DI idiom,
+ *  needed here so the unknown-requirement redirect (which shells out to
+ *  gc_advisor for the valid slot list) is testable without a real
+ *  subprocess. */
+export interface FindRequirementSectionsDeps {
+  getGcRequirementRules: typeof getGcRequirementRulesLive;
+}
+
+export function makeFindRequirementSections(
+  deps: Partial<FindRequirementSectionsDeps> = {},
+): McpToolDefinition {
+  const getReqRules = deps.getGcRequirementRules ?? getGcRequirementRulesLive;
+  return {
+  operation: "clemson.find_requirement_sections",
   tool: {
-    name: "find-eligible-sections",
+    name: "find-requirement-sections",
     description:
-      "Find Banner sections offered in a given term that fulfill a GC " +
-      "degree requirement slot AND are prereq-eligible for the student, " +
-      "optionally ALSO filtered by scheduling constraints (time-of-day, " +
-      "excluded days, conflicts with an existing schedule, open seats). " +
-      "This is the single call for 'requirement-eligible sections that also " +
-      "fit these scheduling constraints' — pass no_meeting_before/" +
-      "exclude_days/avoid_conflict_with/open_only instead of pulling the " +
-      "full eligible list and filtering it by hand across many turns. " +
-      "Returns section details (CRN, title, credits, seats, meetings) plus " +
-      "`prereq_eligible` per section based on the completed-courses list. " +
-      "Use slot_type values from get-gc-requirement-rules (e.g. " +
-      "'Specialty Area Requirement', 'Graphic Communication Technical Requirement'). " +
-      "Pass completed_courses as a list of course codes the student has passed " +
-      "(e.g. [\"GC 1010\", \"GC 2010\"]) — used only for prereq gating, " +
-      "no identity or grade data needed. Only works for the GC (Graphic " +
-      "Communications) program, since the join requires a program loaded " +
-      "into gc_advisor.db — for other majors use search-clemson-classes " +
-      "with course codes from get-gc-program-plan instead. For a schedule-" +
-      "fit search across ALL departments that isn't tied to a GC " +
-      "requirement slot, use find-sections-by-schedule instead.",
+      "Find sections that fill a named degree requirement slot and that the " +
+      "student is eligible to take (prerequisites checked against " +
+      "completed_courses). Requires requirement — the requirement slot " +
+      "name; an unknown name returns the valid slot list. Optional: " +
+      "completed_courses, fits_around_crns, days, no_meeting_before, " +
+      "no_meeting_after, exclude_days, open_seats_only, program, " +
+      "catalog_year. Term is optional — defaults to the current " +
+      "registration term.",
     inputSchema: {
       type: "object" as const,
       properties: {
         term: {
           type: "string",
-          description: "Term code, e.g. 202608.",
+          description:
+            "Term code (202608) or text ('Spring 2027'). Defaults to the " +
+            "current registration term.",
         },
-        slot_type: {
+        requirement: {
           type: "string",
           description:
             "Requirement slot to fill, from get-gc-requirement-rules, " +
-            "e.g. 'Specialty Area Requirement'.",
+            "e.g. 'Specialty Area Requirement'. An unknown value returns " +
+            "the valid slot list for the resolved program/catalog year.",
         },
         completed_courses: {
           type: "array",
           items: { type: "string" },
-          description: "Course codes the student has completed, e.g. [\"GC 1010\"].",
+          description:
+            "Course codes the student has completed, e.g. [\"GC 1010\"] " +
+            "— used only for prereq gating, no identity or grade data needed.",
         },
-        program_name: {
+        fits_around_crns: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Optional CRNs already on the student's schedule. Excludes a " +
+            "section if any of its meetings time-conflicts (same day, " +
+            "overlapping interval) with any meeting of these CRNs.",
+        },
+        days: {
+          type: "string",
+          description:
+            "Optional day pattern using M T W R F S U, e.g. 'MWF' — a " +
+            "section qualifies only if EVERY one of its meeting days is " +
+            "in this set.",
+        },
+        no_meeting_before: {
+          type: "string",
+          description:
+            "Optional HHMM string, e.g. '0900'. Excludes a section if ANY " +
+            "of its meetings starts before this time.",
+        },
+        no_meeting_after: {
+          type: "string",
+          description:
+            "Optional HHMM string, e.g. '1700'. Excludes a section if ANY " +
+            "of its meetings ends after this time.",
+        },
+        exclude_days: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Optional day codes to avoid, e.g. ['F'] (M T W R F S U). " +
+            "Excludes a section if ANY of its meetings falls on one of " +
+            "these days.",
+        },
+        open_seats_only: {
+          type: "boolean",
+          description:
+            "Optional. If true, excludes sections with seats_available <= 0.",
+        },
+        program: {
           type: "string",
           description:
             "GC program name (default 'Graphic Communications, BS').",
@@ -340,66 +380,37 @@ export const findEligibleSections: McpToolDefinition = {
           description:
             "Optional catalog year label, e.g. '2025-2026', to pick the " +
             "requirement rule for a student grandfathered into an older " +
-            "catalog. Default: latest catalog year for program_name.",
-        },
-        no_meeting_before: {
-          type: "string",
-          description:
-            "Optional HHMM string, e.g. '0900'. Excludes a section if ANY " +
-            "of its meetings starts before this time. Sections with no " +
-            "meeting rows (async/online) can't be confirmed either way and " +
-            "are returned separately in sections_without_meetings instead " +
-            "of sections.",
-        },
-        exclude_days: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Optional day codes to avoid, e.g. ['F'] (M T W R F S U). " +
-            "Excludes a section if ANY of its meetings falls on one of " +
-            "these days. Same async handling as no_meeting_before.",
-        },
-        avoid_conflict_with: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Optional CRNs already on the student's schedule. Excludes a " +
-            "section if any of its meetings time-conflicts (same day, " +
-            "overlapping interval) with any meeting of these CRNs.",
-        },
-        open_only: {
-          type: "boolean",
-          description:
-            "Optional. If true, excludes sections with seats_available <= 0.",
-        },
-        refresh: {
-          type: "boolean",
-          description:
-            "Optional, default false. If true, overlay up-to-the-minute seat " +
-            "counts from live Banner onto the returned sections (slower). Leave " +
-            "off for planning — the daily snapshot is fine; pass true only when " +
-            "the advisor needs to know seats RIGHT NOW for a specific section.",
+            "catalog. Default: latest catalog year for program.",
         },
       },
-      required: ["term", "slot_type", "completed_courses"],
+      required: ["requirement"],
     },
   },
   async handler(args) {
     try {
-      assertMcpOperation("clemson.find_eligible_sections");
+      assertMcpOperation("clemson.find_requirement_sections");
     } catch (e) {
       return permissionErr(e);
     }
 
-    const term = args.term as string | undefined;
-    const slotType = args.slot_type as string | undefined;
-    const completedCoursesArr = args.completed_courses as string[] | undefined;
-    if (!term || !slotType || !Array.isArray(completedCoursesArr))
-      return err("term, slot_type, and completed_courses are required");
+    const resolved = resolveTerm(
+      typeof args.term === "string" ? args.term : undefined,
+    );
+    if ("error" in resolved) return err(resolved.error);
+    const term = resolved.term;
+
+    const requirement =
+      typeof args.requirement === "string" ? args.requirement.trim() : "";
+    if (!requirement) {
+      return err(
+        "requirement is required — the requirement slot name (from " +
+          "get-gc-requirement-rules), e.g. 'Specialty Area Requirement'.",
+      );
+    }
 
     const programName =
-      typeof args.program_name === "string" && args.program_name
-        ? args.program_name
+      typeof args.program === "string" && args.program
+        ? args.program
         : "Graphic Communications, BS";
 
     const catalogYear =
@@ -407,42 +418,34 @@ export const findEligibleSections: McpToolDefinition = {
         ? args.catalog_year
         : undefined;
 
-    // --- Scheduling constraints (all optional; unset = today's behavior) ---
+    const completedCoursesArr = Array.isArray(args.completed_courses)
+      ? (args.completed_courses as unknown[]).filter(
+          (c): c is string => typeof c === "string",
+        )
+      : [];
+
+    const fitsAroundCrns = nonEmptyStrArr(args.fits_around_crns);
+    const days =
+      typeof args.days === "string" && args.days ? args.days : undefined;
+    const excludeDays = nonEmptyStrArr(args.exclude_days);
     const noMeetingBefore =
       typeof args.no_meeting_before === "string" && args.no_meeting_before
         ? args.no_meeting_before
         : undefined;
-    let noMeetingBeforeMins: number | null = null;
-    if (noMeetingBefore !== undefined) {
-      noMeetingBeforeMins = hhmmToMins(noMeetingBefore);
-      if (noMeetingBeforeMins === null)
-        return err(
-          `no_meeting_before must be an HHMM string, e.g. "0900" (got "${noMeetingBefore}").`,
-        );
-    }
-
-    const excludeDaySet =
-      Array.isArray(args.exclude_days) && args.exclude_days.length > 0
-        ? new Set((args.exclude_days as string[]).map((d) => d.toUpperCase()))
-        : null;
-
-    const avoidConflictWith =
-      Array.isArray(args.avoid_conflict_with) && args.avoid_conflict_with.length > 0
-        ? (args.avoid_conflict_with as string[])
-        : null;
-
-    const openOnly = args.open_only === true;
-
-    // Whether a section's meetings can be judged against a time/day rule at
-    // all — zero-meeting (async) sections can't be, see the filtering loop.
-    const timeDayConstraintGiven = noMeetingBeforeMins !== null || excludeDaySet !== null;
+    const noMeetingAfter =
+      typeof args.no_meeting_after === "string" && args.no_meeting_after
+        ? args.no_meeting_after
+        : undefined;
+    const openSeatsOnly = args.open_seats_only === true;
 
     const appliedConstraints: Record<string, unknown> = {};
     if (catalogYear) appliedConstraints.catalog_year = catalogYear;
-    if (noMeetingBeforeMins !== null) appliedConstraints.no_meeting_before = noMeetingBefore;
-    if (excludeDaySet) appliedConstraints.exclude_days = [...excludeDaySet];
-    if (avoidConflictWith) appliedConstraints.avoid_conflict_with = avoidConflictWith;
-    if (openOnly) appliedConstraints.open_only = true;
+    if (fitsAroundCrns) appliedConstraints.fits_around_crns = fitsAroundCrns;
+    if (days) appliedConstraints.days = days.toUpperCase();
+    if (excludeDays) appliedConstraints.exclude_days = excludeDays.map((d) => d.toUpperCase());
+    if (noMeetingBefore) appliedConstraints.no_meeting_before = noMeetingBefore;
+    if (noMeetingAfter) appliedConstraints.no_meeting_after = noMeetingAfter;
+    if (openSeatsOnly) appliedConstraints.open_seats_only = true;
 
     const schedDb = openScheduleDb(term);
     if (!schedDb)
@@ -467,20 +470,49 @@ export const findEligibleSections: McpToolDefinition = {
         );
       }
 
-      const rule = getRequirementRule(schedDb, programId, slotType);
+      const rule = getRequirementRule(schedDb, programId, requirement);
       if (!rule) {
+        // Unknown slot — the discriminator redirect: list the valid slot
+        // names inline (from gc_advisor's req-rules bridge) rather than
+        // making the caller round-trip to get-gc-requirement-rules itself.
+        const yearLabel = catalogYear ?? getCatalogYearLabelForProgram(schedDb, programId);
+        let validSlots: string[] = [];
+        try {
+          const rows = (await getReqRules(yearLabel ?? "", programName)) as unknown;
+          if (Array.isArray(rows)) {
+            validSlots = rows
+              .map((r) =>
+                r && typeof r === "object" && typeof (r as { slot_type?: unknown }).slot_type === "string"
+                  ? (r as { slot_type: string }).slot_type
+                  : null,
+              )
+              .filter((s): s is string => s !== null);
+          }
+        } catch {
+          // gc_advisor unreachable — fall through with an empty valid-slot
+          // list rather than failing the whole call with a subprocess error.
+        }
         return err(
-          `No requirement rule found for slot_type "${slotType}" in program "${programName}". ` +
-            "Check valid slot types with get-gc-requirement-rules.",
+          `Unknown requirement "${requirement}" for program "${programName}"` +
+            `${yearLabel ? ` (${yearLabel})` : ""}. ` +
+            (validSlots.length > 0
+              ? `Valid requirement slots: ${validSlots.join(", ")}.`
+              : "No requirement slots could be found for this program/catalog year."),
         );
       }
+
+      const meta = getScheduleDbMeta(schedDb);
+
       if (rule.explicit_courses.length === 0) {
         return okJson({
           term,
-          slot_type: slotType,
+          term_description: meta.termDescription,
+          requirement,
           total_credits_required: rule.total_credits,
           sections: [],
           applied_constraints: appliedConstraints,
+          data_as_of: meta.fetchedAt,
+          _source: `Clemson University Online Catalog (gc_advisor) + Banner schedule ${meta.fetchedAt}`,
           note:
             "This requirement rule has no explicit course list — it may be " +
             "satisfied by a declared minor or a broad course category. " +
@@ -488,69 +520,85 @@ export const findEligibleSections: McpToolDefinition = {
         });
       }
 
-      const phs = rule.explicit_courses.map(() => "?").join(",");
+      // Discriminator enforcement: querySectionsEngine's own bounding filter
+      // is subject+courseNumber (a single course), not a course-code list —
+      // it has no guard for "any of these N explicit courses" — so THIS tool
+      // enforces the requirement's course list itself: one engine call per
+      // explicit course (exact subject_course match), merging the results.
+      // Every scheduling-side filter (fits_around_crns/days/exclude_days/
+      // no_meeting_before/after/open_seats_only) is applied identically on
+      // every call, reusing the engine's SQL + day/time/fit logic verbatim
+      // instead of re-deriving it here.
+      const merged: EngineSection[] = [];
+      const unparseableCourses: string[] = [];
+      const narrowedCourses: string[] = [];
+      for (const code of rule.explicit_courses) {
+        const split = splitCourseCode(code);
+        if (!split) {
+          unparseableCourses.push(code);
+          continue;
+        }
+        const engineResult = querySectionsEngine({
+          term,
+          subject: split.subject,
+          courseNumber: split.courseNumber,
+          days,
+          excludeDays,
+          noMeetingBefore,
+          noMeetingAfter,
+          openSeatsOnly,
+          fitsAroundCrns,
+          max: 500,
+        });
+        if ("error" in engineResult) return err(engineResult.error);
+        if (engineResult.needsNarrowing) {
+          // A single explicit course offering >15 sections in one term is an
+          // edge case the engine's NARROW_THRESHOLD doesn't expect a caller
+          // to hit per-course — note it rather than silently dropping those
+          // sections from the merged result.
+          narrowedCourses.push(code);
+          continue;
+        }
+        merged.push(...engineResult.sections);
+      }
+      merged.sort((a, b) => b.seatsAvailable - a.seatsAvailable);
 
-      const sectionRows = schedDb
-        .prepare(
-          `SELECT crn, subject_course, section, title, credit_hours,
-                  seats_available, enrollment, max_enrollment, open
-           FROM sections
-           WHERE term = ? AND subject_course IN (${phs})
-           ORDER BY subject_course, section`,
-        )
-        .all(term, ...rule.explicit_courses.map(normCode)) as SectionRow[];
+      const noteParts: string[] = [];
+      if (unparseableCourses.length > 0) {
+        noteParts.push(
+          `${unparseableCourses.length} course code(s) in this requirement's list ` +
+            `could not be parsed and were skipped: ${unparseableCourses.join(", ")}.`,
+        );
+      }
+      if (narrowedCourses.length > 0) {
+        noteParts.push(
+          `${narrowedCourses.length} course(s) offer more sections than can be listed ` +
+            `here and were omitted — narrow with days/exclude_days/no_meeting_before/after: ` +
+            `${narrowedCourses.join(", ")}.`,
+        );
+      }
 
-      if (sectionRows.length === 0) {
+      if (merged.length === 0) {
         return okJson({
           term,
-          slot_type: slotType,
+          term_description: meta.termDescription,
+          requirement,
           total_credits_required: rule.total_credits,
           sections: [],
           applied_constraints: appliedConstraints,
-          note: "No sections are offered in this term for the eligible course list.",
+          data_as_of: meta.fetchedAt,
+          _source: `Clemson University Online Catalog (gc_advisor) + Banner schedule ${meta.fetchedAt}`,
+          note:
+            noteParts.length > 0
+              ? noteParts.join(" ")
+              : "No sections are offered in this term for this requirement's course list.",
         });
       }
 
-      const crns = sectionRows.map((r) => r.crn);
-      const crnPhs = crns.map(() => "?").join(",");
-
-      // avoid_conflict_with: load the candidate sections' meetings together
-      // with the student's current-schedule CRNs' meetings in one query, run
-      // the shared findConflicts primitive, and pull out which candidate
-      // CRNs collide with a current-schedule CRN (candidate-vs-candidate and
-      // current-vs-current pairs are not relevant here).
-      let conflictingCrns: Set<string> | null = null;
-      if (avoidConflictWith) {
-        const combinedCrns = [...new Set([...crns, ...avoidConflictWith])];
-        const allMeetings = getMeetingsForCrns(schedDb, term, combinedCrns);
-        const conflicts = findConflicts(allMeetings);
-        const avoidSet = new Set(avoidConflictWith);
-        conflictingCrns = new Set<string>();
-        for (const c of conflicts) {
-          if (avoidSet.has(c.crn_a) && !avoidSet.has(c.crn_b)) conflictingCrns.add(c.crn_b);
-          else if (avoidSet.has(c.crn_b) && !avoidSet.has(c.crn_a)) conflictingCrns.add(c.crn_a);
-        }
-      }
-
-      const meetingRows = schedDb
-        .prepare(
-          `SELECT crn, day, start_min, end_min, building, room, type
-           FROM meetings WHERE term = ? AND crn IN (${crnPhs})
-             AND start_min IS NOT NULL AND end_min IS NOT NULL`,
-        )
-        .all(term, ...crns) as MeetingRow[];
-
-      const instructorRows = schedDb
-        .prepare(
-          `SELECT crn, name, email, primary_i
-           FROM instructors WHERE term = ? AND crn IN (${crnPhs})`,
-        )
-        .all(term, ...crns) as InstructorRow[];
-
       // subject_course is spaceless ("GC3010"); catalog.course.code is spaced
-      // ("GC 3010"). Compare space-insensitively and key the map spaceless so the
-      // per-section lookup below (keyed on subject_course) hits.
-      const subjectCourses = [...new Set(sectionRows.map((r) => r.subject_course))];
+      // ("GC 3010"). Compare space-insensitively and key the map spaceless so
+      // the per-section lookup below (keyed on subjectCourse) hits.
+      const subjectCourses = [...new Set(merged.map((s) => s.subjectCourse))];
       const scPhs = subjectCourses.map(() => "?").join(",");
       const courseRows = schedDb
         .prepare(
@@ -559,134 +607,29 @@ export const findEligibleSections: McpToolDefinition = {
         )
         .all(...subjectCourses) as CourseRow[];
       const courseMap = new Map(courseRows.map((c) => [normCode(c.code), c]));
-
-      type MGroup = {
-        startMin: number; endMin: number;
-        building: string | null; room: string | null; type: string | null;
-        days: string[];
-      };
-      const DAY_ORDER = "MTWRFSU";
-      const meetingMap = new Map<string, Map<string, MGroup>>();
-      for (const m of meetingRows) {
-        if (!meetingMap.has(m.crn)) meetingMap.set(m.crn, new Map());
-        const key = `${m.start_min}:${m.end_min}:${m.building ?? ""}:${m.room ?? ""}:${m.type ?? ""}`;
-        const byInterval = meetingMap.get(m.crn)!;
-        if (!byInterval.has(key)) {
-          byInterval.set(key, {
-            startMin: m.start_min ?? 0, endMin: m.end_min ?? 0,
-            building: m.building, room: m.room, type: m.type, days: [],
-          });
-        }
-        byInterval.get(key)!.days.push(m.day);
-      }
-
-      const instMap = new Map<string, Array<{ name: string; email: string | null; primary: boolean }>>();
-      for (const i of instructorRows) {
-        if (!instMap.has(i.crn)) instMap.set(i.crn, []);
-        instMap.get(i.crn)!.push({ name: i.name, email: i.email, primary: i.primary_i === 1 });
-      }
-
       const completedSet = new Set(completedCoursesArr.map(normCode));
-      const meta = getScheduleDbMeta(schedDb);
 
-      const sections: Record<string, unknown>[] = [];
-      const sectionsWithoutMeetings: Record<string, unknown>[] = [];
-
-      for (const row of sectionRows) {
-        // open_only and avoid_conflict_with apply to every section — including
-        // zero-meeting (async) ones — and can exclude it outright.
-        if (openOnly && row.seats_available <= 0) continue;
-        if (conflictingCrns?.has(row.crn)) continue;
-
-        const courseInfo = courseMap.get(normCode(row.subject_course));
-        const prereqEligible = checkPrereqEligible(
-          courseInfo?.prereq_parsed ?? null,
-          completedSet,
-        );
-        const mgMap = meetingMap.get(row.crn);
-        const hasMeetings = !!mgMap && mgMap.size > 0;
-        const meetings = mgMap
-          ? [...mgMap.values()].map((mg) => ({
-              days: [...mg.days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)).join(""),
-              beginTime: minsToHHMM(mg.startMin),
-              endTime: minsToHHMM(mg.endMin),
-              building: mg.building,
-              room: mg.room,
-              type: mg.type,
-            }))
-          : [];
-
-        const base = {
-          crn: row.crn,
-          subject_course: row.subject_course,
-          section: row.section,
-          title: row.title,
-          credit_hours: row.credit_hours,
-          seats_available: row.seats_available,
-          enrollment: row.enrollment,
-          max_enrollment: row.max_enrollment,
-          open: row.open === 1,
-          instructors: instMap.get(row.crn) ?? [],
-          meetings,
-          prereq_eligible: prereqEligible,
-          prereq_text: courseInfo?.prereq_text ?? null,
+      const sections = merged.map((s) => {
+        const courseInfo = courseMap.get(normCode(s.subjectCourse));
+        return {
+          ...s,
+          prereqEligible: checkPrereqEligible(courseInfo?.prereq_parsed ?? null, completedSet),
+          prereqText: courseInfo?.prereq_text ?? null,
         };
-
-        // A section with no meeting rows (async/online) can't be confirmed to
-        // satisfy no_meeting_before/exclude_days — it's neither vacuously
-        // included nor silently dropped, it goes in a separate array so the
-        // advisor still sees it.
-        if (timeDayConstraintGiven && !hasMeetings) {
-          sectionsWithoutMeetings.push({
-            ...base,
-            note:
-              "No meeting times on file (async/online section) — cannot " +
-              "confirm it satisfies the time/day constraint(s); review manually.",
-          });
-          continue;
-        }
-
-        if (timeDayConstraintGiven && hasMeetings) {
-          let violates = false;
-          for (const mg of mgMap!.values()) {
-            if (noMeetingBeforeMins !== null && mg.startMin < noMeetingBeforeMins) {
-              violates = true;
-              break;
-            }
-            if (excludeDaySet && mg.days.some((d) => excludeDaySet.has(d))) {
-              violates = true;
-              break;
-            }
-          }
-          if (violates) continue;
-        }
-
-        sections.push(base);
-      }
+      });
 
       const result: Record<string, unknown> = {
         term,
         term_description: meta.termDescription,
-        slot_type: slotType,
+        requirement,
         total_credits_required: rule.total_credits,
+        total_matched: sections.length,
         sections,
         applied_constraints: appliedConstraints,
         data_as_of: meta.fetchedAt,
         _source: `Clemson University Online Catalog (gc_advisor) + Banner schedule ${meta.fetchedAt}`,
       };
-      // Only present when a time/day constraint was actually given — keeps
-      // the response shape identical to today's when no constraints are
-      // passed (regression guard).
-      if (timeDayConstraintGiven) result.sections_without_meetings = sectionsWithoutMeetings;
-
-      // Opt-in live seat overlay. Mutates `sections` in place, so the returned
-      // seat counts are live for every CRN Banner could match.
-      if (args.refresh === true && sections.length > 0) {
-        result.refresh = await overlayLiveSeats(
-          term,
-          sections as unknown as OverlaySection[],
-        );
-      }
+      if (noteParts.length > 0) result.note = noteParts.join(" ");
 
       return okJson(result);
     } finally {
@@ -698,482 +641,18 @@ export const findEligibleSections: McpToolDefinition = {
       schedDb.close();
     }
   },
-};
+  };
+}
 
-// ---------------------------------------------------------------------------
-// find-sections-by-schedule — schedule-fit search with NO subject/requirement
-// required. This is find-eligible-sections minus the gc_advisor.db join
-// (no ATTACH, no program/rule/prereq) — a pure query over the Banner
-// schedule snapshot, for "any 3-credit course that fits MWF 12:20 with
-// open seats" style requests where the caller doesn't have a subject or a
-// GC requirement slot in hand.
-// ---------------------------------------------------------------------------
-
-export const findSectionsBySchedule: McpToolDefinition = {
-  operation: "clemson.find_sections_by_schedule",
-  tool: {
-    name: "find-sections-by-schedule",
-    description:
-      "Finds sections in a term that fit scheduling constraints across ALL " +
-      "departments — use for 'any 3-credit course that meets MWF 12:20 with " +
-      "seats' or 'something that fits my open Tue/Thu block.' Unlike " +
-      "search-clemson-classes (needs a subject) and find-eligible-sections " +
-      "(needs a GC requirement slot), this searches by schedule fit. " +
-      "Requires at least one constraint besides term. Narrow with subject, " +
-      "days_within, a time window, or min_seats (minimum open seats). Sections " +
-      "come back most-open-first. If too many fit, it returns needs_narrowing " +
-      "with the total and a by_subject breakdown INSTEAD of a list — relay the " +
-      "count, suggest a subject area or tighter constraint, and re-run. " +
-      "Async/online sections (no meeting time) are excluded from a time search.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        term: {
-          type: "string",
-          description: "Term code, e.g. 202608.",
-        },
-        credits: {
-          type: "number",
-          description:
-            "Match sections whose credit_hours is within 0.01 of this value.",
-        },
-        subject: {
-          type: "string",
-          description:
-            "Optional subject prefix to narrow to, e.g. 'CPSC'.",
-        },
-        days_within: {
-          type: "string",
-          description:
-            "The days the student is free, e.g. 'MWF' or 'TR'. A section " +
-            "qualifies only if EVERY one of its meeting days is in this " +
-            "set (a MW course fits 'MWF'; a MWF course does NOT fit 'MW').",
-        },
-        starts_at: {
-          type: "string",
-          description:
-            "Optional HHMM string, e.g. '1220'. At least one of the " +
-            "section's meetings must start exactly at this time.",
-        },
-        no_meeting_before: {
-          type: "string",
-          description:
-            "Optional HHMM string, e.g. '0900'. Excludes a section if ANY " +
-            "of its meetings starts before this time.",
-        },
-        no_meeting_after: {
-          type: "string",
-          description:
-            "Optional HHMM string, e.g. '1700'. Excludes a section if ANY " +
-            "of its meetings ends after this time.",
-        },
-        exclude_days: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Optional day codes to avoid, e.g. ['F'] (M T W R F S U). " +
-            "Excludes a section if ANY of its meetings falls on one of " +
-            "these days.",
-        },
-        avoid_conflict_with: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Optional CRNs already on the student's schedule. Excludes a " +
-            "section if any of its meetings time-conflicts (same day, " +
-            "overlapping interval) with any meeting of these CRNs.",
-        },
-        open_only: {
-          type: "boolean",
-          description:
-            "Optional. If true, excludes sections with seats_available <= 0.",
-        },
-        min_seats: {
-          type: "number",
-          description:
-            "Optional. Only sections with at least this many seats available. " +
-            "Use to narrow a broad result to sections with real room (e.g. 5).",
-        },
-        refresh: {
-          type: "boolean",
-          description:
-            "Optional, default false. If true, overlay up-to-the-minute seat " +
-            "counts from live Banner onto the returned sections (slower). Only " +
-            "applied when the result is a concrete section list; a result that " +
-            "still needs narrowing is not refreshed. Pass true only when the " +
-            "advisor needs seats RIGHT NOW.",
-        },
-      },
-      required: ["term"],
-    },
-  },
-  async handler(args) {
-    try {
-      assertMcpOperation("clemson.find_sections_by_schedule");
-    } catch (e) {
-      return permissionErr(e);
-    }
-
-    const term = args.term as string | undefined;
-    if (!term) return err("term is required");
-
-    const credits = typeof args.credits === "number" ? args.credits : undefined;
-
-    const subject =
-      typeof args.subject === "string" && args.subject ? args.subject : undefined;
-
-    const daysWithin =
-      typeof args.days_within === "string" && args.days_within
-        ? args.days_within.toUpperCase()
-        : undefined;
-
-    const startsAt =
-      typeof args.starts_at === "string" && args.starts_at ? args.starts_at : undefined;
-    let startsAtMins: number | null = null;
-    if (startsAt !== undefined) {
-      startsAtMins = hhmmToMins(startsAt);
-      if (startsAtMins === null)
-        return err(
-          `starts_at must be an HHMM string, e.g. "1220" (got "${startsAt}").`,
-        );
-    }
-
-    const noMeetingBefore =
-      typeof args.no_meeting_before === "string" && args.no_meeting_before
-        ? args.no_meeting_before
-        : undefined;
-    let noMeetingBeforeMins: number | null = null;
-    if (noMeetingBefore !== undefined) {
-      noMeetingBeforeMins = hhmmToMins(noMeetingBefore);
-      if (noMeetingBeforeMins === null)
-        return err(
-          `no_meeting_before must be an HHMM string, e.g. "0900" (got "${noMeetingBefore}").`,
-        );
-    }
-
-    const noMeetingAfter =
-      typeof args.no_meeting_after === "string" && args.no_meeting_after
-        ? args.no_meeting_after
-        : undefined;
-    let noMeetingAfterMins: number | null = null;
-    if (noMeetingAfter !== undefined) {
-      noMeetingAfterMins = hhmmToMins(noMeetingAfter);
-      if (noMeetingAfterMins === null)
-        return err(
-          `no_meeting_after must be an HHMM string, e.g. "1700" (got "${noMeetingAfter}").`,
-        );
-    }
-
-    const excludeDaySet =
-      Array.isArray(args.exclude_days) && args.exclude_days.length > 0
-        ? new Set((args.exclude_days as string[]).map((d) => d.toUpperCase()))
-        : null;
-
-    const avoidConflictWith =
-      Array.isArray(args.avoid_conflict_with) && args.avoid_conflict_with.length > 0
-        ? (args.avoid_conflict_with as string[])
-        : null;
-
-    const openOnly = args.open_only === true;
-    const minSeats =
-      typeof args.min_seats === "number" && Number.isFinite(args.min_seats)
-        ? args.min_seats
-        : undefined;
-
-    // Bounding-constraint check: open_only / min_seats / exclude_days /
-    // avoid_conflict_with alone don't bound the scan — they only filter within
-    // whatever the bounding constraints already narrowed it to.
-    if (
-      credits === undefined &&
-      subject === undefined &&
-      daysWithin === undefined &&
-      startsAtMins === null &&
-      noMeetingBeforeMins === null &&
-      noMeetingAfterMins === null
-    ) {
-      return err(
-        "Give at least one bounding constraint besides term — credits, " +
-          "subject, days_within, starts_at, or a no_meeting_before/after " +
-          "window — so this doesn't scan the whole term.",
-      );
-    }
-
-    // Whether a section's meetings can be judged against a time/day rule at
-    // all — zero-meeting (async) sections can't be, see the filtering loop.
-    const timeDayConstraintGiven =
-      daysWithin !== undefined ||
-      startsAtMins !== null ||
-      noMeetingBeforeMins !== null ||
-      noMeetingAfterMins !== null ||
-      excludeDaySet !== null;
-
-    const appliedConstraints: Record<string, unknown> = {};
-    if (credits !== undefined) appliedConstraints.credits = credits;
-    if (subject !== undefined) appliedConstraints.subject = subject;
-    if (daysWithin !== undefined) appliedConstraints.days_within = daysWithin;
-    if (startsAtMins !== null) appliedConstraints.starts_at = startsAt;
-    if (noMeetingBeforeMins !== null) appliedConstraints.no_meeting_before = noMeetingBefore;
-    if (noMeetingAfterMins !== null) appliedConstraints.no_meeting_after = noMeetingAfter;
-    if (excludeDaySet) appliedConstraints.exclude_days = [...excludeDaySet];
-    if (avoidConflictWith) appliedConstraints.avoid_conflict_with = avoidConflictWith;
-    if (openOnly) appliedConstraints.open_only = true;
-    if (minSeats !== undefined) appliedConstraints.min_seats = minSeats;
-
-    const schedDb = openScheduleDb(term);
-    if (!schedDb)
-      return err(
-        `No Banner snapshot available for term ${term}. Try again after the 05:00 daily refresh.`,
-      );
-
-    try {
-      const conditions: string[] = ["term = ?"];
-      const bindings: unknown[] = [term];
-      if (credits !== undefined) {
-        conditions.push("ABS(credit_hours - ?) < 0.01");
-        bindings.push(credits);
-      }
-      if (subject !== undefined) {
-        conditions.push("subject_course LIKE ?");
-        bindings.push(`${normCode(subject)}%`);
-      }
-
-      const meta = getScheduleDbMeta(schedDb);
-
-      const sectionRows = schedDb
-        .prepare(
-          `SELECT crn, subject_course, section, title, credit_hours,
-                  seats_available, enrollment, max_enrollment, open
-           FROM sections
-           WHERE ${conditions.join(" AND ")}
-           ORDER BY subject_course, section`,
-        )
-        .all(...bindings) as SectionRow[];
-
-      if (sectionRows.length === 0) {
-        return okJson({
-          term,
-          applied_constraints: appliedConstraints,
-          total_matched: 0,
-          sections: [],
-          sections_without_meetings: [],
-          note: "No sections in this term match the given credits/subject.",
-          data_as_of: meta.fetchedAt,
-          _source: `Banner schedule ${meta.fetchedAt}`,
-        });
-      }
-
-      const crns = sectionRows.map((r) => r.crn);
-      const crnPhs = crns.map(() => "?").join(",");
-
-      // avoid_conflict_with: same combined-meetings + findConflicts approach
-      // as find-eligible-sections.
-      let conflictingCrns: Set<string> | null = null;
-      if (avoidConflictWith) {
-        const combinedCrns = [...new Set([...crns, ...avoidConflictWith])];
-        const allMeetings = getMeetingsForCrns(schedDb, term, combinedCrns);
-        const conflicts = findConflicts(allMeetings);
-        const avoidSet = new Set(avoidConflictWith);
-        conflictingCrns = new Set<string>();
-        for (const c of conflicts) {
-          if (avoidSet.has(c.crn_a) && !avoidSet.has(c.crn_b)) conflictingCrns.add(c.crn_b);
-          else if (avoidSet.has(c.crn_b) && !avoidSet.has(c.crn_a)) conflictingCrns.add(c.crn_a);
-        }
-      }
-
-      const meetingRows = schedDb
-        .prepare(
-          `SELECT crn, day, start_min, end_min, building, room, type
-           FROM meetings WHERE term = ? AND crn IN (${crnPhs})
-             AND start_min IS NOT NULL AND end_min IS NOT NULL`,
-        )
-        .all(term, ...crns) as MeetingRow[];
-
-      const instructorRows = schedDb
-        .prepare(
-          `SELECT crn, name, email, primary_i
-           FROM instructors WHERE term = ? AND crn IN (${crnPhs})`,
-        )
-        .all(term, ...crns) as InstructorRow[];
-
-      type MGroup = {
-        startMin: number; endMin: number;
-        building: string | null; room: string | null; type: string | null;
-        days: string[];
-      };
-      const DAY_ORDER = "MTWRFSU";
-      const meetingMap = new Map<string, Map<string, MGroup>>();
-      for (const m of meetingRows) {
-        if (!meetingMap.has(m.crn)) meetingMap.set(m.crn, new Map());
-        const key = `${m.start_min}:${m.end_min}:${m.building ?? ""}:${m.room ?? ""}:${m.type ?? ""}`;
-        const byInterval = meetingMap.get(m.crn)!;
-        if (!byInterval.has(key)) {
-          byInterval.set(key, {
-            startMin: m.start_min ?? 0, endMin: m.end_min ?? 0,
-            building: m.building, room: m.room, type: m.type, days: [],
-          });
-        }
-        byInterval.get(key)!.days.push(m.day);
-      }
-
-      const instMap = new Map<string, Array<{ name: string; email: string | null; primary: boolean }>>();
-      for (const i of instructorRows) {
-        if (!instMap.has(i.crn)) instMap.set(i.crn, []);
-        instMap.get(i.crn)!.push({ name: i.name, email: i.email, primary: i.primary_i === 1 });
-      }
-
-      const matches: Record<string, unknown>[] = [];
-      // Async/online sections (no meeting rows) can't fit a specific time slot,
-      // so a time/day query EXCLUDES them — but count them for a one-line note
-      // rather than dumping the whole (often huge) pile into the result, which
-      // buries the real time-matches and overwhelms the model.
-      let asyncSkipped = 0;
-
-      for (const row of sectionRows) {
-        // open_only / min_seats / avoid_conflict_with apply to every section —
-        // including zero-meeting (async) ones — and can exclude it outright.
-        if (openOnly && row.seats_available <= 0) continue;
-        if (minSeats !== undefined && row.seats_available < minSeats) continue;
-        if (conflictingCrns?.has(row.crn)) continue;
-
-        const mgMap = meetingMap.get(row.crn);
-        const hasMeetings = !!mgMap && mgMap.size > 0;
-        const meetings = mgMap
-          ? [...mgMap.values()].map((mg) => ({
-              days: [...mg.days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)).join(""),
-              beginTime: minsToHHMM(mg.startMin),
-              endTime: minsToHHMM(mg.endMin),
-              building: mg.building,
-              room: mg.room,
-              type: mg.type,
-            }))
-          : [];
-
-        const base = {
-          crn: row.crn,
-          subject_course: row.subject_course,
-          section: row.section,
-          title: row.title,
-          credit_hours: row.credit_hours,
-          seats_available: row.seats_available,
-          enrollment: row.enrollment,
-          max_enrollment: row.max_enrollment,
-          open: row.open === 1,
-          instructors: instMap.get(row.crn) ?? [],
-          meetings,
-        };
-
-        // A section with no meeting rows (async/online) can't fit a specific
-        // time/day slot. Count it (surfaced as a one-line note) and exclude it
-        // from a time search rather than dumping it into the result.
-        if (timeDayConstraintGiven && !hasMeetings) {
-          asyncSkipped++;
-          continue;
-        }
-
-        if (timeDayConstraintGiven && hasMeetings) {
-          const mgs = [...mgMap!.values()];
-          let violates = false;
-
-          if (daysWithin !== undefined) {
-            for (const mg of mgs) {
-              if (mg.days.some((d) => !daysWithin.includes(d))) {
-                violates = true;
-                break;
-              }
-            }
-          }
-          if (!violates && startsAtMins !== null) {
-            if (!mgs.some((mg) => mg.startMin === startsAtMins)) violates = true;
-          }
-          if (!violates && noMeetingBeforeMins !== null) {
-            if (mgs.some((mg) => mg.startMin < noMeetingBeforeMins!)) violates = true;
-          }
-          if (!violates && noMeetingAfterMins !== null) {
-            if (mgs.some((mg) => mg.endMin > noMeetingAfterMins!)) violates = true;
-          }
-          if (!violates && excludeDaySet) {
-            if (mgs.some((mg) => mg.days.some((d) => excludeDaySet.has(d)))) violates = true;
-          }
-          if (violates) continue;
-        }
-
-        matches.push(base);
-      }
-
-      // Most-open sections first — for filling a slot, room to add matters.
-      matches.sort(
-        (a, b) => (b.seats_available as number) - (a.seats_available as number),
-      );
-
-      const totalMatched = matches.length;
-      const NARROW_THRESHOLD = 15;
-      const asyncNote =
-        asyncSkipped > 0
-          ? ` ${asyncSkipped} async/online section(s) also match the credit/seat filters but have no scheduled time, so they can't fit a slot and were excluded.`
-          : "";
-
-      // Too many to list usefully in a chat: return a subject breakdown so the
-      // advisor can ask the student to narrow (with concrete suggestions) rather
-      // than dumping a long list.
-      if (totalMatched > NARROW_THRESHOLD) {
-        const bySubject = new Map<string, number>();
-        for (const m of matches) {
-          const subj = String(m.subject_course ?? "").match(/^[A-Za-z]+/)?.[0] ?? "?";
-          bySubject.set(subj, (bySubject.get(subj) ?? 0) + 1);
-        }
-        const by_subject = [...bySubject.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 12)
-          .map(([subject, count]) => ({ subject, count }));
-        return okJson({
-          term,
-          applied_constraints: appliedConstraints,
-          total_matched: totalMatched,
-          needs_narrowing: true,
-          by_subject,
-          data_as_of: meta.fetchedAt,
-          _source: `Banner schedule ${meta.fetchedAt}`,
-          note:
-            `${totalMatched} sections fit — too many to list well. Ask the advisor to narrow first: ` +
-            `a subject area (the most common are in by_subject), tighter days/time, or more open ` +
-            `seats (min_seats).` + asyncNote,
-        });
-      }
-
-      const result: Record<string, unknown> = {
-        term,
-        applied_constraints: appliedConstraints,
-        total_matched: totalMatched,
-        sections: matches,
-        data_as_of: meta.fetchedAt,
-        _source: `Banner schedule ${meta.fetchedAt}`,
-      };
-      if (asyncNote) result.note = asyncNote.trim();
-
-      // Opt-in live seat overlay — only for a concrete section list (the
-      // needs_narrowing branch above returns before here). Subject-capped
-      // inside overlayLiveSeats.
-      if (args.refresh === true && matches.length > 0) {
-        result.refresh = await overlayLiveSeats(
-          term,
-          matches as unknown as OverlaySection[],
-        );
-      }
-
-      return okJson(result);
-    } finally {
-      schedDb.close();
-    }
-  },
-};
+export const findRequirementSections: McpToolDefinition = makeFindRequirementSections();
 
 // ---------------------------------------------------------------------------
 // get-program-requirements — surfaces the requirement_rule rows in
 // gc_advisor.db for any program (minor, certificate, or the GC BS), by name.
-// Unlike find-eligible-sections/find-sections-by-schedule this does NOT open
-// a Banner schedule snapshot — it's a pure read of the catalog DB, so the GC
-// program-loaded restriction that gates those tools doesn't apply here: any
-// of the 133 minors/certificates plus the GC BS can be looked up.
+// Unlike find-requirement-sections this does NOT open a Banner schedule
+// snapshot — it's a pure read of the catalog DB, so the GC program-loaded
+// restriction that gates that tool doesn't apply here: any of the 133
+// minors/certificates plus the GC BS can be looked up.
 // ---------------------------------------------------------------------------
 
 interface ProgramRow {
@@ -1362,8 +841,7 @@ export const scheduleFreshness: McpToolDefinition = {
 };
 
 registerTools([
-  findEligibleSections,
-  findSectionsBySchedule,
+  findRequirementSections,
   getProgramRequirements,
   scheduleFreshness,
 ]);

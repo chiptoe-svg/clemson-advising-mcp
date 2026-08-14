@@ -395,14 +395,6 @@ actions:
     constraints:
       - public_data_only
 
-  - id: clemson.gc_course
-    surface: external_read
-    risk: low
-    reversibility: read_only
-    approval: none
-    constraints:
-      - public_data_only
-
   # Deterministic degree audit on a sanitized gc-progress-v1 record.
   # Input is sanitized-by-construction: course codes + terms + credits only;
   # no grades, no student identity, no FERPA content. Runs on-host (execFile
@@ -424,15 +416,7 @@ actions:
     constraints:
       - public_data_only
 
-  - id: clemson.find_eligible_sections
-    surface: external_read
-    risk: low
-    reversibility: read_only
-    approval: none
-    constraints:
-      - public_data_only
-
-  - id: clemson.find_sections_by_schedule
+  - id: clemson.find_requirement_sections
     surface: external_read
     risk: low
     reversibility: read_only

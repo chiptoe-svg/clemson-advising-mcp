@@ -318,15 +318,10 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     status: "active",
     policyActionId: "clemson.find_conflict_free_schedule",
   },
-  "clemson.find_eligible_sections": {
+  "clemson.find_requirement_sections": {
     backend: "external-http",
     status: "active",
-    policyActionId: "clemson.find_eligible_sections",
-  },
-  "clemson.find_sections_by_schedule": {
-    backend: "external-http",
-    status: "active",
-    policyActionId: "clemson.find_sections_by_schedule",
+    policyActionId: "clemson.find_requirement_sections",
   },
   "clemson.gc_program_requirements": {
     backend: "external-http",
@@ -357,11 +352,6 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     status: "active",
     policyActionId: "clemson.gc_gen_ed",
-  },
-  "clemson.gc_course": {
-    backend: "external-http",
-    status: "active",
-    policyActionId: "clemson.gc_course",
   },
   "clemson.gc_audit_progress": {
     backend: "external-http",
@@ -662,10 +652,8 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.gc_program_plan",
     "clemson.gc_requirement_rules",
     "clemson.gc_gen_ed",
-    "clemson.gc_course",
     "clemson.gc_audit_progress",
-    "clemson.find_eligible_sections",
-    "clemson.find_sections_by_schedule",
+    "clemson.find_requirement_sections",
     "clemson.gc_program_requirements",
     "clemson.schedule_freshness",
   ],

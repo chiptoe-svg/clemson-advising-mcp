@@ -1,12 +1,16 @@
 // test/clemson-advising.test.ts
 //
-// find-eligible-sections: requirement -> offered-sections join plus the
-// scheduling-constraint filters (no_meeting_before, exclude_days,
-// avoid_conflict_with, open_only, catalog_year). Uses a small hermetic
-// fixture gc_advisor.db (mirrors the real schema — catalog_year, program,
-// requirement_rule, course) rather than the live project DB, so this test
-// doesn't drift when that project's data changes; the schedule DB is built
-// the same way test/clemson-schedule-db.test.ts does.
+// get-program-requirements + get-schedule-freshness + the overlayLiveSeats
+// live-seat-refresh helper — the tools/helpers in
+// src/mcp-tools/clemson-advising.ts that were NOT reshaped/removed by Task 6
+// of the local-model-tool-surface plan. find-requirement-sections (the
+// reshape of the former find-eligible-sections) has its own dedicated test
+// file, test/find-requirement-sections.test.ts; find-sections-by-schedule was
+// removed outright (replaced by find-alternatives on 8766). Uses a small
+// hermetic fixture gc_advisor.db (mirrors the real schema — catalog_year,
+// program, requirement_rule, course) rather than the live project DB, so this
+// test doesn't drift when that project's data changes; the schedule DB is
+// built the same way test/clemson-schedule-db.test.ts does.
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -125,8 +129,6 @@ buildGcAdvisorFixture();
 
 const { writeScheduleDb } = await import("../src/clemson-schedule-db.ts");
 const {
-  findEligibleSections,
-  findSectionsBySchedule,
   getProgramRequirements,
   scheduleFreshness,
   overlayLiveSeats,
@@ -243,189 +245,6 @@ const SNAP: ClemsonTermSnapshot = {
 SNAP.sectionCount = SNAP.sections.length;
 writeScheduleDb(SNAP);
 
-async function call(args: Record<string, unknown>) {
-  const res = await findEligibleSections.handler(args);
-  assert.notEqual(res.isError, true, (res.content[0] as { text: string }).text);
-  return JSON.parse((res.content[0] as { text: string }).text) as {
-    sections: Array<{ crn: string; [k: string]: unknown }>;
-    sections_without_meetings?: Array<{ crn: string; [k: string]: unknown }>;
-    applied_constraints: Record<string, unknown>;
-    total_credits_required: number;
-  };
-}
-
-const BASE_ARGS = { term: TERM, slot_type: SLOT, completed_courses: [] as string[] };
-
-test("no constraints given -> identical to today's behavior (regression guard)", async () => {
-  const out = await call({ ...BASE_ARGS });
-  // Latest catalog year (2025-2026) is used by default; all 4 sections present,
-  // no filtering, no sections_without_meetings field at all.
-  const crns = out.sections.map((s) => s.crn).sort();
-  assert.deepEqual(crns, ["90001", "90002", "90003", "90004", "90005", "90006", "90007"]);
-  assert.equal(out.total_credits_required, 12);
-  assert.equal("sections_without_meetings" in out, false);
-  assert.deepEqual(out.applied_constraints, {});
-});
-
-test("exclude_days excludes a Friday-meeting section", async () => {
-  const out = await call({ ...BASE_ARGS, exclude_days: ["F"] });
-  const crns = out.sections.map((s) => s.crn);
-  assert.ok(!crns.includes("90001"), "Friday section 90001 should be excluded");
-  assert.ok(crns.includes("90002"), "non-Friday section 90002 should remain");
-});
-
-test("no_meeting_before excludes a pre-9:00 section and keeps a 9:00+ one", async () => {
-  const out = await call({ ...BASE_ARGS, no_meeting_before: "0900" });
-  const crns = out.sections.map((s) => s.crn);
-  assert.ok(!crns.includes("90002"), "0800 section should be excluded");
-  assert.ok(crns.includes("90003"), "0900 section should be kept");
-});
-
-test("avoid_conflict_with excludes a section that overlaps a current-schedule CRN", async () => {
-  const out = await call({ ...BASE_ARGS, avoid_conflict_with: ["90010"] });
-  const crns = out.sections.map((s) => s.crn);
-  assert.ok(!crns.includes("90004"), "90004 (10:00-11:00) overlaps current 90010 (10:30-11:30)");
-});
-
-test("avoid_conflict_with keeps a section that is only adjacent (touching boundary) to a current-schedule CRN", async () => {
-  // 90005 (Monday 11:00-12:00) touches current 90011 (Monday 12:00-13:00)
-  // exactly at the boundary — findConflicts' half-open interval semantics
-  // mean this is NOT a conflict. (90005 is deliberately not checked against
-  // 90010 here — it does overlap 90010's 10:30-11:30 window — this test
-  // isolates the adjacent-boundary case.)
-  const out = await call({ ...BASE_ARGS, avoid_conflict_with: ["90011"] });
-  const crns = out.sections.map((s) => s.crn);
-  assert.ok(crns.includes("90005"), "90005 (11:00-12:00) is adjacent to current 90011 (12:00-13:00), not a conflict");
-});
-
-test("open_only excludes a seats_available<=0 section", async () => {
-  const out = await call({ ...BASE_ARGS, open_only: true });
-  const crns = out.sections.map((s) => s.crn);
-  assert.ok(!crns.includes("90006"), "full section 90006 should be excluded");
-  assert.ok(crns.includes("90005"), "open section 90005 should remain");
-});
-
-test("zero-meeting async section with a time/day constraint lands in sections_without_meetings, not sections, not dropped", async () => {
-  const out = await call({ ...BASE_ARGS, no_meeting_before: "0900" });
-  const sectionCrns = out.sections.map((s) => s.crn);
-  assert.ok(!sectionCrns.includes("90007"), "async section must not be in sections");
-  assert.ok(out.sections_without_meetings, "sections_without_meetings must be present");
-  const asyncCrns = out.sections_without_meetings!.map((s) => s.crn);
-  assert.ok(asyncCrns.includes("90007"), "async section must be surfaced, not silently dropped");
-  const asyncEntry = out.sections_without_meetings!.find((s) => s.crn === "90007")!;
-  assert.equal(typeof asyncEntry.note, "string");
-});
-
-test("zero-meeting async section with NO time/day constraint goes in sections normally", async () => {
-  const out = await call({ ...BASE_ARGS, open_only: true });
-  const crns = out.sections.map((s) => s.crn);
-  assert.ok(crns.includes("90007"), "async section belongs in sections when no time/day constraint given");
-  assert.equal("sections_without_meetings" in out, false);
-});
-
-test("catalog_year selects the older program/rule instead of latest", async () => {
-  const out = await call({ ...BASE_ARGS, catalog_year: "2024-2025" });
-  assert.equal(out.total_credits_required, 6);
-  const crns = out.sections.map((s) => s.crn).sort();
-  // Old catalog's explicit_courses is only GC3010/GC3020 (no GC3030/GC3040).
-  assert.deepEqual(crns, ["90001", "90002", "90003", "90004"]);
-  assert.equal(out.applied_constraints.catalog_year, "2024-2025");
-});
-
-test("unknown catalog_year returns a clear error", async () => {
-  const res = await findEligibleSections.handler({ ...BASE_ARGS, catalog_year: "1999-2000" });
-  assert.equal(res.isError, true);
-  assert.match((res.content[0] as { text: string }).text, /not found for catalog year/);
-});
-
-test("invalid no_meeting_before format returns a clear error", async () => {
-  const res = await findEligibleSections.handler({ ...BASE_ARGS, no_meeting_before: "9am" });
-  assert.equal(res.isError, true);
-  assert.match((res.content[0] as { text: string }).text, /HHMM/);
-});
-
-test("applied_constraints echoes back exactly what was passed", async () => {
-  const out = await call({ ...BASE_ARGS, exclude_days: ["f"], open_only: true });
-  // normalized to uppercase
-  assert.deepEqual(out.applied_constraints.exclude_days, ["F"]);
-  assert.equal(out.applied_constraints.open_only, true);
-});
-
-// ---------------------------------------------------------------------------
-// find-sections-by-schedule — schedule-fit search with no subject/requirement
-// required. Reuses the same schedule DB fixture written above (no gc_advisor
-// join at all).
-// ---------------------------------------------------------------------------
-
-async function callSchedule(args: Record<string, unknown>) {
-  const res = await findSectionsBySchedule.handler(args);
-  return {
-    res,
-    body: res.isError
-      ? null
-      : (JSON.parse((res.content[0] as { text: string }).text) as {
-          total_matched: number;
-          sections?: Array<{ crn: string; seats_available?: number; [k: string]: unknown }>;
-          needs_narrowing?: boolean;
-          by_subject?: Array<{ subject: string; count: number }>;
-          note?: string;
-          applied_constraints: Record<string, unknown>;
-        }),
-  };
-}
-
-test("find-sections-by-schedule: missing bounding constraint returns a clear error", async () => {
-  const { res } = await callSchedule({ term: TERM });
-  assert.equal(res.isError, true);
-  assert.match(
-    (res.content[0] as { text: string }).text,
-    /at least one bounding constraint/,
-  );
-});
-
-test("find-sections-by-schedule: credits + days_within + starts_at matches the MWF 12:20 section", async () => {
-  const { body } = await callSchedule({
-    term: TERM,
-    credits: 3,
-    days_within: "MWF",
-    starts_at: "1220",
-  });
-  assert.ok(body);
-  const crns = (body!.sections ?? []).map((s) => s.crn);
-  assert.ok(crns.includes("90020"), "ENGL1010 MWF 12:20 section should match");
-});
-
-test("find-sections-by-schedule: open_only excludes a zero-seat section", async () => {
-  const { body } = await callSchedule({ term: TERM, credits: 3, open_only: true });
-  assert.ok(body);
-  const crns = (body!.sections ?? []).map((s) => s.crn);
-  assert.ok(!crns.includes("90006"), "full section 90006 should be excluded by open_only");
-});
-
-test("find-sections-by-schedule: a section on a day outside days_within is excluded", async () => {
-  const { body } = await callSchedule({ term: TERM, credits: 3, days_within: "MW" });
-  assert.ok(body);
-  const crns = (body!.sections ?? []).map((s) => s.crn);
-  assert.ok(!crns.includes("90001"), "Friday-only section 90001 does not fit days_within 'MW'");
-  assert.ok(crns.includes("90003"), "Monday-only section 90003 fits days_within 'MW'");
-});
-
-test("find-sections-by-schedule: min_seats filters by available seats and is echoed", async () => {
-  const { body } = await callSchedule({ term: TERM, credits: 3, min_seats: 999 });
-  assert.ok(body);
-  assert.equal(body!.applied_constraints.min_seats, 999);
-  assert.equal(body!.total_matched, 0, "no section has 999 open seats — all filtered out");
-});
-
-test("find-sections-by-schedule: a time/day query excludes async (no-meeting) sections and reports the count in a note", async () => {
-  const { body } = await callSchedule({ term: TERM, credits: 3, days_within: "MWF" });
-  assert.ok(body);
-  const sectionCrns = (body!.sections ?? []).map((s) => s.crn);
-  assert.ok(!sectionCrns.includes("90007"), "async section can't fit a day/time slot — excluded from sections");
-  assert.equal("sections_without_meetings" in body!, false, "no async pile is returned for a time query");
-  assert.match(body!.note ?? "", /async/i, "the excluded async count is surfaced in a note");
-});
-
 // ---------------------------------------------------------------------------
 // get-program-requirements — reads requirement_rule rows for minors/
 // certificates (and the GC BS) directly from the gc_advisor.db fixture, with
@@ -516,14 +335,6 @@ test("get-schedule-freshness requires a term", async () => {
   assert.equal(res.isError, true);
 });
 
-// The advising results now carry a machine-readable data_as_of alongside the
-// prose _source, so the agent can cite the snapshot date without parsing text.
-test("find-eligible-sections includes data_as_of matching the snapshot", async () => {
-  const res = await findEligibleSections.handler({ ...BASE_ARGS });
-  const out = JSON.parse((res.content[0] as { text: string }).text) as Record<string, unknown>;
-  assert.equal(out.data_as_of, SNAP.fetchedAt);
-});
-
 // overlayLiveSeats: the opt-in live-seat overlay behind refresh:true. Tested
 // in isolation with a stub live fetcher (no Banner) so the mapping, capping,
 // and partial-failure behavior are deterministic.
@@ -599,12 +410,4 @@ test("overlayLiveSeats survives a failed subject query, marking those CRNs stale
   assert.deepEqual(summary.subjects_failed, ["ENGL"]);
   assert.equal(sections[0].seats_available, 0);
   assert.equal(sections[1].seats_available, 1);
-});
-
-// The handler leaves the result untouched (no `refresh` block, snapshot seats)
-// when refresh is not requested — the default, network-free path.
-test("find-eligible-sections omits the refresh block when refresh is not set", async () => {
-  const res = await findEligibleSections.handler({ ...BASE_ARGS });
-  const out = JSON.parse((res.content[0] as { text: string }).text) as Record<string, unknown>;
-  assert.equal("refresh" in out, false);
 });

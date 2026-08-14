@@ -2,7 +2,7 @@
 // (see src/gc-curriculum.ts). Read-only, public catalog data, no credentials.
 import Database from "better-sqlite3";
 
-import { getGcProgramPlan, listGcCatalogYears, getGcRequirementRules, getGcGenEd, getGcCourse, auditGcProgress } from "../gc-curriculum.js";
+import { getGcProgramPlan, listGcCatalogYears, getGcRequirementRules, getGcGenEd, auditGcProgress } from "../gc-curriculum.js";
 import { GC_ADVISOR_DB } from "../config.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
@@ -296,50 +296,6 @@ export const genEd: McpToolDefinition = {
   },
 };
 
-export const course: McpToolDefinition = {
-  operation: "clemson.gc_course",
-  tool: {
-    name: "get-clemson-course",
-    description:
-      "Get details for a Clemson course by code: title, credits, description, " +
-      "prerequisites (raw text and parsed course codes). Read-only, no login. " +
-      'Example code: "GC 3010" or "MKTG 3010". For a course with a corequisite ' +
-      "(notably GC lecture/lab pairs), the result also includes a `coreqs` array " +
-      "with the paired course(s) and their title/credits (e.g. GC 4060 returns " +
-      "GC 4061, its required non-credit lab) — report them when asked about either.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        code: {
-          type: "string",
-          description: 'Course code, e.g. "GC 3010" or "MKTG 3010".',
-        },
-      },
-      required: ["code"],
-    },
-  },
-  async handler(args) {
-    try {
-      assertMcpOperation("clemson.gc_course");
-    } catch (e) {
-      return permissionErr(e);
-    }
-    const code = args.code as string | undefined;
-    if (!code) return err("code is required");
-    try {
-      const c = await getGcCourse(code);
-      const coreqs = findCoreqs(code);
-      return okJson({
-        ...(c as object),
-        ...(coreqs.length ? { coreqs } : {}),
-        _source: "Clemson University Online Catalog (gc_advisor)",
-      });
-    } catch (e) {
-      return err(`GC course lookup failed: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  },
-};
-
 export const auditProgress: McpToolDefinition = {
   operation: "clemson.gc_audit_progress",
   tool: {
@@ -378,4 +334,4 @@ export const auditProgress: McpToolDefinition = {
   },
 };
 
-registerTools([catalogYears, programPlan, requirementRules, genEd, course, auditProgress]);
+registerTools([catalogYears, programPlan, requirementRules, genEd, auditProgress]);
