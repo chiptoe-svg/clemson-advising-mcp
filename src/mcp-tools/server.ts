@@ -95,14 +95,26 @@ export function registerTools(tools: McpToolDefinition[]): void {
  * stay consistent. Throws on an unknown source name or an occupied target — a
  * rename that silently did nothing would reintroduce the collision it exists to
  * prevent, and one that overwrote a live tool would be worse still.
+ *
+ * An optional `description` replaces the tool's advertised description too.
+ * Two servers can share a module-level tool definition (e.g. skills.ts) but
+ * expose genuinely different corpora under the renamed name — without this,
+ * the renamed copy keeps the original's text verbatim, including any
+ * self-references to the pre-rename name. Omitting it leaves the description
+ * untouched, exactly as before this parameter existed.
  */
-export function renameRegisteredTool(from: string, to: string): void {
+export function renameRegisteredTool(
+  from: string,
+  to: string,
+  description?: string,
+): void {
   const t = toolMap.get(from);
   if (!t) throw new Error(`cannot rename unknown tool "${from}"`);
   if (toolMap.has(to))
     throw new Error(`cannot rename "${from}" to "${to}": already registered`);
   toolMap.delete(from);
   t.tool.name = to;
+  if (description !== undefined) t.tool.description = description;
   toolMap.set(to, t);
 }
 

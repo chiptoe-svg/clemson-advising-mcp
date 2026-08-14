@@ -37,8 +37,25 @@ setSkillExposure(CATALOG_SKILLS);
 // The catalog's copies are renamed rather than the public server's: `list-skills`
 // meant the public server's skills before this server had any, and the advisor's
 // prompt and the shipped skill documents refer to it under that name.
-renameRegisteredTool("list-skills", "list-gc-skills");
-renameRegisteredTool("get-skill-docs", "get-gc-skill-docs");
+//
+// The renamed copies also get GC-specific descriptions: skills.ts's original
+// text is byte-identical between the two servers and self-refers to the public
+// server's tool names, which is wrong on 8767 (a model here can't tell the two
+// corpora apart, and get-gc-skill-docs pointed at "list-skills" — the OTHER
+// server's tool).
+renameRegisteredTool(
+  "list-skills",
+  "list-gc-skills",
+  "List the Graphic Communications advisor's skill documents by name and " +
+    "description. Pass a name to get-gc-skill-docs to retrieve the full " +
+    "content.",
+);
+renameRegisteredTool(
+  "get-skill-docs",
+  "get-gc-skill-docs",
+  "Return the full documentation for a Graphic Communications advisor " +
+    "skill by name. Use list-gc-skills to discover available skill names.",
+);
 
 startMcpServer({
   name: "cuassistant-catalog",
