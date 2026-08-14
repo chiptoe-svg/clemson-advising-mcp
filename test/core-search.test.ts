@@ -31,11 +31,15 @@ const {
   checkConflicts,
   getCourseDetails,
   makeGetCourseDetails,
+  makeSearchClasses,
 } = await import("../src/mcp-tools/core-search.ts");
 const { toolsForScope } = await import("../src/mcp-tools/server.ts");
 const { allExposedOperations } = await import("../src/mcp-tools/permissions.ts");
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import type { ClemsonTermSnapshot } from "../src/clemson-classes.ts";
+import type {
+  ClemsonTermSnapshot,
+  ClemsonSearchResult,
+} from "../src/clemson-classes.ts";
 
 const TERM = "202701"; // Spring 2027
 
@@ -243,6 +247,73 @@ test("search-classes: EngineSection fields are present on each result", async ()
   assert.equal(s.seatsAvailable, 10);
   assert.deepEqual(s.instructors, ["Jane Smith"]);
   assert.ok(Array.isArray(s.meetings) && s.meetings.length === 3);
+});
+
+test("search-classes: refresh:true post-filters live results by instructor", async () => {
+  const liveSections = [
+    section({
+      crn: "40001",
+      subjectCourse: "GC1010",
+      instructors: [{ name: "Jane Smith", email: null, primary: true }],
+      meetings: [meeting("MWF", "0900", "0950")],
+    }),
+    section({
+      crn: "40002",
+      subjectCourse: "GC1010",
+      instructors: [{ name: "Bob Jones", email: null, primary: true }],
+      meetings: [meeting("MWF", "0900", "0950")],
+    }),
+  ];
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: liveSections.length,
+    sections: liveSections,
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive });
+
+  const res = await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+    instructor: "smith",
+  });
+  const body = json(res);
+  assert.deepEqual(crns(body.sections), ["40001"]);
+  assert.equal(body.totalCount, 1); // recomputed post-filter, not Banner's pre-filter count
+  assert.equal(body.scope, "live");
+});
+
+test("search-classes: refresh:true post-filters live results by building_room", async () => {
+  const liveSections = [
+    section({
+      crn: "40010",
+      subjectCourse: "GC1010",
+      meetings: [meeting("MWF", "0900", "0950", "Godfrey Hall", "205")],
+    }),
+    section({
+      crn: "40011",
+      subjectCourse: "GC1010",
+      meetings: [meeting("MWF", "0900", "0950", "Lee Hall", "100")],
+    }),
+  ];
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: liveSections.length,
+    sections: liveSections,
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive });
+
+  const res = await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+    building_room: "godfrey",
+  });
+  const body = json(res);
+  assert.deepEqual(crns(body.sections), ["40010"]);
+  assert.equal(body.totalCount, 1);
 });
 
 test("search-classes: an unrecognized term returns the TermError redirect verbatim", async () => {

@@ -86,6 +86,31 @@ interface MeetingRow {
   room: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Shared filter predicates — exported so callers that get sections from
+// somewhere other than this engine (e.g. core-search.ts's search-classes
+// refresh:true live-Banner path) can post-filter with IDENTICAL semantics to
+// the SQL EXISTS clauses above, instead of re-deriving their own substring
+// rules that could silently drift from these.
+// ---------------------------------------------------------------------------
+
+/** Case-insensitive substring match against any instructor name — mirrors
+ * the `instructors` EXISTS clause above. */
+export function matchesInstructor(instructors: string[], substr: string): boolean {
+  const needle = substr.toLowerCase();
+  return instructors.some((name) => name.toLowerCase().includes(needle));
+}
+
+/** Case-insensitive substring match against any meeting's "building room"
+ * (space-joined, missing side blank) — mirrors the `meetings` EXISTS clause
+ * above exactly, including the null-coalescing-to-empty-string behavior. */
+export function matchesBuildingRoom(meetings: EngineMeeting[], substr: string): boolean {
+  const needle = substr.toLowerCase();
+  return meetings.some((m) =>
+    `${m.building ?? ""} ${m.room ?? ""}`.toLowerCase().includes(needle),
+  );
+}
+
 function hhmmToMins(t: string): number | null {
   if (!/^\d{4}$/.test(t)) return null;
   const h = parseInt(t.slice(0, 2), 10);

@@ -31,6 +31,8 @@ import {
 } from "../clemson-schedule-db.js";
 import {
   querySectionsEngine,
+  matchesInstructor,
+  matchesBuildingRoom,
   type EngineSection,
   type EngineMeeting,
 } from "./section-query.js";
@@ -250,11 +252,33 @@ export function makeSearchClasses(
             "Clemson class search unavailable — Banner did not return data after retries. Try again shortly.",
           );
         }
+
+        // Banner's live search has no instructor/building_room params — it
+        // only scopes by term/subject/courseNumber/openOnly. Apply those two
+        // filters here, client-side, with the SAME semantics querySectionsEngine
+        // uses (matchesInstructor/matchesBuildingRoom in section-query.ts), so
+        // refresh:true can't silently return unfiltered results a caller
+        // believes are scoped. totalCount is recomputed post-filter — Banner's
+        // count describes the pre-filter page, not what's actually returned.
+        let sections = toEngineSections(result.sections);
+        const instructorFilter = strOrUndef(args.instructor);
+        const buildingRoomFilter = strOrUndef(args.building_room);
+        if (instructorFilter) {
+          sections = sections.filter((s) =>
+            matchesInstructor(s.instructors, instructorFilter),
+          );
+        }
+        if (buildingRoomFilter) {
+          sections = sections.filter((s) =>
+            matchesBuildingRoom(s.meetings, buildingRoomFilter),
+          );
+        }
+
         return okJson({
-          totalCount: result.totalCount,
+          totalCount: sections.length,
           snapshotDate: result.snapshotDate,
           scope: result.scope,
-          sections: toEngineSections(result.sections),
+          sections,
         });
       }
 
@@ -507,9 +531,6 @@ export function makeGetCourseDetails(
       } catch (e) {
         return permissionErr(e);
       }
-      const resolved = resolveTerm(strOrUndef(args.term));
-      if ("error" in resolved) return err(resolved.error);
-
       const courseCode = strOrUndef(args.course_code);
       const crn = strOrUndef(args.crn);
       if (!courseCode && !crn) {
@@ -519,6 +540,10 @@ export function makeGetCourseDetails(
         );
       }
 
+      // Term resolution is CRN-only: the course_code path (getGcCourse) never
+      // consumes term, and the schema says as much ("Only used with crn").
+      // Resolving it unconditionally meant a course_code-only lookup could
+      // fail on a term/snapshot error it promised immunity from.
       if (courseCode) {
         try {
           const c = await getCourse(courseCode);
@@ -529,6 +554,9 @@ export function makeGetCourseDetails(
           );
         }
       }
+
+      const resolved = resolveTerm(strOrUndef(args.term));
+      if ("error" in resolved) return err(resolved.error);
 
       const details = await getSectionDetails(resolved.term, crn!);
       if (details === null) return err("Clemson section details unavailable.");
