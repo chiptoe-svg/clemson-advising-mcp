@@ -33,6 +33,7 @@ import {
   querySectionsEngine,
   matchesInstructor,
   matchesBuildingRoom,
+  matchesDayTimeFilters,
   type EngineSection,
   type EngineMeeting,
 } from "./section-query.js";
@@ -253,16 +254,22 @@ export function makeSearchClasses(
           );
         }
 
-        // Banner's live search has no instructor/building_room params — it
-        // only scopes by term/subject/courseNumber/openOnly. Apply those two
-        // filters here, client-side, with the SAME semantics querySectionsEngine
-        // uses (matchesInstructor/matchesBuildingRoom in section-query.ts), so
+        // Banner's live search has no instructor/building_room/days/
+        // no_meeting_before/no_meeting_after params — it only scopes by
+        // term/subject/courseNumber/openOnly. Apply ALL of search-classes'
+        // other advertised filters here, client-side, with the SAME
+        // semantics querySectionsEngine uses (matchesInstructor/
+        // matchesBuildingRoom/matchesDayTimeFilters in section-query.ts), so
         // refresh:true can't silently return unfiltered results a caller
-        // believes are scoped. totalCount is recomputed post-filter — Banner's
-        // count describes the pre-filter page, not what's actually returned.
+        // believes are scoped. totalCount is recomputed post-filter —
+        // Banner's count describes the pre-filter page, not what's actually
+        // returned.
         let sections = toEngineSections(result.sections);
         const instructorFilter = strOrUndef(args.instructor);
         const buildingRoomFilter = strOrUndef(args.building_room);
+        const daysFilter = strOrUndef(args.days);
+        const noMeetingBeforeFilter = strOrUndef(args.no_meeting_before);
+        const noMeetingAfterFilter = strOrUndef(args.no_meeting_after);
         if (instructorFilter) {
           sections = sections.filter((s) =>
             matchesInstructor(s.instructors, instructorFilter),
@@ -271,6 +278,15 @@ export function makeSearchClasses(
         if (buildingRoomFilter) {
           sections = sections.filter((s) =>
             matchesBuildingRoom(s.meetings, buildingRoomFilter),
+          );
+        }
+        if (daysFilter || noMeetingBeforeFilter || noMeetingAfterFilter) {
+          sections = sections.filter((s) =>
+            matchesDayTimeFilters(s.meetings, {
+              days: daysFilter,
+              noMeetingBefore: noMeetingBeforeFilter,
+              noMeetingAfter: noMeetingAfterFilter,
+            }),
           );
         }
 

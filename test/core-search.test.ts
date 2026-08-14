@@ -316,6 +316,102 @@ test("search-classes: refresh:true post-filters live results by building_room", 
   assert.equal(body.totalCount, 1);
 });
 
+test("search-classes: refresh:true post-filters live results by days (every meeting day must be within the set)", async () => {
+  const liveSections = [
+    section({
+      crn: "40020",
+      subjectCourse: "GC1010",
+      meetings: [meeting("MW", "1000", "1050")],
+    }),
+    section({
+      crn: "40021",
+      subjectCourse: "GC1010",
+      meetings: [meeting("MWF", "1000", "1050")], // F isn't within "MW" -> violates
+    }),
+  ];
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: liveSections.length,
+    sections: liveSections,
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive });
+
+  const res = await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+    days: "MW",
+  });
+  const body = json(res);
+  assert.deepEqual(crns(body.sections), ["40020"]);
+  assert.equal(body.totalCount, 1);
+});
+
+test("search-classes: refresh:true post-filters live results by no_meeting_before", async () => {
+  const liveSections = [
+    section({
+      crn: "40030",
+      subjectCourse: "GC1010",
+      meetings: [meeting("MWF", "0900", "0950")], // starts at the bound -> kept
+    }),
+    section({
+      crn: "40031",
+      subjectCourse: "GC1010",
+      meetings: [meeting("MWF", "0800", "0850")], // starts earlier -> excluded
+    }),
+  ];
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: liveSections.length,
+    sections: liveSections,
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive });
+
+  const res = await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+    no_meeting_before: "0900",
+  });
+  const body = json(res);
+  assert.deepEqual(crns(body.sections), ["40030"]);
+  assert.equal(body.totalCount, 1);
+});
+
+test("search-classes: refresh:true post-filters live results by no_meeting_after", async () => {
+  const liveSections = [
+    section({
+      crn: "40040",
+      subjectCourse: "GC1010",
+      meetings: [meeting("MWF", "1600", "1700")], // ends at the bound -> kept
+    }),
+    section({
+      crn: "40041",
+      subjectCourse: "GC1010",
+      meetings: [meeting("MWF", "1630", "1730")], // ends later -> excluded
+    }),
+  ];
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: liveSections.length,
+    sections: liveSections,
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive });
+
+  const res = await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+    no_meeting_after: "1700",
+  });
+  const body = json(res);
+  assert.deepEqual(crns(body.sections), ["40040"]);
+  assert.equal(body.totalCount, 1);
+});
+
 test("search-classes: an unrecognized term returns the TermError redirect verbatim", async () => {
   const res = await searchClasses.handler({ term: "not a term", subject: "GC" });
   assert.match(errText(res), /Unrecognized term/);

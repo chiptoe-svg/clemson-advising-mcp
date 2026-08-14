@@ -111,12 +111,66 @@ export function matchesBuildingRoom(meetings: EngineMeeting[], substr: string): 
   );
 }
 
-function hhmmToMins(t: string): number | null {
+export function hhmmToMins(t: string): number | null {
   if (!/^\d{4}$/.test(t)) return null;
   const h = parseInt(t.slice(0, 2), 10);
   const m = parseInt(t.slice(2), 10);
   if (h > 23 || m > 59) return null;
   return h * 60 + m;
+}
+
+export interface DayTimeFilters {
+  days?: string; // e.g. "MWF" — every meeting day must be within this set
+  excludeDays?: string[];
+  noMeetingBefore?: string; // "HHMM"
+  noMeetingAfter?: string; // "HHMM"
+}
+
+/** True if `meetings` clears every given days/excludeDays/noMeetingBefore/
+ * noMeetingAfter constraint — mirrors the row-level day/time filtering block
+ * below (the `timeDayConstraintGiven` / `violates` logic) exactly, including
+ * two easy-to-miss rules: (1) a section with NO meetings (async/online) is
+ * excluded whenever ANY of these constraints is given, never silently kept,
+ * and (2) a section only survives if EVERY one of its meetings clears EVERY
+ * given constraint, not just one meeting or one constraint. No constraints
+ * given -> always true (a no-op filter). */
+export function matchesDayTimeFilters(
+  meetings: EngineMeeting[],
+  filters: DayTimeFilters,
+): boolean {
+  const daysWithin = filters.days?.toUpperCase();
+  const excludeDaySet =
+    filters.excludeDays && filters.excludeDays.length > 0
+      ? new Set(filters.excludeDays.map((d) => d.toUpperCase()))
+      : null;
+  const noMeetingBeforeMins =
+    filters.noMeetingBefore !== undefined ? hhmmToMins(filters.noMeetingBefore) : null;
+  const noMeetingAfterMins =
+    filters.noMeetingAfter !== undefined ? hhmmToMins(filters.noMeetingAfter) : null;
+
+  const constraintGiven =
+    daysWithin !== undefined ||
+    excludeDaySet !== null ||
+    noMeetingBeforeMins !== null ||
+    noMeetingAfterMins !== null;
+  if (!constraintGiven) return true;
+  if (meetings.length === 0) return false; // async/online can't satisfy a time/day rule
+
+  if (daysWithin !== undefined && meetings.some((m) => !daysWithin.includes(m.day)))
+    return false;
+  if (excludeDaySet && meetings.some((m) => excludeDaySet.has(m.day))) return false;
+  if (
+    noMeetingBeforeMins !== null &&
+    meetings.some((m) => (hhmmToMins(m.start) ?? -Infinity) < noMeetingBeforeMins)
+  )
+    return false;
+  if (
+    noMeetingAfterMins !== null &&
+    meetings.some((m) => (hhmmToMins(m.end) ?? Infinity) > noMeetingAfterMins)
+  )
+    return false;
+
+  return true;
 }
 
 // ---------------------------------------------------------------------------
