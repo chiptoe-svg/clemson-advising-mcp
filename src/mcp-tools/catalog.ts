@@ -299,7 +299,7 @@ export const genEd: McpToolDefinition = {
 export const course: McpToolDefinition = {
   operation: "clemson.gc_course",
   tool: {
-    name: "get-gc-course",
+    name: "get-clemson-course",
     description:
       "Get details for a Clemson course by code: title, credits, description, " +
       "prerequisites (raw text and parsed course codes). Read-only, no login. " +
