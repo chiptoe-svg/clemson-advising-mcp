@@ -311,12 +311,16 @@ export function querySectionsEngine(
         const subj = m.subjectCourse.match(/^[A-Za-z]+/)?.[0] ?? "?";
         bySubject.set(subj, (bySubject.get(subj) ?? 0) + 1);
       }
+      const by_subject = [...bySubject.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12)
+        .map(([subject, count]) => [subject, count]);
       return {
         totalCount,
         sections: [],
         needsNarrowing: {
           total: totalCount,
-          bySubject: Object.fromEntries(bySubject),
+          bySubject: Object.fromEntries(by_subject),
         },
         snapshotDate: meta.fetchedAt,
       };

@@ -212,18 +212,19 @@ SNAP.sectionCount = SNAP.sections.length;
 writeScheduleDb(SNAP);
 
 // ---------------------------------------------------------------------------
-// Narrowing fixture (NARROW_TERM): 20 sections, no other distinguishing
-// constraint, so an unfiltered query trips needs_narrowing.
+// Narrowing fixture (NARROW_TERM): sections with varying counts per subject
+// so an unfiltered query trips needs_narrowing, and bySubject ordering can be
+// verified. Designed to have counts: GC(6), MATH(5), CPSC(4), ENGL(3).
 // ---------------------------------------------------------------------------
 
-const NARROW_SUBJECTS = ["GC", "CPSC", "MATH", "ENGL"];
+const NARROW_SUBJECTS = ["GC", "GC", "GC", "GC", "GC", "GC", "MATH", "MATH", "MATH", "MATH", "MATH", "CPSC", "CPSC", "CPSC", "CPSC", "ENGL", "ENGL", "ENGL"];
 const NARROW_SNAP: ClemsonTermSnapshot = {
   term: NARROW_TERM,
   termDescription: "Spring 2027",
   fetchedAt: "2026-07-21T05:00:00.000Z",
   sectionCount: 0,
-  sections: Array.from({ length: 20 }, (_, i) => {
-    const subj = NARROW_SUBJECTS[i % NARROW_SUBJECTS.length];
+  sections: Array.from({ length: NARROW_SUBJECTS.length }, (_, i) => {
+    const subj = NARROW_SUBJECTS[i];
     return {
       ...section({
         crn: `3${String(i).padStart(4, "0")}`,
@@ -239,6 +240,51 @@ const NARROW_SNAP: ClemsonTermSnapshot = {
 };
 NARROW_SNAP.sectionCount = NARROW_SNAP.sections.length;
 writeScheduleDb(NARROW_SNAP);
+
+// ---------------------------------------------------------------------------
+// Narrowing fixture for cap test (NARROW_TERM, appended): 15 subjects with
+// distinct counts so capping to 12 can be verified.
+// ---------------------------------------------------------------------------
+
+const CAP_TEST_TERM = "202610";
+const CAP_SUBJECTS = [
+  "GC", "GC", "GC", "GC", "GC", // 5
+  "CPSC", "CPSC", "CPSC", "CPSC", // 4
+  "MATH", "MATH", "MATH", // 3
+  "ENGL", "ENGL", // 2
+  "HIST", "HIST", "HIST", "HIST", "HIST", "HIST", // 6
+  "PHYS", "PHYS", "PHYS", "PHYS", "PHYS", "PHYS", "PHYS", // 7
+  "CHEM", "CHEM", "CHEM", "CHEM", "CHEM", "CHEM", "CHEM", "CHEM", // 8
+  "BIO", "BIO", "BIO", "BIO", "BIO", "BIO", "BIO", "BIO", "BIO", // 9
+  "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", // 10
+  "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", // 11
+  "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", // 12
+  "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", // 13
+  "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", // 14
+  "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", // 15
+];
+const CAP_SNAP: ClemsonTermSnapshot = {
+  term: CAP_TEST_TERM,
+  termDescription: "Summer 2027",
+  fetchedAt: "2026-07-22T05:00:00.000Z",
+  sectionCount: 0,
+  sections: Array.from({ length: CAP_SUBJECTS.length }, (_, i) => {
+    const subj = CAP_SUBJECTS[i];
+    return {
+      ...section({
+        crn: `4${String(i).padStart(4, "0")}`,
+        subjectCourse: `${subj}${1000 + i}`,
+        title: `Cap Test Course ${i}`,
+        seatsAvailable: 10,
+        meetings: [meeting("MWF", "0900", "0950")],
+      }),
+      term: CAP_TEST_TERM,
+      termDescription: "Summer 2027",
+    };
+  }),
+};
+CAP_SNAP.sectionCount = CAP_SNAP.sections.length;
+writeScheduleDb(CAP_SNAP);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -323,6 +369,14 @@ test("days filter: MW section fits within MWF, T section does not", () => {
   assert.ok(!result.sections.some((s) => s.crn === "20007")); // T does not fit
 });
 
+test("days filter: MWF section does NOT fit within MW (EVERY-day semantics)", () => {
+  const result = ok(
+    querySectionsEngine({ term: TERM, subject: "GC", days: "MW" }),
+  );
+  assert.ok(!result.sections.some((s) => s.crn === "20001")); // MWF has F, outside set
+  assert.ok(result.sections.some((s) => s.crn === "20006")); // MW fits
+});
+
 test("excludeDays excludes any section meeting on one of the given days", () => {
   const result = ok(
     querySectionsEngine({ term: TERM, subject: "GC", excludeDays: ["F"] }),
@@ -394,23 +448,45 @@ test("EngineSection carries crn/subjectCourse/title/creditHours/seatsAvailable/i
 
 test("needsNarrowing envelope: >15 matches returns total + bySubject instead of a section list", () => {
   const result = ok(querySectionsEngine({ term: NARROW_TERM }));
-  assert.equal(result.totalCount, 20);
+  assert.equal(result.totalCount, 18);
   assert.deepEqual(result.sections, []);
   assert.ok(result.needsNarrowing);
-  assert.equal(result.needsNarrowing?.total, 20);
+  assert.equal(result.needsNarrowing?.total, 18);
+  // Verify bySubject is sorted descending by count AND preserves order (insertion order in JS object)
+  const subjectKeys = Object.keys(result.needsNarrowing?.bySubject || {});
   assert.deepEqual(result.needsNarrowing?.bySubject, {
-    GC: 5,
-    CPSC: 5,
+    GC: 6,
     MATH: 5,
-    ENGL: 5,
+    CPSC: 4,
+    ENGL: 3,
   });
+  assert.deepEqual(subjectKeys, ["GC", "MATH", "CPSC", "ENGL"]);
 });
 
 test("needsNarrowing does not trip once narrowed below the threshold", () => {
   const result = ok(querySectionsEngine({ term: NARROW_TERM, subject: "GC" }));
-  assert.equal(result.totalCount, 5);
+  assert.equal(result.totalCount, 6);
   assert.equal(result.needsNarrowing, undefined);
-  assert.equal(result.sections.length, 5);
+  assert.equal(result.sections.length, 6);
+});
+
+test("needsNarrowing bySubject capped to top 12 subjects by count descending", () => {
+  const result = ok(querySectionsEngine({ term: CAP_TEST_TERM }));
+  assert.ok(result.needsNarrowing);
+  const subjectKeys = Object.keys(result.needsNarrowing?.bySubject || {});
+  // Verify exactly 12 subjects returned (capped)
+  assert.equal(subjectKeys.length, 12);
+  // Verify ordered by count descending
+  const counts = Object.values(result.needsNarrowing?.bySubject || {});
+  for (let i = 1; i < counts.length; i++) {
+    assert.ok(counts[i - 1] >= counts[i], `Count order violation: ${counts[i - 1]} < ${counts[i]}`);
+  }
+  // Verify top subject is MUS (15 sections)
+  assert.equal(subjectKeys[0], "MUS");
+  // Verify 13th subject (MATH with 3 sections) is NOT included
+  assert.ok(!subjectKeys.includes("MATH"));
+  // Verify CPSC (4 sections, 12th) is included
+  assert.ok(subjectKeys.includes("CPSC"));
 });
 
 test("snapshotDate is populated from the snapshot's fetchedAt", () => {
