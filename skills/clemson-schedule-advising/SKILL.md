@@ -44,7 +44,7 @@ tool to reach for, the order to call them in, and where the data lies to you.
 | `get-gc-program-plan` | Full semester-by-semester GC degree plan | Groups → items (`fixed_course` / `choice` / `slot`) → footnotes. |
 | `get-gc-requirement-rules` | Lab-science / specialty-area / technical slot rules | The `slot_type` values here are the required input to `find-eligible-sections`; `explicit_courses` lists what satisfies each slot. |
 | `get-gc-gen-ed` | The six Gen-Ed categories with min credits + allowed courses | Apply the `rules` constraint sentences (e.g. Social Sciences "two different fields"). |
-| `get-gc-course` | Title, credits, description, prereqs for one course | Returns null if the code isn't in the DB — tell the student to verify the code. |
+| `get-clemson-course` | Title, credits, description, prereqs for one course | Returns null if the code isn't in the DB — tell the student to verify the code. |
 | `audit-gc-progress` | Deterministic degree audit on a sanitized ledger | Input is course codes + terms + credits only — no identity, no grades (and none accepted). |
 | `find-eligible-sections` | **The advising join** — sections that satisfy a GC slot AND are offered this term AND are prereq-eligible, with scheduling-constraint filters | Does the whole join in SQL. When a question combines a requirement slot with time/day/conflict/open-seat constraints, make **one** call with those filters — do not pull the full eligible list and hand-filter it. Read the schema for the current filter arguments. |
 
