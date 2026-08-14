@@ -135,9 +135,11 @@ export const catalogYears: McpToolDefinition = {
   tool: {
     name: "list-gc-catalog-years",
     description:
-      "List Clemson catalog years available for Graphic Communications " +
-      'curriculum lookups, e.g. "2026-2027". Read-only, no login. Pass a ' +
-      "returned year to get-gc-program-plan.",
+      "Use ONLY to discover valid GC catalog years when none is known. If " +
+      "you already have a catalog year (or the student's term/plan), call " +
+      "the operation directly. Lists Clemson catalog years for Graphic " +
+      "Communications curriculum lookups, e.g. " +
+      '"2026-2027". Read-only, no login.',
     inputSchema: { type: "object" as const, properties: {} },
   },
   async handler() {
