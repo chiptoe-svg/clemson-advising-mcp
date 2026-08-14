@@ -298,25 +298,20 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     status: "active",
     policyActionId: "clemson.search_classes",
   },
-  "clemson.section_details": {
+  "clemson.find_alternatives": {
     backend: "external-http",
     status: "active",
-    policyActionId: "clemson.section_details",
+    policyActionId: "clemson.find_alternatives",
   },
-  "clemson.instructor_classes": {
+  "clemson.check_conflicts": {
     backend: "external-http",
     status: "active",
-    policyActionId: "clemson.instructor_classes",
+    policyActionId: "clemson.check_conflicts",
   },
-  "clemson.room_availability": {
+  "clemson.course_details": {
     backend: "external-http",
     status: "active",
-    policyActionId: "clemson.room_availability",
-  },
-  "clemson.check_schedule_conflicts": {
-    backend: "external-http",
-    status: "active",
-    policyActionId: "clemson.check_schedule_conflicts",
+    policyActionId: "clemson.course_details",
   },
   "clemson.find_conflict_free_schedule": {
     backend: "external-http",
@@ -659,10 +654,9 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
   clemson: [
     "clemson.list_terms",
     "clemson.search_classes",
-    "clemson.section_details",
-    "clemson.instructor_classes",
-    "clemson.room_availability",
-    "clemson.check_schedule_conflicts",
+    "clemson.find_alternatives",
+    "clemson.check_conflicts",
+    "clemson.course_details",
     "clemson.find_conflict_free_schedule",
     "clemson.gc_catalog_years",
     "clemson.gc_program_plan",

@@ -339,7 +339,7 @@ actions:
     constraints:
       - public_data_only
 
-  - id: clemson.section_details
+  - id: clemson.find_alternatives
     surface: external_read
     risk: low
     reversibility: read_only
@@ -347,7 +347,7 @@ actions:
     constraints:
       - public_data_only
 
-  - id: clemson.instructor_classes
+  - id: clemson.check_conflicts
     surface: external_read
     risk: low
     reversibility: read_only
@@ -355,7 +355,7 @@ actions:
     constraints:
       - public_data_only
 
-  - id: clemson.room_availability
+  - id: clemson.course_details
     surface: external_read
     risk: low
     reversibility: read_only
@@ -409,14 +409,6 @@ actions:
   # to audit.py in gc_advisor), no external network call. Treated as external_read
   # because it consumes catalog data via the gc_advisor DB.
   - id: clemson.gc_audit_progress
-    surface: external_read
-    risk: low
-    reversibility: read_only
-    approval: none
-    constraints:
-      - public_data_only
-
-  - id: clemson.check_schedule_conflicts
     surface: external_read
     risk: low
     reversibility: read_only

@@ -5,20 +5,30 @@ import {
   assertMcpOperation,
   isMcpOperationExposed,
 } from "../src/mcp-tools/permissions.ts";
-import { searchClasses } from "../src/mcp-tools/clemson-classes.ts";
 
 // The Clemson Browse Classes tools are public, no-auth, read-only and should be
-// exposed (their policy actions are approval=none).
+// exposed (their policy actions are approval=none). Handler-level behavior for
+// the four front-door tools (search-classes, find-alternatives, check-
+// conflicts, get-course-details) lives in test/core-search.test.ts — this file
+// only covers the surviving-as-is tools (list-clemson-terms, find-conflict-
+// free-schedule, find-eligible-sections) plus the policy-gate wiring shared
+// across the whole clemson surface.
 
-test("clemson public class tools are exposed", () => {
+test("clemson public tools are exposed", () => {
   assert.equal(isMcpOperationExposed("clemson.list_terms"), true);
   assert.equal(isMcpOperationExposed("clemson.search_classes"), true);
-  assert.equal(isMcpOperationExposed("clemson.section_details"), true);
-  assert.equal(isMcpOperationExposed("clemson.instructor_classes"), true);
-  assert.equal(isMcpOperationExposed("clemson.room_availability"), true);
-  assert.equal(isMcpOperationExposed("clemson.check_schedule_conflicts"), true);
+  assert.equal(isMcpOperationExposed("clemson.find_alternatives"), true);
+  assert.equal(isMcpOperationExposed("clemson.check_conflicts"), true);
+  assert.equal(isMcpOperationExposed("clemson.course_details"), true);
   assert.equal(isMcpOperationExposed("clemson.find_conflict_free_schedule"), true);
   assert.equal(isMcpOperationExposed("clemson.find_eligible_sections"), true);
+});
+
+test("removed operations are no longer in the allow-list", () => {
+  assert.equal(isMcpOperationExposed("clemson.section_details"), false);
+  assert.equal(isMcpOperationExposed("clemson.instructor_classes"), false);
+  assert.equal(isMcpOperationExposed("clemson.room_availability"), false);
+  assert.equal(isMcpOperationExposed("clemson.check_schedule_conflicts"), false);
 });
 
 test("clemson tools pass the policy gate", () => {
@@ -27,7 +37,7 @@ test("clemson tools pass the policy gate", () => {
     assertMcpOperation("clemson.search_classes", { input: { term: "202608" } }),
   );
   assert.doesNotThrow(() =>
-    assertMcpOperation("clemson.section_details", {
+    assertMcpOperation("clemson.course_details", {
       input: { term: "202608", crn: "85865" },
     }),
   );
@@ -44,33 +54,9 @@ test("skill docs tools are exposed and pass the policy gate", () => {
   );
 });
 
-// search-clemson-classes must reject an unscoped whole-term search — an
-// unbounded search is the context-explosion case the tool exists to avoid.
-test("search-clemson-classes rejects a call with neither subject nor courseNumber", async () => {
-  const res = await searchClasses.handler({ term: "202608" });
-  assert.equal(res.isError, true);
-  assert.match(
-    (res.content[0] as { text: string }).text,
-    /subject or courseNumber is required/,
-  );
-});
-
-test("search-clemson-classes accepts a subject-scoped call", async () => {
-  const res = await searchClasses.handler({ term: "202608", subject: "CPSC" });
-  assert.notEqual(res.isError, true, (res.content[0] as { text: string }).text);
-});
-
-test("search-clemson-classes accepts a courseNumber-scoped call", async () => {
-  const res = await searchClasses.handler({
-    term: "202608",
-    courseNumber: "1010",
-  });
-  assert.notEqual(res.isError, true, (res.content[0] as { text: string }).text);
-});
-
 test("schedule conflict tools pass the policy gate", () => {
   assert.doesNotThrow(() =>
-    assertMcpOperation("clemson.check_schedule_conflicts", {
+    assertMcpOperation("clemson.check_conflicts", {
       input: { term: "202608", crns: ["80001"] },
     }),
   );
