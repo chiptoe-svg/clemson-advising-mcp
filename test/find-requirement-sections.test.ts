@@ -89,6 +89,21 @@ function buildGcAdvisorFixture(): void {
       raw_text: "latest catalog rule",
     }),
   );
+  // Dedicated requirement whose single explicit course offers more sections
+  // than querySectionsEngine's NARROW_THRESHOLD (15) — exercises the
+  // narrowedCourses note path (clemson-advising.ts ~554-561). Kept out of
+  // SLOT's explicit_courses so it can't perturb any of the SLOT-based tests.
+  const NARROW_SLOT = "Narrow Test Requirement";
+  insertRule.run(
+    2,
+    NARROW_SLOT,
+    JSON.stringify({
+      slot_type: NARROW_SLOT,
+      total_credits: 3,
+      explicit_courses: ["GC 3050"],
+      raw_text: "narrow test rule",
+    }),
+  );
 
   const insertCourse = db.prepare(
     "INSERT INTO course (code, subject, number, prereq_text, prereq_parsed) VALUES (?, ?, ?, ?, ?)",
@@ -97,6 +112,7 @@ function buildGcAdvisorFixture(): void {
   insertCourse.run("GC 3020", "GC", "3020", "GC 3010", JSON.stringify(["GC 3010"])); // requires GC 3010
   insertCourse.run("GC 3030", "GC", "3030", null, null);
   insertCourse.run("GC 3040", "GC", "3040", null, null);
+  insertCourse.run("GC 3050", "GC", "3050", null, null); // no prereq — narrowedCourses fixture
 
   db.close();
 }
@@ -177,6 +193,19 @@ const SNAP: ClemsonTermSnapshot = {
     // Anchor sections (student's current schedule) — not in any explicit_courses list.
     section({ crn: "90010", subjectCourse: "MATH1060", section: "001", title: "Trig", enrollment: 10, seatsAvailable: 5, meetings: [meeting("M", "1030", "1130")] }),
     section({ crn: "90011", subjectCourse: "MATH1080", section: "001", title: "Calc", enrollment: 10, seatsAvailable: 5, meetings: [meeting("M", "1200", "1300")] }),
+    // GC3050: 16 sections (> querySectionsEngine's NARROW_THRESHOLD of 15) —
+    // "Narrow Test Requirement"'s only explicit course, dedicated to the
+    // narrowedCourses note test. Not referenced by SLOT, so it can't affect
+    // any SLOT-based test above.
+    ...Array.from({ length: 16 }, (_, i) =>
+      section({
+        crn: `91${String(i).padStart(3, "0")}`,
+        subjectCourse: "GC3050",
+        section: String(i + 1).padStart(3, "0"),
+        title: `Narrow Elective ${i + 1}`,
+        meetings: [meeting("MWF", "0900", "0950")],
+      }),
+    ),
   ],
 };
 SNAP.sectionCount = SNAP.sections.length;
@@ -299,6 +328,11 @@ test("sections carry the EngineSection fields plus prereqEligible/prereqText", a
   assert.equal(s.title, "Studio A");
   assert.equal(s.creditHours, 3);
   assert.equal(typeof s.seatsAvailable, "number");
+  // Propagated through querySectionsEngine without extra work on this tool's
+  // part — fixture default (section() in this file) is enrollment:10,
+  // maxEnrollment:20, not overridden for 90001.
+  assert.equal(s.enrollment, 10);
+  assert.equal(s.maxEnrollment, 20);
   assert.ok(Array.isArray(s.instructors));
   assert.ok(Array.isArray(s.meetings));
   assert.equal(s.prereqEligible, true); // GC 3010 has no prereq
@@ -408,4 +442,18 @@ test("total_matched reflects the merged section count", async () => {
   const out = await call({ ...BASE_ARGS, catalog_year: "2024-2025" });
   assert.equal(out.total_matched, 4);
   assert.equal(out.sections.length, 4);
+});
+
+// ---------------------------------------------------------------------------
+// narrowedCourses: a single explicit course exceeding NARROW_THRESHOLD
+// ---------------------------------------------------------------------------
+
+test("a course offering more sections than NARROW_THRESHOLD is omitted and noted, not silently dropped", async () => {
+  const out = await call({ requirement: "Narrow Test Requirement", completed_courses: [] });
+  // GC 3050 is the requirement's only explicit course, and it needs_narrowing
+  // (16 sections > NARROW_THRESHOLD) — so merged ends up empty rather than
+  // silently dropping those 16 sections with no explanation.
+  assert.equal(out.sections.length, 0);
+  assert.match(out.note, /GC 3050/);
+  assert.match(out.note, /more sections than can be listed/);
 });

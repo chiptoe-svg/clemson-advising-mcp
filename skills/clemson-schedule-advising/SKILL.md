@@ -73,8 +73,9 @@ first — caveats and data provenance), `top_first_jobs`, `starting_salary`,
 skill index — GC scheduling/tool workflows, requirement rules, how the
 assistant works), `check-system-health` (pings each data source + the
 inference backends), `get-schedule-freshness` (8767 — snapshot age for a term,
-no Banner load), `list-clemson-terms` (8766 — Banner term codes; rarely needed
-since every tool above defaults its own term).
+no Banner load; unlike the tools above, `term` is **required**, not defaulted),
+`list-clemson-terms` (8766 — Banner term codes; rarely needed since every
+other tool above defaults its own term).
 
 For deeper GC advising domain rules — degree-audit logic, specialty-area
 approval, lab co-requisite pairs, internships, transfer credit, scheduling

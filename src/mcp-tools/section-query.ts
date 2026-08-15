@@ -48,6 +48,8 @@ export interface EngineSection {
   subjectCourse: string;
   title: string;
   creditHours: number | null;
+  enrollment: number;
+  maxEnrollment: number;
   seatsAvailable: number;
   instructors: string[];
   meetings: EngineMeeting[];
@@ -74,6 +76,8 @@ interface SectionRow {
   subject_course: string;
   title: string;
   credit_hours: number | null;
+  enrollment: number;
+  max_enrollment: number;
   seats_available: number;
 }
 
@@ -242,7 +246,7 @@ export function querySectionsEngine(
     const where = conditions.join(" AND ");
     const rows = db
       .prepare(
-        `SELECT crn, subject_course, title, credit_hours, seats_available
+        `SELECT crn, subject_course, title, credit_hours, enrollment, max_enrollment, seats_available
          FROM sections WHERE ${where} ORDER BY subject_course, section`,
       )
       .all(...bindings) as SectionRow[];
@@ -367,6 +371,8 @@ export function querySectionsEngine(
         subjectCourse: row.subject_course,
         title: row.title,
         creditHours: row.credit_hours,
+        enrollment: row.enrollment,
+        maxEnrollment: row.max_enrollment,
         seatsAvailable: row.seats_available,
         instructors: instructorsByCrn.get(row.crn) ?? [],
         meetings: mgs.map((m) => ({

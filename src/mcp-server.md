@@ -238,13 +238,17 @@ but have no tool handler — reserved/gated, not built.)
 
 ## Operation table — `cuassistant-public`
 
-| Tool                              | Operation key                | Policy action                | Backend | Exposed |
-| --------------------------------- | ---------------------------- | ---------------------------- | ------- | ------- |
-| `list-clemson-terms`              | `clemson.list_terms`         | `clemson.list_terms`         | Banner  | yes     |
-| `search-clemson-classes`          | `clemson.search_classes`     | `clemson.search_classes`     | Banner  | yes     |
-| `get-clemson-section-details`     | `clemson.section_details`    | `clemson.section_details`    | Banner  | yes     |
-| `find-clemson-instructor-classes` | `clemson.instructor_classes` | `clemson.instructor_classes` | Banner  | yes     |
-| `get-clemson-room-availability`   | `clemson.room_availability`  | `clemson.room_availability`  | Banner  | yes     |
+Server 8766. See `docs/tool-rename-map.md` for the old→new tool-name migration
+(this table reflects the deployed surface, post-migration).
+
+| Tool                          | Operation key                         | Policy action                         | Backend | Exposed |
+| ------------------------------ | -------------------------------------- | -------------------------------------- | ------- | ------- |
+| `list-clemson-terms`          | `clemson.list_terms`                  | `clemson.list_terms`                  | Banner  | yes     |
+| `search-classes`              | `clemson.search_classes`              | `clemson.search_classes`              | Banner  | yes     |
+| `find-alternatives`           | `clemson.find_alternatives`           | `clemson.find_alternatives`           | Banner  | yes     |
+| `check-conflicts`             | `clemson.check_conflicts`             | `clemson.check_conflicts`             | Banner  | yes     |
+| `get-course-details`          | `clemson.course_details`              | `clemson.course_details`              | Banner  | yes     |
+| `find-conflict-free-schedule` | `clemson.find_conflict_free_schedule` | `clemson.find_conflict_free_schedule` | Banner  | yes     |
 
 ## Tool details
 
@@ -312,10 +316,9 @@ Active; policy constraints enforced on every call.
 
 ### Clemson public class schedule — `cuassistant-public` (Banner, no auth)
 
-- `list-clemson-terms`, `search-clemson-classes`,
-  `get-clemson-section-details`, `find-clemson-instructor-classes`,
-  `get-clemson-room-availability` — read Clemson's public Banner Browse
-  Classes data. No credentials.
+- `list-clemson-terms`, `search-classes`, `find-alternatives`,
+  `check-conflicts`, `get-course-details`, `find-conflict-free-schedule` —
+  read Clemson's public Banner Browse Classes data. No credentials.
 
 ## Widening a policy-blocked operation
 

@@ -428,7 +428,7 @@ test("combined filters: subject + openSeatsOnly + credits narrows to the matchin
   assert.ok(result.sections.every((s) => s.creditHours === 3 && s.seatsAvailable > 0));
 });
 
-test("EngineSection carries crn/subjectCourse/title/creditHours/seatsAvailable/instructors/meetings", () => {
+test("EngineSection carries crn/subjectCourse/title/creditHours/enrollment/maxEnrollment/seatsAvailable/instructors/meetings", () => {
   const result = ok(
     querySectionsEngine({ term: TERM, subject: "GC", courseNumber: "1010" }),
   );
@@ -438,6 +438,11 @@ test("EngineSection carries crn/subjectCourse/title/creditHours/seatsAvailable/i
   assert.equal(s.title, "Intro to GC");
   assert.equal(s.creditHours, 3);
   assert.equal(s.seatsAvailable, 10);
+  // section()'s defaults (not overridden for 20001) — enrollment/maxEnrollment
+  // must round-trip from the snapshot columns (clemson-schedule-db.ts:52-53)
+  // through the engine, not just seatsAvailable.
+  assert.equal(s.enrollment, 5);
+  assert.equal(s.maxEnrollment, 20);
   assert.deepEqual(s.instructors, ["Jane Smith"]);
   assert.deepEqual(s.meetings, [
     { day: "M", start: "0900", end: "0950", building: "Lee Hall", room: "100" },
@@ -487,6 +492,16 @@ test("needsNarrowing bySubject capped to top 12 subjects by count descending", (
   assert.ok(!subjectKeys.includes("MATH"));
   // Verify CPSC (4 sections, 12th) is included
   assert.ok(subjectKeys.includes("CPSC"));
+});
+
+test("enrollment/maxEnrollment reflect the section's own values, not a shared default", () => {
+  const result = ok(querySectionsEngine({ term: TERM, subject: "GC", courseNumber: "1030" }));
+  const s = result.sections.find((x) => x.crn === "20003");
+  assert.ok(s);
+  // 20003 ("Closed Section") overrides enrollment:20, maxEnrollment:20 — distinct
+  // from the fixture default (5/20) asserted above.
+  assert.equal(s?.enrollment, 20);
+  assert.equal(s?.maxEnrollment, 20);
 });
 
 test("snapshotDate is populated from the snapshot's fetchedAt", () => {

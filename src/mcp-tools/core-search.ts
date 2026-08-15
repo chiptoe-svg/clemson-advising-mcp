@@ -70,9 +70,9 @@ const CHECK_CONFLICTS_DESCRIPTION =
 
 const GET_COURSE_DETAILS_DESCRIPTION =
   "Details for one course or one section: description, prerequisites, " +
-  "corequisites, credits, restrictions. Pass course_code (e.g. 'GC 3010') for " +
-  "catalog information, or crn for a specific section. Not a search — use " +
-  "search-classes to find sections.";
+  "corequisites, restrictions (course_code also includes credits). Pass " +
+  "course_code (e.g. 'GC 3010') for catalog information, or crn for a " +
+  "specific section. Not a search — use search-classes to find sections.";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -96,7 +96,8 @@ function strArrOrUndef(v: unknown): string[] | undefined {
 // ClemsonSection, not EngineSection — map them so the response carries the
 // same field set regardless of whether it served from the snapshot engine or
 // a live Banner query. Task 7's display handoff depends on this shape: crn,
-// subjectCourse, title, creditHours, seatsAvailable, instructors, meetings.
+// subjectCourse, title, creditHours, enrollment, maxEnrollment,
+// seatsAvailable, instructors, meetings.
 function toEngineMeetings(meetings: ClemsonSection["meetings"]): EngineMeeting[] {
   const out: EngineMeeting[] = [];
   for (const m of meetings) {
@@ -121,6 +122,8 @@ function toEngineSections(sections: ClemsonSection[]): EngineSection[] {
     subjectCourse: s.subjectCourse,
     title: s.title,
     creditHours: s.creditHours,
+    enrollment: s.enrollment,
+    maxEnrollment: s.maxEnrollment,
     seatsAvailable: s.seatsAvailable,
     instructors: s.instructors.map((i) => i.name),
     meetings: toEngineMeetings(s.meetings),

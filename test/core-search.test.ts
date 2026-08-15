@@ -245,8 +245,42 @@ test("search-classes: EngineSection fields are present on each result", async ()
   assert.equal(s.title, "Intro to GC");
   assert.equal(s.creditHours, 3);
   assert.equal(s.seatsAvailable, 10);
+  // section()'s defaults (not overridden for 30001) — enrollment/maxEnrollment
+  // must round-trip through the snapshot engine, not just seatsAvailable.
+  assert.equal(s.enrollment, 5);
+  assert.equal(s.maxEnrollment, 20);
   assert.deepEqual(s.instructors, ["Jane Smith"]);
   assert.ok(Array.isArray(s.meetings) && s.meetings.length === 3);
+});
+
+test("search-classes: refresh:true maps live enrollment/maxEnrollment through toEngineSections, not just seatsAvailable", async () => {
+  const liveSections = [
+    section({
+      crn: "40050",
+      subjectCourse: "GC1010",
+      enrollment: 18,
+      maxEnrollment: 20,
+      seatsAvailable: 2,
+      meetings: [meeting("MWF", "0900", "0950")],
+    }),
+  ];
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: liveSections.length,
+    sections: liveSections,
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive });
+
+  const res = await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+  });
+  const body = json(res);
+  const s = body.sections.find((x: any) => x.crn === "40050");
+  assert.equal(s.enrollment, 18);
+  assert.equal(s.maxEnrollment, 20);
 });
 
 test("search-classes: refresh:true post-filters live results by instructor", async () => {

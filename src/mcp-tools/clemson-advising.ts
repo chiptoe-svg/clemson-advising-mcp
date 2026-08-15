@@ -16,127 +16,12 @@ import Database from "better-sqlite3";
 
 import { GC_ADVISOR_DB } from "../config.js";
 import { openScheduleDb, getScheduleDbMeta } from "../clemson-schedule-db.js";
-import { searchClemsonClasses } from "../clemson-classes.js";
 import { querySectionsEngine, type EngineSection } from "./section-query.js";
 import { resolveTerm } from "../term-resolve.js";
 import { getGcRequirementRules as getGcRequirementRulesLive } from "../gc-curriculum.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
-
-// ---------------------------------------------------------------------------
-// Live-seat refresh (opt-in). When a caller passes refresh:true, overlay live
-// Banner seat counts onto a snapshot-derived result — a TARGETED re-query of
-// only the subjects already in the result, never a full-term reingest. Capped
-// so a broad, many-subject result can't fan out into a live-Banner storm.
-// ---------------------------------------------------------------------------
-
-/** Max distinct subjects to re-query live before we decline and ask to narrow. */
-export const MAX_REFRESH_SUBJECTS = 8;
-
-/** A section object as returned by the advising tools (snake_case seat fields). */
-export interface OverlaySection {
-  crn: string;
-  subject_course: string;
-  seats_available: number;
-  enrollment: number;
-  max_enrollment: number;
-  open: boolean;
-}
-
-/** The only live-seat fields the overlay reads back, per section. */
-interface LiveSeatRow {
-  crn: string;
-  enrollment: number;
-  maxEnrollment: number;
-  seatsAvailable: number;
-  open: boolean;
-}
-
-type LiveFetcher = (params: {
-  term: string;
-  subject: string;
-  refresh: true;
-}) => Promise<{ sections: LiveSeatRow[] } | null>;
-
-/** Subject prefix of a subject_course, e.g. "GC3010"/"GC 3010" -> "GC". */
-function subjectOf(subjectCourse: string): string {
-  const m = /^([A-Za-z]+)/.exec(subjectCourse.trim());
-  return m ? m[1].toUpperCase() : "";
-}
-
-/**
- * Overlay live Banner seat counts onto `sections` IN PLACE and return a summary
- * describing what happened. Groups by subject, re-queries each subject live
- * (capped at MAX_REFRESH_SUBJECTS), and updates seats for every CRN it can
- * match; unmatched CRNs keep their snapshot numbers and are counted as stale.
- * A subject whose live query fails leaves its CRNs stale rather than erroring
- * the whole call.
- */
-export async function overlayLiveSeats(
-  term: string,
-  sections: OverlaySection[],
-  fetchLive: LiveFetcher = searchClemsonClasses,
-): Promise<Record<string, unknown>> {
-  const subjects = [...new Set(sections.map((s) => subjectOf(s.subject_course)))].filter(Boolean);
-
-  if (subjects.length > MAX_REFRESH_SUBJECTS) {
-    return {
-      refreshed: false,
-      reason: "too_many_subjects",
-      subject_count: subjects.length,
-      note:
-        `Live refresh spans ${subjects.length} subjects (max ${MAX_REFRESH_SUBJECTS}). ` +
-        `Seats shown are from the daily snapshot — narrow the search (a subject, ` +
-        `tighter days/time, or more open seats) and refresh again for live counts.`,
-    };
-  }
-
-  const results = await Promise.allSettled(
-    subjects.map((subject) => fetchLive({ term, subject, refresh: true })),
-  );
-
-  const live = new Map<string, LiveSeatRow>();
-  const subjectsFailed: string[] = [];
-  results.forEach((r, i) => {
-    if (r.status === "fulfilled" && r.value) {
-      for (const sec of r.value.sections) live.set(sec.crn, sec);
-    } else {
-      subjectsFailed.push(subjects[i]);
-    }
-  });
-
-  let updated = 0;
-  let stale = 0;
-  for (const s of sections) {
-    const hit = live.get(s.crn);
-    if (hit) {
-      s.seats_available = hit.seatsAvailable;
-      s.enrollment = hit.enrollment;
-      s.max_enrollment = hit.maxEnrollment;
-      s.open = hit.open;
-      updated++;
-    } else {
-      stale++;
-    }
-  }
-
-  return {
-    refreshed: updated > 0,
-    seats_as_of: new Date().toISOString(),
-    subjects_queried: subjects,
-    subjects_failed: subjectsFailed,
-    crns_updated: updated,
-    crns_stale: stale,
-    ...(subjectsFailed.length || stale
-      ? {
-          note:
-            "Some sections could not be refreshed live and still show snapshot " +
-            "seats (crns_stale). Confirm those in Banner.",
-        }
-      : {}),
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Types
