@@ -67,6 +67,12 @@ export interface EngineResult {
 // chat, so return a subject breakdown instead of a page of sections.
 const NARROW_THRESHOLD = 15;
 
+// Above NARROW_THRESHOLD the result still carries a displayable page: the top
+// sections by open seats. Without it, "show me a few options" turns cannot
+// display anything and models ask or loop instead — the T3a/T3c failure
+// diagnosed in the 2026-08-16 fair grid.
+const TOP_PAGE_WHEN_NARROWING = 12;
+
 // ---------------------------------------------------------------------------
 // Internal row shapes
 // ---------------------------------------------------------------------------
@@ -402,7 +408,7 @@ export function querySectionsEngine(
         .map(([subject, count]) => [subject, count]);
       return {
         totalCount,
-        sections: [],
+        sections: matched.slice(0, TOP_PAGE_WHEN_NARROWING),
         needsNarrowing: {
           total: totalCount,
           bySubject: Object.fromEntries(by_subject),

@@ -198,11 +198,14 @@ test("search-classes: description names the discriminator and both siblings", ()
   assert.match(desc, /subject and\/or course number/);
   assert.match(desc, /check-conflicts/);
   assert.match(desc, /find-alternatives/);
+  assert.match(desc, /top sections by open seats plus a needsNarrowing summary/);
 });
 
 test("find-alternatives: description names current_crns as required", () => {
   const desc = findAlternatives.tool.description ?? "";
   assert.match(desc, /Requires current_crns/);
+  assert.match(desc, /top sections by open seats plus a needsNarrowing summary/);
+  assert.match(desc, /show a few, don't ask first/);
 });
 
 test("check-conflicts: description names pair-by-pair + candidate_crns", () => {

@@ -230,7 +230,9 @@ const NARROW_SNAP: ClemsonTermSnapshot = {
         crn: `3${String(i).padStart(4, "0")}`,
         subjectCourse: `${subj}${1000 + i}`,
         title: `Narrow Course ${i}`,
-        seatsAvailable: 10,
+        // Distinct per-section seat counts so the top-page's most-open-first
+        // ordering is observable (index i doubles as the seat count).
+        seatsAvailable: i,
         meetings: [meeting("MWF", "0900", "0950")],
       }),
       term: NARROW_TERM,
@@ -451,10 +453,21 @@ test("EngineSection carries crn/subjectCourse/title/creditHours/enrollment/maxEn
   ]);
 });
 
-test("needsNarrowing envelope: >15 matches returns total + bySubject instead of a section list", () => {
+test("needsNarrowing envelope: >15 matches returns top page + total + bySubject", () => {
   const result = ok(querySectionsEngine({ term: NARROW_TERM }));
   assert.equal(result.totalCount, 18);
-  assert.deepEqual(result.sections, []);
+  // A displayable page accompanies the narrowing summary: the top 12 by open
+  // seats. Fixture seats equal the section index, so the page is exactly
+  // indices 17..6 in descending-seat order.
+  assert.equal(result.sections.length, 12);
+  for (let i = 1; i < result.sections.length; i++) {
+    assert.ok(
+      result.sections[i - 1].seatsAvailable >= result.sections[i].seatsAvailable,
+      `top page not sorted most-open-first at index ${i}`,
+    );
+  }
+  assert.equal(result.sections[0].crn, "30017");
+  assert.equal(result.sections[11].crn, "30006");
   assert.ok(result.needsNarrowing);
   assert.equal(result.needsNarrowing?.total, 18);
   // Verify bySubject is sorted descending by count AND preserves order (insertion order in JS object)

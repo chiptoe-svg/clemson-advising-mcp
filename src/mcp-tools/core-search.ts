@@ -44,7 +44,8 @@ import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
 
 // ---------------------------------------------------------------------------
-// Tool descriptions — VERBATIM from task-5-brief.md. These are the design
+// Tool descriptions — VERBATIM from task-5-brief.md, plus the needsNarrowing
+// top-page sentences from the 2026-08-16 T3 display fix. These are the design
 // artifact; test/core-search.test.ts asserts literal substrings against them.
 // ---------------------------------------------------------------------------
 
@@ -53,14 +54,17 @@ const SEARCH_CLASSES_DESCRIPTION =
   "filters: instructor, building_room, days, no_meeting_before, no_meeting_after, " +
   "open_seats_only. Term is optional — defaults to the current registration term; " +
   "accepts names like 'Spring 2027' or codes. Do NOT use this to check conflicts " +
-  "(check-conflicts) or to find what fits an existing schedule (find-alternatives).";
+  "(check-conflicts) or to find what fits an existing schedule (find-alternatives). " +
+  "Large result sets return the top sections by open seats plus a needsNarrowing summary.";
 
 const FIND_ALTERNATIVES_DESCRIPTION =
   "Find sections that fit around a student's existing schedule without time " +
   "conflicts. Requires current_crns — the CRNs the student is keeping. Optional: " +
   "subject, credits, days, no_meeting_before, no_meeting_after, exclude_days, " +
   "open_seats_only. Returns options ready for show-schedule-options. Term is " +
-  "optional — defaults to the current registration term.";
+  "optional — defaults to the current registration term. When many fit, the " +
+  "response contains the top sections by open seats plus a needsNarrowing " +
+  "summary — show a few, don't ask first.";
 
 const CHECK_CONFLICTS_DESCRIPTION =
   "Check which CRNs in a schedule have time conflicts, pair by pair. Optional " +
