@@ -76,7 +76,10 @@ const GET_COURSE_DETAILS_DESCRIPTION =
   "Details for one course or one section: description, prerequisites, " +
   "corequisites, restrictions (course_code also includes credits). Pass " +
   "course_code (e.g. 'GC 3010') for catalog information, or crn for a " +
-  "specific section. Not a search — use search-classes to find sections.";
+  "specific section. Not a search — use search-classes to find sections. " +
+  "Each entry in coreqs carries source: 'catalog_coreq' is authoritative; " +
+  "'inferred_from_description' was guessed from catalog prose — say so and " +
+  "tell the student to confirm it rather than stating it as fact.";
 
 // ---------------------------------------------------------------------------
 // Shared helpers

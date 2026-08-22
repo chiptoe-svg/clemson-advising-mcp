@@ -609,6 +609,7 @@ test("get-course-details: course_code with a coreq pair returns the coreqs array
           title: "Package and Specialty Printing Laboratory",
           credits: "0",
           relationship: "required non-credit lab (coreq)",
+          source: "catalog_coreq" as const,
         },
       ];
     },
@@ -623,6 +624,7 @@ test("get-course-details: course_code with a coreq pair returns the coreqs array
       title: "Package and Specialty Printing Laboratory",
       credits: "0",
       relationship: "required non-credit lab (coreq)",
+      source: "catalog_coreq",
     },
   ]);
 });

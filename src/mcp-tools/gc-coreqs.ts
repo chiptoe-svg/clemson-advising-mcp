@@ -25,7 +25,24 @@ export interface CoreqCourse {
   title: string | null;
   credits: string | null;
   relationship: string;
+  /**
+   * Which of the two paths produced this pairing. The prose fallback is a
+   * substring scan of catalog description text, so it can pair the wrong
+   * courses; without this field a guess reached the model wearing the same
+   * `relationship` string as an authoritative pairing, and the advisor stated
+   * both to students with equal confidence. Never drop this from a result.
+   */
+  source: CoreqSource;
+  /** Present only when `source` is inferred: why the caller should hedge. */
+  caveat?: string;
 }
+
+export type CoreqSource = "catalog_coreq" | "inferred_from_description";
+
+const INFERRED_CAVEAT =
+  "Inferred from catalog description text, not from the structured " +
+  "corequisite field — verify against the official catalog before relying " +
+  "on it.";
 
 interface CourseRow {
   code: string;
@@ -87,7 +104,16 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
 
     if (codes.length === 0) {
       const fb = deriveCoreqFromDescription(db, code, queried.description);
-      return fb ? [{ ...fb, relationship: relationshipFor(queried, fb) }] : [];
+      return fb
+        ? [
+            {
+              ...fb,
+              relationship: relationshipFor(queried, fb),
+              source: "inferred_from_description",
+              caveat: INFERRED_CAVEAT,
+            },
+          ]
+        : [];
     }
 
     const out: CoreqCourse[] = [];
@@ -98,7 +124,11 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
         .prepare("SELECT code, title, credits FROM course WHERE code = ? LIMIT 1")
         .get(norm) as CourseRow | undefined;
       const paired: CourseRow = row ?? { code: norm, title: null, credits: null };
-      out.push({ ...paired, relationship: relationshipFor(queried, paired) });
+      out.push({
+        ...paired,
+        relationship: relationshipFor(queried, paired),
+        source: "catalog_coreq",
+      });
     }
     return out;
   } finally {
