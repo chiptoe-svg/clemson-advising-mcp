@@ -56,6 +56,11 @@ tool indexes. The NanoClaw wiring runbook
 
 ## Deploying tool or policy changes — RESTART REQUIRED
 
+Logs: `~/Library/Logs/cuassistant.{mcp-public,mcp-catalog,advisor}.log`, rotated at
+10 MB × 5 by the process (`LOG_FILE` / `LOG_MAX_BYTES` / `LOG_KEEP`); `*.err.log`
+holds crash output plus this server's startup/registration lines (`server.ts`
+writes those to stderr directly; tool-module lines use the logger).
+
 **The servers load their tool registry and policy ONCE at process start.** They
 run as long-lived launchd daemons (`tsx` against source), so editing the code is
 NOT enough — a running daemon keeps serving the OLD build indefinitely and fails
