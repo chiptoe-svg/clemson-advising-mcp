@@ -113,19 +113,39 @@ agent reports a tool "doesn't exist" that you know is committed.
   RSVP, task delete, trigger-scan) are `approval: human_required` and are
   therefore **wired but not exposed**.
 
-## Operation table — `cuassistant-public`
+## Operation table — both servers (generated)
 
-Server 8766. See `docs/tool-rename-map.md` for the old→new tool-name migration
-(this table reflects the deployed surface, post-migration).
+Servers 8766 (`cuassistant-public`) and 8767 (`cuassistant-catalog`). See
+`docs/tool-rename-map.md` for the old→new tool-name migration (this table
+reflects the deployed surface, post-migration). Generated from the live
+registry by `scripts/mcp-manifest.ts` — run `npm run docs:mcp-manifest` after
+any tool/operation change and commit the result;
+`test/mcp-manifest.test.ts` fails on drift.
 
-| Tool                          | Operation key                         | Policy action                         | Backend | Exposed |
-| ------------------------------ | -------------------------------------- | -------------------------------------- | ------- | ------- |
-| `list-clemson-terms`          | `clemson.list_terms`                  | `clemson.list_terms`                  | Banner  | yes     |
-| `search-classes`              | `clemson.search_classes`              | `clemson.search_classes`              | Banner  | yes     |
-| `find-alternatives`           | `clemson.find_alternatives`           | `clemson.find_alternatives`           | Banner  | yes     |
-| `check-conflicts`             | `clemson.check_conflicts`             | `clemson.check_conflicts`             | Banner  | yes     |
-| `get-course-details`          | `clemson.course_details`              | `clemson.course_details`              | Banner  | yes     |
-| `find-conflict-free-schedule` | `clemson.find_conflict_free_schedule` | `clemson.find_conflict_free_schedule` | Banner  | yes     |
+<!-- BEGIN GENERATED operation-table -->
+
+| Tool                          | Server              | Operation key                         | Policy action                         | Backend       | Category          | Exposed |
+| ----------------------------- | ------------------- | ------------------------------------- | ------------------------------------- | ------------- | ----------------- | ------- |
+| `audit-gc-progress`           | cuassistant-catalog | `clemson.gc_audit_progress`           | `clemson.gc_audit_progress`           | external-http | curriculum-extras | yes     |
+| `find-requirement-sections`   | cuassistant-catalog | `clemson.find_requirement_sections`   | `clemson.find_requirement_sections`   | external-http | core              | yes     |
+| `get-gc-gen-ed`               | cuassistant-catalog | `clemson.gc_gen_ed`                   | `clemson.gc_gen_ed`                   | external-http | curriculum-extras | yes     |
+| `get-gc-program-plan`         | cuassistant-catalog | `clemson.gc_program_plan`             | `clemson.gc_program_plan`             | external-http | curriculum-extras | yes     |
+| `get-gc-requirement-rules`    | cuassistant-catalog | `clemson.gc_requirement_rules`        | `clemson.gc_requirement_rules`        | external-http | curriculum-extras | yes     |
+| `get-gc-skill-docs`           | cuassistant-catalog | `host.get_skill_docs`                 | `host.get_skill_docs`                 | host-state    | meta              | yes     |
+| `get-program-requirements`    | cuassistant-catalog | `clemson.gc_program_requirements`     | `clemson.gc_program_requirements`     | external-http | curriculum-extras | yes     |
+| `get-schedule-freshness`      | cuassistant-catalog | `clemson.schedule_freshness`          | `clemson.schedule_freshness`          | external-http | meta              | yes     |
+| `list-gc-catalog-years`       | cuassistant-catalog | `clemson.gc_catalog_years`            | `clemson.gc_catalog_years`            | external-http | curriculum-extras | yes     |
+| `list-gc-skills`              | cuassistant-catalog | `host.list_skills`                    | `host.list_skills`                    | host-state    | meta              | yes     |
+| `check-conflicts`             | cuassistant-public  | `clemson.check_conflicts`             | `clemson.check_conflicts`             | external-http | core              | yes     |
+| `find-alternatives`           | cuassistant-public  | `clemson.find_alternatives`           | `clemson.find_alternatives`           | external-http | core              | yes     |
+| `find-conflict-free-schedule` | cuassistant-public  | `clemson.find_conflict_free_schedule` | `clemson.find_conflict_free_schedule` | external-http | curriculum-extras | yes     |
+| `get-course-details`          | cuassistant-public  | `clemson.course_details`              | `clemson.course_details`              | external-http | core              | yes     |
+| `get-skill-docs`              | cuassistant-public  | `host.get_skill_docs`                 | `host.get_skill_docs`                 | host-state    | meta              | yes     |
+| `list-clemson-terms`          | cuassistant-public  | `clemson.list_terms`                  | `clemson.list_terms`                  | external-http | meta              | yes     |
+| `list-skills`                 | cuassistant-public  | `host.list_skills`                    | `host.list_skills`                    | host-state    | meta              | yes     |
+| `search-classes`              | cuassistant-public  | `clemson.search_classes`              | `clemson.search_classes`              | external-http | core              | yes     |
+
+<!-- END GENERATED operation-table -->
 
 ## Tool details
 

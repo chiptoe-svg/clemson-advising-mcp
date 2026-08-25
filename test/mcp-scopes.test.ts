@@ -8,8 +8,9 @@ import {
   isValidScopeToken,
 } from "../src/mcp-tools/permissions.ts";
 
-test("isValidScopeToken accepts the clemson token and rejects unknown/removed ones", () => {
+test("isValidScopeToken accepts clemson and host, rejects unknown/removed ones", () => {
   assert.equal(isValidScopeToken("clemson"), true);
+  assert.equal(isValidScopeToken("host"), true);
   assert.equal(isValidScopeToken("bogus"), false);
   // mail:read was a valid scope before the mailcal split; it must not survive.
   assert.equal(isValidScopeToken("mail:read"), false);
@@ -20,27 +21,25 @@ test("expandScopes(undefined) returns the full exposed set", () => {
   assert.deepEqual(expandScopes([]), allExposedOperations());
 });
 
-test("expandScopes(['clemson']) equals exactly the 14 clemson operations, and excludes host.list_skills", () => {
+// The full enumeration of what "clemson" grants used to be hand-pinned here;
+// that is exactly what test/mcp-registry-consistency.test.ts now checks
+// structurally (every MCP_ALLOWED_OPERATIONS key is covered by some scope,
+// and vice versa) — so this only keeps the property a registry-wide equality
+// check can't express: that "clemson" specifically stays clemson-only and
+// does not leak the (separately-scoped) skill-doc operations.
+test("expandScopes(['clemson']) grants only clemson.* operations, never the host.* skill-doc ones", () => {
   const s = expandScopes(["clemson"]);
-  const expected = new Set([
-    "clemson.list_terms",
-    "clemson.search_classes",
-    "clemson.find_alternatives",
-    "clemson.check_conflicts",
-    "clemson.course_details",
-    "clemson.find_conflict_free_schedule",
-    "clemson.gc_catalog_years",
-    "clemson.gc_program_plan",
-    "clemson.gc_requirement_rules",
-    "clemson.gc_gen_ed",
-    "clemson.gc_audit_progress",
-    "clemson.find_requirement_sections",
-    "clemson.gc_program_requirements",
-    "clemson.schedule_freshness",
-  ]);
-  assert.equal(s.size, 14);
-  assert.deepEqual(s, expected);
+  assert.ok(s.size > 0);
   assert.equal(s.has("host.list_skills"), false);
+  assert.equal(s.has("host.get_skill_docs"), false);
+  for (const op of s) {
+    assert.match(op, /^clemson\./);
+  }
+});
+
+test("expandScopes(['host']) grants only the host.* skill-doc operations", () => {
+  const s = expandScopes(["host"]);
+  assert.deepEqual(s, new Set(["host.list_skills", "host.get_skill_docs"]));
 });
 
 test("every operation named in SCOPE_OPERATIONS is a real, exposed operation", () => {
@@ -58,5 +57,8 @@ test("unknown scope tokens contribute nothing (no silent widening)", () => {
     expandScopes(["clemson", "bogus"]).has("clemson.list_terms"),
     true,
   );
-  assert.equal(expandScopes(["clemson", "bogus"]).size, 14);
+  assert.deepEqual(
+    expandScopes(["clemson", "bogus"]),
+    expandScopes(["clemson"]),
+  );
 });

@@ -260,11 +260,17 @@ export function describeMcpOperations(): Array<{
 /**
  * Capability scope vocabulary. Each token maps to the MCP_ALLOWED_OPERATIONS
  * keys it grants. Only EXPOSED operations are reachable; this map never
- * widens beyond the exposed set (enforced by expandScopes). `clemson` is the
- * only scope this repo declares — the mail/calendar/tasks/sheets/docs/host
- * scopes moved to mailcal with the operations they gated.
+ * widens beyond the exposed set (enforced by expandScopes). `clemson` and
+ * `host` are the only scopes this repo declares — the mail/calendar/tasks/
+ * sheets/docs scopes moved to mailcal with the operations they gated. `host`
+ * stayed behind because the skill-doc tools (list-skills/get-skill-docs,
+ * host.list_skills/host.get_skill_docs) are still registered here, on both
+ * the public and catalog barrels — see test/mcp-registry-consistency.test.ts,
+ * which fails if this map ever again omits an operation that
+ * MCP_ALLOWED_OPERATIONS declares.
  */
 export const SCOPE_OPERATIONS: Record<string, string[]> = {
+  host: ["host.list_skills", "host.get_skill_docs"],
   clemson: [
     "clemson.list_terms",
     "clemson.search_classes",

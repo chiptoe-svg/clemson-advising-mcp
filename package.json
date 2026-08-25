@@ -17,6 +17,7 @@
     "portal:start": "TOKEN_PORTAL_BASE_URL=http://localhost:8769 tsx src/token-portal.ts",
     "clemson:refresh": "tsx scripts/clemson-refresh.ts",
     "clemson:convert": "tsx scripts/clemson-convert-snapshots.ts",
+    "docs:mcp-manifest": "tsx scripts/mcp-manifest.ts --write",
     "build": "tsc -p tsconfig.json",
     "test": "node --import tsx --test test/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
