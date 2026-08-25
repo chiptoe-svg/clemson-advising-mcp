@@ -40,7 +40,11 @@ function rotate(file: string, keep: number): void {
 
 function writeLine(line: string): void {
   if (!config.file) {
-    config.sink(line);
+    try {
+      config.sink(line);
+    } catch {
+      // Nothing left to fall back to; a logger must never take the process down.
+    }
     return;
   }
   try {

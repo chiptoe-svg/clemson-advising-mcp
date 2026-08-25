@@ -41,3 +41,13 @@ test("a rotation shifts .1 to .2 and never loses the newest lines", () => {
   assert.match(all, /first-batch/);
   assert.match(all, /after-rotation/);
 });
+
+test("a throwing sink never escapes emit()", () => {
+  __configureLogForTest({
+    sink: () => {
+      throw new Error("broken");
+    },
+  });
+  assert.doesNotThrow(() => log.info("x"));
+  __resetLogForTest();
+});
