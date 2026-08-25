@@ -54,7 +54,7 @@ function writeLine(line: string): void {
     } catch {
       size = 0;
     }
-    if (size + line.length > config.maxBytes && size > 0) rotate(config.file, config.keep);
+    if (size + Buffer.byteLength(line) > config.maxBytes && size > 0) rotate(config.file, config.keep);
     fs.appendFileSync(config.file, line);
   } catch (err) {
     // Never let logging take the process down; fall back to stderr once.

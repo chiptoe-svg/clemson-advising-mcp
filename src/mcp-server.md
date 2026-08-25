@@ -97,6 +97,11 @@ Use `8767 "$MCP_CATALOG_AUTH_TOKEN"` for the catalog server. Confirm the tool
 you added is in the list. A stale daemon is the first thing to suspect when an
 agent reports a tool "doesn't exist" that you know is committed.
 
+The `load-tools` menu is derived from the servers actually reachable at the
+turn; during an outage of `gc_alumni`/`gc_curriculum_wiki` its category is
+absent, so production can present a shorter menu than the benchmarks'
+all-categories literal.
+
 ## Per-agent consumer registry — moved to mailcal with 8765.
 
 ## Allow-list and authorized use
