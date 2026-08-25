@@ -48,8 +48,7 @@ export const programPlan: McpToolDefinition = {
       "Get the full semester-by-semester degree plan for a Clemson program " +
       "in a given catalog year: required courses, choice sets (one-of), " +
       "requirement slots, per-term and total credits, and footnotes. " +
-      "Read-only, no login. Defaults to the Graphic Communications, BS. " +
-      "Get a valid year from list-gc-catalog-years.",
+      "Read-only, no login. Get a valid year from list-gc-catalog-years.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -97,10 +96,10 @@ export const requirementRules: McpToolDefinition = {
   tool: {
     name: "get-gc-requirement-rules",
     description:
-      "Get the requirement rules for the GC Graphic Communications BS degree " +
-      "in a given catalog year: lab science, specialty area (minor or 15-credit " +
-      "course set), and technical requirement — with explicit course codes, " +
-      "total credits, and raw footnote text. Read-only, no login. Does not " +
+      "Get the requirement rules for a degree program in a given catalog " +
+      "year: lab science, specialty area (minor or 15-credit course set), " +
+      "and technical requirement — with explicit course codes, total " +
+      "credits, and raw footnote text. Read-only, no login. Does not " +
       "include General Education requirements (use get-gc-gen-ed) or the " +
       "full semester-by-semester course plan (use get-gc-program-plan).",
     inputSchema: {
@@ -109,6 +108,11 @@ export const requirementRules: McpToolDefinition = {
         year: {
           type: "string",
           description: "Catalog year, e.g. 2026-2027 (from list-gc-catalog-years).",
+        },
+        program: {
+          type: "string",
+          description:
+            "Program name as in the catalog, e.g. 'Marketing, BS'. Defaults to 'Graphic Communications, BS'.",
         },
       },
       required: ["year"],
@@ -122,8 +126,12 @@ export const requirementRules: McpToolDefinition = {
     }
     const year = args.year as string | undefined;
     if (!year) return err("year is required");
+    const program =
+      typeof args.program === "string" && args.program
+        ? args.program
+        : "Graphic Communications, BS";
     try {
-      const rules = await getGcRequirementRules(year, "Graphic Communications, BS");
+      const rules = await getGcRequirementRules(year, program);
       return okJson({
         ...(rules as object),
         _source: `Clemson University Online Catalog, ${year} edition (gc_advisor)`,

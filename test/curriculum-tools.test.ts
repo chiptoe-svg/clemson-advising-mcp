@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { listGcCatalogYears, getGcProgramPlan } from "../src/gc-curriculum.ts";
+import {
+  listGcCatalogYears,
+  getGcProgramPlan,
+  __setGcRequirementRulesRunner,
+  __resetGcRequirementRulesRunner,
+} from "../src/gc-curriculum.ts";
 import { GC_ADVISOR_DB } from "../src/config.ts";
 import { listGcCatalogYears as listLive } from "../src/gc-curriculum.ts";
 
@@ -31,7 +36,7 @@ test("listGcCatalogYears against the real gc_advisor DB", { skip: !fs.existsSync
   assert.ok(years.every((y) => /^\d{4}-\d{4}$/.test(y)));
 });
 
-import { catalogYears, programPlan } from "../src/mcp-tools/catalog.ts";
+import { catalogYears, programPlan, requirementRules } from "../src/mcp-tools/catalog.ts";
 
 test("programPlan handler requires a year", async () => {
   const res = await programPlan.handler({});
@@ -45,4 +50,33 @@ test("tool definitions carry the expected names and operations", () => {
   assert.equal(programPlan.tool.name, "get-gc-program-plan");
   assert.equal(programPlan.operation, "clemson.gc_program_plan");
   assert.deepEqual(programPlan.tool.inputSchema.required, ["year"]);
+});
+
+test("get-gc-requirement-rules forwards program and defaults to Graphic Communications, BS", async () => {
+  const seen: Array<[string, string]> = [];
+  __setGcRequirementRulesRunner(async (args) => {
+    // args = ["req-rules", "--year", year, "--name", name]
+    seen.push([args[2], args[4]]);
+    return JSON.stringify({});
+  });
+  try {
+    await requirementRules.handler({ year: "2026-2027", program: "Marketing, BS" });
+    await requirementRules.handler({ year: "2026-2027" });
+  } finally {
+    __resetGcRequirementRulesRunner();
+  }
+  assert.deepEqual(seen, [
+    ["2026-2027", "Marketing, BS"],
+    ["2026-2027", "Graphic Communications, BS"],
+  ]);
+});
+
+test("catalog tool descriptions no longer single out Graphic Communications", () => {
+  for (const t of [requirementRules, programPlan]) {
+    assert.ok(!/Graphic Communications/.test(t.tool.description ?? ""), `${t.tool.name} description`);
+  }
+  assert.ok(
+    (requirementRules.tool.inputSchema.properties as Record<string, unknown>).program,
+    "program param declared",
+  );
 });

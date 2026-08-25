@@ -60,10 +60,23 @@ export async function getGcProgramPlan(
   return JSON.parse(out);
 }
 
+// Test-only seam: lets tests override the runner getGcRequirementRules falls
+// back to when a caller (e.g. the MCP tool handler) omits `run`, without
+// changing that function's public signature.
+let requirementRulesRunner: QueryRunner = defaultRunner;
+
+export function __setGcRequirementRulesRunner(run: QueryRunner): void {
+  requirementRulesRunner = run;
+}
+
+export function __resetGcRequirementRulesRunner(): void {
+  requirementRulesRunner = defaultRunner;
+}
+
 export async function getGcRequirementRules(
   year: string,
   name: string,
-  run: QueryRunner = defaultRunner,
+  run: QueryRunner = requirementRulesRunner,
 ): Promise<unknown> {
   const out = await run(["req-rules", "--year", year, "--name", name]);
   return JSON.parse(out);

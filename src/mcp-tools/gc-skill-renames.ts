@@ -27,7 +27,7 @@ export const GC_SKILL_RENAMES: readonly GcSkillRename[] = [
     from: "list-skills",
     to: "list-gc-skills",
     description:
-      "List the Graphic Communications advisor's skill documents by name and " +
+      "List the GC advisor's skill documents by name and " +
       "description. Pass a name to get-gc-skill-docs to retrieve the full " +
       "content.",
   },
@@ -35,7 +35,7 @@ export const GC_SKILL_RENAMES: readonly GcSkillRename[] = [
     from: "get-skill-docs",
     to: "get-gc-skill-docs",
     description:
-      "Return the full documentation for a Graphic Communications advisor " +
+      "Return the full documentation for a GC advisor " +
       "skill by name. Use list-gc-skills to discover available skill names.",
   },
 ];
