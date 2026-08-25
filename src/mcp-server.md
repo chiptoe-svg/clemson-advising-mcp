@@ -16,7 +16,8 @@ As of 2026-08-24 the credentialed server (private Exchange/MS365 + Google
 Workspace tools, send-approval gate, per-agent token registry) lives in
 `/Users/admin/projects/mailcal_tonkin` (`github.com/chiptoe-svg/mailcal`,
 private). It is not part of CUassistant. It never loads the public or catalog
-tool indexes.
+tool indexes. The NanoClaw wiring runbook
+(`docs/nanoclaw-integration-handoff.md`) moved with it.
 
 ### `cuassistant-public` / `cuassistant-catalog` (public DATA, bearer required)
 
@@ -36,10 +37,9 @@ tool indexes.
   accepts — the per-agent registry behind 8765 grants nothing here, and
   revoking one server's key does not affect the other. Unset key ⇒ the process
   refuses to start rather than serving open.
-- **Bind hosts are per server, by design.** `MCP_PUBLIC_HTTP_HOST` and
-  `MCP_CATALOG_HTTP_HOST` are separate from `MCP_HTTP_HOST`, which is shared
-  and would drag the credentialed server on 8765 off loopback with it. 8765
-  stays loopback-only.
+- **Bind hosts are per server, by design.** `MCP_HTTP_HOST` is unused in this
+  repo since the split; the public/catalog hosts have their own variables so a
+  future credentialed server can never inherit an off-loopback bind.
 - **No rebinding protection off loopback.** `StreamableHTTPServerTransport` in
   this SDK performs no Host/Origin validation (the DNS-rebinding feature exists
   only in the `sse.js`/express paths, which these servers do not use). Once

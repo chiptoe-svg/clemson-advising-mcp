@@ -2,6 +2,13 @@
 # The intent is to keep action boundaries explicit and reviewable. OAuth scopes
 # describe what the delegated token may technically permit; this file describes
 # what CUassistant is authorized to expose or execute.
+#
+# SPLIT NOTE (2026-08-24): the `mail.*`, `calendar.*`, `todo.*`, `sheets.*`,
+# `docs.*` actions and `approved_graph_scopes` below are retained ONLY so the
+# shared framework tests (`test/mcp-policy.test.ts`, `test/mcp-activation.test.ts`)
+# stay meaningful; no tool in this repo can reach them. The live authorized-use
+# list for those actions is mailcal's copy of this file. Pruning them here is a
+# pending follow-up.
 
 policy_version: 1
 policy_name: personal_m365_agentic_workflow

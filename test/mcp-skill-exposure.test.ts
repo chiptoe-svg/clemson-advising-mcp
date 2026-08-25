@@ -1,9 +1,9 @@
 // Regression tests for the per-server skill allowlist.
 //
 // `skills/` holds documents of mixed trust in one flat directory. Both skill
-// tools are registered from index-public.ts, which the campus-reachable public
-// server (8766) loads, so only the allowlist keeps a non-public skill doc off
-// the public bearer.
+// tools are registered from index-public.ts AND index-catalog.ts, which the
+// campus-reachable public server (8766) and the catalog server (8767) both
+// load, so only the allowlist keeps a non-public skill doc off either bearer.
 //
 // Two properties have to hold:
 //
@@ -50,6 +50,17 @@ async function fetchDocs(name: string): Promise<CallResult> {
   return (await __skillTools.getSkillDocs.handler({ name })) as CallResult;
 }
 
+test("the on-disk skills include a non-public one (fixture sanity)", async () => {
+  // Guards the bypass tests below against passing vacuously: `how-it-works`
+  // must really exist on disk, or "refused" and "absent" are indistinguishable.
+  setSkillExposure("all");
+  const names = await listNames();
+  for (const s of ["how-it-works", "clemson-schedule-advising"]) {
+    assert.ok(names.includes(s), `expected "${s}" on disk under skills/`);
+  }
+  resetSkillExposure();
+});
+
 test("public server: list-skills returns only the allowlisted skill", async () => {
   resetSkillExposure(); // the fail-closed default the public entry point uses
   const names = await listNames();
@@ -66,6 +77,11 @@ test("public server: get-skill-docs refuses a non-allowlisted skill asked for by
   assert.equal(res.isError, true, `get-skill-docs("how-it-works") must fail on the public server`);
   const text = res.content[0].text;
   assert.match(text, /not found/, `expected a not-found refusal, got: ${text}`);
+  // The refusal must not leak the document it is refusing to serve.
+  assert.ok(
+    !/Qwen3\.6|local Whisper|GPT-5\.5/i.test(text),
+    `refusal for "how-it-works" leaked document content: ${text}`,
+  );
 });
 
 test("public server: the allowlisted skill is still fetchable (advisor + nanoclaw depend on it)", async () => {
