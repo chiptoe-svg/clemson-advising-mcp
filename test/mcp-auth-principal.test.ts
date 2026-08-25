@@ -11,13 +11,13 @@ const loadWith = (c: Partial<Consumer>) => (): Consumer[] => [
 
 test("Principal returned for an attested, authorized, scoped consumer", () => {
   const auth = resolveCredentialedAuth({
-    load: loadWith({ provider: "chatgpt_edu", scopes: ["mail:read"] }),
+    load: loadWith({ provider: "chatgpt_edu", scopes: ["clemson"] }),
   });
   const p = auth(`Bearer ${TOKEN}`);
   assert.equal(p?.id, "a");
   assert.equal(p?.provider, "chatgpt_edu");
-  assert.equal(p?.scopes.has("mail.list_messages"), true);
-  assert.equal(p?.scopes.has("mail.move_message"), false);
+  assert.equal(p?.scopes.has("clemson.list_terms"), true);
+  assert.equal(p?.scopes.has("host.list_skills"), false);
 });
 
 test("unscoped attested consumer gets the full exposed scope", () => {
@@ -25,8 +25,8 @@ test("unscoped attested consumer gets the full exposed scope", () => {
     load: loadWith({ provider: "openai_api" }),
   });
   const p = auth(`Bearer ${TOKEN}`);
-  assert.equal(p?.scopes.has("mail.move_message"), true);
-  assert.equal(p?.scopes.has("sheets.read"), true);
+  assert.equal(p?.scopes.has("clemson.list_terms"), true);
+  assert.equal(p?.scopes.has("host.list_skills"), true);
 });
 
 test("unattested consumer (no provider) is rejected", () => {

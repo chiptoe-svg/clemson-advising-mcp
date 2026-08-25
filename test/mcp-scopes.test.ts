@@ -8,11 +8,11 @@ import {
   isValidScopeToken,
 } from "../src/mcp-tools/permissions.ts";
 
-test("isValidScopeToken accepts known tokens and rejects unknown", () => {
-  assert.equal(isValidScopeToken("mail:read"), true);
-  assert.equal(isValidScopeToken("mail:send"), true);
+test("isValidScopeToken accepts the clemson token and rejects unknown/removed ones", () => {
   assert.equal(isValidScopeToken("clemson"), true);
   assert.equal(isValidScopeToken("bogus"), false);
+  // mail:read was a valid scope before the mailcal split; it must not survive.
+  assert.equal(isValidScopeToken("mail:read"), false);
 });
 
 test("expandScopes(undefined) returns the full exposed set", () => {
@@ -20,21 +20,27 @@ test("expandScopes(undefined) returns the full exposed set", () => {
   assert.deepEqual(expandScopes([]), allExposedOperations());
 });
 
-test("expandScopes narrows to the named surfaces only", () => {
-  const s = expandScopes(["mail:read", "clemson"]);
-  assert.equal(s.has("mail.list_messages"), true);
-  assert.equal(s.has("clemson.search_classes"), true);
-  assert.equal(s.has("mail.move_message"), false);
-  assert.equal(s.has("sheets.read"), false);
-});
-
-test("mail:send is a separate scope from mail:write", () => {
-  const w = expandScopes(["mail:write"]);
-  assert.equal(w.has("mail.move_message"), true);
-  assert.equal(w.has("mail.send_with_approval"), false);
-  const s = expandScopes(["mail:send"]);
-  assert.equal(s.has("mail.send_with_approval"), true);
-  assert.equal(s.has("mail.move_message"), false);
+test("expandScopes(['clemson']) equals exactly the 14 clemson operations, and excludes host.list_skills", () => {
+  const s = expandScopes(["clemson"]);
+  const expected = new Set([
+    "clemson.list_terms",
+    "clemson.search_classes",
+    "clemson.find_alternatives",
+    "clemson.check_conflicts",
+    "clemson.course_details",
+    "clemson.find_conflict_free_schedule",
+    "clemson.gc_catalog_years",
+    "clemson.gc_program_plan",
+    "clemson.gc_requirement_rules",
+    "clemson.gc_gen_ed",
+    "clemson.gc_audit_progress",
+    "clemson.find_requirement_sections",
+    "clemson.gc_program_requirements",
+    "clemson.schedule_freshness",
+  ]);
+  assert.equal(s.size, 14);
+  assert.deepEqual(s, expected);
+  assert.equal(s.has("host.list_skills"), false);
 });
 
 test("every operation named in SCOPE_OPERATIONS is a real, exposed operation", () => {
@@ -49,8 +55,8 @@ test("every operation named in SCOPE_OPERATIONS is a real, exposed operation", (
 test("unknown scope tokens contribute nothing (no silent widening)", () => {
   assert.equal(expandScopes(["bogus:write"]).size, 0);
   assert.equal(
-    expandScopes(["mail:read", "bogus"]).has("mail.list_messages"),
+    expandScopes(["clemson", "bogus"]).has("clemson.list_terms"),
     true,
   );
-  assert.equal(expandScopes(["mail:read", "bogus"]).size, 4);
+  assert.equal(expandScopes(["clemson", "bogus"]).size, 14);
 });

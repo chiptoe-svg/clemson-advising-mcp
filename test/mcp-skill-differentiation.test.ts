@@ -120,7 +120,7 @@ test("renameRegisteredTool: the 3-arg form replaces the description; the 2-arg f
     handler: async () => ({ content: [{ type: "text", text: "ok" }] }),
   };
   const threeArg: McpToolDefinition = {
-    operation: "mail.list_messages",
+    operation: "host.list_skills",
     tool: {
       name: "x-rename-3arg",
       description: "original description",

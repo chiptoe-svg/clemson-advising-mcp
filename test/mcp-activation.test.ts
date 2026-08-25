@@ -7,84 +7,47 @@ import {
   isMcpOperationExposed,
 } from "../src/mcp-tools/permissions.ts";
 
-// After repointing the MCP server onto the GCassistant Graph app, the
-// mail/calendar write operations whose policy action is approval=none become
-// exposed, while destructive/affects-others ones stay policy-blocked.
+// This repo's registry (post mailcal-split prune) declares only clemson.* and
+// host.list_skills/host.get_skill_docs, all approval=none. These tests cover
+// the generic exposure/assertion behavior — not any surface-specific rule —
+// using real ids from the pruned registry.
 
-test("activated writes are exposed", () => {
+test("active, approval=none operations are exposed", () => {
   for (const op of [
-    "mail.list_messages",
-    "mail.get_message",
-    "mail.move_message",
-    "mail.update_message",
-    "mail.create_draft",
-    "calendar.list_events",
-    "calendar.create_event",
-    "calendar.update_event",
-    "todo.create_task",
-    "todo.update_task",
+    "clemson.list_terms",
+    "clemson.search_classes",
+    "clemson.find_alternatives",
+    "clemson.check_conflicts",
+    "host.list_skills",
+    "host.get_skill_docs",
   ]) {
     assert.equal(isMcpOperationExposed(op), true, `${op} should be exposed`);
   }
 });
 
-test("destructive / affects-others ops stay policy-blocked", () => {
-  for (const op of [
-    "todo.delete_task",
-    "calendar.delete_event",
-    "calendar.accept_event",
-    "calendar.decline_event",
-    "calendar.tentatively_accept_event",
-  ]) {
-    assert.equal(isMcpOperationExposed(op), false, `${op} must stay blocked`);
-  }
-});
-
-test("move requires the destination subtree allow-list", () => {
-  const prev = process.env.MCP_ALLOWED_MAIL_DESTINATIONS;
-  delete process.env.MCP_ALLOWED_MAIL_DESTINATIONS;
-  try {
-    assert.throws(
-      () =>
-        assertMcpOperation("mail.move_message", {
-          input: { destination: "sorted/News" },
-        }),
-      (err) =>
-        err instanceof McpPermissionDeniedError &&
-        /destination_subtree_allow_list/.test(err.message),
-    );
-    // With the subtree allow-listed, any path under it passes.
-    process.env.MCP_ALLOWED_MAIL_DESTINATIONS = "sorted";
-    assert.doesNotThrow(() =>
-      assertMcpOperation("mail.move_message", {
-        input: { destination: "sorted/News" },
-      }),
-    );
-  } finally {
-    if (prev === undefined) delete process.env.MCP_ALLOWED_MAIL_DESTINATIONS;
-    else process.env.MCP_ALLOWED_MAIL_DESTINATIONS = prev;
-  }
-});
-
-test("update is metadata-only (rejects body rewrites)", () => {
+test("an operation absent from the allow-list is neither exposed nor assertable", () => {
+  assert.equal(isMcpOperationExposed("bogus.operation"), false);
   assert.throws(
-    () =>
-      assertMcpOperation("mail.update_message", {
-        input: { id: "x", body: "rewrite" },
-      }),
+    () => assertMcpOperation("bogus.operation"),
     (err) =>
       err instanceof McpPermissionDeniedError &&
-      /metadata_only/.test(err.message),
+      /not in the allow-list/.test(err.message),
   );
 });
 
-test("draft creation forbids sending", () => {
-  assert.throws(
-    () =>
-      assertMcpOperation("mail.create_draft", {
-        input: { subject: "x", send: true },
-      }),
-    (err) =>
-      err instanceof McpPermissionDeniedError && /draft_only/.test(err.message),
+test("assertMcpOperation returns the spec for an exposed operation", () => {
+  const spec = assertMcpOperation("clemson.list_terms");
+  assert.equal(spec.backend, "external-http");
+  assert.equal(spec.policyActionId, "clemson.list_terms");
+});
+
+test("public_data_only and local_state_only constraints are unconditional passes", () => {
+  assert.doesNotThrow(() =>
+    assertMcpOperation("clemson.search_classes", {
+      input: { subject: "CPSC", term: "202608" },
+    }),
+  );
+  assert.doesNotThrow(() =>
+    assertMcpOperation("host.list_skills", { input: {} }),
   );
 });

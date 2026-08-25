@@ -1,21 +1,20 @@
-// MCP-specific operation allow-list.
+// MCP operation allow-list for the public/catalog registry.
 //
-// Mirrors the gate pattern in src/permissions.ts (handler -> allowed ops)
-// but is scoped to the MCP server. The scan flow's gate uses an active-handler
-// context that is module-scoped to the scan process; the MCP server runs as a
-// separate stdio process, so a parallel allow-list here is the correct shape.
+// This is the operation registry for the two public-data servers this repo
+// serves: cuassistant-public (8766, Clemson class-schedule) and
+// cuassistant-catalog (8767, GC catalog). The credentialed registry (mail,
+// calendar, tasks, Sheets/Docs) moved to the mailcal repo with the 8765
+// server; it is not present here.
 //
 // Tools in src/mcp-tools/ assert against this list before any backend call.
 // An operation that has no entry here cannot be invoked. Adding a tool that
-// reaches Graph or any other side-effect surface requires both:
+// reaches an external backend or any other side-effect surface requires both:
 //   1. an entry in MCP_ALLOWED_OPERATIONS for the right backend tier, and
 //   2. a policyActionId mapped to policy/action-policy.yaml with
 //      approval=none, and
 //   3. the corresponding tool file in src/mcp-tools/ that calls
 //      assertMcpOperation(...) before the backend call.
 
-import { isBlockedMailFolder, isUnderAllowedPrefix } from "../mail-paths.js";
-import { isOwnedFile } from "./gws-owned.js";
 import { getPolicyAction } from "../policy.js";
 import type { PolicyAction } from "../policy.js";
 
@@ -23,12 +22,11 @@ export type McpOperationStatus = "active" | "stub-pending-approval";
 
 export interface McpOperationSpec {
   /**
-   * The backend that fulfills this operation. "graph" = the GCassistant Azure
-   * AD app via the shared MCP Graph helper (getMs365AccessToken).
-   * "external-http" = a public, no-auth third-party HTTP API (e.g. Clemson's
-   * Banner Browse Classes).
+   * The backend that fulfills this operation. "external-http" = a public,
+   * no-auth third-party HTTP API (e.g. Clemson's Banner Browse Classes).
+   * "host-state" = local skill-doc reads, no external call.
    */
-  backend: "graph" | "host-scan" | "host-state" | "external-http" | "gws";
+  backend: "host-state" | "external-http";
   /** The policy/action-policy.yaml action that gates this operation. */
   policyActionId: string;
   /**
@@ -44,162 +42,7 @@ export interface McpOperationSpec {
 }
 
 export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
-  // --- Mail reads (GCassistant Graph app — Mail.ReadWrite) ---
-  "mail.list_messages": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "mail.list_inbox",
-  },
-  "mail.get_message": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "mail.fetch_body",
-  },
-  "mail.get_attachment": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "mail.get_attachment",
-  },
-  // Read-only folder/label discovery. Dispatches by account: ms365 -> Graph,
-  // g.clemson -> gws (the backend field is nominal for this dual-provider op).
-  "mail.list_folders": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "mail.list_folders",
-  },
-
-  // --- Calendar reads (GCassistant Graph app — Calendars.ReadWrite) ---
-  "calendar.list_events": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "calendar.list_events",
-  },
-  "calendar.get_event": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "calendar.get_event",
-  },
-  "calendar.get_view": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "calendar.get_view",
-  },
-
-  // --- Task reads/writes (GCassistant Graph app — Tasks.ReadWrite) ---
-  "todo.list_lists": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "todo.list_lists",
-  },
-  "todo.list_tasks": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "todo.list_tasks",
-  },
-  "todo.get_task": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "todo.get_task",
-  },
-  "todo.create_task": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "todo.create_task",
-  },
-  "todo.update_task": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "todo.update_task",
-  },
-  // delete_task is wired but stays policy-blocked (approval=human_required).
-  "todo.delete_task": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "todo.delete_task",
-  },
-
-  // --- Mail writes (GCassistant Graph app — Mail.ReadWrite, consented) ---
-  "mail.move_message": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "mail.move_message",
-  },
-  "mail.update_message": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "mail.update_message",
-  },
-  "mail.create_draft": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "mail.create_draft",
-  },
-
-  // --- Calendar writes (GCassistant Graph app — Calendars.ReadWrite) ---
-  // create/update are exposed (approval=none). delete + RSVP are wired but
-  // stay policy-blocked (approval=human_required) until policy is widened.
-  "calendar.create_event": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "calendar.create_personal_event",
-  },
-  "calendar.update_event": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "calendar.update_personal_event",
-  },
-  "calendar.delete_event": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "calendar.delete_event",
-  },
-  "calendar.accept_event": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "calendar.respond_to_invite",
-  },
-  "calendar.decline_event": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "calendar.respond_to_invite",
-  },
-  "calendar.tentatively_accept_event": {
-    backend: "graph",
-    status: "active",
-    policyActionId: "calendar.respond_to_invite",
-  },
-
-  // --- Host orchestration (CUassistant-only, no Graph call) ---
-  "host.trigger_scan": {
-    backend: "host-scan",
-    status: "active",
-    policyActionId: "host.trigger_scan",
-  },
-  "host.get_scan_status": {
-    backend: "host-state",
-    status: "active",
-    policyActionId: "host.get_scan_status",
-  },
-  "host.get_pending_actions": {
-    backend: "host-state",
-    status: "active",
-    policyActionId: "host.get_pending_actions",
-  },
-  "host.get_triage_candidates": {
-    backend: "host-scan",
-    status: "active",
-    policyActionId: "host.get_triage_candidates",
-  },
-  "host.log_triage_decision": {
-    backend: "host-state",
-    status: "active",
-    policyActionId: "host.log_triage_decision",
-  },
-  "host.complete_scan": {
-    backend: "host-scan",
-    status: "active",
-    policyActionId: "host.complete_scan",
-  },
+  // --- Host orchestration (CUassistant-only skill docs, no external call) ---
   "host.list_skills": {
     backend: "host-state",
     status: "active",
@@ -209,82 +52,6 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "host-state",
     status: "active",
     policyActionId: "host.get_skill_docs",
-  },
-  "mail.send_with_approval": {
-    backend: "host-state",
-    status: "active",
-    policyActionId: "mail.send_with_approval",
-  },
-
-  // --- Google Sheets / Docs (gws — Clemson Google Workspace account) ---
-  // Reads + routine value/text writes are exposed (approval: none). Destructive
-  // edges below map to human_required policy actions and are therefore wired
-  // but NOT exposed.
-  "sheets.read": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "sheets.read_values",
-  },
-  "sheets.info": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "sheets.read_metadata",
-  },
-  "sheets.create": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "sheets.create",
-  },
-  "sheets.update": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "sheets.update_values",
-  },
-  "sheets.append": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "sheets.append_values",
-  },
-  "docs.read": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "docs.read",
-  },
-  "docs.create": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "docs.create",
-  },
-  "docs.append": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "docs.append_text",
-  },
-  // Destructive edges — declared + gated (human_required), not exposed.
-  "sheets.delete": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "sheets.delete_spreadsheet",
-  },
-  "sheets.share": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "sheets.share",
-  },
-  "docs.delete": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "docs.delete",
-  },
-  "docs.share": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "docs.share",
-  },
-  "docs.overwrite": {
-    backend: "gws",
-    status: "active",
-    policyActionId: "docs.overwrite_body",
   },
 
   // --- Clemson public class schedule (Banner Browse Classes — no auth) ---
@@ -388,148 +155,23 @@ export interface McpOperationContext {
   input?: Record<string, unknown>;
 }
 
-function hasKey(input: Record<string, unknown>, keys: string[]): boolean {
-  return keys.some((key) => input[key] !== undefined && input[key] !== null);
-}
-
-function asStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function normalizeToken(value: unknown): string {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function rejectSharedCalendarInput(
-  input: Record<string, unknown>,
-): string | null {
-  return hasKey(input, [
-    "calendarId",
-    "calendar_id",
-    "mailbox",
-    "mailboxId",
-    "userId",
-    "userPrincipalName",
-  ])
-    ? "primary calendar actions must not include delegated/shared calendar selectors"
-    : null;
-}
-
-function validateOwnedFile(input: Record<string, unknown>): string | null {
-  const id =
-    (typeof input.spreadsheetId === "string" && input.spreadsheetId) ||
-    (typeof input.documentId === "string" && input.documentId) ||
-    "";
-  if (!id) {
-    return "own_created_file_only requires a spreadsheetId or documentId";
-  }
-  if (!isOwnedFile(id)) {
-    return (
-      `own_created_file_only: file "${id}" was not created by this agent ` +
-      `(reads are allowed; to permit edits, grant it with \`npm run gws:grant\`)`
-    );
-  }
-  return null;
-}
-
-function validateSubtreeDestination(
-  input: Record<string, unknown>,
-): string | null {
-  const dest = typeof input.destination === "string" ? input.destination : "";
-  if (!dest) {
-    return "destination_subtree_allow_list requires a destination path";
-  }
-  const prefixes = (process.env.MCP_ALLOWED_MAIL_DESTINATIONS ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  if (prefixes.length === 0) {
-    return "destination_subtree_allow_list requires MCP_ALLOWED_MAIL_DESTINATIONS";
-  }
-  if (isBlockedMailFolder(dest)) {
-    return "destination_subtree_allow_list rejected a system/destructive folder";
-  }
-  if (!isUnderAllowedPrefix(dest, prefixes)) {
-    return `destination "${dest}" is not under an allowed subtree`;
-  }
-  return null;
-}
-
-function validateDestinationAllowList(destination: string): string | null {
-  const allowed = (process.env.MCP_ALLOWED_MAIL_DESTINATIONS ?? "")
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-  if (!destination)
-    return "destination_folder_allow_list requires destinationId";
-  if (allowed.length === 0) {
-    return "destination_folder_allow_list requires MCP_ALLOWED_MAIL_DESTINATIONS";
-  }
-  return allowed.includes(destination)
-    ? null
-    : "destination_folder_allow_list rejected destinationId";
-}
-
+/**
+ * Only two constraints are declared in the pruned policy.yaml:
+ * "public_data_only" (Clemson external reads) and "local_state_only" (host
+ * skill-doc reads). Both are unconditional passes — there is no per-request
+ * input to check for a read-only, no-auth public data surface. The
+ * mail/calendar/task/Sheets/Docs constraint validators (destination
+ * allow-lists, owned-file checks, shared-calendar rejection, etc.) moved to
+ * mailcal with the operations they gated.
+ */
 function validateConstraint(
   constraint: string,
-  input: Record<string, unknown>,
+  _input: Record<string, unknown>,
 ): string | null {
-  const destination = normalizeToken(input.destinationId);
   switch (constraint) {
-    case "own_mailbox_only":
-    case "own_task_list_only":
-    case "own_workspace_only":
-    case "local_state_only":
-    case "no_delete":
-    case "no_permanent_delete":
     case "public_data_only":
+    case "local_state_only":
       return null;
-    case "own_primary_calendar_only":
-    case "no_shared_or_delegated_calendar":
-      return rejectSharedCalendarInput(input);
-    case "metadata_only":
-    case "no_body_rewrite":
-      return hasKey(input, ["body", "bodyContent", "bodyContentType"])
-        ? `${constraint} forbids message body changes`
-        : null;
-    case "no_send":
-      return input.send === true || input.sendNow === true
-        ? "no_send forbids sending or send-and-save behavior"
-        : null;
-    case "draft_only":
-      return input.send === true || input.sendNow === true
-        ? "draft_only permits draft creation only"
-        : null;
-    case "destination_folder_allow_list":
-      return validateDestinationAllowList(destination);
-    case "destination_subtree_allow_list":
-      return validateSubtreeDestination(input);
-    case "own_created_file_only":
-      return validateOwnedFile(input);
-    case "no_delete_folder":
-      return destination.includes("deleted") || destination.includes("trash")
-        ? "no_delete_folder rejected destinationId"
-        : null;
-    case "no_junk_folder":
-      return destination.includes("junk") || destination.includes("spam")
-        ? "no_junk_folder rejected destinationId"
-        : null;
-    case "no_recoverable_items":
-      return destination.includes("recoverable")
-        ? "no_recoverable_items rejected destinationId"
-        : null;
-    case "no_attendees":
-    case "no_invites":
-      return asStringArray(input.attendees).length > 0
-        ? `${constraint} forbids attendee invitations`
-        : null;
-    case "disabled_by_default":
-      return "disabled_by_default blocks this operation";
-    case "dry_run_only_unless_explicitly_enabled":
-      return input.dryRun === true
-        ? null
-        : "dry_run_only_unless_explicitly_enabled requires dryRun=true";
     default:
       return `no validator for policy constraint "${constraint}"`;
   }
@@ -616,31 +258,13 @@ export function describeMcpOperations(): Array<{
 }
 
 /**
- * Capability scope vocabulary: surface + read/write split. Each token maps to
- * the MCP_ALLOWED_OPERATIONS keys it grants. `mail:send` is deliberately its
- * own scope (the highest-risk op). Only EXPOSED operations are reachable; this
- * map never widens beyond the exposed set (enforced by expandScopes).
+ * Capability scope vocabulary. Each token maps to the MCP_ALLOWED_OPERATIONS
+ * keys it grants. Only EXPOSED operations are reachable; this map never
+ * widens beyond the exposed set (enforced by expandScopes). `clemson` is the
+ * only scope this repo declares — the mail/calendar/tasks/sheets/docs/host
+ * scopes moved to mailcal with the operations they gated.
  */
 export const SCOPE_OPERATIONS: Record<string, string[]> = {
-  "mail:read": ["mail.list_messages", "mail.get_message", "mail.get_attachment", "mail.list_folders"],
-  "mail:write": [
-    "mail.move_message",
-    "mail.update_message",
-    "mail.create_draft",
-  ],
-  "mail:send": ["mail.send_with_approval"],
-  "calendar:read": [
-    "calendar.list_events",
-    "calendar.get_event",
-    "calendar.get_view",
-  ],
-  "calendar:write": ["calendar.create_event", "calendar.update_event"],
-  "tasks:read": ["todo.list_lists", "todo.list_tasks", "todo.get_task"],
-  "tasks:write": ["todo.create_task", "todo.update_task"],
-  "sheets:read": ["sheets.read", "sheets.info"],
-  "sheets:write": ["sheets.create", "sheets.update", "sheets.append"],
-  "docs:read": ["docs.read"],
-  "docs:write": ["docs.create", "docs.append"],
   clemson: [
     "clemson.list_terms",
     "clemson.search_classes",
@@ -656,18 +280,6 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.find_requirement_sections",
     "clemson.gc_program_requirements",
     "clemson.schedule_freshness",
-  ],
-  // host.trigger_scan is human_required -> not exposed -> intentionally absent.
-  "host:read": [
-    "host.get_scan_status",
-    "host.get_pending_actions",
-    "host.list_skills",
-    "host.get_skill_docs",
-  ],
-  "host:triage": [
-    "host.get_triage_candidates",
-    "host.log_triage_decision",
-    "host.complete_scan",
   ],
 };
 

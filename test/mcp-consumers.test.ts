@@ -101,13 +101,13 @@ test("authenticateConsumer returns the full matched consumer", () => {
       token_hash: hashToken(token),
       created_at: "t",
       provider: "chatgpt_edu",
-      scopes: ["mail:read"],
+      scopes: ["clemson"],
     },
   ];
   const got = authenticateConsumer(`Bearer ${token}`, consumers);
   assert.equal(got?.id, "a");
   assert.equal(got?.provider, "chatgpt_edu");
-  assert.deepEqual(got?.scopes, ["mail:read"]);
+  assert.deepEqual(got?.scopes, ["clemson"]);
   assert.equal(authenticateConsumer("Bearer wrong", consumers), null);
 });
 
@@ -132,19 +132,19 @@ test("attestConsumer sets provider/scopes without touching the token", () => {
   const list: Consumer[] = [
     { id: "a", token_hash: "HASH", created_at: "t", last_seen_at: "s" },
   ];
-  attestConsumer(list, "a", "chatgpt_edu", ["mail:read"]);
+  attestConsumer(list, "a", "chatgpt_edu", ["clemson"]);
   assert.equal(list[0].token_hash, "HASH");
   assert.equal(list[0].last_seen_at, "s");
   assert.equal(list[0].provider, "chatgpt_edu");
-  assert.deepEqual(list[0].scopes, ["mail:read"]);
+  assert.deepEqual(list[0].scopes, ["clemson"]);
 });
 
 test("attestConsumer leaves scopes untouched when omitted, and throws on unknown id", () => {
   const list: Consumer[] = [
-    { id: "a", token_hash: "h", created_at: "t", scopes: ["mail:read"] },
+    { id: "a", token_hash: "h", created_at: "t", scopes: ["clemson"] },
   ];
   attestConsumer(list, "a", "openai_api");
-  assert.deepEqual(list[0].scopes, ["mail:read"]); // unchanged
+  assert.deepEqual(list[0].scopes, ["clemson"]); // unchanged
   assert.equal(list[0].provider, "openai_api");
   assert.throws(() => attestConsumer([], "nope", "chatgpt_edu"));
 });

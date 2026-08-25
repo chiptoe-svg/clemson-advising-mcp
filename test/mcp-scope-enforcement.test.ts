@@ -20,9 +20,9 @@ registerTools([
     handler: async () => ({ content: [{ type: "text", text: "ok" }] }),
   },
   {
-    operation: "mail.list_messages",
+    operation: "host.list_skills",
     tool: {
-      name: "x-mail",
+      name: "x-skills",
       description: "fake",
       inputSchema: { type: "object" },
     },
@@ -35,11 +35,14 @@ test("toolsForScope returns only tools whose operation is in scope", () => {
     (t) => t.name,
   );
   assert.ok(names.includes("x-terms"));
-  assert.ok(!names.includes("x-mail"));
+  assert.ok(!names.includes("x-skills"));
 });
 
 test("isToolInScope reflects the operation membership", () => {
-  assert.equal(isToolInScope("x-mail", new Set(["mail.list_messages"])), true);
-  assert.equal(isToolInScope("x-mail", new Set(["clemson.list_terms"])), false);
+  assert.equal(isToolInScope("x-skills", new Set(["host.list_skills"])), true);
+  assert.equal(
+    isToolInScope("x-skills", new Set(["clemson.list_terms"])),
+    false,
+  );
   assert.equal(isToolInScope("nonexistent", new Set(["anything"])), false);
 });
