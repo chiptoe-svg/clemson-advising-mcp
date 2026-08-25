@@ -11,6 +11,7 @@ function fakeTool(operation?: string): McpToolDefinition {
     // tool is registered without an operation, which the type forbids but a
     // hand-written definition could still do.
     operation: operation as string,
+    category: "meta",
     tool: {
       name: operation ?? "missing-operation",
       description: "test tool",

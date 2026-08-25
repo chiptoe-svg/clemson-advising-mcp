@@ -70,6 +70,7 @@ export function compactSearchResult(
 
 const listTerms: McpToolDefinition = {
   operation: "clemson.list_terms",
+  category: "meta",
   tool: {
     name: "list-clemson-terms",
     description:

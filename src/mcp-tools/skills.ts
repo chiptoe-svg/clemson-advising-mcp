@@ -156,6 +156,7 @@ function parseDescription(content: string): string {
 
 const listSkills: McpToolDefinition = {
   operation: "host.list_skills",
+  category: "meta",
   tool: {
     name: "list-skills",
     description:
@@ -191,6 +192,7 @@ const listSkills: McpToolDefinition = {
 
 const getSkillDocs: McpToolDefinition = {
   operation: "host.get_skill_docs",
+  category: "meta",
   tool: {
     name: "get-skill-docs",
     description:

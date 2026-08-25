@@ -13,6 +13,7 @@ import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
 
 const findConflictFree: McpToolDefinition = {
   operation: "clemson.find_conflict_free_schedule",
+  category: "curriculum-extras",
   tool: {
     name: "find-conflict-free-schedule",
     description:

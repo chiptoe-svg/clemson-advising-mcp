@@ -181,6 +181,7 @@ export function makeFindRequirementSections(
   const getReqRules = deps.getGcRequirementRules ?? getGcRequirementRulesLive;
   return {
   operation: "clemson.find_requirement_sections",
+  category: "core",
   tool: {
     name: "find-requirement-sections",
     description:
@@ -548,6 +549,7 @@ interface ProgramRow {
 
 export const getProgramRequirements: McpToolDefinition = {
   operation: "clemson.gc_program_requirements",
+  category: "curriculum-extras",
   tool: {
     name: "get-program-requirements",
     description:
@@ -671,6 +673,7 @@ export const getProgramRequirements: McpToolDefinition = {
 // so it puts no load on Banner and is safe to call freely.
 export const scheduleFreshness: McpToolDefinition = {
   operation: "clemson.schedule_freshness",
+  category: "meta",
   tool: {
     name: "get-schedule-freshness",
     description:

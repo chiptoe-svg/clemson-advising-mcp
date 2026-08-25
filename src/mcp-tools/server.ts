@@ -38,7 +38,7 @@ import {
   loadConsumers,
   type Consumer,
 } from "./consumers.js";
-import type { McpToolDefinition } from "./types.js";
+import { TOOL_CATEGORY_META_KEY, type McpToolDefinition } from "./types.js";
 import {
   allExposedOperations,
   expandScopes,
@@ -74,13 +74,23 @@ export function registerTools(tools: McpToolDefinition[]): void {
       );
       continue;
     }
+    if (!t.category) {
+      log(`skipping tool "${t.tool.name}" because it declares no category`);
+      continue;
+    }
     if (toolMap.has(t.tool.name)) {
       log(`warning: duplicate tool "${t.tool.name}" — skipping`);
       continue;
     }
+    t.tool._meta = { ...(t.tool._meta ?? {}), [TOOL_CATEGORY_META_KEY]: t.category };
     allTools.push(t);
     toolMap.set(t.tool.name, t);
   }
+}
+
+/** Test-only accessor for the module-private registry. */
+export function __registeredToolsForTest(): McpToolDefinition[] {
+  return allTools;
 }
 
 /**

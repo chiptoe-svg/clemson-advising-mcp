@@ -167,6 +167,7 @@ export function makeSearchClasses(
   const searchLive = deps.searchLive ?? searchClemsonClassesLive;
   return {
     operation: "clemson.search_classes",
+    category: "core",
     tool: {
       name: "search-classes",
       description: SEARCH_CLASSES_DESCRIPTION,
@@ -336,6 +337,7 @@ export const searchClasses: McpToolDefinition = makeSearchClasses();
 
 export const findAlternatives: McpToolDefinition = {
   operation: "clemson.find_alternatives",
+  category: "core",
   tool: {
     name: "find-alternatives",
     description: FIND_ALTERNATIVES_DESCRIPTION,
@@ -423,6 +425,7 @@ export const findAlternatives: McpToolDefinition = {
 
 export const checkConflicts: McpToolDefinition = {
   operation: "clemson.check_conflicts",
+  category: "core",
   tool: {
     name: "check-conflicts",
     description: CHECK_CONFLICTS_DESCRIPTION,
@@ -531,6 +534,7 @@ export function makeGetCourseDetails(
   const findCoreqs = deps.findCoreqs ?? findCoreqsLive;
   return {
     operation: "clemson.course_details",
+    category: "core",
     tool: {
       name: "get-course-details",
       description: GET_COURSE_DETAILS_DESCRIPTION,

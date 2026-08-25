@@ -12,6 +12,7 @@ export { findCoreqs, type CoreqCourse } from "./gc-coreqs.js";
 
 export const catalogYears: McpToolDefinition = {
   operation: "clemson.gc_catalog_years",
+  category: "curriculum-extras",
   tool: {
     name: "list-gc-catalog-years",
     description:
@@ -42,6 +43,7 @@ export const catalogYears: McpToolDefinition = {
 
 export const programPlan: McpToolDefinition = {
   operation: "clemson.gc_program_plan",
+  category: "curriculum-extras",
   tool: {
     name: "get-gc-program-plan",
     description:
@@ -93,6 +95,7 @@ export const programPlan: McpToolDefinition = {
 
 export const requirementRules: McpToolDefinition = {
   operation: "clemson.gc_requirement_rules",
+  category: "curriculum-extras",
   tool: {
     name: "get-gc-requirement-rules",
     description:
@@ -144,6 +147,7 @@ export const requirementRules: McpToolDefinition = {
 
 export const genEd: McpToolDefinition = {
   operation: "clemson.gc_gen_ed",
+  category: "curriculum-extras",
   tool: {
     name: "get-gc-gen-ed",
     description:
@@ -186,6 +190,7 @@ export const genEd: McpToolDefinition = {
 
 export const auditProgress: McpToolDefinition = {
   operation: "clemson.gc_audit_progress",
+  category: "curriculum-extras",
   tool: {
     name: "audit-gc-progress",
     description:

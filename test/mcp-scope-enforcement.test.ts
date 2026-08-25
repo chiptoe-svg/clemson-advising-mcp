@@ -12,6 +12,7 @@ import {
 registerTools([
   {
     operation: "clemson.list_terms",
+    category: "meta",
     tool: {
       name: "x-terms",
       description: "fake",
@@ -21,6 +22,7 @@ registerTools([
   },
   {
     operation: "host.list_skills",
+    category: "meta",
     tool: {
       name: "x-skills",
       description: "fake",

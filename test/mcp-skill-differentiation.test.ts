@@ -112,6 +112,7 @@ test("get-gc-skill-docs points at its own sibling, not the public server's tool"
 test("renameRegisteredTool: the 3-arg form replaces the description; the 2-arg form does not", () => {
   const twoArg: McpToolDefinition = {
     operation: "clemson.list_terms",
+    category: "meta",
     tool: {
       name: "x-rename-2arg",
       description: "original description",
@@ -121,6 +122,7 @@ test("renameRegisteredTool: the 3-arg form replaces the description; the 2-arg f
   };
   const threeArg: McpToolDefinition = {
     operation: "host.list_skills",
+    category: "meta",
     tool: {
       name: "x-rename-3arg",
       description: "original description",
