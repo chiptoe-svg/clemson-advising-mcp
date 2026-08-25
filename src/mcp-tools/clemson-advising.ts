@@ -554,9 +554,9 @@ export const getProgramRequirements: McpToolDefinition = {
       "Get the requirement rules a Clemson MINOR or CERTIFICATE requires " +
       "(total credits, required courses, elective rules) from the catalog. " +
       "Use for 'what does the Accounting minor require?'. Partial/misspelled " +
-      "names return candidate program names to pick from. NOTE: only " +
-      "Graphic Communications, BS has a full semester-by-semester plan — use " +
-      "get-gc-program-plan for that; other full majors are not loaded.",
+      "names return candidate program names to pick from. Some majors also " +
+      "have a full semester-by-semester plan — the response lists which " +
+      "(programs_with_full_plan); use get-gc-program-plan for those.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -643,14 +643,22 @@ export const getProgramRequirements: McpToolDefinition = {
         requirements.push({ slot_type: row.slot_type, ...parsed });
       }
 
+      const withPlan = db
+        .prepare(
+          `SELECT DISTINCT p.name FROM plan_item pi
+           JOIN requirement_group rg ON pi.group_id = rg.id
+           JOIN program p ON rg.program_id = p.id
+           JOIN catalog_year cy ON p.catalog_year_id = cy.id
+           WHERE cy.label = ? ORDER BY p.name`,
+        )
+        .all(exactRow.year) as { name: string }[];
+
       return okJson({
         program: exactRow.name,
         catalog_year: exactRow.year,
         requirements,
         _source: "Clemson Online Catalog (gc_advisor)",
-        note:
-          "Minor/certificate requirement rules. Only Graphic Communications, " +
-          "BS has a full semester-by-semester plan (get-gc-program-plan).",
+        programs_with_full_plan: withPlan.map((r) => r.name),
       });
     } finally {
       db.close();

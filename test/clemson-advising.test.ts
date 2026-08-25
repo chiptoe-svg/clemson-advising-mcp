@@ -46,6 +46,16 @@ function buildGcAdvisorFixture(): void {
       id INTEGER PRIMARY KEY, program_id INTEGER NOT NULL REFERENCES program(id),
       slot_type TEXT NOT NULL, rule TEXT NOT NULL
     );
+    CREATE TABLE requirement_group (
+      id INTEGER PRIMARY KEY, program_id INTEGER NOT NULL REFERENCES program(id),
+      parent_group_id INTEGER REFERENCES requirement_group(id),
+      label TEXT, kind TEXT, credit_total INTEGER, ordering INTEGER
+    );
+    CREATE TABLE plan_item (
+      id INTEGER PRIMARY KEY, group_id INTEGER NOT NULL REFERENCES requirement_group(id),
+      kind TEXT, course_code TEXT, one_of TEXT, slot_type TEXT,
+      credits INTEGER, footnote_refs TEXT, ordering INTEGER
+    );
     CREATE TABLE course (
       code TEXT PRIMARY KEY, subject TEXT NOT NULL, number TEXT NOT NULL,
       title TEXT, credits TEXT, description TEXT, prereq_text TEXT, prereq_parsed TEXT,
@@ -57,6 +67,7 @@ function buildGcAdvisorFixture(): void {
 
   db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(1, "2024-2025", 100);
   db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(2, "2025-2026", 101);
+  db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(3, "2026-2027", 102);
 
   db.prepare(
     "INSERT INTO program (id, catalog_year_id, poid, name, kind) VALUES (?, ?, ?, ?, 'major')",
@@ -74,6 +85,33 @@ function buildGcAdvisorFixture(): void {
   db.prepare(
     "INSERT INTO program (id, catalog_year_id, poid, name, kind) VALUES (?, ?, ?, ?, 'certificate')",
   ).run(4, 2, 503, "Accounting Certificate");
+
+  // 2026-2027 catalog: two degree programs with a full semester-by-semester
+  // plan (plan_item rows), plus the Accounting Minor carried forward with its
+  // own requirement_rule — for get-program-requirements'
+  // programs_with_full_plan tests.
+  const MARKETING_PROGRAM = "Marketing, BS";
+  db.prepare(
+    "INSERT INTO program (id, catalog_year_id, poid, name, kind) VALUES (?, ?, ?, ?, 'major')",
+  ).run(5, 3, 504, PROGRAM); // Graphic Communications, BS — 2026-2027
+  db.prepare(
+    "INSERT INTO program (id, catalog_year_id, poid, name, kind) VALUES (?, ?, ?, ?, 'major')",
+  ).run(6, 3, 505, MARKETING_PROGRAM); // Marketing, BS — 2026-2027
+  db.prepare(
+    "INSERT INTO program (id, catalog_year_id, poid, name, kind) VALUES (?, ?, ?, ?, 'minor')",
+  ).run(7, 3, 506, ACCOUNTING_MINOR); // Accounting Minor — 2026-2027
+
+  const insertGroup = db.prepare(
+    "INSERT INTO requirement_group (id, program_id, parent_group_id, label, kind, credit_total, ordering) VALUES (?, ?, NULL, ?, ?, ?, ?)",
+  );
+  insertGroup.run(1, 5, "Fall 2026", "semester", 15, 1);
+  insertGroup.run(2, 6, "Fall 2026", "semester", 15, 1);
+
+  const insertPlanItem = db.prepare(
+    "INSERT INTO plan_item (id, group_id, kind, course_code, one_of, slot_type, credits, footnote_refs, ordering) VALUES (?, ?, ?, ?, NULL, NULL, ?, NULL, ?)",
+  );
+  insertPlanItem.run(1, 1, "course", "GC 3010", 3, 1);
+  insertPlanItem.run(2, 2, "course", "MKT 3010", 3, 1);
 
   const insertRule = db.prepare(
     "INSERT INTO requirement_rule (program_id, slot_type, rule) VALUES (?, ?, ?)",
@@ -103,6 +141,24 @@ function buildGcAdvisorFixture(): void {
 
   insertRule.run(
     3,
+    "program_requirement",
+    JSON.stringify({
+      total_credits: 18,
+      required_courses: ["ACCT 2010", "ACCT 3110", "ACCT 3120"],
+      elective_rules: [
+        {
+          credits: 9,
+          level_or_subject_pattern: "3000- or 4000-level accounting courses",
+        },
+      ],
+      not_open_to: [],
+    }),
+  );
+
+  // Accounting Minor, 2026-2027 — a minor (no plan_item rows), so it exercises
+  // programs_with_full_plan alongside the two degree programs that do have a plan.
+  insertRule.run(
+    7,
     "program_requirement",
     JSON.stringify({
       total_credits: 18,
@@ -266,7 +322,10 @@ async function callRequirements(args: Record<string, unknown>) {
 }
 
 test("get-program-requirements: exact name returns the parsed rule", async () => {
-  const { body } = await callRequirements({ name: ACCOUNTING_MINOR });
+  const { body } = await callRequirements({
+    name: ACCOUNTING_MINOR,
+    year: "2025-2026",
+  });
   assert.ok(body);
   assert.equal(body!.program, ACCOUNTING_MINOR);
   assert.equal(body!.catalog_year, "2025-2026");
@@ -302,6 +361,24 @@ test("get-program-requirements: name matching nothing returns a clear error", as
 test("get-program-requirements: missing name returns a clear error", async () => {
   const res = await getProgramRequirements.handler({});
   assert.equal(res.isError, true);
+});
+
+test("get-program-requirements lists which programs have a full plan, derived from plan_item", async () => {
+  const res = await getProgramRequirements.handler({
+    name: ACCOUNTING_MINOR,
+    year: "2026-2027",
+  });
+  assert.notEqual(res.isError, true, (res.content[0] as { text: string }).text);
+  const body = JSON.parse((res.content[0] as { text: string }).text) as Record<
+    string,
+    unknown
+  >;
+  assert.deepEqual(body.programs_with_full_plan, [
+    "Graphic Communications, BS",
+    "Marketing, BS",
+  ]);
+  assert.ok(!("note" in body));
+  assert.ok(!/only Graphic Communications/.test(getProgramRequirements.tool.description ?? ""));
 });
 
 // get-schedule-freshness: reports the snapshot's data_as_of + age with no
