@@ -29,3 +29,6 @@ docs/*.pdf
 
 # Playwright MCP session scratch
 .playwright-mcp/
+
+# SDD workspace scratch
+.superpowers/

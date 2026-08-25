@@ -2,19 +2,15 @@
 //
 // `skills/` holds documents of mixed trust in one flat directory. Both skill
 // tools are registered from index-public.ts, which the campus-reachable public
-// server (8766) AND the loopback credentialed server (8765) load, so before
-// the allowlist the public port served `triage` (the email classifier's
-// decision rules) and `add-cuassistant` (a full map of the credentialed 8765
-// surface) to anyone holding the public bearer.
+// server (8766) loads, so only the allowlist keeps a non-public skill doc off
+// the public bearer.
 //
-// Three properties have to hold:
+// Two properties have to hold:
 //
 //   1. list-skills on the public server lists ONLY the allowlisted skill.
 //   2. get-skill-docs on the public server refuses a non-allowlisted name even
 //      when asked for it directly. This is the bypass that matters — hiding a
 //      document from an index while still serving it by name is not hiding it.
-//   3. The credentialed server still serves the full set, so triage and the
-//      install docs remain reachable where they belong.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -33,9 +29,6 @@ import {
   resetSkillExposure,
   setSkillExposure,
 } from "../src/mcp-tools/skills.ts";
-
-/** Skills that exist on disk but must never be served on the public port. */
-const PRIVATE_SKILLS = ["triage", "add-cuassistant"];
 
 interface CallResult {
   content: { type: string; text: string }[];
@@ -57,42 +50,22 @@ async function fetchDocs(name: string): Promise<CallResult> {
   return (await __skillTools.getSkillDocs.handler({ name })) as CallResult;
 }
 
-test("the on-disk skills include the private ones (fixture sanity)", async () => {
-  // Without this the tests below could pass simply because `triage` and
-  // `add-cuassistant` no longer exist, which would make them vacuous.
-  setSkillExposure("all");
-  const names = await listNames();
-  for (const s of [...PRIVATE_SKILLS, ...PUBLIC_SKILLS]) {
-    assert.ok(names.includes(s), `expected skill "${s}" to exist on disk`);
-  }
-  resetSkillExposure();
-});
-
 test("public server: list-skills returns only the allowlisted skill", async () => {
   resetSkillExposure(); // the fail-closed default the public entry point uses
   const names = await listNames();
   assert.deepEqual(names, [...PUBLIC_SKILLS]);
-  for (const s of PRIVATE_SKILLS) {
-    assert.ok(!names.includes(s), `"${s}" must not be listed on the public server`);
-  }
 });
 
 test("public server: get-skill-docs refuses a non-allowlisted skill asked for by name", async () => {
   // THE BYPASS. A skill missing from list-skills but fetchable directly is
-  // still published — the names are short and guessable, and `triage` /
-  // `add-cuassistant` are named in this repo's own docs.
+  // still published — hiding a document from an index while still serving it
+  // by name is not hiding it. `how-it-works` exists on disk but is not in
+  // PUBLIC_SKILLS.
   resetSkillExposure();
-  for (const s of PRIVATE_SKILLS) {
-    const res = await fetchDocs(s);
-    assert.equal(res.isError, true, `get-skill-docs("${s}") must fail on the public server`);
-    const text = res.content[0].text;
-    assert.match(text, /not found/, `expected a not-found refusal, got: ${text}`);
-    // The refusal must not leak the document it is refusing to serve.
-    assert.ok(
-      !/source-of-truth classifier|8765|approval gate/i.test(text),
-      `refusal for "${s}" leaked document content: ${text}`,
-    );
-  }
+  const res = await fetchDocs("how-it-works");
+  assert.equal(res.isError, true, `get-skill-docs("how-it-works") must fail on the public server`);
+  const text = res.content[0].text;
+  assert.match(text, /not found/, `expected a not-found refusal, got: ${text}`);
 });
 
 test("public server: the allowlisted skill is still fetchable (advisor + nanoclaw depend on it)", async () => {
@@ -101,19 +74,6 @@ test("public server: the allowlisted skill is still fetchable (advisor + nanocla
   const doc = payload(res);
   assert.equal(doc.name, "clemson-schedule-advising");
   assert.ok((doc.content as string).length > 100, "expected real skill content");
-});
-
-test("credentialed server: setSkillExposure('all') serves the full set", async () => {
-  setSkillExposure("all"); // what src/mcp-server.ts does at startup
-  const names = await listNames();
-  for (const s of [...PRIVATE_SKILLS, ...PUBLIC_SKILLS]) {
-    assert.ok(names.includes(s), `credentialed server must still list "${s}"`);
-  }
-  for (const s of PRIVATE_SKILLS) {
-    const doc = payload(await fetchDocs(s));
-    assert.ok((doc.content as string).length > 100, `expected full docs for "${s}"`);
-  }
-  resetSkillExposure();
 });
 
 test("the exposure default is the restrictive set, not 'all'", async () => {
@@ -141,12 +101,12 @@ test("catalog server: list-skills returns exactly the two GC skills", async () =
   resetSkillExposure();
 });
 
-test("catalog server: get-skill-docs refuses the private skills by direct name", async () => {
-  // The bypass again, on the new server. `triage` and `add-cuassistant` live in
+test("catalog server: get-skill-docs refuses the public skill by direct name", async () => {
+  // The bypass again, on the new server. `clemson-schedule-advising` lives in
   // THIS repo's root, which the catalog server also scans, so only the
-  // allowlist keeps them off 8767.
+  // allowlist keeps it off 8767.
   setSkillExposure(CATALOG_SKILLS);
-  for (const s of [...PRIVATE_SKILLS, "clemson-schedule-advising"]) {
+  for (const s of ["clemson-schedule-advising"]) {
     const res = await fetchDocs(s);
     assert.equal(res.isError, true, `get-skill-docs("${s}") must fail on 8767`);
     assert.match(res.content[0].text, /not found/);
@@ -167,21 +127,14 @@ test("catalog server: the GC skills are actually fetchable and have real content
   resetSkillExposure();
 });
 
-test("8766 and 8765 exposure are unchanged by the second root", async () => {
+test("8766 exposure is unchanged by the second root", async () => {
   // The GC skills are now on disk for every server that loads skills.ts. The
-  // public server must still list exactly one skill, and the credentialed
-  // server must still see the full local set.
+  // public server must still list exactly one skill.
   resetSkillExposure();
   assert.deepEqual(await listNames(), [...PUBLIC_SKILLS]);
   for (const s of CATALOG_SKILLS) {
     const res = await fetchDocs(s);
     assert.equal(res.isError, true, `"${s}" must not be served on 8766`);
-  }
-
-  setSkillExposure("all");
-  const all = await listNames();
-  for (const s of [...PRIVATE_SKILLS, ...PUBLIC_SKILLS]) {
-    assert.ok(all.includes(s), `credentialed server must still list "${s}"`);
   }
   resetSkillExposure();
 });
@@ -196,7 +149,7 @@ test("a missing second root degrades rather than throwing", async () => {
   __setSkillRoots([path.resolve(process.cwd(), "skills"), absent]);
   try {
     const index = buildSkillIndex();
-    assert.ok(index.has("triage"), "the readable root must still be indexed");
+    assert.ok(index.has("clemson-schedule-advising"), "the readable root must still be indexed");
     assert.ok(!index.has("gc-advisor"), "the absent root contributes nothing");
 
     setSkillExposure(CATALOG_SKILLS);
@@ -214,14 +167,17 @@ test("a cross-root name collision fails loudly", async () => {
   // an agent read one skill's documentation while calling the other's tools,
   // with nothing in the transcript to show the substitution.
   const shadow = fs.mkdtempSync(path.join(os.tmpdir(), "cuassistant-skill-shadow-"));
-  fs.mkdirSync(path.join(shadow, "triage"), { recursive: true });
-  fs.writeFileSync(path.join(shadow, "triage", "SKILL.md"), "---\ndescription: impostor\n---\n");
+  fs.mkdirSync(path.join(shadow, "clemson-schedule-advising"), { recursive: true });
+  fs.writeFileSync(
+    path.join(shadow, "clemson-schedule-advising", "SKILL.md"),
+    "---\ndescription: impostor\n---\n",
+  );
 
   __setSkillRoots([path.resolve(process.cwd(), "skills"), shadow]);
   try {
     assert.throws(
       () => buildSkillIndex(),
-      /collision.*triage/s,
+      /collision.*clemson-schedule-advising/s,
       "a name present in two roots must throw, not silently shadow",
     );
   } finally {
