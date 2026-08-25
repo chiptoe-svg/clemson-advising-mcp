@@ -44,8 +44,13 @@ function buildGcAdvisorFixture(): void {
     );
     CREATE TABLE requirement_rule (
       id INTEGER PRIMARY KEY, program_id INTEGER NOT NULL REFERENCES program(id),
-      slot_type TEXT NOT NULL, rule TEXT NOT NULL
+      slot_type TEXT NOT NULL, rule TEXT NOT NULL, bogus INTEGER NOT NULL DEFAULT 0
     );
+    -- Mirrors gc_advisor/src/gc_advisor/db/schema.sql: the named contract for
+    -- direct SQL readers. The bogus flag is materialised by gc_advisor's writers from
+    -- rule_semantics.is_bogus_rule; the view hides exactly what CatalogAccess hides.
+    CREATE VIEW requirement_rule_effective AS
+      SELECT id, program_id, slot_type, rule FROM requirement_rule WHERE bogus = 0;
     CREATE TABLE requirement_group (
       id INTEGER PRIMARY KEY, program_id INTEGER NOT NULL REFERENCES program(id),
       parent_group_id INTEGER REFERENCES requirement_group(id),
@@ -170,6 +175,20 @@ function buildGcAdvisorFixture(): void {
         },
       ],
       not_open_to: [],
+    }),
+  );
+  // A second rule on the same minor that gc_advisor has flagged bogus — must
+  // be invisible to get-program-requirements (read via requirement_rule_effective).
+  db.prepare(
+    "INSERT INTO requirement_rule (program_id, slot_type, rule, bogus) VALUES (?, ?, ?, 1)",
+  ).run(
+    7,
+    "Natural Science Requirement",
+    JSON.stringify({
+      slot_type: "Natural Science Requirement",
+      total_credits: 4,
+      explicit_courses: ["MGT 4150"],
+      raw_text: "mis-associated footnote",
     }),
   );
 
@@ -361,6 +380,14 @@ test("get-program-requirements: name matching nothing returns a clear error", as
 test("get-program-requirements: missing name returns a clear error", async () => {
   const res = await getProgramRequirements.handler({});
   assert.equal(res.isError, true);
+});
+
+test("get-program-requirements hides rules gc_advisor flagged bogus", async () => {
+  const { body } = await callRequirements({ name: ACCOUNTING_MINOR, year: "2026-2027" });
+  assert.ok(body);
+  assert.ok(body!.requirements);
+  const slots = body!.requirements!.map((r) => r.slot_type);
+  assert.deepEqual(slots, ["program_requirement"], `bogus rule leaked: ${slots.join(", ")}`);
 });
 
 test("get-program-requirements lists which programs have a full plan, derived from plan_item", async () => {

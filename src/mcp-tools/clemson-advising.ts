@@ -126,7 +126,7 @@ function getRequirementRule(
 ): RequirementRule | null {
   const row = db
     .prepare(
-      "SELECT slot_type, rule FROM requirement_rule WHERE program_id = ? AND slot_type = ? LIMIT 1",
+      "SELECT slot_type, rule FROM requirement_rule_effective WHERE program_id = ? AND slot_type = ? LIMIT 1",
     )
     .get(programId, slotType) as { slot_type: string; rule: string } | undefined;
   if (!row) return null;
@@ -533,7 +533,7 @@ export function makeFindRequirementSections(
 export const findRequirementSections: McpToolDefinition = makeFindRequirementSections();
 
 // ---------------------------------------------------------------------------
-// get-program-requirements — surfaces the requirement_rule rows in
+// get-program-requirements — surfaces the requirement_rule_effective rows (gc_advisor's bogus-filtered view) in
 // gc_advisor.db for any program (minor, certificate, or the GC BS), by name.
 // Unlike find-requirement-sections this does NOT open a Banner schedule
 // snapshot — it's a pure read of the catalog DB, so the GC program-loaded
@@ -631,7 +631,7 @@ export const getProgramRequirements: McpToolDefinition = {
       }
 
       const ruleRows = db
-        .prepare("SELECT slot_type, rule FROM requirement_rule WHERE program_id = ?")
+        .prepare("SELECT slot_type, rule FROM requirement_rule_effective WHERE program_id = ?")
         .all(exactRow.id) as { slot_type: string; rule: string }[];
 
       const requirements: Record<string, unknown>[] = [];

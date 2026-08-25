@@ -43,8 +43,13 @@ function buildGcAdvisorFixture(): void {
     );
     CREATE TABLE requirement_rule (
       id INTEGER PRIMARY KEY, program_id INTEGER NOT NULL REFERENCES program(id),
-      slot_type TEXT NOT NULL, rule TEXT NOT NULL
+      slot_type TEXT NOT NULL, rule TEXT NOT NULL, bogus INTEGER NOT NULL DEFAULT 0
     );
+    -- Mirrors gc_advisor/src/gc_advisor/db/schema.sql: the named contract for
+    -- direct SQL readers. The bogus flag is materialised by gc_advisor's writers from
+    -- rule_semantics.is_bogus_rule; the view hides exactly what CatalogAccess hides.
+    CREATE VIEW requirement_rule_effective AS
+      SELECT id, program_id, slot_type, rule FROM requirement_rule WHERE bogus = 0;
     CREATE TABLE course (
       code TEXT PRIMARY KEY, subject TEXT NOT NULL, number TEXT NOT NULL,
       title TEXT, credits TEXT, description TEXT, prereq_text TEXT, prereq_parsed TEXT,
@@ -102,6 +107,26 @@ function buildGcAdvisorFixture(): void {
       total_credits: 3,
       explicit_courses: ["GC 3050"],
       raw_text: "narrow test rule",
+    }),
+  );
+
+  // A rule gc_advisor has flagged bogus (the footnote mis-association family —
+  // the real case is Management, BS 2025-2026 "Natural Science Requirement"
+  // -> MGT 4150). requirement_rule_effective hides it; the tool must read
+  // through the view so the slot reads as unknown rather than offering the
+  // course's sections as if they filled the requirement. GC 3010 has sections
+  // in the schedule fixture, so a raw-table read would return them.
+  const BOGUS_SLOT = "Natural Science Requirement";
+  db.prepare(
+    "INSERT INTO requirement_rule (program_id, slot_type, rule, bogus) VALUES (?, ?, ?, 1)",
+  ).run(
+    2,
+    BOGUS_SLOT,
+    JSON.stringify({
+      slot_type: BOGUS_SLOT,
+      total_credits: 4,
+      explicit_courses: ["GC 3010"],
+      raw_text: "mis-associated footnote",
     }),
   );
 
@@ -287,6 +312,21 @@ test("an unknown requirement returns the valid slot list inline (no extra round)
   // Resolved against the latest catalog year (2025-2026) and default program
   // — proves the redirect doesn't need catalog_year/program to be supplied.
   assert.deepEqual(calls, [{ year: "2025-2026", name: PROGRAM }]);
+});
+
+test("a rule gc_advisor flagged bogus is invisible: the slot reads as unknown, never as offering sections", async () => {
+  const tool = makeFindRequirementSections({
+    getGcRequirementRules: async () => [{ slot_type: SLOT, rule: {} }],
+  });
+  const res = await tool.handler({
+    term: TERM,
+    requirement: "Natural Science Requirement",
+    completed_courses: [],
+  });
+  assert.equal(res.isError, true, "bogus slot must not resolve to sections");
+  const t = errText(res);
+  assert.match(t, /Unknown requirement "Natural Science Requirement"/);
+  assert.match(t, /Specialty Area Requirement/);
 });
 
 test("an unreachable gc_advisor bridge on the unknown-slot path still returns a clean error, not a throw", async () => {
