@@ -1,0 +1,79 @@
+name: ci
+
+# Typecheck + the full node --test suite. Nothing here has ever run in CI
+# before, so this is the first automated gate on a pull request.
+#
+# CI has NO local artifacts: no core/db/gc_advisor.db, no state/clemson/*.db,
+# no core/.venv, no .env. Every test that needs one of those skips with a
+# counted string reason (test/_artifacts.ts). That is deliberate — CI proves
+# the code and the pure-logic suite, and `npm run test:gate` on the working
+# machine (REQUIRE_ARTIFACTS=1) is what proves the live-data half.
+#
+# There is deliberately no Python job: core/'s pytest suite needs the built
+# catalog DB, which is not in git.
+#
+# `npm run format:check` is NOT run here. It fails on 29 files today, and
+# reformatting them is out of scope for this change; adding it would make the
+# first green run impossible.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: typecheck + tests
+    runs-on: ubuntu-latest
+    env:
+      # Not a secret: the provider-resolution tests only need SOME gateway key
+      # to be configured so the OpenAI-track target resolves. The real key
+      # normally arrives via .env, which CI does not have. Without this the
+      # two baseUrl/api-shape regression tests would skip instead of running.
+      CLEMSON_LLM_API_KEY: test-dummy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # better-sqlite3 ships prebuilt binaries for ubuntu-latest / Node 22, so
+      # this needs no python3/build-essential. If a future bump loses the
+      # prebuild, node-gyp will say so here and this step gains:
+      #   sudo apt-get update && sudo apt-get install -y python3 build-essential
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      # node --test already exits non-zero on any failure. The tee keeps the
+      # TAP summary for the reporting step below.
+      - name: npm test
+        run: npm test 2>&1 | tee test-output.txt; exit "${PIPESTATUS[0]}"
+        shell: bash
+
+      # Explicit, so a green run still states how much of the suite was skipped
+      # for want of local artifacts — and so a non-zero `# fail` can never be
+      # read as a pass.
+      - name: report skipped / fail counts
+        if: always()
+        run: |
+          if [ ! -f test-output.txt ]; then
+            echo "test output missing — the suite did not run"
+            exit 1
+          fi
+          tail -n 12 test-output.txt
+          skipped=$(grep -m1 '^# skipped ' test-output.txt | awk '{print $3}')
+          failed=$(grep -m1 '^# fail ' test-output.txt | awk '{print $3}')
+          echo "skipped=${skipped:-unknown} (artifact-dependent: no gc_advisor.db, no Banner snapshot, no core/.venv)"
+          echo "fail=${failed:-unknown}"
+          if [ -z "$failed" ]; then
+            echo "no '# fail' line in the TAP summary — treating as a failure"
+            exit 1
+          fi
+          if [ "$failed" != "0" ]; then
+            echo "::error::$failed test(s) failed"
+            exit 1
+          fi
+        shell: bash
