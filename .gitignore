@@ -32,3 +32,17 @@ docs/*.pdf
 
 # SDD workspace scratch
 .superpowers/
+
+# --- core/ (the merged gc_advisor tree) ---
+# Belt-and-braces with core/.gitignore: these MUST hold even if the nested
+# file is ever edited. Student-record derivatives never enter git (G3).
+core/.venv/
+core/db/gc_advisor.db
+core/docs/degreeworks/
+core/docs/*.pdf
+core/**/__pycache__/
+core/**/*.pyc
+core/**/*.egg-info/
+core/.pytest_cache/
+core/.playwright-mcp/
+core/.superpowers/

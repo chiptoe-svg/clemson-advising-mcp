@@ -23,7 +23,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "format": "prettier --write \"src/**/*.ts\" \"*.{md,json}\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"*.{md,json}\"",
-    "prepare": "husky"
+    "prepare": "husky",
+    "core:test": "cd core && .venv/bin/python -m pytest tests/ -q -rs -m \"not integration\"",
+    "test:gate": "CORE_E2E=required npm test && npm run core:test"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "^0.82.1",
