@@ -19,6 +19,8 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 
+import { catalogFixtureDdl } from "./_catalog-fixture-ddl.ts";
+
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "cuassistant-advising-"));
 process.env.STATE_DIR = TMP;
 
@@ -32,43 +34,19 @@ const ACCOUNTING_MINOR = "Accounting Minor";
 
 function buildGcAdvisorFixture(): void {
   const db = new Database(GC_DB_PATH);
-  db.exec(`
-    CREATE TABLE catalog_year (
-      id INTEGER PRIMARY KEY, label TEXT NOT NULL UNIQUE, catoid INTEGER,
-      level TEXT NOT NULL DEFAULT 'undergraduate', source_urls TEXT, ingested_at TEXT
-    );
-    CREATE TABLE program (
-      id INTEGER PRIMARY KEY, catalog_year_id INTEGER NOT NULL REFERENCES catalog_year(id),
-      poid INTEGER, name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'major',
-      degree TEXT, total_credits INTEGER, description TEXT, source_url TEXT, source_hash TEXT
-    );
-    CREATE TABLE requirement_rule (
-      id INTEGER PRIMARY KEY, program_id INTEGER NOT NULL REFERENCES program(id),
-      slot_type TEXT NOT NULL, rule TEXT NOT NULL, bogus INTEGER NOT NULL DEFAULT 0
-    );
-    -- Mirrors gc_advisor/src/gc_advisor/db/schema.sql: the named contract for
-    -- direct SQL readers. The bogus flag is materialised by gc_advisor's writers from
-    -- rule_semantics.is_bogus_rule; the view hides exactly what CatalogAccess hides.
-    CREATE VIEW requirement_rule_effective AS
-      SELECT id, program_id, slot_type, rule FROM requirement_rule WHERE bogus = 0;
-    CREATE TABLE requirement_group (
-      id INTEGER PRIMARY KEY, program_id INTEGER NOT NULL REFERENCES program(id),
-      parent_group_id INTEGER REFERENCES requirement_group(id),
-      label TEXT, kind TEXT, credit_total INTEGER, ordering INTEGER
-    );
-    CREATE TABLE plan_item (
-      id INTEGER PRIMARY KEY, group_id INTEGER NOT NULL REFERENCES requirement_group(id),
-      kind TEXT, course_code TEXT, one_of TEXT, slot_type TEXT,
-      credits INTEGER, footnote_refs TEXT, ordering INTEGER
-    );
-    CREATE TABLE course (
-      code TEXT PRIMARY KEY, subject TEXT NOT NULL, number TEXT NOT NULL,
-      title TEXT, credits TEXT, description TEXT, prereq_text TEXT, prereq_parsed TEXT,
-      coreq_text TEXT, coreq_parsed TEXT, terms_offered TEXT, restrictions TEXT,
-      cross_listed_as TEXT, status TEXT NOT NULL DEFAULT 'active',
-      first_seen TEXT, last_synced TEXT, source_url TEXT
-    );
-  `);
+  // Shared with test/find-requirement-sections.test.ts and pinned against the
+  // real schema.sql by test/fixture-schema-drift.test.ts.
+  db.exec(
+    catalogFixtureDdl(
+      "catalog_year",
+      "program",
+      "requirement_rule",
+      "requirement_rule_effective",
+      "requirement_group",
+      "plan_item",
+      "course",
+    ),
+  );
 
   db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(1, "2024-2025", 100);
   db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(2, "2025-2026", 101);
