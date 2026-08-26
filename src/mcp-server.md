@@ -5,25 +5,29 @@ This is the human-readable companion to the MCP entry points
 surface across the two public-data servers, what backend each operation uses, what
 permission it requires, and whether the tool is exposed to the agent.
 
-## Two servers, split by security class
+## Two servers, both public-data
 
-CUassistant exposes its capabilities through two MCP servers, separated by
-whether they hold credentials — not by vendor domain.
+This repo serves two MCP servers. Both expose **public** Clemson data; neither
+holds a delegated credential of any kind.
 
-### `cuassistant-credentialed` (8765) — moved to the mailcal repo
+### `cuassistant-credentialed` (8765) — not in this repo
 
 As of 2026-08-24 the credentialed server (private Exchange/MS365 + Google
-Workspace tools, send-approval gate, per-agent token registry) lives in
-`/Users/admin/projects/mailcal_tonkin` (`github.com/chiptoe-svg/mailcal`,
-private). It is not part of CUassistant. It never loads the public or catalog
-tool indexes. The NanoClaw wiring runbook
-(`docs/nanoclaw-integration-handoff.md`) moved with it.
+Workspace tools, send-approval gate, per-agent token registry) lives in the
+private `github.com/chiptoe-svg/mailcal` repo, in its own checkout on this
+machine. It is not part of this project, and it never loads the public or
+catalog tool indexes. The NanoClaw wiring runbook
+(`docs/nanoclaw-integration-handoff.md`) moved with it. The only trace left
+here is a guard: `src/advisor-mcp.ts` refuses to let the advisor dial port
+8765 even if the environment tells it to.
 
 ### `cuassistant-public` / `cuassistant-catalog` (public DATA, bearer required)
 
 - **What.** 8766 serves the Clemson class-schedule tools (public Banner Browse
-  Classes API); 8767 serves the GC curriculum/degree-plan tools bridged from
-  gc_advisor. The DATA is public; access to the servers is not.
+  Classes API); 8767 serves the College of Business curriculum / degree-plan /
+  audit tools, bridged from `core/` in this repo (the Python catalog + audit
+  core, merged 2026-08-25). The DATA is public; access to the servers is not.
+  Nine tools each — see the generated table below.
 - **Transports.** Dual.
   - **Streamable HTTP** — `npm run mcp:public:http` / `npm run mcp:catalog:http`
     (`MCP_TRANSPORT=http`). Bind
@@ -31,12 +35,23 @@ tool indexes. The NanoClaw wiring runbook
     `${MCP_CATALOG_HTTP_HOST:-127.0.0.1}:${MCP_CATALOG_HTTP_PORT:-8767}`.
     launchd services run both as host daemons.
   - **stdio** — `npm run mcp:public` / `npm run mcp:catalog`. Local/dev only.
-- **Inbound auth.** One bearer per server: `MCP_PUBLIC_AUTH_TOKEN` and
-  `MCP_CATALOG_AUTH_TOKEN`, in the gitignored `.env`. Each server's consumer
-  source is EMPTY (`load: () => []`), so its env key is the only credential it
-  accepts — the per-agent registry behind 8765 grants nothing here, and
-  revoking one server's key does not affect the other. Unset key ⇒ the process
-  refuses to start rather than serving open.
+- **Inbound auth — the env token IS the credential.** One bearer per server:
+  `MCP_PUBLIC_AUTH_TOKEN` and `MCP_CATALOG_AUTH_TOKEN`, in the gitignored
+  `.env`. Each server's consumer source is EMPTY (`load: () => []`), so its env
+  key is the *only* credential it accepts. Revoking one server's key does not
+  affect the other. Unset key ⇒ the process refuses to start rather than
+  serving open.
+
+  The per-agent consumer registry (`src/mcp-tools/consumers.ts`, backed by
+  `<STATE_DIR>/mcp-consumers.json`) is a **separate, optional** mechanism: it
+  is what the credentialed server in the `mailcal` repo uses, it is not wired
+  up here, and it grants nothing on 8766/8767. Do not read "registry" as an
+  alternative way in here — there is exactly one bearer per server, and it
+  comes from the environment. Each bearer carries an attested provider
+  (`MCP_PUBLIC_AUTH_TOKEN_PROVIDER` / `MCP_CATALOG_AUTH_TOKEN_PROVIDER`,
+  both defaulting to the literal `openai_api`) that the policy gate reasons
+  about; that default is worth reviewing before exposing a server.
+  Rotation procedure: `docs/runbooks.md`.
 - **Bind hosts are per server, by design.** `MCP_HTTP_HOST` is unused in this
   repo since the split; the public/catalog hosts have their own variables so a
   future credentialed server can never inherit an off-loopback bind.
@@ -45,14 +60,18 @@ tool indexes. The NanoClaw wiring runbook
   only in the `sse.js`/express paths, which these servers do not use). Once
   bound to `0.0.0.0`, the bearer is the ONLY gate. There is no `allowedHosts`
   knob to set.
-- **Clients.** All four must send the header: nanoclaw's
-  `config/default-mcp-servers.json`, the per-group `mcp_servers` copies stored
-  in nanoclaw's `container_configs` DB table (these do NOT re-read the default
-  file — patch them too), and this repo's advisor (`src/advisor-mcp.ts`). The
-  `scripts/mcp-public-bridge.mjs` forwarder is a raw TCP pipe and needs no
-  change; it never parses HTTP, so Authorization headers pass through.
-- **Ops note.** Ports tracked in `~/.dev-ports.yaml` (cuassistant:
-  `mcp_credentialed` 8765, `mcp_public` 8766, `mcp_curriculum` 8767).
+- **Clients.** Three places hold these bearers and all three must send the
+  header: nanoclaw's `config/default-mcp-servers.json`; the per-group
+  `mcp_servers` copies stored in nanoclaw's `container_configs` DB table (these
+  do NOT re-read the default file — patch them too); and this repo's advisor
+  (`src/advisor-mcp.ts`), which is a *client* of 8766/8767 as well as their
+  host. The `scripts/mcp-public-bridge.mjs` forwarder is a fourth consumer only
+  in the network sense: it is a raw TCP pipe, never parses HTTP, and passes
+  Authorization headers through unchanged, so it needs no token and no restart.
+- **Ops note.** Ports are tracked in `~/.dev-ports.yaml`. The catalog server is
+  `mcp:catalog` on **8767** — older notes and that file may still call it
+  `mcp_curriculum`, which is the pre-rename name for the same service. 8766 is
+  `mcp_public`; 8765 (`mcp_credentialed`) belongs to `mailcal`, not here.
 
 ## Deploying tool or policy changes — RESTART REQUIRED
 
@@ -102,7 +121,15 @@ turn; during an outage of `gc_alumni`/`gc_curriculum_wiki` its category is
 absent, so production can present a shorter menu than the benchmarks'
 all-categories literal.
 
-## Per-agent consumer registry — moved to mailcal with 8765.
+## Per-agent consumer registry
+
+Not used by these servers. The machinery still exists in this repo
+(`src/mcp-tools/consumers.ts`, backing `<STATE_DIR>/mcp-consumers.json`), but
+both servers pass an EMPTY consumer source, so no registry file is read and
+none exists here — it is the credentialed server's mechanism, and 8765 went to
+`mailcal`. On 8766/8767 the env bearer is the whole of inbound auth (see
+"Inbound auth" above). Giving these servers a per-user registry is what would
+unpark `src/token-portal.ts`.
 
 ## Allow-list and authorized use
 
@@ -112,11 +139,15 @@ all-categories literal.
   `approval: none` policy action; registration fails closed otherwise. Every
   tool calls `assertMcpOperation()` before any backend call, and write tools
   pass normalized inputs through policy constraint validators.
-- OAuth scopes describe what the delegated token may technically permit; the
-  authorized-use list (`action-policy.yaml`) describes what CUassistant is
-  allowed to expose. Destructive or affects-others actions (mail/event delete,
-  RSVP, task delete, trigger-scan) are `approval: human_required` and are
-  therefore **wired but not exposed**.
+- The authorized-use list (`action-policy.yaml`) describes what this project is
+  allowed to expose, independently of what any backend would technically
+  permit. Every operation these two servers register is read-only over public
+  data and maps to an `approval: none` action; there is no
+  `approval: human_required` surface left in this repo — those actions belonged
+  to the credentialed server and moved to `mailcal`.
+- `action-policy.yaml` also carries the `data_egress` record the advisor's
+  provider chain is checked against, at startup and again per turn. That is the
+  enforcement point for `docs/policy/student-data.md`.
 
 ## Operation table — both servers (generated)
 
@@ -158,29 +189,57 @@ any tool/operation change and commit the result;
 
 - `list-clemson-terms`, `search-classes`, `find-alternatives`,
   `check-conflicts`, `get-course-details`, `find-conflict-free-schedule` —
-  read Clemson's public Banner Browse Classes data. No credentials.
+  read Clemson's public Banner Browse Classes data from a local SQLite snapshot
+  refreshed daily at 05:00, so every answer carries a "data as of" stamp
+  (`get-schedule-freshness` reports it). No outbound credentials.
+- `list-skills` / `get-skill-docs` — serve the `clemson-schedule-advising`
+  skill docs from `skills/`. Host state, no network.
 
-## Widening a policy-blocked operation
+### Catalog / degree audit — `cuassistant-catalog` (backed by `core/`)
 
-`delete-todo-task`, `delete-calendar-event`, the three RSVP tools, and
-`trigger_scan` are fully wired but unregistered because their policy action is
-`approval: human_required`. To expose one:
+- `list-gc-catalog-years`, `get-gc-program-plan`, `get-gc-requirement-rules`,
+  `get-gc-gen-ed`, `get-program-requirements`, `find-requirement-sections`,
+  `audit-gc-progress` — shell into `core/scripts/query.py` and
+  `core/scripts/audit.py` (JSON on stdout) against `core/db/gc_advisor.db`.
+  Every one takes `program` + `catalog_year` (with `name` / `year` accepted as
+  deprecated aliases) and echoes the resolved pair back; there is no default
+  program. Audit verdicts outside `Graphic Communications, BS` are
+  **advisory-only**. Full contract: `docs/mcp-catalog.md`.
+- `list-gc-skills` / `get-gc-skill-docs` — serve `core/skills/`. Host state.
 
-1. Change the action's `approval` to `none` in `policy/action-policy.yaml`
-   (only if genuinely safe unattended), or route it through a human-approval
-   gate equivalent to the send gate.
-2. Confirm the action's policy constraints are enforced by validators in
-   `src/mcp-tools/permissions.ts`.
-3. Re-run `npm test` and `npm run typecheck`, and update the table above.
+## Adding or widening an operation
+
+Every tool here is read-only over public data, so there is no policy-blocked
+surface waiting to be widened — the `approval: human_required` actions that
+used to be described in this section (mail/event delete, RSVP, task delete,
+trigger-scan) belong to the credentialed server and moved to `mailcal` on
+2026-08-24. Nothing in this repo is wired-but-unexposed.
+
+To add a new operation:
+
+1. Register it in `src/mcp-tools/permissions.ts` and give it an action in
+   `policy/action-policy.yaml`. Registration fails closed: a tool is exposed
+   only when its operation is active AND maps to an `approval: none` action.
+2. Confirm the handler calls `assertMcpOperation()` before any backend call.
+3. `npm run typecheck && npm run test:gate`, then `npm run docs:mcp-manifest`
+   and commit the regenerated table above (`test/mcp-manifest.test.ts` fails on
+   drift).
+4. Restart the affected server and re-probe its tool list — see the restart
+   section above. This step is part of shipping, not optional.
 
 ## What these servers do not do
 
-- No send-mail outside the Telegram approval gate. Drafts only on the
-  mail-write surface.
-- No mailbox rules CRUD; no shared mailbox or shared calendar access.
-- No Teams chat, OneDrive, SharePoint, Drive, or Planner tools.
-- No SSO. Caller identity on stdio is inherited from the spawning process; on
-  HTTP it is the per-agent registry token (the matched consumer id). Federated
-  identity beyond the token registry is a separate review step.
-- No rate limiting beyond the send gate's throttles. Per-tool throttles are a
-  separate review step.
+- No writes of any kind. Every registered operation is a read against public
+  Clemson data or a host-state skill lookup.
+- No mailbox, calendar, task, or messaging capability. None is wired here; the
+  advisor is additionally guarded against being handed the credentialed
+  server's tools by port (`assertAdvisorMcpUrlSafe`).
+- No student data. These servers see course codes, program names, and catalog
+  years — never a transcript, name, or C-ID. See `docs/policy/student-data.md`.
+- No SSO. Caller identity is the bearer: on stdio it is inherited from the
+  spawning process, on HTTP it is whoever holds the server's one env token,
+  plus the provider attested for it. Federated identity is a separate review
+  step (hardening item D5/S1).
+- Rate limiting is coarse: unauthenticated requests are logged through
+  `src/log.ts` and a source exceeding 30 unauthenticated hits per minute gets
+  429s. There are no per-tool throttles.
