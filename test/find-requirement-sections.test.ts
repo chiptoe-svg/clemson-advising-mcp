@@ -258,20 +258,29 @@ async function call(args: Record<string, unknown>) {
   return json(await findRequirementSections.handler(args));
 }
 
-const BASE_ARGS = { requirement: SLOT, completed_courses: [] as string[] };
+// Phase B4: `program` no longer defaults to Graphic Communications, BS — every
+// call names the program it is asking about.
+const BASE_ARGS = {
+  requirement: SLOT,
+  completed_courses: [] as string[],
+  program: PROGRAM,
+};
 
 // ---------------------------------------------------------------------------
 // Registration + literal name/description (VERBATIM from task-6-brief.md)
 // ---------------------------------------------------------------------------
 
+// Updated in Phase B4: `program` is now required (no GC default) and
+// catalog_year is called out as defaulting to the program's latest.
 const EXPECTED_DESCRIPTION =
   "Find sections that fill a named degree requirement slot and that the " +
   "student is eligible to take (prerequisites checked against " +
   "completed_courses). Requires requirement — the requirement slot name; " +
-  "an unknown name returns the valid slot list. Optional: completed_courses, " +
-  "fits_around_crns, days, no_meeting_before, no_meeting_after, exclude_days, " +
-  "open_seats_only, program, catalog_year. Term is optional — defaults to " +
-  "the current registration term.";
+  "an unknown name returns the valid slot list — and program, which has no " +
+  "default. Optional: catalog_year (defaults to the program's latest), " +
+  "completed_courses, fits_around_crns, days, no_meeting_before, " +
+  "no_meeting_after, exclude_days, open_seats_only. Term is optional — " +
+  "defaults to the current registration term.";
 
 test("registered with the exact kebab-case name and the verbatim brief description", () => {
   assert.equal(findRequirementSections.tool.name, "find-requirement-sections");
@@ -304,14 +313,56 @@ test("an unknown requirement returns the valid slot list inline (no extra round)
       ];
     },
   });
-  const res = await tool.handler({ requirement: "Bogus Requirement", completed_courses: [] });
+  const res = await tool.handler({
+    requirement: "Bogus Requirement",
+    completed_courses: [],
+    program: PROGRAM,
+  });
   const t = errText(res);
   assert.match(t, /Unknown requirement "Bogus Requirement"/);
   assert.match(t, /Specialty Area Requirement/);
   assert.match(t, /Graphic Communication Technical Requirement/);
-  // Resolved against the latest catalog year (2025-2026) and default program
-  // — proves the redirect doesn't need catalog_year/program to be supplied.
+  // Resolved against the latest catalog year (2025-2026) for the named program
+  // — proves the redirect doesn't need catalog_year to be supplied.
   assert.deepEqual(calls, [{ year: "2025-2026", name: PROGRAM }]);
+});
+
+// Phase B4: the GC default is gone. A call with no program is an error that
+// says so, not a silent answer about a degree nobody asked about.
+test("a missing program returns a clear error instead of defaulting to Graphic Communications", async () => {
+  const res = await findRequirementSections.handler({
+    requirement: SLOT,
+    completed_courses: [],
+  });
+  assert.equal(res.isError, true);
+  assert.match(errText(res), /program is required/);
+  assert.match(errText(res), /no default program/);
+});
+
+test("the deprecated `name` alias still resolves the program for one release", async () => {
+  const out = await call({
+    requirement: SLOT,
+    completed_courses: [],
+    name: PROGRAM,
+  });
+  assert.equal(out.program, PROGRAM);
+});
+
+test("every response echoes the resolved program and catalog_year", async () => {
+  const latest = await call(BASE_ARGS);
+  assert.equal(latest.program, PROGRAM);
+  assert.equal(latest.catalog_year, "2025-2026", "defaulted to the program's latest");
+  const older = await call({ ...BASE_ARGS, catalog_year: "2024-2025" });
+  assert.equal(older.program, PROGRAM);
+  assert.equal(older.catalog_year, "2024-2025");
+});
+
+test("the inputSchema is closed — a wrong key is a visible error, not a silent default", () => {
+  assert.equal(
+    (findRequirementSections.tool.inputSchema as { additionalProperties?: boolean })
+      .additionalProperties,
+    false,
+  );
 });
 
 test("a rule gc_advisor flagged bogus is invisible: the slot reads as unknown, never as offering sections", async () => {
@@ -322,6 +373,7 @@ test("a rule gc_advisor flagged bogus is invisible: the slot reads as unknown, n
     term: TERM,
     requirement: "Natural Science Requirement",
     completed_courses: [],
+    program: PROGRAM,
   });
   assert.equal(res.isError, true, "bogus slot must not resolve to sections");
   const t = errText(res);
@@ -335,7 +387,11 @@ test("an unreachable gc_advisor bridge on the unknown-slot path still returns a 
       throw new Error("gc_advisor unreachable");
     },
   });
-  const res = await tool.handler({ requirement: "Bogus Requirement", completed_courses: [] });
+  const res = await tool.handler({
+    requirement: "Bogus Requirement",
+    completed_courses: [],
+    program: PROGRAM,
+  });
   assert.match(errText(res), /Unknown requirement "Bogus Requirement"/);
 });
 
@@ -489,7 +545,7 @@ test("total_matched reflects the merged section count", async () => {
 // ---------------------------------------------------------------------------
 
 test("a course offering more sections than NARROW_THRESHOLD is omitted and noted, not silently dropped", async () => {
-  const out = await call({ requirement: "Narrow Test Requirement", completed_courses: [] });
+  const out = await call({ requirement: "Narrow Test Requirement", completed_courses: [], program: PROGRAM });
   // GC 3050 is the requirement's only explicit course, and it needs_narrowing
   // (16 sections > NARROW_THRESHOLD) — so merged ends up empty rather than
   // silently dropping those 16 sections with no explanation.

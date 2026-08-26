@@ -94,9 +94,22 @@ function runAuditWithStdin(stdin: string): Promise<string> {
   });
 }
 
+// Test-only seam, same shape as __setGcRequirementRulesRunner below: lets a
+// test see the record the audit tool actually submits (Phase B4 fills its
+// program / catalog_year) without spawning Python.
+let auditRunner: AuditRunner = runAuditWithStdin;
+
+export function __setGcAuditRunner(run: AuditRunner): void {
+  auditRunner = run;
+}
+
+export function __resetGcAuditRunner(): void {
+  auditRunner = runAuditWithStdin;
+}
+
 export async function auditGcProgress(
   progress: unknown,
-  run: AuditRunner = runAuditWithStdin,
+  run: AuditRunner = auditRunner,
 ): Promise<unknown> {
   const out = await run(JSON.stringify(progress)).catch(rethrowCliFailure);
   return __parseAuditOutput(out);
@@ -140,9 +153,20 @@ export async function getGcRequirementRules(
   return JSON.parse(out);
 }
 
+// Test-only seam, same shape as __setGcRequirementRulesRunner above.
+let genEdRunner: QueryRunner = defaultRunner;
+
+export function __setGcGenEdRunner(run: QueryRunner): void {
+  genEdRunner = run;
+}
+
+export function __resetGcGenEdRunner(): void {
+  genEdRunner = defaultRunner;
+}
+
 export async function getGcGenEd(
   year: string,
-  run: QueryRunner = defaultRunner,
+  run: QueryRunner = genEdRunner,
 ): Promise<unknown> {
   const out = await run(["gen-ed", "--year", year]).catch(rethrowCliFailure);
   return JSON.parse(out);

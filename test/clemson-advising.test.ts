@@ -378,9 +378,46 @@ test("get-program-requirements: name matching nothing returns a clear error", as
   assert.match((res.content[0] as { text: string }).text, /No Clemson program matches/);
 });
 
-test("get-program-requirements: missing name returns a clear error", async () => {
+// Phase B4: the canonical keys are program / catalog_year; name / year stay
+// accepted as deprecated aliases for one release (every test above still uses
+// them, which is the alias regression coverage).
+test("get-program-requirements: the canonical program/catalog_year keys work", async () => {
+  const { body } = await callRequirements({
+    program: ACCOUNTING_MINOR,
+    catalog_year: "2025-2026",
+  });
+  assert.ok(body);
+  assert.equal(body!.program, ACCOUNTING_MINOR);
+  assert.equal(body!.catalog_year, "2025-2026");
+});
+
+test("get-program-requirements: an explicit program beats the deprecated name alias", async () => {
+  const { body } = await callRequirements({
+    program: ACCOUNTING_MINOR,
+    name: "Underwater Basket Weaving Minor",
+  });
+  assert.ok(body);
+  assert.equal(body!.program, ACCOUNTING_MINOR);
+});
+
+test("get-program-requirements: missing program returns a clear error naming the programs", async () => {
   const res = await getProgramRequirements.handler({});
   assert.equal(res.isError, true);
+  const text = (res.content[0] as { text: string }).text;
+  assert.match(text, /program is required/);
+  assert.match(text, /minor or certificate/);
+});
+
+test("get-program-requirements declares program/catalog_year and closes its schema", () => {
+  const schema = getProgramRequirements.tool.inputSchema as {
+    properties?: Record<string, unknown>;
+    additionalProperties?: boolean;
+  };
+  assert.ok(schema.properties?.program);
+  assert.ok(schema.properties?.catalog_year);
+  assert.ok(schema.properties?.name, "deprecated alias still declared");
+  assert.ok(schema.properties?.year, "deprecated alias still declared");
+  assert.equal(schema.additionalProperties, false);
 });
 
 test("get-program-requirements hides rules gc_advisor flagged bogus", async () => {
