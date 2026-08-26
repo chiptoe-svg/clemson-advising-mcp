@@ -90,14 +90,19 @@ function defaultTerm(now: Date): string {
   return `${year}08`; // May (5) - Nov (11)
 }
 
-// Next occurrence of `season` strictly after `anchorCode` (a YYYYMM term
-// code). Term codes sort correctly as numbers within a year because
-// Spring(01) < Summer(05) < Fall(08).
+// Nearest occurrence of `season` at or after `anchorCode` (a YYYYMM term
+// code) — INCLUDING the anchor itself. Term codes sort correctly as numbers
+// within a year because Spring(01) < Summer(05) < Fall(08).
+//
+// Owner decision 2026-08-26: a bare "fall" typed in August means THIS fall
+// (registration/add-drop is under way), not Fall of next year — the previous
+// strictly-after rule (`<=`) sent August's "fall" to a term with no snapshot
+// and cost the model a round (review D14 / Phase C T12).
 function nextOccurrence(season: string, anchorCode: string): string {
   const seasonCode = SEASON_CODE[season];
   const anchorYear = Number(anchorCode.slice(0, 4));
   let candidate = `${anchorYear}${seasonCode}`;
-  if (Number(candidate) <= Number(anchorCode)) {
+  if (Number(candidate) < Number(anchorCode)) {
     candidate = `${anchorYear + 1}${seasonCode}`;
   }
   return candidate;
