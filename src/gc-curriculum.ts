@@ -13,6 +13,55 @@ import {
 
 const execFileAsync = promisify(execFile);
 
+/** The audit contract version this service understands (core/src/gc_advisor/audit/engine.py:AUDIT_SCHEMA_VERSION). */
+export const AUDIT_SCHEMA_VERSION = "gc-audit-v1";
+
+/** A structured failure from core's CLI (exit 2 + one-line JSON on stdout). */
+export class GcCliError extends Error {
+  constructor(
+    message: string,
+    public readonly knownPrograms: string[] = [],
+  ) {
+    super(message);
+    this.name = "GcCliError";
+  }
+}
+
+/** Turns an execFile rejection into GcCliError when core sent an envelope; rethrows otherwise. */
+function rethrowCliFailure(e: unknown): never {
+  const err = e as { code?: unknown; stdout?: unknown };
+  if (err && err.code === 2 && typeof err.stdout === "string") {
+    let env: { error?: unknown; known_programs?: unknown } | null = null;
+    try {
+      env = JSON.parse(err.stdout.trim()) as { error?: unknown; known_programs?: unknown };
+    } catch {
+      env = null; // stdout was not an envelope — surface the original failure
+    }
+    if (env && typeof env.error === "string") {
+      const known = Array.isArray(env.known_programs)
+        ? env.known_programs.filter((s): s is string => typeof s === "string")
+        : [];
+      throw new GcCliError(
+        known.length ? `${env.error}. Known programs: ${known.join("; ")}` : env.error,
+        known,
+      );
+    }
+  }
+  throw e;
+}
+
+/** Exposed for tests: validates the audit contract before anything reads the body. */
+export function __parseAuditOutput(out: string): Record<string, unknown> {
+  const parsed = JSON.parse(out) as Record<string, unknown>;
+  const v = parsed.audit_version;
+  if (v !== AUDIT_SCHEMA_VERSION) {
+    throw new Error(
+      `audit output carries audit_version ${v === undefined ? "<missing>" : String(v)}, expected ${AUDIT_SCHEMA_VERSION} — core and service are out of step`,
+    );
+  }
+  return parsed;
+}
+
 /** Runs gc_advisor's query.py with the given subcommand args, returns stdout. */
 export type QueryRunner = (args: string[]) => Promise<string>;
 
@@ -41,13 +90,13 @@ function runAuditWithStdin(stdin: string): Promise<string> {
 
 export async function auditGcProgress(progress: unknown): Promise<unknown> {
   const out = await runAuditWithStdin(JSON.stringify(progress));
-  return JSON.parse(out);
+  return __parseAuditOutput(out);
 }
 
 export async function listGcCatalogYears(
   run: QueryRunner = defaultRunner,
 ): Promise<string[]> {
-  const out = await run(["years"]);
+  const out = await run(["years"]).catch(rethrowCliFailure);
   return JSON.parse(out) as string[];
 }
 
@@ -56,7 +105,7 @@ export async function getGcProgramPlan(
   name: string,
   run: QueryRunner = defaultRunner,
 ): Promise<unknown> {
-  const out = await run(["program-plan", "--year", year, "--name", name]);
+  const out = await run(["program-plan", "--year", year, "--name", name]).catch(rethrowCliFailure);
   return JSON.parse(out);
 }
 
@@ -78,7 +127,7 @@ export async function getGcRequirementRules(
   name: string,
   run: QueryRunner = requirementRulesRunner,
 ): Promise<unknown> {
-  const out = await run(["req-rules", "--year", year, "--name", name]);
+  const out = await run(["req-rules", "--year", year, "--name", name]).catch(rethrowCliFailure);
   return JSON.parse(out);
 }
 
@@ -86,7 +135,7 @@ export async function getGcGenEd(
   year: string,
   run: QueryRunner = defaultRunner,
 ): Promise<unknown> {
-  const out = await run(["gen-ed", "--year", year]);
+  const out = await run(["gen-ed", "--year", year]).catch(rethrowCliFailure);
   return JSON.parse(out);
 }
 
@@ -94,6 +143,6 @@ export async function getGcCourse(
   code: string,
   run: QueryRunner = defaultRunner,
 ): Promise<unknown> {
-  const out = await run(["course", "--code", code]);
+  const out = await run(["course", "--code", code]).catch(rethrowCliFailure);
   return JSON.parse(out);
 }
