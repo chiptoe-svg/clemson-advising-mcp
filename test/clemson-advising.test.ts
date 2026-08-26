@@ -204,9 +204,10 @@ function buildGcAdvisorFixture(): void {
 buildGcAdvisorFixture();
 
 const { writeScheduleDb } = await import("../src/clemson-schedule-db.ts");
-const { getProgramRequirements, scheduleFreshness } = await import(
+const { getProgramRequirements } = await import(
   "../src/mcp-tools/clemson-advising.ts"
 );
+const { scheduleFreshness } = await import("../src/mcp-tools/clemson-schedule.ts");
 import type { ClemsonTermSnapshot } from "../src/clemson-classes.ts";
 
 function meeting(days: string, beginTime: string, endTime: string) {

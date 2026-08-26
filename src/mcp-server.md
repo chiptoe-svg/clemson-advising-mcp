@@ -138,13 +138,13 @@ any tool/operation change and commit the result;
 | `get-gc-requirement-rules`    | cuassistant-catalog | `clemson.gc_requirement_rules`        | `clemson.gc_requirement_rules`        | external-http | curriculum-extras | yes     |
 | `get-gc-skill-docs`           | cuassistant-catalog | `host.get_skill_docs`                 | `host.get_skill_docs`                 | host-state    | meta              | yes     |
 | `get-program-requirements`    | cuassistant-catalog | `clemson.gc_program_requirements`     | `clemson.gc_program_requirements`     | external-http | curriculum-extras | yes     |
-| `get-schedule-freshness`      | cuassistant-catalog | `clemson.schedule_freshness`          | `clemson.schedule_freshness`          | external-http | meta              | yes     |
 | `list-gc-catalog-years`       | cuassistant-catalog | `clemson.gc_catalog_years`            | `clemson.gc_catalog_years`            | external-http | curriculum-extras | yes     |
 | `list-gc-skills`              | cuassistant-catalog | `host.list_skills`                    | `host.list_skills`                    | host-state    | meta              | yes     |
 | `check-conflicts`             | cuassistant-public  | `clemson.check_conflicts`             | `clemson.check_conflicts`             | external-http | core              | yes     |
 | `find-alternatives`           | cuassistant-public  | `clemson.find_alternatives`           | `clemson.find_alternatives`           | external-http | core              | yes     |
-| `find-conflict-free-schedule` | cuassistant-public  | `clemson.find_conflict_free_schedule` | `clemson.find_conflict_free_schedule` | external-http | curriculum-extras | yes     |
+| `find-conflict-free-schedule` | cuassistant-public  | `clemson.find_conflict_free_schedule` | `clemson.find_conflict_free_schedule` | external-http | scheduling        | yes     |
 | `get-course-details`          | cuassistant-public  | `clemson.course_details`              | `clemson.course_details`              | external-http | core              | yes     |
+| `get-schedule-freshness`      | cuassistant-public  | `clemson.schedule_freshness`          | `clemson.schedule_freshness`          | external-http | meta              | yes     |
 | `get-skill-docs`              | cuassistant-public  | `host.get_skill_docs`                 | `host.get_skill_docs`                 | host-state    | meta              | yes     |
 | `list-clemson-terms`          | cuassistant-public  | `clemson.list_terms`                  | `clemson.list_terms`                  | external-http | meta              | yes     |
 | `list-skills`                 | cuassistant-public  | `host.list_skills`                    | `host.list_skills`                    | host-state    | meta              | yes     |
