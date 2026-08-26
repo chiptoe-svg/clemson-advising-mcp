@@ -1,0 +1,69 @@
+// Shared program / catalog-year argument handling for the catalog tools.
+//
+// Phase B unified the keys: every catalog tool takes `program` and
+// `catalog_year`. The old `name` / `year` keys stay accepted as DEPRECATED
+// ALIASES for one release so nothing breaks the day the servers restart —
+// after that they can be deleted here and in each tool's inputSchema.
+//
+// The other half of the change is what ISN'T here any more: these tools used
+// to default a missing program to "Graphic Communications, BS", so a Marketing
+// question was silently answered with the GC plan (review finding D10). A
+// missing program is now an error that names the programs on offer.
+
+import { listPrograms } from "../advisor-catalog.js";
+
+/** Schema blurb for the canonical `program` key. */
+export const PROGRAM_ARG_DESCRIPTION =
+  "Program name exactly as the catalog spells it, e.g. 'Marketing, BS'. " +
+  "Required — there is no default program; an omitted or unknown value " +
+  "returns the list of programs to choose from.";
+
+/** Schema blurb for the canonical `catalog_year` key. */
+export const CATALOG_YEAR_ARG_DESCRIPTION =
+  "Catalog year label, e.g. '2026-2027' (from list-gc-catalog-years).";
+
+export const NAME_ALIAS_DESCRIPTION =
+  "Deprecated alias for `program`, accepted for one release. Use `program`.";
+
+export const YEAR_ALIAS_DESCRIPTION =
+  "Deprecated alias for `catalog_year`, accepted for one release. Use `catalog_year`.";
+
+function str(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+/** Canonical `program`, falling back to the deprecated `name` alias. */
+export function resolveProgramArg(args: Record<string, unknown>): string | null {
+  return str(args.program) ?? str(args.name);
+}
+
+/** Canonical `catalog_year`, falling back to the deprecated `year` alias. */
+export function resolveCatalogYearArg(
+  args: Record<string, unknown>,
+): string | null {
+  return str(args.catalog_year) ?? str(args.year);
+}
+
+/**
+ * The error a catalog tool returns when no program reached it. Names the
+ * programs on offer so the caller can retry without a second round trip; falls
+ * back to a plain sentence if the catalog DB cannot be read.
+ */
+export function missingProgramMessage(extra = ""): string {
+  let names: string[] = [];
+  try {
+    names = listPrograms().programs.map((p) => p.name);
+  } catch {
+    names = [];
+  }
+  const list =
+    names.length > 0
+      ? ` Choose one of: ${names.join(", ")}.`
+      : " Use list-gc-catalog-years and get-program-requirements to discover valid program names.";
+  return (
+    "program is required — this tool has no default program, because " +
+    "defaulting it answered questions about the wrong degree." +
+    list +
+    extra
+  );
+}

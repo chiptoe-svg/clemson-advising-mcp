@@ -23,6 +23,15 @@ import { UNTIMED_FILTER_NOTE } from "./section-query.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
+import {
+  CATALOG_YEAR_ARG_DESCRIPTION,
+  NAME_ALIAS_DESCRIPTION,
+  PROGRAM_ARG_DESCRIPTION,
+  YEAR_ALIAS_DESCRIPTION,
+  missingProgramMessage,
+  resolveCatalogYearArg,
+  resolveProgramArg,
+} from "./program-args.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -189,11 +198,11 @@ export function makeFindRequirementSections(
       "Find sections that fill a named degree requirement slot and that the " +
       "student is eligible to take (prerequisites checked against " +
       "completed_courses). Requires requirement — the requirement slot " +
-      "name; an unknown name returns the valid slot list. Optional: " +
-      "completed_courses, fits_around_crns, days, no_meeting_before, " +
-      "no_meeting_after, exclude_days, open_seats_only, program, " +
-      "catalog_year. Term is optional — defaults to the current " +
-      "registration term.",
+      "name; an unknown name returns the valid slot list — and program, " +
+      "which has no default. Optional: catalog_year (defaults to the " +
+      "program's latest), completed_courses, fits_around_crns, days, " +
+      "no_meeting_before, no_meeting_after, exclude_days, open_seats_only. " +
+      "Term is optional — defaults to the current registration term.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -257,20 +266,24 @@ export function makeFindRequirementSections(
           description:
             "Optional. If true, excludes sections with seats_available <= 0.",
         },
-        program: {
-          type: "string",
-          description:
-            "GC program name (default 'Graphic Communications, BS').",
-        },
+        program: { type: "string", description: PROGRAM_ARG_DESCRIPTION },
         catalog_year: {
           type: "string",
           description:
-            "Optional catalog year label, e.g. '2025-2026', to pick the " +
-            "requirement rule for a student grandfathered into an older " +
-            "catalog. Default: latest catalog year for program.",
+            CATALOG_YEAR_ARG_DESCRIPTION +
+            " Optional here: omit it to use the latest catalog year for the " +
+            "program, or pass an older one for a grandfathered student. The " +
+            "year actually used is echoed back as catalog_year.",
         },
       },
+      // `program` is deliberately NOT in `required`, even though it has no
+      // default: the advisor fills an omitted program from the session's
+      // selection inside execute (advisor-agent.ts's withSessionDefaults),
+      // which runs AFTER the harness validates the model's own arguments —
+      // a schema-required program would reject the call before that fill can
+      // happen. The handler is the enforcement point; the description says so.
       required: ["requirement"],
+      additionalProperties: false,
     },
   },
   async handler(args) {
@@ -295,15 +308,10 @@ export function makeFindRequirementSections(
       );
     }
 
-    const programName =
-      typeof args.program === "string" && args.program
-        ? args.program
-        : "Graphic Communications, BS";
+    const programName = resolveProgramArg(args);
+    if (!programName) return err(missingProgramMessage());
 
-    const catalogYear =
-      typeof args.catalog_year === "string" && args.catalog_year
-        ? args.catalog_year
-        : undefined;
+    const catalogYear = resolveCatalogYearArg(args) ?? undefined;
 
     const completedCoursesArr = Array.isArray(args.completed_courses)
       ? (args.completed_courses as unknown[]).filter(
@@ -357,12 +365,17 @@ export function makeFindRequirementSections(
         );
       }
 
+      // The year the answer is actually built from, echoed on every response
+      // so the caller never has to guess which catalog it got.
+      const resolvedYear =
+        catalogYear ?? getCatalogYearLabelForProgram(schedDb, programId);
+
       const rule = getRequirementRule(schedDb, programId, requirement);
       if (!rule) {
         // Unknown slot — the discriminator redirect: list the valid slot
         // names inline (from gc_advisor's req-rules bridge) rather than
         // making the caller round-trip to get-gc-requirement-rules itself.
-        const yearLabel = catalogYear ?? getCatalogYearLabelForProgram(schedDb, programId);
+        const yearLabel = resolvedYear;
         let validSlots: string[] = [];
         try {
           const rows = (await getReqRules(yearLabel ?? "", programName)) as unknown;
@@ -394,6 +407,8 @@ export function makeFindRequirementSections(
         return okJson({
           term,
           term_description: meta.termDescription,
+          program: programName,
+          catalog_year: resolvedYear,
           requirement,
           total_credits_required: rule.total_credits,
           sections: [],
@@ -469,6 +484,8 @@ export function makeFindRequirementSections(
         return okJson({
           term,
           term_description: meta.termDescription,
+          program: programName,
+          catalog_year: resolvedYear,
           requirement,
           total_credits_required: rule.total_credits,
           sections: [],
@@ -508,6 +525,8 @@ export function makeFindRequirementSections(
       const result: Record<string, unknown> = {
         term,
         term_description: meta.termDescription,
+        program: programName,
+        catalog_year: resolvedYear,
         requirement,
         total_credits_required: rule.total_credits,
         total_matched: sections.length,
@@ -559,23 +578,28 @@ export const getProgramRequirements: McpToolDefinition = {
       "Use for 'what does the Accounting minor require?'. Partial/misspelled " +
       "names return candidate program names to pick from. Some majors also " +
       "have a full semester-by-semester plan — the response lists which " +
-      "(programs_with_full_plan); use get-gc-program-plan for those.",
+      "(programs_with_full_plan); use get-gc-program-plan for those. " +
+      "Takes program + catalog_year; there is no default program.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        name: {
+        program: {
           type: "string",
           description:
             "Program name, e.g. 'Accounting Minor' or 'Cybersecurity Minor'. " +
-            "A partial name returns candidates.",
+            "Any catalog program — minor, certificate, or major — not only " +
+            "the eight selectable degree programs. A partial name returns " +
+            "candidates. Required; there is no default.",
         },
-        year: {
+        catalog_year: {
           type: "string",
           description:
-            "Optional catalog year, e.g. '2025-2026'. Defaults to the latest.",
+            CATALOG_YEAR_ARG_DESCRIPTION + " Optional; defaults to the latest.",
         },
+        name: { type: "string", description: NAME_ALIAS_DESCRIPTION },
+        year: { type: "string", description: YEAR_ALIAS_DESCRIPTION },
       },
-      required: ["name"],
+      additionalProperties: false,
     },
   },
   async handler(args) {
@@ -585,12 +609,16 @@ export const getProgramRequirements: McpToolDefinition = {
       return permissionErr(e);
     }
 
-    const name = args.name as string | undefined;
-    if (!name || typeof name !== "string" || !name.trim())
-      return err("name is required");
+    const name = resolveProgramArg(args);
+    if (!name)
+      return err(
+        missingProgramMessage(
+          " This tool also accepts any minor or certificate by its full " +
+            "catalog name.",
+        ),
+      );
 
-    const year =
-      typeof args.year === "string" && args.year ? args.year : undefined;
+    const year = resolveCatalogYearArg(args) ?? undefined;
 
     let db: Database.Database;
     try {
