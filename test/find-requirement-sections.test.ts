@@ -26,6 +26,10 @@ process.env.GC_ADVISOR_DB = GC_DB_PATH;
 // schedule DB is written at this exact code so a no-`term` call exercises
 // the real default path, not a hardcoded pin.
 const TERM = "202608";
+// Pin the resolver's clock inside the Fall-2026 window so the default-term
+// path is stable regardless of the wall clock (review T3).
+const { __setTermClockForTest } = await import("../src/term-resolve.ts");
+__setTermClockForTest(() => new Date("2026-08-14T12:00:00-04:00"));
 const PROGRAM = "Graphic Communications, BS";
 const SLOT = "Specialty Area Requirement";
 

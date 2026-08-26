@@ -114,9 +114,18 @@ function unparseableError(input: string, availableTerms: string[]): TermError {
   };
 }
 
+// Test-only clock. Tests that exercise the "no term given → current
+// registration term" path build a fixture snapshot for ONE term; without a
+// fixed clock they were pinned to the wall clock and would all break on
+// 2026-12-01 when defaultTerm rolls to Spring 2027 (2026-08-26 review, T3).
+let clockForTest: (() => Date) | null = null;
+export function __setTermClockForTest(clock: (() => Date) | null): void {
+  clockForTest = clock;
+}
+
 export function resolveTerm(
   input?: string,
-  now: Date = new Date(),
+  now: Date = clockForTest ? clockForTest() : new Date(),
 ): TermResolution | TermError {
   const availableTerms = listSnapshotTerms();
   const trimmed = input?.trim() ?? "";
