@@ -46,12 +46,46 @@ import {
 } from "./permissions.js";
 import { isAgentBackendAuthorized } from "../policy.js";
 import { auditContext } from "./audit.js";
+import { log as appLog } from "../log.js";
 
 /** Reject bodies larger than this on the HTTP transport (local DoS guard). */
 const MAX_BODY_BYTES = 1_048_576; // 1 MiB
 
 function log(msg: string): void {
   process.stderr.write(`[cuassistant-mcp] ${msg}\n`);
+}
+
+// --- Unauthenticated-request accounting ---------------------------------
+// The MCP HTTP ports can be campus-bound. Every unauthenticated request used to
+// write one line straight to stderr — launchd's never-rotated err.log — at
+// ~74 bytes per request with no limit (measured 1.4 GB/day at 215 req/s,
+// 2026-08-26 review, F1/S5). Now: 401s are counted per source address in a
+// one-minute window, logged through src/log.ts (rotated) at the first hit and
+// every LOG_EVERY hits, and a source exceeding UNAUTH_LIMIT in the window gets
+// 429 (Retry-After) for the rest of it — a bearer-guessing loop is throttled
+// to UNAUTH_LIMIT attempts per minute per address, and the log grows by a
+// handful of lines instead of one per attempt.
+const UNAUTH_WINDOW_MS = 60_000;
+export const UNAUTH_LIMIT = 30;
+const LOG_EVERY = 100;
+const unauthBySource = new Map<string, { windowStart: number; count: number }>();
+
+export function __resetUnauthTrackerForTest(): void {
+  unauthBySource.clear();
+}
+
+/** Returns "log" when this hit should be logged, "throttle" when it exceeds the limit, else "silent". */
+function noteUnauthenticated(source: string, now: number): "log" | "throttle" | "silent" {
+  let entry = unauthBySource.get(source);
+  if (!entry || now - entry.windowStart >= UNAUTH_WINDOW_MS) {
+    entry = { windowStart: now, count: 0 };
+    unauthBySource.set(source, entry);
+    if (unauthBySource.size > 10_000) unauthBySource.clear(); // bounded memory under a spray
+  }
+  entry.count += 1;
+  if (entry.count > UNAUTH_LIMIT) return "throttle";
+  if (entry.count === 1 || entry.count % LOG_EVERY === 0) return "log";
+  return "silent";
 }
 
 const allTools: McpToolDefinition[] = [];
@@ -279,13 +313,27 @@ function buildServer(name: string, principal?: Principal): Server {
 export function createHttpHandler(
   name: string,
   authenticate: Authenticator,
+  opts: { now?: () => number } = {},
 ): http.RequestListener {
+  const now = opts.now ?? Date.now;
   return (req, res) => {
     const principal = authenticate(req.headers.authorization);
     if (!principal) {
-      log(
-        `${name}: 401 unauthorized ${req.method ?? "?"} from ${req.socket.remoteAddress ?? "?"}`,
-      );
+      const source = req.socket.remoteAddress ?? "?";
+      const verdict = noteUnauthenticated(source, now());
+      if (verdict === "throttle") {
+        res.writeHead(429, { "content-type": "application/json", "retry-after": "60" });
+        res.end(JSON.stringify({ error: "too many unauthenticated requests" }));
+        return;
+      }
+      if (verdict === "log") {
+        appLog.warn("mcp unauthorized request", {
+          server: name,
+          method: req.method ?? "?",
+          source,
+          countInWindow: unauthBySource.get(source)?.count ?? 1,
+        });
+      }
       res.writeHead(401, { "content-type": "application/json" });
       res.end(JSON.stringify({ error: "unauthorized" }));
       return;

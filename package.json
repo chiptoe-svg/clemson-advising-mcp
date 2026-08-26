@@ -25,7 +25,8 @@
     "format:check": "prettier --check \"src/**/*.ts\" \"*.{md,json}\"",
     "prepare": "husky",
     "core:test": "cd core && .venv/bin/python -m pytest tests/ -q -rs -m \"not integration\"",
-    "test:gate": "CORE_E2E=required npm test && npm run core:test"
+    "test:gate": "CORE_E2E=required npm test && npm run core:test",
+    "health:check": "tsx scripts/health-check.ts"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "^0.82.1",
