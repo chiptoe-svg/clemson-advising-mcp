@@ -11,6 +11,7 @@ import Database from "better-sqlite3";
 import { STATE_DIR } from "./config.js";
 import { log } from "./log.js";
 import { roomCapacity } from "./clemson-room-capacity.js";
+import { toEasternIso } from "./eastern-time.js";
 import type {
   ClemsonMeeting,
   ClemsonSearchParams,
@@ -233,7 +234,9 @@ export function getScheduleDbMeta(db: Database.Database): ScheduleDbMeta {
     .all() as Array<{ key: string; value: string }>;
   const m = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   return {
-    fetchedAt: m["fetched_at"] ?? "",
+    // Stored as UTC ISO; surfaced with an explicit Eastern offset so the
+    // model never reads "09:02Z" as a local 9:02 (see eastern-time.ts).
+    fetchedAt: toEasternIso(m["fetched_at"] ?? ""),
     termDescription: m["term_description"] ?? "",
   };
 }

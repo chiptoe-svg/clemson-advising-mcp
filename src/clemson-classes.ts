@@ -15,6 +15,7 @@
 
 import { log } from "./log.js";
 import { roomCapacity } from "./clemson-room-capacity.js";
+import { toEasternIso } from "./eastern-time.js";
 import {
   openScheduleDb,
   queryScheduleDb,
@@ -759,7 +760,7 @@ async function getTermSections(
       return {
         ...base,
         sections: snap.sections,
-        snapshotDate: snap.fetchedAt,
+        snapshotDate: toEasternIso(snap.fetchedAt),
         scope: "snapshot",
       };
     }
@@ -810,7 +811,7 @@ async function getTermSections(
     return {
       ...base,
       sections: full.sections,
-      snapshotDate: snap.fetchedAt,
+      snapshotDate: toEasternIso(snap.fetchedAt),
       scope: "snapshot",
     };
   }

@@ -419,7 +419,9 @@ async function freshness(args: Record<string, unknown>) {
 test("get-schedule-freshness reports data_as_of and age for an ingested term", async () => {
   const out = await freshness({ term: TERM });
   assert.equal(out.has_snapshot, true);
-  assert.equal(out.data_as_of, SNAP.fetchedAt);
+  // Same instant, surfaced with the explicit Eastern offset (eastern-time.ts).
+  assert.equal(Date.parse(String(out.data_as_of)), Date.parse(SNAP.fetchedAt));
+  assert.match(String(out.data_as_of), /-0[45]:00$/);
   assert.equal(out.term_description, "Fall 2026");
   assert.equal(typeof out.age_hours, "number");
   assert.ok((out.age_hours as number) >= 0);

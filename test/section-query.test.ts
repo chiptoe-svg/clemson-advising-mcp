@@ -519,5 +519,5 @@ test("enrollment/maxEnrollment reflect the section's own values, not a shared de
 
 test("snapshotDate is populated from the snapshot's fetchedAt", () => {
   const result = ok(querySectionsEngine({ term: TERM, subject: "GC" }));
-  assert.equal(result.snapshotDate, "2026-07-20T05:00:00.000Z");
+  assert.equal(result.snapshotDate, "2026-07-20T01:00:00.000-04:00"); // Eastern offset (eastern-time.ts)
 });
