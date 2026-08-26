@@ -40,11 +40,14 @@ test("egressAuthorizedIn is fail-closed: only authorized:true admits", () => {
   assert.equal(egressAuthorizedIn([], "codex_chatgpt_edu"), false);
 });
 
-test("the shipped policy authorizes Codex, OpenAI, and local backends", () => {
-  // Reflects policy/action-policy.yaml data_egress as shipped. openai_api was
-  // flipped to authorized:true once OpenAI was confirmed contract-covered.
+test("the shipped policy authorizes Codex, the Clemson gateway, and local backends — NOT direct OpenAI", () => {
+  // Reflects policy/action-policy.yaml data_egress as shipped. openai_api
+  // (direct api.openai.com) was closed on 2026-08-26: its only code path left
+  // with the mailcal split, and the sole sanctioned OpenAI route is the
+  // Clemson gateway. Fail closed if a direct path is ever reintroduced.
   assert.equal(isEgressAuthorized("codex_chatgpt_edu"), true);
-  assert.equal(isEgressAuthorized("openai_api"), true);
+  assert.equal(isEgressAuthorized("openai_api"), false);
+  assert.equal(isEgressAuthorized("clemson_llm_gateway_openai"), true);
   assert.equal(isEgressAuthorized("local_omlx"), true);
   assert.equal(isEgressAuthorized("local_ollama"), true);
   assert.equal(isEgressAuthorized("not_listed"), false);

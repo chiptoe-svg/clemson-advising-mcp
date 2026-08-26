@@ -160,15 +160,19 @@ data_egress:
       basis: "ChatGPT Edu institutional agreement (Clemson)"
       authorized: true
 
-    # DIRECT to OpenAI. Retained because src/openai-classifier.ts still dials
-    # api.openai.com itself with its own OPENAI_API_KEY. This record covers THAT
-    # path and nothing else — the advisor's fallback no longer uses it, see
-    # clemson_llm_gateway_openai below.
+    # DIRECT to OpenAI — RETIRED. This record existed for src/openai-classifier.ts,
+    # which dialled api.openai.com with its own key; that module left with the
+    # mailcal split (2026-08-24) and no code path in this repo dials OpenAI
+    # directly any more (the 2026-08-26 review confirmed: only Clemson hosts
+    # appear in src/). Declared unauthorized so the record fails closed if such
+    # a path is ever reintroduced: the ONLY sanctioned OpenAI route is the
+    # Clemson gateway record below. (agent_backends is a separate section and
+    # still lists openai_api for consumer attestation of PUBLIC data.)
     - provider: openai_api
       scope: external
       sends: [subject, body]
-      basis: "OpenAI (api.openai.com), dialled directly — covered under Clemson institutional contract"
-      authorized: true
+      basis: "no direct-to-OpenAI code path exists; route retired 2026-08-24, record closed 2026-08-26"
+      authorized: false
 
     # The advisor's paid fallback, as it is ACTUALLY routed since Clemson IT
     # consolidated their hosted models and their OpenAI access behind one
