@@ -75,21 +75,30 @@ const defaultRunner: QueryRunner = async (args) => {
 };
 
 /** Runs the audit CLI with JSON piped to stdin (payloads are too large for argv). */
+export type AuditRunner = (stdin: string) => Promise<string>;
+
 function runAuditWithStdin(stdin: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = execFile(
       GC_ADVISOR_PYTHON,
       [GC_ADVISOR_AUDIT, "--db", GC_ADVISOR_DB],
       { maxBuffer: 8 * 1024 * 1024, timeout: 30_000 },
-      (err, stdout) => (err ? reject(err) : resolve(stdout)),
+      // Callback-style execFile does NOT attach stdout/stderr to the error
+      // (only the promisified form does); attach them so rethrowCliFailure
+      // can read core's exit-2 JSON envelope off `err.stdout`.
+      (err, stdout, stderr) =>
+        err ? reject(Object.assign(err, { stdout, stderr })) : resolve(stdout),
     );
     child.stdin?.write(stdin);
     child.stdin?.end();
   });
 }
 
-export async function auditGcProgress(progress: unknown): Promise<unknown> {
-  const out = await runAuditWithStdin(JSON.stringify(progress));
+export async function auditGcProgress(
+  progress: unknown,
+  run: AuditRunner = runAuditWithStdin,
+): Promise<unknown> {
+  const out = await run(JSON.stringify(progress)).catch(rethrowCliFailure);
   return __parseAuditOutput(out);
 }
 

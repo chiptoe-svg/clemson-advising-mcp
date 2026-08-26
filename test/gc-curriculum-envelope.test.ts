@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getGcRequirementRules, getGcProgramPlan, __parseAuditOutput, GcCliError, AUDIT_SCHEMA_VERSION } from "../src/gc-curriculum.ts";
+import { getGcRequirementRules, getGcProgramPlan, auditGcProgress, __parseAuditOutput, GcCliError, AUDIT_SCHEMA_VERSION } from "../src/gc-curriculum.ts";
 
 // execFile's rejection carries stdout/stderr and the exit code on the Error.
 function cliFailure(code: number, stdout: string): Error & { code: number; stdout: string; stderr: string } {
@@ -31,4 +31,14 @@ test("audit output must carry the expected audit_version", () => {
   assert.deepEqual(__parseAuditOutput(JSON.stringify({ audit_version: "gc-audit-v1", slots: [] })), { audit_version: "gc-audit-v1", slots: [] });
   assert.throws(() => __parseAuditOutput(JSON.stringify({ slots: [] })), /audit_version/);
   assert.throws(() => __parseAuditOutput(JSON.stringify({ audit_version: "gc-audit-v2" })), /gc-audit-v2.*expected gc-audit-v1/);
+});
+
+test("audit: an exit-2 envelope from audit.py becomes a GcCliError (P5 — core exits 2 since 8bdb446)", async () => {
+  const run = async () => { throw cliFailure(2, '{"error": "invalid progress payload: unsupported progress version: None"}\n'); };
+  await assert.rejects(() => auditGcProgress({ bogus: 1 }, run), (e: unknown) => {
+    assert.ok(e instanceof GcCliError, `expected GcCliError, got ${String(e)}`);
+    assert.match(e.message, /invalid progress payload/);
+    assert.ok(!e.message.includes("Command failed"));
+    return true;
+  });
 });
