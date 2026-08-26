@@ -194,12 +194,16 @@ export const auditProgress: McpToolDefinition = {
   tool: {
     name: "audit-gc-progress",
     description:
-      "Run a deterministic GC BS degree audit on a sanitized gc-progress-v1 " +
-      "record (passed course codes + terms + credits, in-progress, declared " +
-      "minor — NO grades or identity; produced by the GC Advisor clean flow). " +
-      "Returns requirements met/remaining, gen-ed progress, credits left, and " +
+      "Run a deterministic degree audit (any College of Business program; " +
+      "pass `program` in the record) on a sanitized gc-progress-v1 record " +
+      "(passed course codes + terms + credits, in-progress, declared minor — " +
+      "NO grades or identity; produced by the GC Advisor clean flow). Returns " +
+      "requirements met/remaining, gen-ed progress, credits left, and " +
       "prereq-eligible next courses. Use the results to advise; never compute " +
-      "the audit yourself.",
+      "the audit yourself. ADVISORY ONLY for programs other than Graphic " +
+      "Communications, BS (known allocation defects as of 2026-08-26): present " +
+      "those verdicts as tentative and tell the advisor to confirm with " +
+      "DegreeWorks.",
     inputSchema: {
       type: "object" as const,
       properties: {
