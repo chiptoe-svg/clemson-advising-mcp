@@ -1,6 +1,7 @@
 name: gitleaks
 
 on:
+  workflow_dispatch:   # manual full-history sweep (push runs scan only the pushed range, --first-parent)
   pull_request:
   push:
     branches: [main]
