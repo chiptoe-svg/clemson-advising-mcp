@@ -1,9 +1,10 @@
 // Daily refresh of Clemson per-term class snapshots.
 //
-// Discovers the live (registering) terms via Banner's getTerms — so newly
-// published terms like Spring 2027 are picked up automatically — and writes a
-// full-section snapshot to state/clemson/<term>.json for each. Past
-// "(View Only)" terms are skipped (they never change). Run via
+// Discovers the terms to refresh via Banner's getTerms: every non-View-Only
+// (registering) term plus any published FUTURE term Banner still labels
+// "(View Only)" (e.g. Spring 2027 before registration opens), and writes a
+// full-section snapshot for each. Past "(View Only)" terms are skipped (they
+// never change). See selectRefreshTerms in src/clemson-classes.ts. Run via
 //   npm run clemson:refresh
 // or the launchd plist in launchd/com.cuassistant.clemson-refresh.plist.
 

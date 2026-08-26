@@ -36,8 +36,7 @@ import {
   matchesBuildingRoom,
   matchesDayTimeFilters,
   type EngineSection,
-  type EngineMeeting,
-} from "./section-query.js";
+  type EngineMeeting, UNTIMED_FILTER_NOTE } from "./section-query.js";
 import { resolveTerm } from "../term-resolve.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
@@ -77,9 +76,9 @@ const GET_COURSE_DETAILS_DESCRIPTION =
   "corequisites, restrictions (course_code also includes credits). Pass " +
   "course_code (e.g. 'GC 3010') for catalog information, or crn for a " +
   "specific section. Not a search — use search-classes to find sections. " +
-  "Each entry in coreqs carries source: 'catalog_coreq' is authoritative; " +
-  "'inferred_from_description' was guessed from catalog prose — say so and " +
-  "tell the student to confirm it rather than stating it as fact.";
+  "Each entry in coreqs comes from the catalog's structured corequisite " +
+  "field (source 'catalog_coreq'); a course with none listed returns an " +
+  "empty coreqs list — do not infer one.";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -199,15 +198,15 @@ export function makeSearchClasses(
           },
           days: {
             type: "string",
-            description: "Day pattern using M T W R F S U, e.g. 'MWF'.",
+            description: "Day pattern using M T W R F S U, e.g. 'MWF'." + UNTIMED_FILTER_NOTE,
           },
           no_meeting_before: {
             type: "string",
-            description: "HHMM — exclude sections with any meeting starting earlier.",
+            description: "HHMM — exclude sections with any meeting starting earlier." + UNTIMED_FILTER_NOTE,
           },
           no_meeting_after: {
             type: "string",
-            description: "HHMM — exclude sections with any meeting ending later.",
+            description: "HHMM — exclude sections with any meeting ending later." + UNTIMED_FILTER_NOTE,
           },
           open_seats_only: {
             type: "boolean",

@@ -698,11 +698,22 @@ export async function refreshClemsonSnapshot(
   return snap;
 }
 
-// A term is "live" (needs daily refresh) unless Banner labels it View Only.
-// New terms (e.g. Spring 2027) appear in getTerms automatically without the
-// label, so the daily job picks them up with no manual configuration.
+// Banner labels BOTH archived past terms and published-but-not-yet-registerable
+// future terms "(View Only)" — the string cannot distinguish them, so the old
+// "skip View Only" rule silently never snapshotted Spring 2027 until the day
+// registration opened (2026-08-26 review, F3). A term is refreshed when it is
+// not View Only, OR when its code is numerically above every non-View-Only
+// term's (a future term that has been published). Past View-Only terms
+// (below the live ones) stay skipped — they never change.
 function isLiveTerm(t: ClemsonTerm): boolean {
   return !/\(view only\)/i.test(t.description);
+}
+
+export function selectRefreshTerms(terms: readonly ClemsonTerm[]): ClemsonTerm[] {
+  const live = terms.filter(isLiveTerm);
+  if (live.length === 0) return []; // degraded getTerms (everything View Only): refresh nothing, as before
+  const maxLive = live.reduce((m, t) => Math.max(m, Number(t.code) || 0), 0);
+  return terms.filter((t) => isLiveTerm(t) || (Number(t.code) || 0) > maxLive);
 }
 
 export interface ClemsonRefreshResult {
@@ -718,7 +729,7 @@ export async function refreshLiveClemsonSnapshots(): Promise<
   const terms = await listClemsonTerms(20);
   if (!terms) return [];
   const out: ClemsonRefreshResult[] = [];
-  for (const t of terms.filter(isLiveTerm)) {
+  for (const t of selectRefreshTerms(terms)) {
     const snap = await refreshClemsonSnapshot(t.code);
     out.push({
       term: t.code,

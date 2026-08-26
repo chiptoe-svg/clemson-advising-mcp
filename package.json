@@ -19,7 +19,7 @@
     "clemson:convert": "tsx scripts/clemson-convert-snapshots.ts",
     "docs:mcp-manifest": "tsx scripts/mcp-manifest.ts --write",
     "build": "tsc -p tsconfig.json",
-    "test": "node --import tsx --test test/**/*.test.ts",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "format": "prettier --write \"src/**/*.ts\" \"*.{md,json}\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"*.{md,json}\"",
@@ -30,7 +30,7 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "^0.82.1",
     "@earendil-works/pi-ai": "^0.82.1",
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^12.11.1",
     "yaml": "^2.5.0"
   },

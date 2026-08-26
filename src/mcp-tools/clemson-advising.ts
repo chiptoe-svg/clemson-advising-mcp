@@ -19,6 +19,7 @@ import { openScheduleDb, getScheduleDbMeta } from "../clemson-schedule-db.js";
 import { querySectionsEngine, type EngineSection } from "./section-query.js";
 import { resolveTerm } from "../term-resolve.js";
 import { getGcRequirementRules as getGcRequirementRulesLive } from "../gc-curriculum.js";
+import { UNTIMED_FILTER_NOTE } from "./section-query.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
@@ -229,19 +230,19 @@ export function makeFindRequirementSections(
           description:
             "Optional day pattern using M T W R F S U, e.g. 'MWF' — a " +
             "section qualifies only if EVERY one of its meeting days is " +
-            "in this set.",
+            "in this set." + UNTIMED_FILTER_NOTE,
         },
         no_meeting_before: {
           type: "string",
           description:
             "Optional HHMM string, e.g. '0900'. Excludes a section if ANY " +
-            "of its meetings starts before this time.",
+            "of its meetings starts before this time." + UNTIMED_FILTER_NOTE,
         },
         no_meeting_after: {
           type: "string",
           description:
             "Optional HHMM string, e.g. '1700'. Excludes a section if ANY " +
-            "of its meetings ends after this time.",
+            "of its meetings ends after this time." + UNTIMED_FILTER_NOTE,
         },
         exclude_days: {
           type: "array",
@@ -249,7 +250,7 @@ export function makeFindRequirementSections(
           description:
             "Optional day codes to avoid, e.g. ['F'] (M T W R F S U). " +
             "Excludes a section if ANY of its meetings falls on one of " +
-            "these days.",
+            "these days." + UNTIMED_FILTER_NOTE,
         },
         open_seats_only: {
           type: "boolean",

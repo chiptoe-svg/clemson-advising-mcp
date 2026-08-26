@@ -26,23 +26,16 @@ export interface CoreqCourse {
   credits: string | null;
   relationship: string;
   /**
-   * Which of the two paths produced this pairing. The prose fallback is a
-   * substring scan of catalog description text, so it can pair the wrong
-   * courses; without this field a guess reached the model wearing the same
-   * `relationship` string as an authoritative pairing, and the advisor stated
-   * both to students with equal confidence. Never drop this from a result.
+   * Always "catalog_coreq" now: the structured coreq_parsed column is complete
+   * (1013/1013 on 2026-08-26), and the old prose fallback (a substring scan of
+   * description text) paired the wrong courses in every case it fired —
+   * `LIKE '%CE 2070%'` matched "ECE 2070". Deleted per the 2026-08-26 review
+   * (D11). The field stays so consumers keep a stable shape.
    */
   source: CoreqSource;
-  /** Present only when `source` is inferred: why the caller should hedge. */
-  caveat?: string;
 }
 
-export type CoreqSource = "catalog_coreq" | "inferred_from_description";
-
-const INFERRED_CAVEAT =
-  "Inferred from catalog description text, not from the structured " +
-  "corequisite field — verify against the official catalog before relying " +
-  "on it.";
+export type CoreqSource = "catalog_coreq";
 
 interface CourseRow {
   code: string;
@@ -85,9 +78,9 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
   }
   try {
     const queried = db
-      .prepare("SELECT code, title, credits, coreq_parsed, description FROM course WHERE code = ? LIMIT 1")
+      .prepare("SELECT code, title, credits, coreq_parsed FROM course WHERE code = ? LIMIT 1")
       .get(code) as
-      | (CourseRow & { coreq_parsed: string | null; description: string | null })
+      | (CourseRow & { coreq_parsed: string | null })
       | undefined;
     if (!queried) return [];
 
@@ -98,23 +91,10 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
         const arr = JSON.parse(queried.coreq_parsed);
         if (Array.isArray(arr)) codes = arr.filter((x): x is string => typeof x === "string");
       } catch {
-        /* malformed — fall through to the prose fallback */
+        /* malformed — treated as no structured coreqs */
       }
     }
-
-    if (codes.length === 0) {
-      const fb = deriveCoreqFromDescription(db, code, queried.description);
-      return fb
-        ? [
-            {
-              ...fb,
-              relationship: relationshipFor(queried, fb),
-              source: "inferred_from_description",
-              caveat: INFERRED_CAVEAT,
-            },
-          ]
-        : [];
-    }
+    if (codes.length === 0) return [];
 
     const out: CoreqCourse[] = [];
     for (const raw of codes) {
@@ -136,31 +116,4 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
   }
 }
 
-/** Transitional fallback: derive the pair from the lab-description prose the way
- *  we did before gc_advisor populated coreq_parsed. Single result or null. */
-function deriveCoreqFromDescription(
-  db: Database.Database,
-  code: string,
-  description: string | null,
-): CourseRow | null {
-  // Is the queried course itself a lab that names its lecture?
-  const m = description ? /accompany\s+(GC\s*\d{3,4})/i.exec(description) : null;
-  if (m) {
-    const lectureCode = normCourseCode(m[1]);
-    const lec = lectureCode
-      ? (db.prepare("SELECT code, title, credits FROM course WHERE code = ? LIMIT 1").get(lectureCode) as CourseRow | undefined)
-      : undefined;
-    if (lec) return lec;
-  }
-  // Otherwise, is there a non-credit lab that accompanies THIS course?
-  const lab = db
-    .prepare(
-      `SELECT code, title, credits FROM course
-       WHERE description LIKE '%accompany%' AND description LIKE ?
-         AND (credits = '0' OR title LIKE '%Laboratory%')
-       LIMIT 1`,
-    )
-    .get(`%${code}%`) as CourseRow | undefined;
-  return lab ?? null;
-}
 

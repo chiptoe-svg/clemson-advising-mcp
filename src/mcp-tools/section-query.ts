@@ -14,6 +14,16 @@ import {
   minsToHHMM,
 } from "../clemson-schedule-db.js";
 
+/**
+ * Appended to every day/time filter parameter description. 4,968 of 10,769
+ * Fall-2026 sections have no timed meetings; a day/time filter silently
+ * dropped all of them and nothing in the tool schemas said so (2026-08-26
+ * review, D12). Disclosure at decision time, in the schema the model reads.
+ */
+export const UNTIMED_FILTER_NOTE =
+  " Sections with no scheduled meeting times (online/asynchronous/TBA) never " +
+  "match a day or time filter and are excluded — say so when a filter is applied.";
+
 // ---------------------------------------------------------------------------
 // Public interface
 // ---------------------------------------------------------------------------
@@ -164,7 +174,7 @@ export function matchesDayTimeFilters(
     noMeetingBeforeMins !== null ||
     noMeetingAfterMins !== null;
   if (!constraintGiven) return true;
-  if (meetings.length === 0) return false; // async/online can't satisfy a time/day rule
+  if (meetings.length === 0) return false; // async/online can't satisfy a time/day rule (see UNTIMED_FILTER_NOTE)
 
   if (daysWithin !== undefined && meetings.some((m) => !daysWithin.includes(m.day)))
     return false;
