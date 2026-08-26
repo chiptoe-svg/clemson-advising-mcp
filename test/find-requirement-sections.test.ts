@@ -114,6 +114,23 @@ function buildGcAdvisorFixture(): void {
     }),
   );
 
+  // T5 (2026-08-26 review): a slot whose single course has TWO parsed
+  // prerequisites. `every` vs `some` in checkPrereqEligible is invisible with
+  // one-element prereq lists — and every existing prereq fixture has exactly
+  // one — so the mutant survived. Kept in its own slot so it cannot perturb
+  // any SLOT-based test.
+  const TWO_PREREQ_SLOT = "Two Prereq Requirement";
+  insertRule.run(
+    2,
+    TWO_PREREQ_SLOT,
+    JSON.stringify({
+      slot_type: TWO_PREREQ_SLOT,
+      total_credits: 3,
+      explicit_courses: ["GC 3060"],
+      raw_text: "two prereq test rule",
+    }),
+  );
+
   // A rule gc_advisor has flagged bogus (the footnote mis-association family —
   // the real case is Management, BS 2025-2026 "Natural Science Requirement"
   // -> MGT 4150). requirement_rule_effective hides it; the tool must read
@@ -142,6 +159,14 @@ function buildGcAdvisorFixture(): void {
   insertCourse.run("GC 3030", "GC", "3030", null, null);
   insertCourse.run("GC 3040", "GC", "3040", null, null);
   insertCourse.run("GC 3050", "GC", "3050", null, null); // no prereq — narrowedCourses fixture
+  // Two parsed prerequisites — the ALL-of fixture (T5).
+  insertCourse.run(
+    "GC 3060",
+    "GC",
+    "3060",
+    "GC 3010 and GC 3020",
+    JSON.stringify(["GC 3010", "GC 3020"]),
+  );
 
   db.close();
 }
@@ -222,6 +247,9 @@ const SNAP: ClemsonTermSnapshot = {
     // Anchor sections (student's current schedule) — not in any explicit_courses list.
     section({ crn: "90010", subjectCourse: "MATH1060", section: "001", title: "Trig", enrollment: 10, seatsAvailable: 5, meetings: [meeting("M", "1030", "1130")] }),
     section({ crn: "90011", subjectCourse: "MATH1080", section: "001", title: "Calc", enrollment: 10, seatsAvailable: 5, meetings: [meeting("M", "1200", "1300")] }),
+    // GC3060-90020: the only section of "Two Prereq Requirement"'s only
+    // course. Not referenced by SLOT, so it cannot affect any test above.
+    section({ crn: "90020", subjectCourse: "GC3060", section: "001", title: "Capstone Prep", meetings: [meeting("W", "1400", "1450")] }),
     // GC3050: 16 sections (> querySectionsEngine's NARROW_THRESHOLD of 15) —
     // "Narrow Test Requirement"'s only explicit course, dedicated to the
     // narrowedCourses note test. Not referenced by SLOT, so it can't affect
@@ -448,6 +476,47 @@ test("prereqEligible is false when completed_courses doesn't satisfy the course'
 test("prereqEligible is true once the prereq is in completed_courses", async () => {
   const out = await call({ ...BASE_ARGS, completed_courses: ["GC 1010", "GC 3010"] });
   const s = out.sections.find((x: any) => x.crn === "90003"); // GC3020, requires GC 3010
+  assert.equal(s.prereqEligible, true);
+});
+
+// T5 (2026-08-26 mutation review): mutating checkPrereqEligible's
+// `codes.every(...)` to `codes.some(...)` SURVIVED the suite, because every
+// other prereq fixture here has a ONE-element prereq_parsed and every/some
+// agree on singletons. GC 3060 needs BOTH GC 3010 and GC 3020, so a
+// partially-satisfied completed_courses list is the case that separates them.
+const TWO_PREREQ_ARGS = {
+  requirement: "Two Prereq Requirement",
+  program: PROGRAM,
+  completed_courses: [] as string[],
+};
+
+async function twoPrereqSection(completed: string[]): Promise<any> {
+  const out = await call({ ...TWO_PREREQ_ARGS, completed_courses: completed });
+  const s = out.sections.find((x: any) => x.crn === "90020"); // GC3060
+  assert.ok(s, "the two-prereq fixture section must be returned");
+  return s;
+}
+
+test("prereqEligible is false when only ONE of a two-course prereq is completed", async () => {
+  const first = await twoPrereqSection(["GC 3010"]);
+  assert.equal(
+    first.prereqEligible,
+    false,
+    "GC 3060 needs GC 3010 AND GC 3020 — one of the two is not eligibility",
+  );
+  const second = await twoPrereqSection(["GC 3020"]);
+  assert.equal(
+    second.prereqEligible,
+    false,
+    "the other half alone is not eligibility either",
+  );
+  const neither = await twoPrereqSection([]);
+  assert.equal(neither.prereqEligible, false, "neither prereq completed");
+  assert.equal(neither.prereqText, "GC 3010 and GC 3020");
+});
+
+test("prereqEligible is true only when BOTH courses of a two-course prereq are completed", async () => {
+  const s = await twoPrereqSection(["GC 3010", "GC 3020", "GC 1010"]);
   assert.equal(s.prereqEligible, true);
 });
 
