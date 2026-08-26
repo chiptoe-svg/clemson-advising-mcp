@@ -1,0 +1,10 @@
+© 2026 Clemson University / Chip Tonkin. All rights reserved.
+
+Internal use. This software and its documentation are provided for use within
+Clemson University (College of Business advising) and by those the copyright
+holders authorize. No license is granted to copy, modify, distribute, or use
+this software outside that scope without written permission from the copyright
+holders.
+
+Third-party components are governed by their own licenses (see
+package-lock.json and core/pyproject.toml for the dependency lists).

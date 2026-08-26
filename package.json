@@ -1,8 +1,14 @@
 {
   "name": "cuassistant",
   "version": "0.1.0",
-  "private": true,
   "description": "Clemson advising: public class-schedule + GC catalog MCP servers and the advisor chat.",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Clemson University / Chip Tonkin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chiptoe-svg/cob-advisor.git"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"
