@@ -153,9 +153,20 @@ export async function getGcRequirementRules(
   return JSON.parse(out);
 }
 
+// Test-only seam, same shape as __setGcRequirementRulesRunner above.
+let genEdRunner: QueryRunner = defaultRunner;
+
+export function __setGcGenEdRunner(run: QueryRunner): void {
+  genEdRunner = run;
+}
+
+export function __resetGcGenEdRunner(): void {
+  genEdRunner = defaultRunner;
+}
+
 export async function getGcGenEd(
   year: string,
-  run: QueryRunner = defaultRunner,
+  run: QueryRunner = genEdRunner,
 ): Promise<unknown> {
   const out = await run(["gen-ed", "--year", year]).catch(rethrowCliFailure);
   return JSON.parse(out);

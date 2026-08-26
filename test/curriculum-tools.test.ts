@@ -8,6 +8,8 @@ import {
   __resetGcRequirementRulesRunner,
   __setGcAuditRunner,
   __resetGcAuditRunner,
+  __setGcGenEdRunner,
+  __resetGcGenEdRunner,
   AUDIT_SCHEMA_VERSION,
 } from "../src/gc-curriculum.ts";
 import { GC_ADVISOR_DB } from "../src/config.ts";
@@ -171,4 +173,35 @@ test("audit-gc-progress echoes the resolved program and catalog_year", async () 
   } finally {
     __resetGcAuditRunner();
   }
+});
+
+// Review round 1, item 8: nothing asserted gen-ed's echo, so a hardcoded-GC
+// echo would have survived. General Education does not vary by program, but
+// what comes back must still be what was ASKED, not a constant.
+test("get-gc-gen-ed echoes the program it was given and the resolved catalog year", async () => {
+  __setGcGenEdRunner(async () => JSON.stringify({ categories: [] }));
+  try {
+    const withProgram = await genEd.handler({
+      program: "Marketing, BS",
+      catalog_year: "2025-2026",
+    });
+    const a = JSON.parse((withProgram.content[0] as { text: string }).text) as Record<string, unknown>;
+    assert.equal(a.program, "Marketing, BS");
+    assert.equal(a.catalog_year, "2025-2026");
+
+    // The deprecated `year` alias resolves, and an omitted program echoes null
+    // rather than inventing one.
+    const aliasOnly = await genEd.handler({ year: "2026-2027" });
+    const b = JSON.parse((aliasOnly.content[0] as { text: string }).text) as Record<string, unknown>;
+    assert.equal(b.program, null);
+    assert.equal(b.catalog_year, "2026-2027");
+  } finally {
+    __resetGcGenEdRunner();
+  }
+});
+
+test("get-gc-gen-ed requires a catalog year", async () => {
+  const res = await genEd.handler({});
+  assert.equal(res.isError, true);
+  assert.match((res.content[0] as { text: string }).text, /catalog_year is required/);
 });

@@ -87,6 +87,16 @@ export interface ProgramCatalog {
   programs: ProgramOption[];
 }
 
+/**
+ * Render program names as an unambiguous list. Every name CONTAINS a comma
+ * ("Accounting, BS"), so a plain ", " join renders eight programs as fifteen.
+ * Quoting each and separating with "; " is the only thing telling the reader —
+ * or the model reading a tool error — where one name ends.
+ */
+export function formatProgramList(names: readonly string[]): string {
+  return names.map((n) => `"${n}"`).join("; ");
+}
+
 export function listPrograms(): ProgramCatalog {
   let db: Database.Database;
   try {

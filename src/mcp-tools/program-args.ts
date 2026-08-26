@@ -9,8 +9,21 @@
 // to default a missing program to "Graphic Communications, BS", so a Marketing
 // question was silently answered with the GC plan (review finding D10). A
 // missing program is now an error that names the programs on offer.
+//
+// Each tool's inputSchema is CLOSED (additionalProperties: false), and on the
+// advisor path that is enforced, not decorative: pi-ai's validateToolArguments
+// (typebox) runs inside pi-agent-core's prepareToolCall, BEFORE execute, so a
+// misspelled key hard-fails with "must not have additional properties" rather
+// than being dropped and silently defaulted. Two consequences worth keeping in
+// mind when editing these schemas: (1) a key must be DECLARED before the
+// advisor's session defaulting may inject it (advisor-agent.ts's
+// SESSION_DEFAULT_ARGS), and (2) deleting a deprecated alias from a schema
+// turns every caller still passing it into a hard failure, not a fallback.
+// src/mcp-tools/server.ts itself does NOT validate, so a direct MCP client
+// gets whatever validation it does on its own side; the handlers' own checks
+// are what protect that path.
 
-import { listPrograms } from "../advisor-catalog.js";
+import { listPrograms, formatProgramList } from "../advisor-catalog.js";
 
 /** Schema blurb for the canonical `program` key. */
 export const PROGRAM_ARG_DESCRIPTION =
@@ -58,7 +71,7 @@ export function missingProgramMessage(extra = ""): string {
   }
   const list =
     names.length > 0
-      ? ` Choose one of: ${names.join(", ")}.`
+      ? ` Choose one of: ${formatProgramList(names)}.`
       : " Use list-gc-catalog-years and get-program-requirements to discover valid program names.";
   return (
     "program is required — this tool has no default program, because " +
