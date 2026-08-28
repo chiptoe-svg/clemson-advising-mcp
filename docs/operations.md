@@ -240,6 +240,59 @@ a health check that holds a credential is a health check that can leak one.
 Alert on its exit code, and specifically on `schedule:freshness`: the refresh
 job failing is silent, and it is the failure this system actually has.
 
+## 4c. Taking over from a co-located installation
+
+Record of the first real cutover, 2026-08-28, when these servers moved from
+running inside the advisor's checkout to running from this repository on the
+same box. Written down because three things were non-obvious and cost time.
+
+**Sequence that worked, with no downtime for the advisor:**
+
+1. Bring this repo's servers up on **spare ports** as plain processes
+   (`MCP_PUBLIC_HTTP_PORT=8776 npx tsx src/mcp-public.ts`, same for catalog on
+   8777), with the production ports left in `.env`. Check the startup lines.
+2. Point the advisor at the spare ports, restart it, and verify from the
+   **usage ledger** (`state/analytics/mcp-calls.jsonl` gaining lines while the
+   old installation's ledger goes quiet) — a green health check only proves
+   that something answered.
+3. Unload the old installation's launchd jobs. Only now are the production
+   ports free on loopback.
+4. `bash deploy/install.sh`. Read the startup lines from
+   `~/Library/Logs/advising-mcp.*.err.log`, not from a re-probe: confirm the
+   bind is `127.0.0.1`, the consumer count, and the tool list.
+5. Point the advisor back at the defaults, verify from the ledger again, then
+   verify the proxy path with a real MCP client over TLS.
+6. Kill the spare-port processes. Unload the old installation's **refresh
+   job** too — otherwise Banner is crawled twice at 05:00 by two jobs writing
+   two snapshot directories, only one of which is served.
+
+Steps 3 and 4 must stay in that order. Both installations' plists carry
+`KeepAlive`, and two of them fighting over one port is a restart loop that
+looks like a code fault.
+
+**The three non-obvious things:**
+
+- **Paired credentials survive the move without re-minting.** The consumer
+  registries (`state/mcp-consumers-<server>.json`) hold sha256 hashes, not
+  tokens. Copying them from the old installation moves no secret and lets every
+  paired consumer keep the token it already has. The **shared** env tokens
+  (`MCP_*_AUTH_TOKEN`) are secrets and must be placed in `.env` by hand before
+  the new servers take the production ports, or every caller on that path 401s.
+- **`lsof` can show a listener on the port while `curl 127.0.0.1:<port>`
+  returns nothing.** The container bridge (`com.cuassistant.mcp-public-bridge`)
+  listens on the bridge-gateway address on the same port numbers and forwards
+  into loopback. It is not a conflict, it is shared with other services, and it
+  starts forwarding to the new servers the moment they bind. Leave it alone.
+  The preflight is scoped to `127.0.0.1` for exactly this reason.
+- **A count from the ledger is evidence, not a verdict.** A 5,000-call burst
+  on the shared-token path turned out to be a one-off verification sweep from
+  the night before, not live traffic; it briefly drove false urgency. Break a
+  number down by hour before acting on it.
+
+The refresh job installed here had never fired at the time of the cutover.
+Confirm the first 05:00 run wrote a fresh `state/clemson/<term>.db` — alert on
+snapshot **age**, not on the job's exit status.
+
 ---
 
 ## 5. Restart
