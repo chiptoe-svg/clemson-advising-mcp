@@ -1,0 +1,23 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Literature and the Arts"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Society"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "History and Geography"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "Any of the courses listed above"
+    }
+  ],
+  "not_open_to": []
+}

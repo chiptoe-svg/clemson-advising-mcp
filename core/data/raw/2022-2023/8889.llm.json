@@ -1,0 +1,19 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "CPSC 2120"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "computer science"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000 level or higher"
+    }
+  ],
+  "not_open_to": [
+    "Computer Information Systems majors"
+  ]
+}

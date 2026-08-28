@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ME 3050 - Modeling and Analysis of Dynamic Systems
+3 Credits (3 Contact Hours)
+Presents techniques for developing and analyzing models of mechanical, electrical, electromechanical, fluid and thermal systems. Transient, steady-state and frequency response are determined using analytical and numerical methods. Covers tools for stability analysis and state-space representation. Covers linear free- and forced-vibrations in single- and multi-degree-of-freedom systems with lumped-parameters representation, methods of vibration absorption and isolations. Preq: MATH 2080, MATH 3650, and one of ME 2010 or ME 2060, each with a grade of C or better. Preq or concurrent enrollment: ECE 2070 and ECE 2080.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

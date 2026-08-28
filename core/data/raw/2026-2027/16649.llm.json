@@ -1,0 +1,16 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "GEOL 1010",
+    "GEOL 1030"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "GEOL courses, at least 9 at 3000 level or higher"
+    }
+  ],
+  "not_open_to": [
+    "Geology majors"
+  ]
+}

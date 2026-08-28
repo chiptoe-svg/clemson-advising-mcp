@@ -1,0 +1,638 @@
+{
+  "audit_version": "gc-audit-v1",
+  "catalog_year": "2026-2027",
+  "credits_earned": 12.0,
+  "credits_remaining": 108.0,
+  "eligible_next": [
+    {
+      "code": "GC 1050",
+      "prereq": "none listed"
+    },
+    {
+      "code": "PSYC 2010",
+      "prereq": "none listed"
+    },
+    {
+      "co_reqs": [
+        "ENGL 1031"
+      ],
+      "code": "ENGL 1030",
+      "prereq": "none listed"
+    },
+    {
+      "code": "ENSP 2000",
+      "prereq": "none listed"
+    },
+    {
+      "co_reqs": [
+        "GC 1041"
+      ],
+      "code": "GC 1040",
+      "prereq": "partial \u2014 check prereq text (missing: GC 1050)",
+      "prereq_text": "GC 1020 and GC 1050"
+    },
+    {
+      "code": "STAT 2220",
+      "prereq": "none listed"
+    },
+    {
+      "co_reqs": [
+        "STAT 2301"
+      ],
+      "code": "STAT 2300",
+      "prereq": "none listed"
+    },
+    {
+      "code": "ACCT 2010",
+      "prereq": "none listed"
+    },
+    {
+      "co_reqs": [
+        "GC 2071"
+      ],
+      "code": "GC 2070",
+      "prereq": "partial \u2014 check prereq text (missing: GC 1040)",
+      "prereq_text": "Graphic Communications major and GC 1010 and GC 1020 and GC 1040"
+    },
+    {
+      "code": "MGT 2010",
+      "prereq": "none listed"
+    },
+    {
+      "code": "PKSC 1020",
+      "prereq": "none listed"
+    },
+    {
+      "code": "ECON 2000",
+      "prereq": "none listed"
+    },
+    {
+      "code": "ECON 2110",
+      "prereq": "none listed"
+    },
+    {
+      "co_reqs": [
+        "GC 2401"
+      ],
+      "code": "GC 2400",
+      "prereq": "partial \u2014 check prereq text (missing: GC 1040)",
+      "prereq_text": "GC 1020 and GC 1040"
+    },
+    {
+      "code": "COOP 2010",
+      "prereq": "none listed"
+    },
+    {
+      "co_reqs": [
+        "GC 3401"
+      ],
+      "code": "GC 3400",
+      "prereq": "partial \u2014 check prereq text (missing: GC 1040)",
+      "prereq_text": "GC 1020 and GC 1040"
+    },
+    {
+      "code": "PCID 3040",
+      "prereq": "none listed"
+    },
+    {
+      "code": "PCID 3140",
+      "prereq": "none listed"
+    },
+    {
+      "code": "COOP 2020",
+      "prereq": "none listed"
+    },
+    {
+      "code": "GC 4800",
+      "prereq": "none listed"
+    }
+  ],
+  "flags": [
+    "BIOL/CH/PHYS credits capped at 4 (had 12)",
+    "BIOL/CH/PHYS credits accepted provisionally \u2014 confirm they satisfy the Natural Science with Lab gen-ed requirement"
+  ],
+  "gen_ed": [
+    {
+      "constraints": "",
+      "credits_earned": 0,
+      "min_credits": 6,
+      "name": "Communication",
+      "status": "unmet"
+    },
+    {
+      "constraints": "",
+      "credits_earned": 0,
+      "min_credits": 3,
+      "name": "Mathematics",
+      "status": "unmet"
+    },
+    {
+      "constraints": "",
+      "credits_earned": 12,
+      "min_credits": 4,
+      "name": "Natural Sciences with Lab",
+      "status": "met"
+    },
+    {
+      "constraints": "",
+      "credits_earned": 0,
+      "min_credits": 6,
+      "name": "Arts and Humanities",
+      "status": "unmet"
+    },
+    {
+      "constraints": "Social Sciences credit hours must be\u00a0selected from two different fields.",
+      "credits_earned": 0,
+      "min_credits": 6,
+      "name": "Social Sciences",
+      "status": "unmet"
+    },
+    {
+      "constraints": "Global Challenges credit hours must be selected from two different fields unless identified below as interdisciplinary.  At least three credit hours must be selected from a course(s) at the 3000 level or higher. \u00a0A transfer course may not be used to satisfy the upper-level General Education Global Challenges requirement.  Students must enroll in a 3000- or 4000-level\u00a0Clemson course(s) on the Global Challenges list to fulfill the upper level Global Challenges Requirement.",
+      "credits_earned": 0,
+      "min_credits": 6,
+      "name": "Global Challenges",
+      "status": "unmet"
+    }
+  ],
+  "items": [
+    {
+      "course_code": "GC 1010",
+      "credits": 1,
+      "group": "Freshman/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 1020",
+      "credits": 2,
+      "group": "Freshman/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 1050",
+      "credits": 2,
+      "group": "Freshman/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "PSYC 2010",
+      "credits": 3,
+      "group": "Freshman/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "counted_courses": [],
+      "course_code": null,
+      "credits": 4,
+      "credits_earned": 0,
+      "credits_required": 4,
+      "flags": [],
+      "group": "Freshman/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Approved Laboratory Science Requirement",
+      "status": "unmet"
+    },
+    {
+      "counted_courses": [
+        "BIOL 1090",
+        "BIOL 1100",
+        "BIOL 1110",
+        "CPSC 2070"
+      ],
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 7.0,
+      "credits_required": 15,
+      "flags": [
+        "BIOL/CH/PHYS credits capped at 4 (had 12)",
+        "BIOL/CH/PHYS credits accepted provisionally \u2014 confirm they satisfy the Natural Science with Lab gen-ed requirement"
+      ],
+      "group": "Freshman/First Semester",
+      "kind": "slot",
+      "minor": null,
+      "one_of": [],
+      "slot_type": "Specialty Area Requirement",
+      "status": "unmet",
+      "via": "course_set"
+    },
+    {
+      "course_code": "ENGL 1030",
+      "credits": 3,
+      "group": "Freshman/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "ENSP 2000",
+      "credits": 3,
+      "group": "Freshman/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 1040",
+      "credits": 4,
+      "group": "Freshman/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "group": "Freshman/Second Semester",
+      "kind": "choice",
+      "one_of": [
+        "STAT 2220",
+        "STAT 2300",
+        "STAT 3090",
+        "STAT 3300"
+      ],
+      "satisfied_by": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "counted_courses": [],
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 0,
+      "credits_required": 3,
+      "flags": [],
+      "group": "Freshman/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "South Carolina REACH Act Requirement",
+      "status": "unmet"
+    },
+    {
+      "course_code": "ACCT 2010",
+      "credits": 3,
+      "group": "Sophomore/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 2070",
+      "credits": 4,
+      "group": "Sophomore/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "MGT 2010",
+      "credits": 3,
+      "group": "Sophomore/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "PKSC 1020",
+      "credits": 2,
+      "group": "Sophomore/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 0,
+      "gen_ed_category": "Arts and Humanities",
+      "group": "Sophomore/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Arts and Humanities (Literature) Requirement",
+      "status": "unmet"
+    },
+    {
+      "course_code": "ACCT 2020",
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "choice",
+      "one_of": [
+        "ECON 2000",
+        "ECON 2110"
+      ],
+      "satisfied_by": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 2400",
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 3460",
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Elective",
+      "status": "met"
+    },
+    {
+      "course_code": "COOP 2010",
+      "credits": 0,
+      "group": "Sophomore/Summer",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 3500",
+      "credits": 1,
+      "group": "Sophomore/Summer",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 3400",
+      "credits": 4,
+      "group": "Junior/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 4060",
+      "credits": 4,
+      "group": "Junior/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "MKT 3010",
+      "credits": 3,
+      "group": "Junior/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 0,
+      "gen_ed_category": "Communication",
+      "group": "Junior/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Oral Communication Requirement",
+      "status": "unmet"
+    },
+    {
+      "course_code": null,
+      "credits": 1,
+      "group": "Junior/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Elective",
+      "status": "met"
+    },
+    {
+      "course_code": "GC 3800",
+      "credits": 1,
+      "group": "Junior/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 4400",
+      "credits": 4,
+      "group": "Junior/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "group": "Junior/Second Semester",
+      "kind": "choice",
+      "one_of": [
+        "PCID 3040",
+        "PCID 3140"
+      ],
+      "satisfied_by": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 0,
+      "gen_ed_category": "Arts and Humanities",
+      "group": "Junior/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Arts and Humanities (Non-Literature) Requirement",
+      "status": "unmet"
+    },
+    {
+      "counted_courses": [
+        "BIOL 1090",
+        "BIOL 1100",
+        "BIOL 1110",
+        "CPSC 2070"
+      ],
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 7.0,
+      "credits_required": 15,
+      "flags": [
+        "BIOL/CH/PHYS credits capped at 4 (had 12)",
+        "BIOL/CH/PHYS credits accepted provisionally \u2014 confirm they satisfy the Natural Science with Lab gen-ed requirement"
+      ],
+      "group": "Junior/Second Semester",
+      "kind": "slot",
+      "minor": null,
+      "one_of": [],
+      "slot_type": "Specialty Area Requirement",
+      "status": "unmet",
+      "via": "course_set"
+    },
+    {
+      "course_code": null,
+      "credits": 1,
+      "group": "Junior/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Elective",
+      "status": "met"
+    },
+    {
+      "course_code": "COOP 2020",
+      "credits": 0,
+      "group": "Junior/Summer",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 4500",
+      "credits": 1,
+      "group": "Junior/Summer",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 4440",
+      "credits": 4,
+      "group": "Senior/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "counted_courses": [],
+      "course_code": null,
+      "credits": 6,
+      "credits_earned": 0,
+      "credits_required": 6,
+      "flags": [],
+      "group": "Senior/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Graphic Communication Technical Requirement",
+      "status": "unmet"
+    },
+    {
+      "counted_courses": [
+        "BIOL 1090",
+        "BIOL 1100",
+        "BIOL 1110",
+        "CPSC 2070"
+      ],
+      "course_code": null,
+      "credits": 5,
+      "credits_earned": 7.0,
+      "credits_required": 15,
+      "flags": [
+        "BIOL/CH/PHYS credits capped at 4 (had 12)",
+        "BIOL/CH/PHYS credits accepted provisionally \u2014 confirm they satisfy the Natural Science with Lab gen-ed requirement"
+      ],
+      "group": "Senior/First Semester",
+      "kind": "slot",
+      "minor": null,
+      "one_of": [],
+      "slot_type": "Specialty Area Requirement",
+      "status": "unmet",
+      "via": "course_set"
+    },
+    {
+      "course_code": "GC 4480",
+      "credits": 3,
+      "group": "Senior/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "course_code": "GC 4800",
+      "credits": 1,
+      "group": "Senior/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "unmet"
+    },
+    {
+      "counted_courses": [
+        "BIOL 1090",
+        "BIOL 1100",
+        "BIOL 1110",
+        "CPSC 2070"
+      ],
+      "course_code": null,
+      "credits": 4,
+      "credits_earned": 7.0,
+      "credits_required": 15,
+      "flags": [
+        "BIOL/CH/PHYS credits capped at 4 (had 12)",
+        "BIOL/CH/PHYS credits accepted provisionally \u2014 confirm they satisfy the Natural Science with Lab gen-ed requirement"
+      ],
+      "group": "Senior/Second Semester",
+      "kind": "slot",
+      "minor": null,
+      "one_of": [],
+      "slot_type": "Specialty Area Requirement",
+      "status": "unmet",
+      "via": "course_set"
+    },
+    {
+      "course_code": null,
+      "credits": 4,
+      "group": "Senior/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Elective",
+      "status": "met"
+    }
+  ],
+  "program": "Graphic Communications, BS",
+  "source_url": "https://catalog.clemson.edu/preview_program.php?catoid=49&poid=16765",
+  "total_credits_required": 120
+}

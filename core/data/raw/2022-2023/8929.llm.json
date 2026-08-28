@@ -1,0 +1,29 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "HIST 3110",
+    "HIST 3120",
+    "PAS 3010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group I: 3 credits selected from HIST 3370, HIST 3380, HIST 3390, HIST 4380, PAS 1010 or PAS 4980"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group II: 3 credits selected from ENGL 4820, ENGL 4830, POSC 3810, SOC 4600 or THEA 3170"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group III: 3 credits in the social sciences selected from HIST 3140, HIST 4930, POSC 4230, POSC 4540, PSYC 3520, SOC 3110, SOC 3310 or SOC 4620"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group IV: 3 credits in the humanities selected from COMM 3690, ENGL 3530, ENGL 4590, MUSC 3120, PAS 3010, REL 3100, THEA 3180 or WS 3010"
+    }
+  ],
+  "not_open_to": [
+    "Pan African Studies majors"
+  ]
+}

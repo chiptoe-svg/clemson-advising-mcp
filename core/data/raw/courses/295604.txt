@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 2720 - Intelligent Software Development
+3 Credits (3 Contact Hours)
+Introduces essential software engineering practices with a focus on small- to medium-scale software development. Students learn core topics such as software testing, debugging, and the application of object-oriented design patterns to write maintainable and reusable code. The course explores modern development tools, including version control systems and AI-assisted programming tools. Emphasis is placed on structured collaboration and individual project development to build intelligent, efficient, and robust software systems. Preq: CPSC 1020 with a grade of C or higher or CPSC 1070 with a grade of C or higher.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

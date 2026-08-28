@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+IE 4530 - Network Flows for Industrial Engineering Applications
+3 Credits (3 Contact Hours)
+Many of the logistics and supply chain optimization problems have a natural network structure. In this course, the following problems are discussed: shortest path, maximum flow, minimum cost flow, and minimum spanning trees. These problems appear as sub-problems in many real world applications. Preq: Either IE 3800 or MATH 4400; plus one of the following: CPSC 1110, IE 4400, MATH 3600, or MATH 3650.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

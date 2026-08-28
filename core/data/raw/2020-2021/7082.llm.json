@@ -1,0 +1,13 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "ENT 3010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "ENT or IPM courses at the 3000 level or higher"
+    }
+  ],
+  "not_open_to": []
+}

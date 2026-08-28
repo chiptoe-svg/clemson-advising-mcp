@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4090 - Introduction to Linear Control Systems
+3 Credits (3 Contact Hours)
+Introduction to classical linear control systems. Topics include continuous and discrete descriptions of systems, time and frequency response, stability, system specification, system design of continuous and discrete systems. Preq: ECE 3300 with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

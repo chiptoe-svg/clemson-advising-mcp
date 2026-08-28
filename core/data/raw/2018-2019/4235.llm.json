@@ -1,0 +1,20 @@
+{
+  "total_credits": 17,
+  "required_courses": [
+    "AL 3490",
+    "AL 3500",
+    "AL 3530",
+    "AL 3610",
+    "AL 3620",
+    "AL 3760"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "AL 3710, AL 3720, AL 3730, AL 3740, AL 3750, or AL 3770"
+    }
+  ],
+  "not_open_to": [
+    "Marketing majors"
+  ]
+}

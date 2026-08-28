@@ -1,0 +1,16 @@
+[project]
+name = "gc-advisor"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["playwright>=1.44"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = ["integration: hits the live Clemson catalog or a real browser"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

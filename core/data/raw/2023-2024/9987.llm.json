@@ -1,0 +1,24 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "POSC 1010",
+    "POSC 1020",
+    "POSC 1030",
+    "POSC 1040"
+  ],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000 or 4000 level"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "three different fields of political science (American Politics, Comparative Politics, International Relations, Political Theory, Public Policy and Public Administration)"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "maximum from POSC 3050, POSC 3100, POSC 3110, POSC 3120, POSC 3130, POSC 4090, POSC 4100"
+    }
+  ],
+  "not_open_to": []
+}

@@ -1,0 +1,58 @@
+slot_type = "Support Area Requirement"
+# Registrar (all four years, docs/degreeworks/freshman_management_*.md):
+# "(Option 1) Declare and complete a minor requiring AT LEAST 15 hours ...
+#  or (Option 2) Complete 15 hours ... from the approved list" where the
+# approved list is `@ 3000:4999` (ANY subject at 3000+) plus nine modern
+# languages at 2000+. The broadest support area in the college — and fully
+# expressible, unlike Marketing's (level split) or Economics' (single
+# prefix).
+evaluator = "minor_or_course_set"
+
+[[wildcards]]
+type = "level_min"
+min = 3000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "ARAB"
+min = 2000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "ASL"
+min = 2000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "CHIN"
+min = 2000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "FR"
+min = 2000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "GER"
+min = 2000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "ITAL"
+min = 2000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "JAPN"
+min = 2000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "RUSS"
+min = 2000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "SPAN"
+min = 2000

@@ -1,0 +1,23 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ENGL 3450, ENGL 3460, ENGL 3470, ENGL 3480"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ENGL 4450, ENGL 4460, ENGL 4470, ENGL 4480"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ENGL 4220, ENGL 4230"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ENGL 3560, ENGL 4190, ENGL 4260, ENGL 4280, ENGL 4310, ENGL 4320, ENGL 4650, ENGL 4830"
+    }
+  ],
+  "not_open_to": []
+}

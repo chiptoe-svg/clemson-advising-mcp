@@ -1,0 +1,13 @@
+{
+  "total_credits": 9,
+  "required_courses": [
+    "HLTH 2020",
+    "HLTH 2030",
+    "HLTH 3800"
+  ],
+  "elective_rules": [],
+  "not_open_to": [
+    "Health Science majors",
+    "Language and International Health majors"
+  ]
+}

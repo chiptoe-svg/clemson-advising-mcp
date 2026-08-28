@@ -1,0 +1,16 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "EES 4090",
+    "EES 4100",
+    "EES 4120",
+    "ME 4260"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "EES 4110, EES 4140, EES 4800, ME 4280, PHYS 4520"
+    }
+  ],
+  "not_open_to": []
+}

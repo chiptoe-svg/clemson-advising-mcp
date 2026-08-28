@@ -1,0 +1,23 @@
+{
+  "total_credits": 18,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ENGL"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ANTH, POSC, RS, SOC"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "HIST, PAS"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "GEOG, POSC"
+    }
+  ],
+  "not_open_to": []
+}

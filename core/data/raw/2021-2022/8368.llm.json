@@ -1,0 +1,17 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "FDSC 2140",
+    "FDSC 4010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "FDSC or NUTR 3000 or higher"
+    }
+  ],
+  "not_open_to": [
+    "Food Science",
+    "Human Nutrition"
+  ]
+}

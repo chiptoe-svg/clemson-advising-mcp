@@ -1,0 +1,16 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "CHIN 3050",
+    "CHIN 3060"
+  ],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000- and 4000-level CHIN courses, including at least one 4000-level literature course"
+    }
+  ],
+  "not_open_to": [
+    "Language and International Trade majors"
+  ]
+}

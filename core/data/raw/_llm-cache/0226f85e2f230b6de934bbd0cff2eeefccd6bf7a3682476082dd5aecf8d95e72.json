@@ -1,0 +1,23 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ART 1510",
+    "AAH 1010",
+    "AAH 1020",
+    "ART 2100"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ART or AAH courses at the 2000 level or above"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ART or AAH courses at the 3000 or 4000 level"
+    }
+  ],
+  "not_open_to": [
+    "Art BA majors",
+    "Visual Arts BFA majors"
+  ]
+}

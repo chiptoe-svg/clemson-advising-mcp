@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+HCC 4520 - Tangible, Embedded, and Embodied Interaction
+3 Credits (3 Contact Hours)
+Design and implementation of software and hardware systems toward realization of tangible, embedded, and embodied interfaces (interactive systems combining computing and physical elements, often integrating sensors, displays, motors, VR & AR, etc.) Discussion topics include techniques for mixed physical and virtual representation and control of computationally mediated systems. Students participate in hands-on projects designing and realizing tracked physical tokens, multitouch systems, embedded electronics, physical fabrication, and architectural installations. Preq: CPSC 2120.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

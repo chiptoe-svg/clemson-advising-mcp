@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "CRP 2010",
+    "CRP 4010",
+    "CRP 4300"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ARCH 3500, CRP 4130, GEOG 3020, GEOG 3030, POSC 3020, POSC 4230, SOC 3310"
+    }
+  ],
+  "not_open_to": []
+}

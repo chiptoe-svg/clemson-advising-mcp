@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 3300 - Computer Systems Organization
+3 Credits (3 Contact Hours)
+Introduction to the structure of computer systems. Various hardware/software configurations are explored and presented as integrated systems. Topics include digital logic, basic computer organization, computer arithmetic, memory organization, input/output organizations, interrupt processing, multiprocessors, and cluster computers. Preq: CPSC 2120 and CPSC 2310, each with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

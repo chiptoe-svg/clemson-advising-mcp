@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 2040 - Circuit Analysis Problems I
+1 Credits (3 Contact Hours)
+Analysis and solution of electrical network problems using mesh and nodal analysis, Thevenin’s and Norton’s theorems and equivalent circuits and other circuit analysis from ECE 2020. Preq or concurrent enrollment: ECE 2020 with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

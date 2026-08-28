@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000- and 4000-level ITAL courses, including at least one 4000-level literature course"
+    }
+  ],
+  "not_open_to": [
+    "Language and International Business majors whose target language is Italian",
+    "Modern Languages majors whose emphasis area is Italian"
+  ]
+}

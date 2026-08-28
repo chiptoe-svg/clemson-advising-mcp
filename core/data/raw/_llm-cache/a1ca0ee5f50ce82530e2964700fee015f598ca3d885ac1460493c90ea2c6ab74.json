@@ -1,0 +1,35 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ENGL 3450",
+    "ENGL 4230",
+    "ENGL 4450",
+    "ENGL 3460",
+    "ENGL 4220",
+    "ENGL 4460",
+    "ENGL 3470/THEA 3470",
+    "ENGL 4470/THEA 4470",
+    "ENGL 3480",
+    "ENGL 3570",
+    "ENGL 4480"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ENGL 3560, ENGL 4190, ENGL 4260, ENGL 4280, ENGL 4650, ENGL 4830"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ENGL 4190, ENGL 4260, ENGL 4280, ENGL 4310, ENGL 4650, ENGL 4830"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "ENGL 4190, ENGL 4260, ENGL 4280, ENGL 4300, ENGL 4650, ENGL 4830, THEA 3470"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ENGL 4500, ENGL 4510, ENGL 4520, ENGL 4530, THEA 3470"
+    }
+  ],
+  "not_open_to": []
+}

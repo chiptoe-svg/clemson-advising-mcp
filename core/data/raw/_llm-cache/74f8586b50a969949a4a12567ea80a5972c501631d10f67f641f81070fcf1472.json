@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "HORT 1010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "HORT courses (excluding HORT 4080 and HORT 4710), with 9 credits at the 3000 level or higher"
+    }
+  ],
+  "not_open_to": [
+    "Turfgrass majors"
+  ]
+}

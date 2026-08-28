@@ -1,0 +1,18 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "WS 1030",
+    "WS 3010",
+    "WS 2300",
+    "WS 2400"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "AAH, ANTH, COMM, ECON, ENGL, FR, HIST, HLTH, PHIL, POSC, PRTM, PSYC, SOC, SPAN, THEA, WS"
+    }
+  ],
+  "not_open_to": [
+    "Women\u2019s Leadership majors"
+  ]
+}

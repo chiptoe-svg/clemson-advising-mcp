@@ -1,0 +1,19 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "PSYC 2010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000- or 4000-level psychology courses"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "other than PSYC 4970 and PSYC 4980"
+    }
+  ],
+  "not_open_to": [
+    "Psychology majors"
+  ]
+}

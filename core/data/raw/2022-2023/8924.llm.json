@@ -1,0 +1,26 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "MUSC 1420",
+    "MUSC 1430",
+    "MUSC 1510",
+    "MUSC 1520",
+    "MUSC 2510",
+    "MUSC 2520",
+    "MUSC 4150",
+    "MUSC 4160"
+  ],
+  "elective_rules": [
+    {
+      "credits": 4,
+      "level_or_subject_pattern": "MUSC 3230, MUSC 3610, MUSC 3620, MUSC 3630, MUSC 3640, MUSC 3690, MUSC 3700, MUSC 3710, MUSC 3720"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "MUSC 3000 or 4000 level"
+    }
+  ],
+  "not_open_to": [
+    "Performing Arts majors whose concentration area is Music"
+  ]
+}

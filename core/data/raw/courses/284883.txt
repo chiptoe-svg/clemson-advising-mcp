@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+FIN 4010 - Corporate Financial Analysis
+3 Credits (3 Contact Hours)
+This course is a general introduction to corporate financial analysis using Python as the main analysis tool. Students explore the potential needs of financial statement end users (managers, investors, creditors) so different perspectives can be considered when decisions are made. Students also learn to interpret and convert raw numerical data into information about profitability and risk in order to assess the value of a firm. Preq: ACCT 3110 and FIN 3120, each with a C or better; and Financial Management major.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "PRTM 3010",
+    "PRTM 3420"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "PRTM"
+    }
+  ],
+  "not_open_to": []
+}

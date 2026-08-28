@@ -1,0 +1,14 @@
+{
+  "total_credits": 9,
+  "required_courses": [
+    "ANTH 4800",
+    "SOC 4060"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "MKT, PSYC"
+    }
+  ],
+  "not_open_to": []
+}

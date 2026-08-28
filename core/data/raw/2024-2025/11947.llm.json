@@ -1,0 +1,21 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "CPSC 2920",
+    "CPSC 4200",
+    "CPSC 4240",
+    "CPSC 4620",
+    "ECE 4490",
+    "ECE 4380",
+    "ECE 4400"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "cybersecurity course list"
+    }
+  ],
+  "not_open_to": [
+    "Computer Science BA majors"
+  ]
+}

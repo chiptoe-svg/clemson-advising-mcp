@@ -1,0 +1,19 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "REL 3000"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "any REL course or ANTH 4270, ENGL 3500, ENGL 4140, HIST 3960, HIST 4720, PHIL 3030, POSC 4070, POSC 4080, POSC 4390, and SOC 4320"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000 level or higher"
+    }
+  ],
+  "not_open_to": [
+    "Religious Studies majors"
+  ]
+}

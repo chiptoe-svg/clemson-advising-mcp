@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 1110 - Introduction to Programming in C
+3 Credits (2 Contact Hours)
+Introduction to computer programming in C and its use in solving problems. Intended primarily for technical majors. Basic instruction in programming techniques, algorithms and standard Unix software development tools and utilities. Students who wish to take subsequent Computer Science courses are strongly encouraged to take CPSC 1010 or CPSC 1060 instead of this course. Credit will be given for only one of CPSC 1010, CPSC 1050, CPSC 1060 or CPSC 1110. Preq: SAT Math score of 620 or higher; or ACT Math score of 26 or higher; or CMPT score of 60 or higher; or ENGR 1020 or ENGR 1050. Coreq: CPSC 1111.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

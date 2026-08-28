@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4580 - Algorithms for VLSI Design Automation
+3 Credits (3 Contact Hours)
+Introduction to computer-aided design (CAD) algorithms for designing very large scale integrated (VLSI) circuits. Emphases include Application Specific Integrated Circuits (ASICs) and VLSI design flow. Preq: ECE 3200 with a grade of C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

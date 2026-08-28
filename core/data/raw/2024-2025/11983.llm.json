@@ -1,0 +1,15 @@
+{
+  "total_credits": 11,
+  "required_courses": [
+    "BUS 2700",
+    "BUS 3700",
+    "BUS 4700"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ACCT 4100, AS 2090/2100, AS 3090/3100, ECON 2050/3500, ELE 4020, LAW 3400, MGT 3070/3080/3500/3810/3900/4000/4050/4080/4110/4270, ML 1010/1020, PSYC 3680/3690/3770, SOC 4500, NPL 3000, POSC 4580, WS 2300/2400"
+    }
+  ],
+  "not_open_to": []
+}

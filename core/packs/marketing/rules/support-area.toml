@@ -1,0 +1,89 @@
+slot_type = "Support Course Requirement"
+# The registrar offers TWO ways (DegreeWorks What-If, all four catalog years):
+# (Option 1) declare and complete a minor — or a certificate from 2025-26 —
+# or (Option 2) 15 hours of approved coursework. The catalog footnote says
+# "choose ONE", which requirement_rules.py's "select one" heuristic misses,
+# so the evaluator is declared here.
+evaluator = "minor_or_course_set"
+
+# Subject list transcribed from the DegreeWorks What-If audits for
+# 2024-25..2026-27 (docs/degreeworks/freshman_marketing_*.md): 18 subjects,
+# identical across those years. PSYC per the registrar — the catalog
+# footnote's "PYSC" is a typo. KNOWN LIMITATION (docs/known-data-gaps.md):
+# the registrar caps low-level credits (12 of the 15 must be 3000:4999);
+# dept_any cannot express that, so low-level credits over-admit here.
+# 2023-24's registrar list is broader (~100 subjects) and its catalog-derived
+# rule already carries 60 explicit courses; these wildcards add the shared
+# core subjects there too.
+
+[[wildcards]]
+type = "dept_any"
+dept = "ACCT"
+
+[[wildcards]]
+type = "dept_any"
+dept = "ANTH"
+
+[[wildcards]]
+type = "dept_any"
+dept = "BUS"
+
+[[wildcards]]
+type = "dept_any"
+dept = "COMM"
+
+[[wildcards]]
+type = "dept_any"
+dept = "CPSC"
+
+[[wildcards]]
+type = "dept_any"
+dept = "ECON"
+
+[[wildcards]]
+type = "dept_any"
+dept = "ELE"
+
+[[wildcards]]
+type = "dept_any"
+dept = "ENTR"
+
+[[wildcards]]
+type = "dept_any"
+dept = "FIN"
+
+[[wildcards]]
+type = "dept_any"
+dept = "GC"
+
+[[wildcards]]
+type = "dept_any"
+dept = "HON"
+
+[[wildcards]]
+type = "dept_any"
+dept = "MGT"
+
+[[wildcards]]
+type = "dept_any"
+dept = "MKT"
+
+[[wildcards]]
+type = "dept_any"
+dept = "NPL"
+
+[[wildcards]]
+type = "dept_any"
+dept = "PHIL"
+
+[[wildcards]]
+type = "dept_any"
+dept = "PSYC"
+
+[[wildcards]]
+type = "dept_any"
+dept = "SOC"
+
+[[wildcards]]
+type = "dept_any"
+dept = "STAT"

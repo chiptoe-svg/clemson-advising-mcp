@@ -1,0 +1,13 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "PSYC 2010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "PSYC 2750 and/or 3000- or 4000-level psychology courses"
+    }
+  ],
+  "not_open_to": []
+}

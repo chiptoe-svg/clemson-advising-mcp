@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4210 - Fundamentals of Power Electronics
+3 Credits (3 Contact Hours)
+Power electronics is the application of solid-state electronics to the control and conversion of electric power. It is the key enabler for various applications, such as electrified transportation, drives, and smart grid. This course is an introduction to switched-mode power converters, and provides a basic knowledge of circuitry for the control and conversion of electrical power with high efficiency. These converters can change and regulate the voltage, current, or power; applications include dc-dc converters, ac-dc rectifiers, dc-ac inverters, and ac-ac cycloconverters. Preq: ECE 2620 and ECE 3600, each with a grade of C or higher.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

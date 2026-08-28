@@ -1,0 +1,33 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000-level or higher"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "2000-level"
+    },
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "Group I: anthropology, criminal justice, economics, geography, history, political science, psychology, sociology"
+    },
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "Group II: biochemistry, biological sciences, genetics, microbiology"
+    },
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "Group III: chemistry, geology, physics"
+    },
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "Group IV: all engineering majors, engineering mechanics, engineering graphics"
+    }
+  ],
+  "not_open_to": [
+    "Courses within the student's major course rubric"
+  ]
+}

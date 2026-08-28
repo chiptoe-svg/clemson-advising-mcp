@@ -1,0 +1,21 @@
+{
+  "total_credits": 20,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 8,
+      "level_or_subject_pattern": "CPSC 1010, CPSC 1020, CPSC 1050, CPSC 1060, CPSC 1070"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "IE 3610, MATH 3020, STAT 2300, STAT 3090"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "CPSC 4300, CPSC 4420, CPSC 4430, HCC 4600"
+    }
+  ],
+  "not_open_to": [
+    "Computer Science BA majors"
+  ]
+}

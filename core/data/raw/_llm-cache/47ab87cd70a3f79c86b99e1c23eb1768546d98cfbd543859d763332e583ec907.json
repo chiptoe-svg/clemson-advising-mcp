@@ -1,0 +1,25 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "MICR 3050",
+    "BCHM 3010",
+    "BCHM 3050"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Section I: MICR 4000, MICR 4120, MICR 4160"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Section II: BIOL 4250, MICR 4020, MICR 4030, MICR 4050, MICR 4560"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Section III: MICR 4070, MICR 4130, MICR 4910, MICR 4930, MICR 4940, MICR 4950"
+    }
+  ],
+  "not_open_to": [
+    "Microbiology majors"
+  ]
+}

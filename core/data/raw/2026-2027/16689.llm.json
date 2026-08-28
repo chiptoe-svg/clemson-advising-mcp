@@ -1,0 +1,17 @@
+{
+  "total_credits": 19,
+  "required_courses": [
+    "BIOL 3040 or FOR 2210",
+    "FOR 2050 or HORT 3030",
+    "FOR 2060",
+    "FOR 4270/HORT 4270",
+    "FOR 4800"
+  ],
+  "elective_rules": [
+    {
+      "credits": 4,
+      "level_or_subject_pattern": "from the additional course list"
+    }
+  ],
+  "not_open_to": []
+}

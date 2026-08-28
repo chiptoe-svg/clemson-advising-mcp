@@ -1,0 +1,10 @@
+{
+  "total_credits": 9,
+  "required_courses": [
+    "ECE 3600",
+    "ECE 4180",
+    "ECE 4190"
+  ],
+  "elective_rules": [],
+  "not_open_to": []
+}

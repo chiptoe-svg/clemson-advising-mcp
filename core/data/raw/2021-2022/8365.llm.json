@@ -1,0 +1,20 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "AVS 1500",
+    "AVS 1510"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "3000- or 4000-level AVS"
+    },
+    {
+      "credits": 8,
+      "level_or_subject_pattern": "AVS 2040, AVS 2080, AVS 3090, AVS 3850, AVS 4120, AVS 4160, or AVS 4170"
+    }
+  ],
+  "not_open_to": [
+    "Animal and Veterinary Sciences majors whose concentration is Animal Agribusiness"
+  ]
+}

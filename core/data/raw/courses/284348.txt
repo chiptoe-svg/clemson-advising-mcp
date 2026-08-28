@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 2730 - Computer Organization Laboratory
+1 Credit (2 Contact Hours)
+Laboratory enhances students’ understanding of computer organization via assignments involving assembly language programming. Topics include basic syntax, branching and loops, addressing modes, arrays and pointers, subroutines and stacks. Includes Honors sections. Preq or concurrent enrollment: ECE 2720 with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

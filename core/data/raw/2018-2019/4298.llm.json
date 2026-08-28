@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ENGL 3480",
+    "ENGL 3570",
+    "ENGL 4480"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ENGL 4500, ENGL 4510, ENGL 4520, ENGL 4530 or THEA 3470"
+    }
+  ],
+  "not_open_to": []
+}

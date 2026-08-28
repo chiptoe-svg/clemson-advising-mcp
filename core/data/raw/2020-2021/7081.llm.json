@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ENGL 3100"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "above the sophomore level, including at least three from the 4000 level"
+    }
+  ],
+  "not_open_to": [
+    "Secondary Education - English Teaching Area majors"
+  ]
+}

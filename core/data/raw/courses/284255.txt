@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4200 - Computer Security Principles
+3 Credits (3 Contact Hours)
+Covers principles of information systems security, including security policies, cryptography, authentication, access control mechanisms, system evaluation models, auditing, and intrusion detection. Computer security system case studies are analyzed. Preq: One of the following courses with a grade of C or higher: CPSC 3220 or CPSC 3600 or ECE 3220 or ECE 4380.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

@@ -1,0 +1,19 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group I"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group II"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "Group I or Group II or another approved course"
+    }
+  ],
+  "not_open_to": []
+}

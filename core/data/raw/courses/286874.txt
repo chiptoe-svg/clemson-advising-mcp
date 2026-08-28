@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4890 - Programming Team Training Seminar
+1 Credits (1 Contact Hours)
+This seminar-style course teaches advanced algorithmic problem-solving motivated by problems in the “competitive programming” domain. Class discussion includes algorithm design and analysis, implementation considerations, and practical applications. May be repeated for a maximum of three credits. Preq: CPSC 2120.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

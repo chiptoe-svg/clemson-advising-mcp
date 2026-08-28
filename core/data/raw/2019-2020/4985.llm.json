@@ -1,0 +1,19 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "Group I (HIST 3610, HIST 3630, HIST 3650, HIST 3670, HIST 4200) at 3000 or 4000 level"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "Group II (ENGL 3960, ENGL 3970, ENGL 4070, ENGL 4080, ENGL 4100, ENGL 4110, ENGL 4140, ENGL 4150, ENGL 4160, ENGL 4170, ENGL 4180, ENGL 4190, ENGL 4330, ENGL 4440) at 3000 or 4000 level"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group I or Group II at 3000 or 4000 level"
+    }
+  ],
+  "not_open_to": []
+}

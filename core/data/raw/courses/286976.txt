@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4440 - Cloud Computing Architecture
+3 Credits (3 Contact Hours)
+This course covers the background of cloud computing, the technical knowledge needed to build applications in the cloud, and the hardware and software systems for architecting a cloud application environment. Cloud services are utilized. Students learn cloud computing skills and apply these skills in realistic projects. Preq: CPSC 3220 or CPSC 3600 or ECE 3220 or ECE 4380.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

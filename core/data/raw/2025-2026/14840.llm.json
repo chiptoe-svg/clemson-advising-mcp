@@ -1,0 +1,17 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "GEOG 3100"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "GEOG 1000"
+    },
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "GEOG 3000 or 4000"
+    }
+  ],
+  "not_open_to": []
+}

@@ -1,0 +1,15 @@
+{
+  "total_credits": 9,
+  "required_courses": [
+    "AMFG 3800",
+    "AMFG 4800",
+    "AMFG 4801"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "AMFG"
+    }
+  ],
+  "not_open_to": []
+}

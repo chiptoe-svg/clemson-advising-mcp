@@ -1,0 +1,21 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "CU 2010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "listed courses"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000- or 4000-level courses"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "social dimension of sustainability"
+    }
+  ],
+  "not_open_to": []
+}

@@ -1,0 +1,19 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "PKSC 1020",
+    "PKSC 2020",
+    "PKSC 2040",
+    "PKSC 3200",
+    "PKSC 4400"
+  ],
+  "elective_rules": [
+    {
+      "credits": 1,
+      "level_or_subject_pattern": "FNPS 3680 or PKSC 4050"
+    }
+  ],
+  "not_open_to": [
+    "Packaging Science majors"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "FIN 3050",
+    "FIN 3070",
+    "FIN 3080",
+    "FIN 3120"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "FIN 3060 or FIN 3110"
+    }
+  ],
+  "not_open_to": [
+    "Financial Management majors"
+  ]
+}

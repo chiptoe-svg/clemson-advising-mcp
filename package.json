@@ -1,7 +1,7 @@
 {
-  "name": "cuassistant",
+  "name": "clemson-advising-mcp",
   "version": "0.1.0",
-  "description": "Clemson advising: public class-schedule + GC catalog MCP servers and the advisor chat.",
+  "description": "MCP servers for Clemson class-schedule and College of Business curriculum data",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "author": "Clemson University / Chip Tonkin",
@@ -18,27 +18,18 @@
     "mcp:public:http": "MCP_TRANSPORT=http tsx src/mcp-public.ts",
     "mcp:catalog": "tsx src/mcp-catalog.ts",
     "mcp:catalog:http": "MCP_TRANSPORT=http tsx src/mcp-catalog.ts",
-    "advisor": "tsx src/advisor-server.ts",
-    "portal": "tsx src/token-portal.ts",
-    "portal:start": "TOKEN_PORTAL_BASE_URL=http://localhost:8769 tsx src/token-portal.ts",
     "clemson:refresh": "tsx scripts/clemson-refresh.ts",
     "clemson:convert": "tsx scripts/clemson-convert-snapshots.ts",
-    "docs:mcp-manifest": "tsx scripts/mcp-manifest.ts --write",
-    "build": "tsc -p tsconfig.json",
     "test": "node --import tsx --test --test-timeout=60000 \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "format": "prettier --write \"src/**/*.ts\" \"*.{md,json}\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"*.{md,json}\"",
-    "prepare": "husky",
     "core:test": "cd core && .venv/bin/python -m pytest tests/ -q -rs -m \"not integration\"",
     "test:gate": "npm run typecheck && REQUIRE_ARTIFACTS=1 CORE_E2E=required npm test && npm run core:test",
-    "health:check": "tsx scripts/health-check.ts",
     "mcp:pair": "npx tsx scripts/mcp-pair.ts",
     "mcp:health": "tsx scripts/mcp-health-check.ts"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "^0.82.1",
-    "@earendil-works/pi-ai": "^0.82.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^12.11.1",
     "yaml": "^2.5.0"
@@ -46,8 +37,6 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.14.0",
-    "husky": "^9.1.7",
-    "pdfjs-dist": "^4.10.38",
     "prettier": "^3.3.0",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0"

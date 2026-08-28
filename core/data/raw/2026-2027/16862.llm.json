@@ -1,0 +1,12 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "HP 2010",
+    "HP 3010",
+    "HP 3020",
+    "HP 3030",
+    "HP 3040"
+  ],
+  "elective_rules": [],
+  "not_open_to": []
+}

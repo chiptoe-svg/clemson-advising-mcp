@@ -1,0 +1,17 @@
+slot_type = "Minor Requirement"
+# Registrar: "YOU MUST DECLARE A MINOR." The minor path routes via this
+# evaluator; there is no course-set alternative, so without a declared and
+# complete minor the slot stays unmet — correct.
+#
+# Applies to BOTH Economics degrees, in the years each one carries the slot
+# (apply_pack's plan-guard scopes it per program-year):
+#   Economics, BA — all four years; the BA requires a declared minor throughout.
+#   Economics, BS — 2023-2024 and 2024-2025 ONLY, where the catalog page still
+#     prints Minor Requirement plan cells and the registrar states a required
+#     minor as a top-level MINOR REQUIREMENTS degree block. From 2025-2026 the
+#     BS replaces it with the Support Area (minor OR course set) and carries no
+#     Minor Requirement slot, so the rule correctly matches nothing there.
+# (An earlier version of this comment claimed the BS has NO Minor Requirement
+# slots at all and that the plan-guard skipped it everywhere — wrong on both
+# counts for the back years, and it mis-described why the rule exists.)
+evaluator = "minor_or_course_set"

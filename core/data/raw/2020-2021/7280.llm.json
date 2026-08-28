@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "GC 3700",
+    "GC 3760"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "GC 3710, GC 3720, GC 3730, GC 3740, or GC 3750"
+    }
+  ],
+  "not_open_to": []
+}

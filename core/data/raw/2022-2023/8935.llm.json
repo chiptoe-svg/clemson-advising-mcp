@@ -1,0 +1,16 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "AGM 2060",
+    "AGM 4100",
+    "FOR 4340",
+    "GEOL 4210"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "AGRB 3020, AGRB 4020, ENT 4070, FOR 4330, PLPA 4020, PES 4210, PES 4220, PES 4230, PES 4260, PES 4330, PES 4460, PES 4520"
+    }
+  ],
+  "not_open_to": []
+}

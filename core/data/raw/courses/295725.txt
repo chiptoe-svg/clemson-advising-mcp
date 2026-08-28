@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+PHYS 4190 - Introduction to Computational Biophysics
+3 Credits (3 Contact Hours)
+This course introduces the principles and tools of computational biophysics for students in biophysics and related fields. Students apply physics-based models and simulations to study biological molecules and systems. Topics include protein structure and dynamics, molecular dynamics simulations, molecular docking, and statistical analysis of biomolecular data, with applications to drug discovery and disease-related mutations. The course also explores emerging methods such as machine learning for protein modeling. Preq: PHYS 4170.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

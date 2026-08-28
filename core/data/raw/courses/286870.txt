@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4150 - Mobile Device Software Development
+3 Credits (3 Contact Hours)
+Detailed study of programming, tools, and design decisions involved in developing applications for mobile devices. Students design and implement a nontrivial software application for a mobile device. Preq: CPSC 2120 and CPSC 2150, each with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

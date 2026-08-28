@@ -1,0 +1,11 @@
+{
+  "total_credits": 12,
+  "required_courses": [
+    "PRTM 3520",
+    "PRTM 3530",
+    "PRTM 3540",
+    "PRTM 3550"
+  ],
+  "elective_rules": [],
+  "not_open_to": []
+}

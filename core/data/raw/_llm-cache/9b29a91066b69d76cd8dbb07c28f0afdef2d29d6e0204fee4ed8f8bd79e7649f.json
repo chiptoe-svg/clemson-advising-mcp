@@ -1,0 +1,17 @@
+{
+  "total_credits": 17,
+  "required_courses": [
+    "PKSC 1020",
+    "PKSC 2010",
+    "PKSC 3680",
+    "PKSC 4010",
+    "PKSC 4400"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "FDSC 4040, GC 1040, GC 4060, PKSC 4210, PKSC 4220, PKSC 4990"
+    }
+  ],
+  "not_open_to": []
+}

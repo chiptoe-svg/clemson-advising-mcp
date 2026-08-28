@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+MATH 2190 - Introduction to Cryptography
+3 Credits (3 Contact Hours)
+Introduction to mathematical cryptography aimed at first- or second-year students with no background in abstract mathematics. Topics include properties of integers, polynomials and finite fields; basics of algorithms, symmetric and public key cryptosystems; and cryptanalysis. Preq: MATH 1060.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

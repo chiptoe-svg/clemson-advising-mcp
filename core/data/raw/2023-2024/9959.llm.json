@@ -1,0 +1,18 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "GEN 3000",
+    "GEN 3020",
+    "BCHM 3010",
+    "BCHM 3050"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "4000-level GEN"
+    }
+  ],
+  "not_open_to": [
+    "Genetics majors"
+  ]
+}

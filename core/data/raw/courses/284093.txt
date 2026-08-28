@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CH 4360 - Computational Quantum Chemistry and Electronic Structure Methods
+3 Credits (3 Contact Hours)
+Hands-on introduction to electronic structure calculations. Topics include types of quantum mechanical calculations, the theory behind ab initio and density functional theory methods, basis sets and basis set effects. Emphasis is placed on understanding the results of calculations and relating them to basic chemical principles. Preq: CH 3320.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

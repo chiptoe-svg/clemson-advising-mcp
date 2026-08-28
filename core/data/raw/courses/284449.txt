@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECON 4060 - Advanced Econometrics
+3 Credits (3 Contact Hours)
+Reviews statistical inference using multiple regression (OLS) analysis and model specification. Topics include multicollinearity, heteroscedasticity, and serial correlation; two-staged least squares and instrumental variables models; simultaneous equations models; limited dependent variable models using maximum likelihood estimation and time-series analysis; and presentation of results in technical writing. Preq: ECON 4050.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

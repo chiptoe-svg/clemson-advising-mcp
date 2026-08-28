@@ -1,0 +1,11 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "Courses numbered higher than 3000, with no more than six hours in the 2000 series, from Group I (Social Sciences), Group II (Life Sciences), Group III (Physical Sciences), or Group IV (Engineering)"
+    }
+  ],
+  "not_open_to": []
+}

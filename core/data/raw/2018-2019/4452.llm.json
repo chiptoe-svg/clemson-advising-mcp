@@ -1,0 +1,23 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "POSC 1030"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "POSC 4370, POSC 4380"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "POSC 4490, POSC 4500, POSC 4530, POSC 4550"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "POSC 4370, POSC 4380, POSC 4490, POSC 4500, POSC 4530, POSC 4550"
+    }
+  ],
+  "not_open_to": [
+    "Political Science majors"
+  ]
+}

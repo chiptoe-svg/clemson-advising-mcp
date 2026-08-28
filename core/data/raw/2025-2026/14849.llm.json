@@ -1,0 +1,17 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "ITAL 2010",
+    "ITAL 2020"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "3000- and 4000-level ITAL"
+    }
+  ],
+  "not_open_to": [
+    "Language and International Business majors whose target language is Italian",
+    "Modern Languages majors whose emphasis area is Italian"
+  ]
+}

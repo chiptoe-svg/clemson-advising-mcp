@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4190 - Physical Modeling and Animation
+3 Credits (3 Contact Hours)
+An introductory computer graphics class intended for students interested in computer simulation for modeling and animation. Course material covers topics related to physically-based modeling and dynamic simulation techniques as used for the automatic synthesis of motion and geometry for animation and computer graphics. A variety of approaches are explored, with a special emphasis on the use of particle-systems, rigid bodies, cloth and modeling other natural phenomena. Preq: CPSC 2120 and MATH 1080, each with a grade of C or higher.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

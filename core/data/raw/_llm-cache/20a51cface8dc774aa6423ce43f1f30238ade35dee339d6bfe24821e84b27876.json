@@ -1,0 +1,17 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "AGRB 3020",
+    "AGRB 3080",
+    "AGRB 3190"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "AGRB 3000/4000"
+    }
+  ],
+  "not_open_to": [
+    "Agribusiness majors"
+  ]
+}

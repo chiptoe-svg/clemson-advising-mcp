@@ -1,0 +1,19 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "ANTH 2010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ANTH 3010, ANTH 3310, ANTH 3510, or LANG 3710"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "Anthropology, at least 3 credits at 4000 level"
+    }
+  ],
+  "not_open_to": [
+    "Anthropology majors"
+  ]
+}

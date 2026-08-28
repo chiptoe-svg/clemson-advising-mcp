@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4430 - Machine Learning: Implementation and Evaluation
+3 Credits (3 Contact Hours)
+Students learn to code machine learning algorithms from basic principles, without machine learning libraries. Topics include supervised learning such as regression and classification; unsupervised learning, such as clustering; and measures of performance such as bias/variance theory, measures, and error metrics. Preq: CPSC 1020 or CPSC 1070 or ECE 2220; and MATH 3020 or STAT 3090 or STAT 3300. Students must have earned a grade of C or higher in all prerequisite courses.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

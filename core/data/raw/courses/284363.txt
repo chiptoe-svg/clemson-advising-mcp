@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 3710 - Microcontroller Interfacing
+3 Credits (3 Contact Hours)
+Discusses the programming and interfacing of microcontrollers in order to control their integrated devices and external peripherals. Topics include memory and I/O; interrupts, counters and timers; ADCs and DACs; PWMs; and parallel and serial communication. Preq: ECE 2220 and ECE 2720, each with a grade of C or higher. Preq or concurrent enrollment: ECE 2620 with a grade of C or higher.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

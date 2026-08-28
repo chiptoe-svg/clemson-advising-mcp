@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "REL 3000"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "additional credits, nine at 3000 level or higher"
+    }
+  ],
+  "not_open_to": [
+    "Religious Studies majors"
+  ]
+}

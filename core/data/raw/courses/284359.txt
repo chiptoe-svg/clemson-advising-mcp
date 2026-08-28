@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 3290 - Computer Systems Structures
+3 Credits (3 Contact Hours)
+Fundamental structures and issues that arise in the analysis and implementation of computer systems. Topics include operating systems structures and data structures and their relationship to computer organization. Engineering science background for computer systems design. Preq: ECE 2230 and ECE 2720, each with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

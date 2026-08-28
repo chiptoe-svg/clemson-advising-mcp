@@ -1,0 +1,15 @@
+# Registrar rule text, transcribed verbatim from the DegreeWorks What-If audits
+# docs/degreeworks/freshman_marketing_{2425,2526,2627}cleaned.md (gitignored
+# record derivatives — What-Ifs, so no student record is involved). Identical
+# across those three catalog years. Only the rule lines are committed here, so
+# pack<->registrar drift stays testable on a fresh checkout.
+#
+# NOTE the registrar splits the 15 credits into 12 at 3000:4999 plus 3 at a
+# lower level. No wildcard type expresses a level split, so packs/marketing/
+# models the SUBJECT list only and over-admits low-level credits — see
+# docs/known-data-gaps.md. Only the 3000-level line is parsed by the tests.
+Approved 3000-4000 Level Coursework Still needed: 12 Credits in ACCT 3000:4999 or ANTH 3000:4999 or BUS 3000:4999 or
+COMM 3000:4999 or CPSC 3000:4999 or ECON 3000:4999 or ELE 3000:4999
+or ENTR 3000:4999 or FIN 3000:4999 or GC 3000:4999 or HON 3000:4999 or
+MGT 3000:4999 or MKT 3000:4999 or NPL 3000:4999 or PHIL 3000:4999 or
+PSYC 3000:4999 or SOC 3000:4999 or STAT 3000:4999

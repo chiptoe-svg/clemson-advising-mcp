@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4170 - 3D Game Programming: Algorithms and Techniques
+3 Credits (3 Contact Hours)
+Introduces students to important concepts, algorithms, and techniques of 3D game programming. Topics include game engines, character controllers, motion graphs, and artificial intelligence for games. Preq: CPSC 4050 with a grade of C or higher or CPSC 4160 with a grade of C or higher or DPA 3070 with a grade of C or higher.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

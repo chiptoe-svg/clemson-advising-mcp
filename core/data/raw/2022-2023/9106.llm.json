@@ -1,0 +1,13 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ECE 4710"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "AUE 4600, CE 3110, CE 4100, CE 4120, CHE 4160, ECE 4160, ECE 4190, ECE 4310, ECE 4320, ECE 4420, ECE 4490, ECE 4700, ECE 4730, ECE 4980, ME 4170, ME 4250, ME 4510, ME 4520, ME 4600"
+    }
+  ],
+  "not_open_to": []
+}

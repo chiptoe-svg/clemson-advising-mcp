@@ -1,0 +1,21 @@
+name = "SC REACH Act"
+# NOT a department pack — a DEGREE-LEVEL requirement that every program in the
+# DB carrying the slot must share, so it lists all eight by name rather than
+# one department's. DegreeWorks renders SC REACH ACT REQUIREMENT as a sibling
+# block of the major ("Blocks included in this block: SC REACH ACT
+# REQUIREMENT, Pre-Business, Major in ..."), which is why the same rule text
+# appears verbatim in every What-If we hold.
+#
+# apply_pack only creates a rule where that program-year's PLAN carries the
+# slot, so listing a program here cannot invent the requirement for a year
+# whose catalog page does not show it.
+programs = [
+    "Graphic Communications, BS",
+    "Marketing, BS",
+    "Accounting, BS",
+    "Economics, BS",
+    "Economics, BA",
+    "Financial Management, BS",
+    "Management, BS",
+    "Pre-Business",
+]

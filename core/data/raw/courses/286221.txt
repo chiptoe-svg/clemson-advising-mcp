@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+PHYS 3150 - Introduction to Computational Physics
+3 Credits (3 Contact Hours)
+Basic numerical methods important for data interpretation and modeling in physics, such as interpolation, derivatives, integration, solving differential and matrix equations, and Monte Carlo simulation. Methods are applied to physics problems, including realistic projectile motion, harmonic oscillators, chaotic pendulum, nonlinear systems, and Ising model. Preq: PHYS 2220.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

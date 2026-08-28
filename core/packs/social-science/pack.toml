@@ -1,0 +1,18 @@
+name = "Social Science (shared)"
+# NOT a department pack — like packs/reach-act/, this carries one correction
+# that several programs share. Every program listed here carries a
+# `Social Science Requirement` plan slot (queried, not guessed).
+#
+# This pack has NO rules/ directory on purpose: the catalog DOES derive a
+# usable rule for this slot (Pre-Business's registrar-narrow ANTH 2010 /
+# PSYC 2010 / SOC 2010 list is genuinely correct and valuable), so the pack
+# must not overwrite it. All it does is deny the one course footnote prose
+# leaks into that list — see advisor-courses.toml.
+programs = [
+    "Accounting, BS",
+    "Economics, BS",
+    "Financial Management, BS",
+    "Management, BS",
+    "Marketing, BS",
+    "Pre-Business",
+]

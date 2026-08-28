@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "ACCT 2010, FNR 4900, FOR 3410, FOR 4080, FOR 4410, FOR 4420, FOR 4440, FOR 4470, MKT 3010"
+    }
+  ],
+  "not_open_to": [
+    "Forest Resource Management majors",
+    "Forest Resource Management majors with an Emphasis Area in Land Surveying"
+  ]
+}

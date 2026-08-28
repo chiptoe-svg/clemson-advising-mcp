@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+DPA 4010 - Technical Foundations of Digital Production II
+3 Credits (3 Contact Hours)
+The mathematical and algorithmic foundations of computer graphics. Covers spatial data structures, object oriented programming in C++, mathematics for graphics, and 3-D graphics API. Not open to Computer Science, Computer Engineering, or Computer Information Systems majors. Preq: DPA 4000.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

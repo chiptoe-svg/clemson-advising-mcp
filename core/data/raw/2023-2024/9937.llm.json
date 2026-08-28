@@ -1,0 +1,20 @@
+{
+  "total_credits": 21,
+  "required_courses": [
+    "ACCT 2010",
+    "ECON 2110",
+    "ECON 2120",
+    "FIN 3060",
+    "LAW 3220",
+    "MGT 2010",
+    "MKT 3010"
+  ],
+  "elective_rules": [],
+  "not_open_to": [
+    "Accounting",
+    "BS Economics",
+    "Financial Management",
+    "Management",
+    "Marketing"
+  ]
+}

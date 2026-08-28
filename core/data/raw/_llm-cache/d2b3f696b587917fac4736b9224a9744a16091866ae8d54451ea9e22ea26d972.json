@@ -1,0 +1,20 @@
+{
+  "total_credits": 23,
+  "required_courses": [
+    "CH 1010",
+    "CH 1020"
+  ],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "BCHM 3010, BCHM 3050, BCHM 4060, BCHM 4230, any CH course (except CH 1040, CH 1050, CH 1060, CH 1410, CH 1520, CH 4500, CH 4520 or CH 4710), CHE 3070, EES 4110, EES 4850, ETOX 4210, ETOX 4300, FDSC 4010, FDSC 4020, FDSC 4030, GEOL 3180, MSE 4020, MSE 4150, PHYS 4520 or PHYS 4810"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000 or 4000 level"
+    }
+  ],
+  "not_open_to": [
+    "Science Teaching - Chemistry Teaching Area majors"
+  ]
+}

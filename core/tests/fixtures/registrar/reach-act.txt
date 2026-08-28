@@ -1,0 +1,6 @@
+# Registrar rule text, transcribed verbatim from a DegreeWorks blank What-If
+# audit (docs/degreeworks/freshman_accounting_blank_2627cleaned.md line 27).
+# The source .md files are gitignored record derivatives; this file carries
+# ONLY the rule line, no student data, so pack<->registrar drift stays
+# testable on a fresh checkout.
+SC REACH ACT REQUIREMENT Still needed: 3 Credits in HIST 1010 or POSC 1010 or 1030

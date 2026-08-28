@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 3270 - Digital Computer Design
+4 Credits (3 Contact Hours)
+Covers current topics in hardware related to computer design, including the use of modern design methodologies and Electronic Design Automation (EDA) tools; key principles focus on system design for testability; prototyping using Hardware Description Languages (HDLs) and System on Chip (SoC) implementations on FPGA (Field-Programmable Gate Array) devices. Preq: ECE 3710 with a grade of C or higher. Coreq: ECE 3271.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

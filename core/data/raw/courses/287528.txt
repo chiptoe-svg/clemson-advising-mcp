@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 2210 - Python Programming for Electrical and Computer Engineering
+3 Credits (3 Contact Hours)
+Introduction to core programming concepts using Python for students in electrical and computer engineering. Topics include variables, expressions and statements, functionals, conditionals and recursion, functions, iteration, strings, built-in containers, error handling and debugging, file I/O, and object-oriented programming. Comparisons are made between Python and other programming languages, especially C, throughout the course. Developing proficiency in using Linux/Unix is also emphasized. Programming projects emphasize applications in Electrical and Computer Engineering. Preq: ENGR 1020 or ENGR 1050 or ENGR 1510, each with a grade of C or higher.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

@@ -1,0 +1,25 @@
+{
+  "total_credits": 20,
+  "required_courses": [
+    "THEA 2790"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ENGL 4100, ENGL 4110, THEA 3470, THEA 4290, or THEA 4300"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "THEA 3150, THEA 3160, THEA 3170, or THEA 3180"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "THEA 2780/THEA 4790; THEA 3470/THEA 4470; THEA 3670/THEA 4670; THEA 3720/THEA 4720; THEA 3760/THEA 4760; or one of THEA 2880 or THEA 3770 plus one of THEA 4770, THEA 4870, or THEA 4970"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "THEA 3000 or 4000 level"
+    }
+  ],
+  "not_open_to": []
+}

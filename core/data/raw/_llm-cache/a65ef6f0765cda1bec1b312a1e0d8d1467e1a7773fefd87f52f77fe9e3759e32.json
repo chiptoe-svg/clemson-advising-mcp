@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "BIOL 4200",
+    "BIOL 4210",
+    "BIOL 4400"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "BCHM 4400, BIOL 3150, BIOL 4080, BIOL 4090, BIOL 4700, BIOL 4750, GEN 4400, PSYC 3220, PSYC 3240, PSYC 3330"
+    }
+  ],
+  "not_open_to": []
+}

@@ -1,0 +1,17 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "WS 1030",
+    "WS 3010",
+    "WS 4230",
+    "WS 4360",
+    "WS 4590"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "two different subject areas"
+    }
+  ],
+  "not_open_to": []
+}

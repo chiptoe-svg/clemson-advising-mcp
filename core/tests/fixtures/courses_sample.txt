@@ -1,0 +1,14 @@
+GC 1020 - Introduction to Digital Graphics
+Credit Hours: 2
+Introduces digital graphics tools and workflows.
+Preq: None.
+
+GC 3460 - Ink and Substrates
+Credit Hours: 3
+Study of printing inks and substrate interactions.
+Preq: GC 2070 with a C or better.
+
+GC 4400 - Commercial Printing
+Credit Hours: 4
+Lithographic and digital commercial printing processes.
+Preq: GC 3460 and GC 3400, each with a C or better.

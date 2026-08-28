@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+BE 4150 - Instrumentation and Control for Biosystems Engineers
+3 Credits (2 Contact Hours)
+Overview of modern instrumentation techniques and digital electronic components and subsystems to integrate them into digital data acquisition and control systems for biosystems. Laboratory use of equipment is emphasized. Topics include characteristics of instruments, signal conditioning, transducer theory and applications, programmable logic controllers, and digital data acquisition and control. Preq: ECE 2070 and ECE 2080. Coreq: BE 4151.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

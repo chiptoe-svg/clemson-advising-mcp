@@ -1,0 +1,20 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "YDP 3000",
+    "YDP 3050",
+    "YDP 3100",
+    "YDP 3150",
+    "YDP 3200",
+    "YDP 3300",
+    "YDP 3350",
+    "YDP 3400"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "YDP"
+    }
+  ],
+  "not_open_to": []
+}

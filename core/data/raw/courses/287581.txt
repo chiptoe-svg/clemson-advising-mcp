@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+BIOE 4730 - Medical Robotics
+3 Credits (3 Contact Hours)
+Biomedical robotics is a highly interdisciplinary field centered around the design, development, and evaluation of medical robotic systems that enhance the physical capabilities of both patients and clinicians with the goal of improving our quality of life and healthcare. Students gain insights into the design, control, and application of robots in medical procedures, diagnostics, and therapy. The course also emphasizes the ethical, safety, and regulatory considerations surrounding medical robotics. In this course, students learn the fundamental design principles essential for meeting the functionality demands of modern biomedical robots, encompassing various products, processes, and system components. Preq: MATH 2080; and either ECE 2020 or ECE 2070.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

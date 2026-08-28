@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4770 - Distributed and Cluster Computing
+3 Credits (3 Contact Hours)
+Introduction to the basic technology of and programming techniques for distributed and cluster computing. Standard techniques for developing parallel solutions to problems are introduced and implemented. Software systems that provide high-level abstractions for data communications are considered. Preq: CPSC 3600 with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

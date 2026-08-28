@@ -1,0 +1,16 @@
+slot_type = "Major Requirement"
+# Registrar (all four years): Major Requirement II = "12 Credits in
+# ECON 3160:4999 Except ECON 3990". Major Requirement I's explicit list is
+# already catalog-derived; these wildcards add the range and the exclusion
+# (denies are evaluated before allows).
+
+[[wildcards]]
+type = "subject_pattern"
+subject = "ECON"
+number_glob = "3990"
+allow = false
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "ECON"
+min = 3160

@@ -1,0 +1,18 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ECON 3060",
+    "ECON 3140",
+    "ECON 3020",
+    "ECON 3150"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "ECON 3000 or higher"
+    }
+  ],
+  "not_open_to": [
+    "Economics majors"
+  ]
+}

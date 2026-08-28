@@ -1,0 +1,20 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ENGL 3570",
+    "WCIN 3570",
+    "ENGL 4510",
+    "WCIN 4510",
+    "ENGL 4520",
+    "WCIN 4520"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ENGL, HIST, LANG, PHIL, THEA, WCIN"
+    }
+  ],
+  "not_open_to": [
+    "World Cinema majors"
+  ]
+}

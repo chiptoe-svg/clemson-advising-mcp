@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ENTR 3010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "ECON 3210, ELE 3210, ENTR 3990, ENTR 4010, ENTR 4020, ENTR 4030, ENTR 4040, ENTR 4060, ENTR 4080, ENTR 4440, MGT 4220, MGT 4400, MGT 4440, MGT 4970"
+    }
+  ],
+  "not_open_to": [
+    "Management majors"
+  ]
+}

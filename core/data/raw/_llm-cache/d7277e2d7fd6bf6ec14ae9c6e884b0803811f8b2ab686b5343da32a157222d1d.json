@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ECAS 2910",
+    "ECAS 3910"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000 level or higher"
+    }
+  ],
+  "not_open_to": []
+}

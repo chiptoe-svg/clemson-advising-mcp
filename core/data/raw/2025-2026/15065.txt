@@ -1,0 +1,26 @@
+a
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+[ARCHIVED CATALOG]
+Artificial Intelligence Minor
+
+Minor Description
+
+(20 credits minimum)
+
+A minor in Artificial Intelligence requires a minimum of 20 credits as follows:
+
+Programming Fundamentals-eight credits selected from one of the following combinations:
+CPSC 1010 and CPSC 1020 
+CPSC 1050 and CPSC 1070 
+CPSC 1060 and CPSC 1070 
+Statistical Foundations-three credits selected from IE 3610, MATH 3020, STAT 2300, or STAT 3090.
+Supporting Requirements-nine credits selected from CPSC 4300, CPSC 4420, CPSC 4430, or HCC 4600. Note that CPSC 4300 has a prerequisite of CPSC 2120 (4 credits).
+
+NOTE: This minor is not open to Computer Science BA majors.
+
+a
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

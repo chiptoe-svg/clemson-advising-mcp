@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 3520 - Programming Systems
+2 Credits (2 Contact Hours)
+This course provides students with hands-on, project-based experience in building large-scale software systems from design to deployment. Students learn and apply modern software engineering practices, including scripting with Python and Bash, object-oriented design, version control, database development, and techniques for debugging and profiling. Students also gain experience in user interface development through graphical and web frameworks and in deploying applications on advanced computing environments. Collaboration is a central focus of the course, with team-based projects that reinforce principles of modularity, maintainability, documentation, and professional communication. Preq: ECE 2230 with a grade of C or better. Preq or concurrent enrollment: MATH 4190 with a grade of C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

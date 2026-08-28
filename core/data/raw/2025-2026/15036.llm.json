@@ -1,0 +1,13 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ECE 4710"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "AUE, CE, CHE, ECE, ME"
+    }
+  ],
+  "not_open_to": []
+}

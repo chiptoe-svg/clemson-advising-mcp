@@ -1,0 +1,33 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "GW 3010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Classical Civilization"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Post-Classical Literature"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Philosophy, Religion, and Social Thought"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "The Arts"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "The Sciences"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "4000 level"
+    }
+  ],
+  "not_open_to": []
+}

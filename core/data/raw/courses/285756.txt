@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ME 4030 - Control and Integration of Multidomain Dynamic Systems
+3 Credits (3 Contact Hours)
+Introduction of control theory with sensor, actuator, and dynamic plant integration to develop, model, control, and analyze mathematical models of dynamics systems, including mechanical, electrical, electromechanical, hydraulic and pneumatic systems. Transient dynamics are determined using analytical and numerical methods with feedback control systems. Strong emphasis is placed on system design using computer simulation tools. Preq: ME 3050 with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

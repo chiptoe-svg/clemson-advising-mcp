@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "AGED 4030",
+    "AGED 4400"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "AGED 4070, AGED 4280, AGED 4820, PRTM 3080"
+    }
+  ],
+  "not_open_to": []
+}

@@ -1,0 +1,16 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "EDHC 3300",
+    "EDHC 4320"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "EDHC"
+    }
+  ],
+  "not_open_to": [
+    "Human Capital Education and Development majors"
+  ]
+}

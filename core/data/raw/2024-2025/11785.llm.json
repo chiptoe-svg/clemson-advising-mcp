@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ACCT 3220",
+    "MGT 3180",
+    "MGT 4110",
+    "MGT 4520",
+    "MGT 4540",
+    "MGT 4560"
+  ],
+  "elective_rules": [],
+  "not_open_to": [
+    "Management majors"
+  ]
+}

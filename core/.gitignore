@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+db/gc_advisor.db
+.playwright-mcp/
+*.egg-info/
+# Student-record artifacts (audit / DegreeWorks records and ANY derivative,
+# including cleaner-produced markdown) — record content never goes in git
+docs/*.pdf
+docs/degreeworks/

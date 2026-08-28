@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4670 - Introduction to Digital Signal Processing
+3 Credits (3 Contact Hours)
+Introduction to characteristics, design, and applications of discrete time systems; design of digital filters; introduction to the Fast Fourier Transform (FFT); LSI hardware for signal processing applications. Preq: ECE 3300 with a C or better.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

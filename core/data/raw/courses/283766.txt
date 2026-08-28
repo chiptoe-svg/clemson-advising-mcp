@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+BE 4170 - Applied Instrumentation and Control for Biosystems
+2 Credits (1 Contact Hours)
+Hardware and software implementation of digital data acquisition and control systems for application to agriculture, aquaculture, biotechnology, and other biosystems. Topics include digital electronic circuits and components, microcomputer architecture, interfacing, and programming. Preq: BE 4150. Coreq: BE 4171.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

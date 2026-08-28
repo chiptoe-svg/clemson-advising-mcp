@@ -1,0 +1,18 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "WS 1030",
+    "WS 3010",
+    "WS 3490",
+    "WS 4590"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "at least two different subject areas"
+    }
+  ],
+  "not_open_to": [
+    "Women\u2019s Leadership majors"
+  ]
+}

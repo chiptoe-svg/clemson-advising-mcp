@@ -1,0 +1,13 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "PLPA 3100"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "BIOL 4250, BIOL 4260, PLPA 4020, MICR 3050, or any 3000- or 4000-level PLPA courses"
+    }
+  ],
+  "not_open_to": []
+}

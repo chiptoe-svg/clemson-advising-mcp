@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 2720 - Computer Organization
+3 Credits (3 Contact Hours)
+Introductory course in computer organization and architecture. Topics include CPUs, memory, I/O, processor families, buses, peripherals, microarchitectures, and instruction sets. Includes Honors sections. Preq: ECE 2010 and ECE 2210, each with a grade of C or higher.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

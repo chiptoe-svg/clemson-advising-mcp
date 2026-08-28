@@ -1,0 +1,9 @@
+slot_type = "Support Area Requirement"
+# Registrar (2025-26, 2026-27): "(Option 1) Declare and complete a minor; OR
+# (Option 2) Complete 15 credits of coursework at the 3000-level or higher
+# within a single course prefix." The minor path routes via this evaluator.
+# Option 2's single-prefix constraint has NO wildcard vocabulary ("any one
+# prefix" is not expressible) — deliberately left unmodelled, so the course
+# path under-allows to "unmet, see advisor" rather than over-counting
+# mixed-prefix credits. See docs/known-data-gaps.md.
+evaluator = "minor_or_course_set"

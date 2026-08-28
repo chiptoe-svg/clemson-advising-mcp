@@ -1,0 +1,20 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "POSC 1010",
+    "POSC 1020",
+    "POSC 1030",
+    "POSC 1040"
+  ],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000 or 4000 level"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "three different fields of political science"
+    }
+  ],
+  "not_open_to": []
+}

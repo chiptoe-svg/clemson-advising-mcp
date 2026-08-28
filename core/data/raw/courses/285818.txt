@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+MGT 4540 - Business Analytics Programming
+3 Credits (3 Contact Hours)
+This course introduces students to the Python programming language and its rich ecosystem. Students apply programming skills to business analytics tasks, learning the logical problem solving process and fundamental structure of the Python programming language for business analytics. Preq: ACCT 3220 or MGT 3500.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

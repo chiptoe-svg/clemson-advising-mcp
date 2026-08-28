@@ -1,0 +1,22 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000-level or higher"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "2000-level"
+    },
+    {
+      "credits": 0,
+      "level_or_subject_pattern": "1000-level"
+    }
+  ],
+  "not_open_to": [
+    "Chemistry majors",
+    "Physics majors"
+  ]
+}

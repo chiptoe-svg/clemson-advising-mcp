@@ -1,0 +1,20 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "PRTM 3420",
+    "PRTM 3450"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "PRTM 4460 or PRTM 4470"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "PRTM 3090, PRTM 3300, PRTM 3430, PRTM 3440, PRTM 3460, PRTM 3470, PRTM 3480, PRTM 3490, PRTM 3910, PRTM 3920, PRTM 4030, PRTM 4300, PRTM 4410, PRTM 4440, PRTM 4450, PRTM 4460, and PRTM 4470"
+    }
+  ],
+  "not_open_to": [
+    "Parks, Recreation and Tourism majors"
+  ]
+}

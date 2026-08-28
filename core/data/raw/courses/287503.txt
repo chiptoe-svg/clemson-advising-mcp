@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+MATH 4800 - Data Science Capstone
+3 Credits (3 Contact Hours)
+This course facilitates the design and implementation of a project which makes concrete use of all aspects of data science, including identifying a data source, cleaning and organizing the data, conducting appropriate statistical analysis, and interpreting and reporting the results of the study in a standard scholarly form. Finding an appropriate project and data source with suitable characteristics for a data science-oriented study is an important component of the course. This course is intended to be taken in the final semester of degree progress. Preq: COMM 3130 and CPSC 2120 and MATH 4700.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

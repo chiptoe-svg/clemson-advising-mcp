@@ -1,0 +1,18 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "PHYS 1220",
+    "PHYS 2210",
+    "PHYS 2220"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "ASTR 3000/4000 or PHYS 3000/4000"
+    }
+  ],
+  "not_open_to": [
+    "Science Teaching - Physical Sciences Teaching Area majors",
+    "Science Teaching - Physics Teaching Area majors"
+  ]
+}

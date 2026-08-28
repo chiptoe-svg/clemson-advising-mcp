@@ -1,0 +1,18 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "MGT 3070",
+    "MGT 4000",
+    "MGT 4310",
+    "MGT 4350"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "MGT 4160 or MGT 4250"
+    }
+  ],
+  "not_open_to": [
+    "Management majors"
+  ]
+}

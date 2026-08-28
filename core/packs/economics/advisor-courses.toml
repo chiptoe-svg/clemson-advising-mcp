@@ -1,0 +1,10 @@
+# The catalog footnote for Major Requirement II reads "ECON 3160:4999 Except
+# ECON 3990", and code extraction lifted "ECON 3990" into explicit_courses as
+# an INCLUSION. Explicit courses outrank wildcard denies; advisor_deny is the
+# layer that outranks explicit — so the registrar's exclusion lands here.
+
+[[course]]
+slot_type = "Major Requirement"
+code = "ECON 3990"
+action = "deny"
+note = "registrar excludes ECON 3990 from Major Requirement II (footnote 'Except' clause mis-extracted as an inclusion)"

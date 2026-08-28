@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4420 - Knowledge Engineering
+3 Credits (3 Contact Hours)
+Introduction to the theoretical and practical aspects of knowledge engineering or applied artificial intelligence (AI). Topics include symbolic representation manipulation, knowledge structures and ontologies, unification, constraint satisfaction, production systems and structures, rule-based and expert systems, planning, machine learning, and biomimetic approaches. Includes system design via projects using appropriate software tools. Preq: ECE 3170 or MATH 4000 or STAT 3090.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

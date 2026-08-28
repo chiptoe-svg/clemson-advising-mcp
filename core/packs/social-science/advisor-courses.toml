@@ -1,0 +1,30 @@
+# STAT 2300 is NOT a social science, and the registrar says so plainly:
+# DegreeWorks files it under DEPARTMENTAL MATHEMATICS ("1 Class in MATH 1080
+# or 2070 or STAT 2300") while GENERAL EDUCATION - Social Sciences #2 reads
+# "3 Credits in ANTH 2010 or PSYC 2010 or SOC 2010". They are separate
+# requirements.
+#
+# It leaks in twice, from the catalog's two-column layout:
+#   * the PLAN — the STAT 2300 cell merged into the Social Science row, so the
+#     slot parsed as a choice with one_of=["STAT 2300"] and STAT 2300 satisfied
+#     it outright. Fixed in the parser (parse_program.CHOICE_LAYOUT_ARTIFACT_SLOTS).
+#   * the RULE — the same page's footnote discusses both cells in one block
+#     ("Students who took STAT 2300 in their freshman year should select a
+#     course that fulfills a general education social science requirement
+#     (ANTH 2010, PSYC 2010, or SOC 2010) ... Select from ANTH 2010, PSYC 2010,
+#     or SOC 2010."), and code extraction lifted STAT 2300 out of that prose
+#     into explicit_courses. Observed on Accounting, BS and Pre-Business
+#     2025-2026. That is what this deny closes.
+#
+# Same shape and same rationale as packs/economics/'s ECON 3990 deny: explicit
+# courses outrank wildcard denies, and advisor_deny is the layer that outranks
+# explicit (audit/wildcards.py:counts checks advisor_deny first).
+#
+# Year-unscoped deliberately: STAT 2300 is not a social science in ANY catalog
+# year, so a deny that only covered 2025-2026 would just wait to regress.
+
+[[course]]
+slot_type = "Social Science Requirement"
+code = "STAT 2300"
+action = "deny"
+note = "registrar files STAT 2300 under DEPARTMENTAL MATHEMATICS, not Social Sciences; two-column footnote prose mis-extracted it as an inclusion"

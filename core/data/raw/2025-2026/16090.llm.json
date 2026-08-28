@@ -1,0 +1,20 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ASTR 1010",
+    "ASTR 1020",
+    "ASTR 2200",
+    "ASTR 3020",
+    "ASTR 3030",
+    "PHYS 2210"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ASTR 3040-4990, PHYS 3550, PHYS 4200, PHYS 4320, or PHYS 4520"
+    }
+  ],
+  "not_open_to": [
+    "BS Physics majors with an Interdisciplinary Emphasis Area"
+  ]
+}

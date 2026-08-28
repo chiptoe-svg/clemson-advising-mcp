@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 3720 - Microcontroller Interfacing Laboratory
+1 Credit (3 Contact Hours)
+Emphasizes microcontroller programming and interfacing for controlling various types of hardware. Topics include reading and writing to RAM, applications of a digital latch, keypad interfacing, interrupts, clock pulse generation, pulse width modulation, serial interfaces, and A-to-D and D-to-A conversion. Preq or concurrent enrollment: ECE 3710 with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

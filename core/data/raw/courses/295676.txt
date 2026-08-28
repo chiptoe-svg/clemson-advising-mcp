@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4970 - Applied Building Analytics for Sustainability and Health
+3 Credits (3 Contact Hours)
+Buildings generate nearly 40 percent of annual global greenhouse gas (GHG) emissions. On average, Americans spend approximately 87 percent of their time indoors. This course explores building systems controls, active and passive heating and cooling systems, ventilation systems, thermal comfort, occupant behavior, and building use scenarios to identify information and data that can be used to inform interventions to improve building performance and health outcomes. Exploration into building systems is done using Clemson University buildings with an emphasis on understanding how to collect data from building systems and use the data to inform proposed interventions using various data analytics and visualization platforms. Students perform an applied data analytics project on one or more aspects of building performance (energy, health, comfort, etc.) that requires the integration of commercially available sensors into a Clemson University building and use of the collected data to be displayed through a data analytics visualization software platform. Preq: CPSC 4030 and CSM 4130.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

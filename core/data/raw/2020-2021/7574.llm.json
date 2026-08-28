@@ -1,0 +1,17 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "ECE 2020",
+    "ECE 2620",
+    "ECE 3200"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "any ECE courses (excluding ECE 1010, ECE 1990, ECE 2070, ECE 2080, ECE 2990, ECE 3000, ECE 3080, ECE 3990, ECE 4050, ECE 4530, ECE 4910, ECE 4920, ECE 4950, ECE 4960, ECE 4980, and ECE 4990); at least nine of the 18 credits must be at the 3000 level or higher"
+    }
+  ],
+  "not_open_to": [
+    "Computer Engineering majors"
+  ]
+}

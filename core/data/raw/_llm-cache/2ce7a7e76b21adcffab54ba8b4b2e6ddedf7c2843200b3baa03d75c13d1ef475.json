@@ -1,0 +1,27 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "GER 2020",
+    "GER 3060",
+    "GER 3150",
+    "GER 3160"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "GER 3050, GER 3100, GER 3400, GER 3600, GER 3610, GER 3690, GER 3980, GER 4050, GER 4160, GER 4170, GER 4500, GER 4550, GER 4600, GER 4610, GER 4750, GER 4980"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "BE 4240, BE 4400, BIOE 4350, CH 3310, CH 3600, CH 4040, CH 4250, ECE 4700, ECE 4710, EES 4010, EES 4100, EES 4300, IE 4400, IE 4570, IE 4620, IE 4880, MATH 2060, MATH 2080, MATH 4000, MATH 4100, MATH 4120, MATH 4190, MATH 4340, MATH 4350, MATH 4400, MATH 4530, MATH 4600, MATH 4630, ME 4150, ME 4170, ME 4180, ME 4200, ME 4210, ME 4220, ME 4230, ME 4250, ME 4260, ME 4280, ME 4290, ME 4300, ME 4310, ME 4320, ME 4400, ME 4540, ME 4550, ME 4570, ME 4600, ME 4710, ME 4930, PHYS 3110, PHYS 3210, PHYS 3550, PHYS 4170, PHYS 4200, PHYS 4320, PHYS 4410, PHYS 4520"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "LANG 3030, INT 3010, INT 3600"
+    }
+  ],
+  "not_open_to": [
+    "Language and International Health",
+    "Language and International Business majors whose emphasis area is German"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "total_credits": 9,
+  "required_courses": [
+    "BUS 2990",
+    "BUS 3990",
+    "BUS 4990"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "MGT 4050, MKT 4950, ML 1010, ML 1020, NPL 3000, WS 2300"
+    }
+  ],
+  "not_open_to": []
+}

@@ -1,0 +1,11 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000 or 4000 level courses from LAW, COMM 4300, COMM 4310, ECON 4020, ENR 4290, HIST 3190, HIST 3280, HIST 3290, HIST 4960, HLTH 4780, JUST 4680, PHIL 3210, PHIL 3430, POSC 4360, POSC 4370, POSC 4380, POSC 4470"
+    }
+  ],
+  "not_open_to": []
+}

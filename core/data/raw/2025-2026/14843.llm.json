@@ -1,0 +1,28 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "POSC 1020",
+    "POSC 1040"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "Group I and Group II"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group I - Comparative Politics"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group II - International Relations"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "POSC 3050, POSC 3110, POSC 3130, POSC 4100"
+    }
+  ],
+  "not_open_to": [
+    "Political Science majors"
+  ]
+}

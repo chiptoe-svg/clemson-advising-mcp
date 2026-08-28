@@ -1,0 +1,17 @@
+{
+  "total_credits": 12,
+  "required_courses": [
+    "NURS 3600",
+    "NURS 3610",
+    "NURS 3620"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ANTH 4230, SOC 4800, SPAN 1010, SPAN 1020, SPAN 1040, SPAN 2010, SPAN 3150"
+    }
+  ],
+  "not_open_to": [
+    "Language and International Health majors"
+  ]
+}

@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 1070 - Programming Methodology
+4 Credits (3 Contact Hours)
+Covers procedural and object-oriented programming, manual memory management, using basic data structures, and software construction using Unix-based development tools. Current languages used are C/C++. Credit may not be received for both CPSC 1020 and CPSC 1070. Preq: CPSC 1050 or CPSC 1060 with a grade of C or higher. Coreq: CPSC 1071.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

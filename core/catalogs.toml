@@ -1,0 +1,12 @@
+# year label -> catoid. catoids are discovered from the catalog archive dropdown.
+# Catoids discovered via scripts/_discover_catoids.py on 2026-06-22.
+[catalogs]
+"2026-2027" = 49
+"2025-2026" = 46
+"2024-2025" = 43
+"2023-2024" = 39
+"2022-2023" = 35
+"2021-2022" = 33
+"2020-2021" = 28
+"2019-2020" = 21
+"2018-2019" = 18

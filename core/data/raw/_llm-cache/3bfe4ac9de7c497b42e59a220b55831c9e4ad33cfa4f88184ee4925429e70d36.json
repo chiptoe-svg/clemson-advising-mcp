@@ -1,0 +1,18 @@
+{
+  "total_credits": 12,
+  "required_courses": [
+    "MKT 3250",
+    "MKT 4360"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "BIOE"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "BCHM, BIOE, BIOL, HLTH, IE, MKT"
+    }
+  ],
+  "not_open_to": []
+}

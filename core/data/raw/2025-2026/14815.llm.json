@@ -1,0 +1,23 @@
+{
+  "total_credits": 20,
+  "required_courses": [
+    "BIOL 1030/BIOL 1050",
+    "BIOL 1100",
+    "BIOL 1040/BIOL 1060",
+    "BIOL 1110"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "BIOL courses at the 3000 level or above, BCHM 3010, BCHM 3050, GEN 3000, GEN 3020, MICR 3050, MICR 3060"
+    },
+    {
+      "credits": 4,
+      "level_or_subject_pattern": "BCHM 3010, BCHM 3050, BIOL 3940, BIOL 4910, BIOL 4920, BIOL 4930, BIOL 4940, BIOL 4950, BIOL 4980, GEN 3000, GEN 3020, MICR 3050, MICR 3060"
+    }
+  ],
+  "not_open_to": [
+    "Biological Sciences majors",
+    "Science Teaching - Biological Sciences Teaching Area majors"
+  ]
+}

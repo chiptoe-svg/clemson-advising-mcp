@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "WFB 3000",
+    "WFB 3500"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000- and 4000-level WFB courses (except WFB 4630)"
+    }
+  ],
+  "not_open_to": []
+}

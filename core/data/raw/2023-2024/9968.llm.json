@@ -1,0 +1,17 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "ECON 3100, ECON 4120, ECON 4130, POSC 3610, POSC 3620, POSC 3710, POSC 3750, POSC 4770, POSC 4780, or any 3000-level or higher modern language courses"
+    }
+  ],
+  "not_open_to": [
+    "College of Agriculture, Forestry and Life Sciences",
+    "College of Architecture, Arts and Humanities",
+    "College of Behavioral, Social and Health Sciences",
+    "College of Business",
+    "College of Education"
+  ]
+}

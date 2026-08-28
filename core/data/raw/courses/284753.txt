@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ENGR 1080 - Programming and Problem Solving II
+1 Credits (1 Contact Hours)
+Continuation of topics introduced in ENGR 1070. Students formulate and solve engineering problems using MATLAB; read, interpret and write programs, instructions, and formatted output; create and interpret plots and trendlines; evaluate and compose conditional statements and looping structures; and debug. Includes Honors sections. Preq: ENGR 1070 with a C or better; and one of ENGR 1020 or ENGR 1060 with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

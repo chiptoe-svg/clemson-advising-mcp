@@ -1,0 +1,5 @@
+# Registrar rule text, transcribed verbatim from the DegreeWorks blank What-If
+# audits docs/degreeworks/freshman_economics_bs_*.md (gitignored record
+# derivatives). Stable across all four catalog years. The BA carries the same
+# range under the name MAJOR REQUIREMENT I (the two roles swap names).
+MAJOR REQUIREMENT II (12 Cr) Still needed: 12 Credits in ECON 3160:4999 Except ECON 3990

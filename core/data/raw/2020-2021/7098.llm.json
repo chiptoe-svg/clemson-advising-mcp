@@ -1,0 +1,17 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "HIST 3000-4000"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "HIST 4000"
+    }
+  ],
+  "not_open_to": [
+    "Secondary Education - Social Studies (History) majors"
+  ]
+}

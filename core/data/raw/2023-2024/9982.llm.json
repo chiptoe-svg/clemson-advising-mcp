@@ -1,0 +1,29 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "HIST 3110",
+    "HIST 3120",
+    "GBS 1000"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "GBS 1010, GBS 4980, HIST 3370, HIST 3380, HIST 3390, or HIST 4380"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ENGL 4820, ENGL 4830, POSC 3810, SOC 4600, or THEA 3170"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "social sciences: HIST 3140, HIST 4930, POSC 4230, POSC 4540, PSYC 3520, SOC 3110, SOC 3310, or SOC 4620"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "humanities: COMM 3690, ENGL 3530, ENGL 4590, GBS 1000, MUSC 3120, REL 3100, THEA 3180, or WS 3010"
+    }
+  ],
+  "not_open_to": [
+    "Global Black Studies majors"
+  ]
+}

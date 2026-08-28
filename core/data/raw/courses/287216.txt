@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+HCC 4400 - Measurement and Evaluation of Human-Centered Computing Systems
+3 Credits (3 Contact Hours)
+This course provides practical knowledge regarding the statistical evaluation of the outcomes of controlled user experiments in Human-Centered Computing. User experiments are one of the main methods for HCC researchers to evaluate the systems they develop. Students practice analyzing the data of real HCC experiments. Preq: CPSC 4140; and one of MATH 3020 or STAT 3090 or STAT 3300.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

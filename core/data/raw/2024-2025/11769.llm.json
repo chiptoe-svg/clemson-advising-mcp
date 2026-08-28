@@ -1,0 +1,17 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "FOR 2050",
+    "FOR 2060"
+  ],
+  "elective_rules": [
+    {
+      "credits": 10,
+      "level_or_subject_pattern": "Forestry courses at the 3000 level or higher, excluding FOR 4190 and FOR 4470"
+    }
+  ],
+  "not_open_to": [
+    "Forest Resource Management majors",
+    "Forest Resource Management majors with an Emphasis Area in Land Surveying"
+  ]
+}

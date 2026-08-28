@@ -1,0 +1,18 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "WS 1030",
+    "WS 3010",
+    "WS 2300",
+    "WS 2400",
+    "WS 3900",
+    "WS 4010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "3000/4000 level courses from AAH, ANTH, COMM, ECON, ENGL, FR, HIST, HLTH, PHIL, POSC, PRTM, PSYC, SOC, SPAN, THEA, WS, or approved special topics"
+    }
+  ],
+  "not_open_to": []
+}

@@ -1,0 +1,15 @@
+{
+  "total_credits": 18,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "1000 level geography"
+    },
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000 or 4000 level geography"
+    }
+  ],
+  "not_open_to": []
+}

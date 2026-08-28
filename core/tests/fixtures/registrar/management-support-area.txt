@@ -1,0 +1,7 @@
+# Registrar rule text, transcribed verbatim from the DegreeWorks What-If audits
+# docs/degreeworks/freshman_management_*.md (gitignored record derivatives).
+# Stable across all four catalog years. `@` means ANY subject — the broadest
+# support area in the College of Business, and fully expressible (level_min).
+SUPPORT AREA REQUIREMENT (Option 2 - Still needed: 15 Credits in @ 3000:4999 or ARAB 2000:4999 or ASL 2000:4999 or
+CHIN 2000:4999 or FR 2000:4999 or GER 2000:4999 or ITAL 2000:4999 or
+JAPN 2000:4999 or RUSS 2000:4999 or SPAN 2000:4999

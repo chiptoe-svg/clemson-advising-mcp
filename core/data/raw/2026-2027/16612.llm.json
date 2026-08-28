@@ -1,0 +1,16 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "AGED 4030",
+    "AGED 4150"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "AGED"
+    }
+  ],
+  "not_open_to": [
+    "Agricultural Education majors"
+  ]
+}

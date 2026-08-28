@@ -1,0 +1,13 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "ASL 3000",
+    "ASL 3150",
+    "ASL 3200",
+    "ASL 3250",
+    "ASL 4200",
+    "ASL 4250"
+  ],
+  "elective_rules": [],
+  "not_open_to": []
+}

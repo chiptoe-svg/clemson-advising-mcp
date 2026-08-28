@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "GC 3700",
+    "GC 3760"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "COMM 3230, COMM 3500, COMM 3570, GC 3450, GC 3600, GC 3610, GC 3620, GC 3710, GC 3720, GC 3730, GC 3740, GC 3750, GC 3780, GC 3790"
+    }
+  ],
+  "not_open_to": []
+}

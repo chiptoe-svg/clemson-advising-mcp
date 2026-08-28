@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 1050 - Introduction to Programming in Python
+4 Credits (3 Contact Hours)
+Principles of software development, style and testing. Topics include procedural and object-oriented programming in the context of real-world applications. This is one of three normal entry-level courses for Computer Information Systems and Computer Science majors. Credit will be given for only one of CPSC 1010, CPSC 1050, CPSC 1060, or CPSC 1110. Preq: A score of 620 or higher on the SAT Math section, or a score of 26 or higher on the ACT Math section, or a score of 60 or higher on the Clemson Mathematics Placement Test (CMPT), or CPSC 1040, or CPSC 1210 or MATH 1060. Coreq: CPSC 1051.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

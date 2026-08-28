@@ -1,0 +1,21 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "MSE 2100"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "BIOE 3020, CE 2060, CE 3510, CH 4010, CH 4020, CH 4650, CHE 3190, EES 4090, ENGR 1410, ME 2040, MSE 3100, MSE 3190, MSE 3260, MSE 3270, MSE 3450, MSE 4020, MSE 4070, MSE 4120, MSE 4130, MSE 4150, MSE 4170, MSE 4220, MSE 4240, MSE 4280, MSE 4320, MSE 4340, MSE 4530, MSE 4570, MSE 4580, MSE 4610, MSE 4900, PHYS 4450, PHYS 4460, PKSC 4160"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000 or 4000 level"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "MSE courses"
+    }
+  ],
+  "not_open_to": []
+}

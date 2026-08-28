@@ -1,0 +1,17 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "JAPN 2010",
+    "JAPN 2020"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "3000- and 4000-level JAPN courses, of which at least six credits must be taught in Japanese"
+    }
+  ],
+  "not_open_to": [
+    "Language and International Business majors whose target language is Japanese",
+    "Modern Languages majors whose emphasis area is Japanese"
+  ]
+}

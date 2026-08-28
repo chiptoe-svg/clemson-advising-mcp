@@ -1,0 +1,18 @@
+{
+  "version": "gc-progress-v1",
+  "catalog_year": "2026-2027",
+  "program": "Graphic Communications, BS",
+  "passed": [
+    {"code": "GC 1010", "term": "Fall 2024", "credits": 1},
+    {"code": "GC 1020", "term": "Fall 2024", "credits": 3},
+    {"code": "ENGL 1030", "term": "Fall 2024", "credits": 3},
+    {"code": "MATH 1020", "term": "Fall 2024", "credits": 3},
+    {"code": "CH 1010", "term": "Spring 2025", "credits": 4},
+    {"code": "GC 2070", "term": "Spring 2025", "credits": 3},
+    {"code": "STAT 2300", "term": "Spring 2025", "credits": 3}
+  ],
+  "in_progress": ["GC 2400", "COMM 1500"],
+  "minor": null,
+  "grade_checks": {"c_or_better": ["GC 1010", "GC 1020", "ENGL 1030"]},
+  "warnings": ["1 unparsed line in Spring 2025 block"]
+}

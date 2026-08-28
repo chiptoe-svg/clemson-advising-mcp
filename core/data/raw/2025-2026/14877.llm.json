@@ -1,0 +1,17 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "SUST 2010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000- or 4000-level"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "social dimension of sustainability (marked with #)"
+    }
+  ],
+  "not_open_to": []
+}

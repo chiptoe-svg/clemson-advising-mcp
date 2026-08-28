@@ -1,0 +1,18 @@
+{
+  "total_credits": 20,
+  "required_courses": [
+    "AVS 2000",
+    "AVS 3750",
+    "AVS 4010",
+    "AVS 4230",
+    "AVS 4550",
+    "AVS 4700"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "AVS 2090, AVS 3020, AVS 3600, or AVS 3900"
+    }
+  ],
+  "not_open_to": []
+}

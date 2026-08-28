@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+MATH 4600 - Introduction to Numerical Analysis I
+3 Credits (3 Contact Hours)
+Introduction to the problems of numerical analysis emphasizing computational procedures and application. Topics include sources of error and conditioning, matrix methods, systems of linear equations, nonlinear equations, interpolation and approximation by splines, polynominals, and trigonometric functions. Preq: MATH 2080 and MATH 3110 and MATH 3600, each with a C or better.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

@@ -1,0 +1,21 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "DANC 3100",
+    "DANC 3110",
+    "DANC 3120",
+    "DANC 3130",
+    "DANC 3140"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "MUSC 2100, MUSC 3080, MUSC 3090, THEA 3080, THEA 3090, THEA 4670, and THEA 4870"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "DANC 2300, DANC 2400, DANC 2500, DANC 2600, and DANC 3300"
+    }
+  ],
+  "not_open_to": []
+}

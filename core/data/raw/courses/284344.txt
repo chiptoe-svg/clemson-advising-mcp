@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 2230 - Data Structures and Algorithms for Electrical and Computer Engineering
+3 Credits (3 Contact Hours)
+Analysis of implementation techniques for systems software. Applying engineering principles including code reading to the design of data structures and algorithms for low level computer systems, embedded systems, and hardware/software systems. Includes coverage of address translation, memory management, file systems, and process management. Preq: ECE 2220 with a grade of C or higher.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

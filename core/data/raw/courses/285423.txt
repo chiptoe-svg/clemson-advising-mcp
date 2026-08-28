@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+IE 4860 - Scheduling
+3 Credits (3 Contact Hours)
+Introduction to the development and application of operations research approaches for sequencing and scheduling problems. Emphasis is placed on heuristic- and optimization-based solution methods and how they relate to practical approaches for scheduling and sequencing. Prior programming experience in any structured language or environment is required (e.g., C/C++, VBA, Matlab, etc.) Preq: One of IE 3860 or MGT 3900; and one of CPSC 1010 or CPSC 1110 or IE 4400 or MATH 3600 or MATH 3650.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

@@ -1,0 +1,8 @@
+# Registrar rule text, transcribed verbatim from the DegreeWorks What-If audit
+# docs/degreeworks/freshman_accounting_2324cleaned.md (gitignored record
+# derivative). The 2023-24 line is the one committed because it carries the SIX
+# subjects shared by every catalog year, which is exactly what packs/accounting/
+# models; 2026-27's line adds MKT 3000:4999, deliberately omitted from the
+# year-unscoped pack (under-allow beats over-allow) — see docs/known-data-gaps.md.
+BUSINESS REQUIREMENT (6 Cr) Still needed: 6 Credits in ACCT 3000:4999 or ECON 3000:4999 or ELE 3000:4999 or
+FIN 3000:4999 or LAW 3000:4999 or MGT 3000:4999

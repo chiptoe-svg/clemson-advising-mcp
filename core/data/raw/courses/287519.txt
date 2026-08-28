@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4070 - Applied Computer Vision
+3 Credits (3 Contact Hours)
+Students are introduced to computer vision techniques starting with basic digital image processing. Concepts covered include image convolution, edge detection, and the Fourier and Wavelet transforms. The course also introduces students to video processing, including camera calibration and concepts related to Augmented Reality, including marker detection and camera homography. Preq: CPSC 2120.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

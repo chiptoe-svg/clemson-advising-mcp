@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4530 - Software Practicum
+3 Credits (1 Contact Hours)
+Students design and implement a software system that satisfies both a requirements and specifications document. The resulting system is tested for compliance. Preq: ECE 3220 and ECE 3520, each with a C or better. Coreq: ECE 4531.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

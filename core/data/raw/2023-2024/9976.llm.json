@@ -1,0 +1,16 @@
+{
+  "total_credits": 19,
+  "required_courses": [
+    "ML 3010",
+    "ML 3020",
+    "ML 4010",
+    "ML 4020"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "HIST 3900, HIST 3980, ML 3900, or POSC 4580"
+    }
+  ],
+  "not_open_to": []
+}

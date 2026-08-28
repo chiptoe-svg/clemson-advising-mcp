@@ -1,0 +1,20 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "COMM 2010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "communication studies at the 3000 level or higher"
+    },
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "sports communication selected from COMM 3240, COMM 3270, COMM 3280, COMM 4250, and COMM 4270"
+    }
+  ],
+  "not_open_to": [
+    "Communication majors",
+    "Sports Communication majors"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ENGL 3040",
+    "ENGL 3120",
+    "ENGL 3140"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "ENGL"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "4000 level"
+    }
+  ],
+  "not_open_to": []
+}

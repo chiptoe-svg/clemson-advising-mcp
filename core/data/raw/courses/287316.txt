@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ME 4720 - Manufacturing Optimization
+3 Credits (3 Contact Hours)
+Identification, modeling and formulation of linear and network optimization models of manufacturing processes. Examination of network models that arise in manufacturing, energy, transportation and logistics: minimum cost flow models in transportation, shortest path problems, and maximum flow models. Deterministic and stochastic systems, as well as the effects of nonlinear and integer constraints, are considered. Students are expected to have computer programming experience (Excel, Matlab or equivalent). Credit will be given for only one of IE 4460 or ME 4720. Preq: MATH 2060.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

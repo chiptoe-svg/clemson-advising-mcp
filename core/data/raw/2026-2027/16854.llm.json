@@ -1,0 +1,15 @@
+{
+  "total_credits": 11,
+  "required_courses": [
+    "BUS 2700",
+    "BUS 3700",
+    "BUS 4700"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ACCT, AS, ECON, ENTR, LAW, MGT, ML, PSYC, SOC, NPL, POSC, WS"
+    }
+  ],
+  "not_open_to": []
+}

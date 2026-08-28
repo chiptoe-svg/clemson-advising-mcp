@@ -1,0 +1,19 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "JUST 2880"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "JUST courses"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000 level or higher"
+    }
+  ],
+  "not_open_to": [
+    "Criminal Justice majors"
+  ]
+}

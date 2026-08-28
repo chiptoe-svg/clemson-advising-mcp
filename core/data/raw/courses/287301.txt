@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4100 - Industrial Control and Automation
+3 Credits (3 Contact Hours)
+Introduction to control systems specifically related to electrical and computer engineering industrial applications, and manufacturing and production systems. Topics include continuous variable control and the PID paradigm, applications of the Z-transform, digital control, model-predictive control, direct adaptive control, discrete logic control, ladder logic and PLC implementation, and equipment interfacing and industrial networking protocols. Preq: ECE 4090 with a grade of C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

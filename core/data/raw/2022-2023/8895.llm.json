@@ -1,0 +1,24 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ENGL 3100"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "British literature (ENGL 3960, ENGL 3970, ENGL 4070, ENGL 4080, ENGL 4100, ENGL 4140, ENGL 4150, ENGL 4160, ENGL 4170, ENGL 4180, ENGL 4330, or ENGL 4440)"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "American literature (ENGL 3980, ENGL 3990, ENGL 4200, ENGL 4210, ENGL 4250, ENGL 4260, or ENGL 4820)"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "above the sophomore level, including at least three from the 4000 level"
+    }
+  ],
+  "not_open_to": [
+    "English majors",
+    "Secondary Education - English Teaching Area majors"
+  ]
+}

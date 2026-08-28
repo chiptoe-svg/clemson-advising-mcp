@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+GC 2400 - Introduction to Web Design and Development
+3 Credits (2 Contact Hours)
+Designed to build the students’ knowledge of web design and development to an intermediate level. Students learn the fundamental languages and markups for front-end web programming, and are introduced to some of the more complex web topics, including Web to Print, Responsive Web Design, and Server Technology. Preq: GC 1020 and GC 1040. Coreq: GC 2401.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

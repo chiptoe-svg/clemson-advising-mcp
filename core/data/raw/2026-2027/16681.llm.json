@@ -1,0 +1,25 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "POSC 4710"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "RUSS 2000 level or above"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "RUSS 3070, RUSS 3400, RUSS 3600, RUSS 3610, RUSS 3980, RUSS 4600"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "HIST 3850, HIST 3860, HIST 3870, HIST 4940"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Any course from the above lists"
+    }
+  ],
+  "not_open_to": []
+}

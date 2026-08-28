@@ -1,0 +1,33 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "GW 3010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group I - Classical Civilization: ENGL 4030, ENGL 4910, ENGL 4290, HIST 3540, HIST 3550, HIST 4500, PHIL 3150"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group II - Post-Classical Literature: ENGL 4080, ENGL 4110, ENGL 4140, ENGL 4160, FR 4000, GW 4030, SPAN 3130, SPAN 4010"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group III - Philosophy, Religion, and Social Thought: ENGL 3500, HIST 4950, PHIL 3160, PHIL 3170, POSC 4500, REL 3010, REL 3020, REL 4010"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group IV - The Arts: AAH 4230, AAH 4240, HUM 3010, HUM 3020, MUSC 4150, MUSC 4160, THEA 3150, THEA 3160"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group V - The Sciences: BIOL 4860, ENGL 4340, GW 4020, GW 4050"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "4000 level"
+    }
+  ],
+  "not_open_to": []
+}

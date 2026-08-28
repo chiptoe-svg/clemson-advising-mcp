@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+GC 3600 - UX and Web Design
+3 Credits (3 Contact Hours)
+This course presents the fundamentals of user experience, web design, and front-end development using base user experience principles and practices, and introduces web design and front-end development over the length of the course. Using those skills and real-world scenarios, the course explores product design, and how to build a client ready portfolio. The course also introduces HTML5, CSS, jQuery. Preq: GC 2400.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "BIOE 4260",
+    "BIOE 4270",
+    "BIOE 4280"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "BIOE 4510 and BIOE 4900"
+    }
+  ],
+  "not_open_to": []
+}

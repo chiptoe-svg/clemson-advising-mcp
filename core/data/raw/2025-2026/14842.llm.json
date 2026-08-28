@@ -1,0 +1,17 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "GER 2010",
+    "GER 2020"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "3000- and 4000-level GER courses"
+    }
+  ],
+  "not_open_to": [
+    "Language and International Business majors whose target language is German",
+    "Modern Languages majors whose emphasis area is German"
+  ]
+}

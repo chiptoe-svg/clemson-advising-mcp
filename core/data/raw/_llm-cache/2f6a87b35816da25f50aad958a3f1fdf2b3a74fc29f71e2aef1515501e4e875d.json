@@ -1,0 +1,21 @@
+{
+  "total_credits": 23,
+  "required_courses": [
+    "CH 1010",
+    "CH 1020"
+  ],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "BCHM, BIOE, CH (except CH 1040, CH 1050, CH 1060, CH 1520, CH 4500, CH 4710), CHE, EES, ETOX, FDSC, GEOL, MSE, PHYS, PKSC"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000 or 4000 level"
+    }
+  ],
+  "not_open_to": [
+    "Chemistry majors",
+    "Science Teaching - Chemistry Teaching Area majors"
+  ]
+}

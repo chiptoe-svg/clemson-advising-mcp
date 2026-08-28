@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "HLTH 2020",
+    "HLTH 2030",
+    "HLTH 3610"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "HLTH 4000"
+    }
+  ],
+  "not_open_to": []
+}

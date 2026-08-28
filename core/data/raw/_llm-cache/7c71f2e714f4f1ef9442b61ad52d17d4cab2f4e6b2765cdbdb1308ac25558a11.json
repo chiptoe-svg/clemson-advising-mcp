@@ -1,0 +1,16 @@
+{
+  "total_credits": 19,
+  "required_courses": [
+    "PKSC 1020",
+    "PKSC 2020",
+    "PKSC 2040",
+    "PKSC 2060"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "4000-level"
+    }
+  ],
+  "not_open_to": []
+}

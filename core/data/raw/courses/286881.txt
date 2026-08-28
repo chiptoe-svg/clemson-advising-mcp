@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4310 - Introduction to Computer Vision
+3 Credits (3 Contact Hours)
+The purpose of a computer vision system is to take data, usually in the form of one or more images, and produce information. This course covers the mainstream theories of computer vision used to build such systems. Several examples, such as optical character recognition, are implemented in assignments. Preq: ECE 2230.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

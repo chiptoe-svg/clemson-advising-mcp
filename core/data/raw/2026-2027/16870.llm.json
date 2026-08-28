@@ -1,0 +1,19 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Gateway (1000-level)"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "Core (ANTH, ART, CHIN, ENGL, HIST, HON, HUM, FR, GER, ITAL, JAPN, PHIL, POSC, REL, RUSS, SOC, SPAN, THEA); at least two at 3000+ level"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Capstone (ANTH, ENGL, GER, HIST, HON, HUM, LANG, PHIL, POSC, REL)"
+    }
+  ],
+  "not_open_to": []
+}

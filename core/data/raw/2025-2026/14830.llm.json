@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ELE 3010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "ECON 3210, ELE 3210, ELE 3990, ELE 4010, ELE 4020, ELE 4030, ELE 4040, ELE 4060, ELE 4080, ELE 4440, MGT 4220, MGT 4400, MGT 4440, MGT 4970"
+    }
+  ],
+  "not_open_to": [
+    "Management majors"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "NPL 3000",
+    "NPL 3010",
+    "NPL 3020",
+    "NPL 3030",
+    "NPL 3040",
+    "NPL 4900"
+  ],
+  "elective_rules": [],
+  "not_open_to": []
+}

@@ -1,0 +1,17 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "LARC 1150",
+    "LARC 1160",
+    "LARC 4530"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "LARC"
+    }
+  ],
+  "not_open_to": [
+    "Landscape Architecture majors"
+  ]
+}

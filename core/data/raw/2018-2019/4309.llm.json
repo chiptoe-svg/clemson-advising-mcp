@@ -1,0 +1,27 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "AGRB 3510",
+    "GC 1040",
+    "CPSC 1200",
+    "ENGL 3040",
+    "ENGL 3140",
+    "ENGL 4900",
+    "ENGL 4950",
+    "ENGL 2310",
+    "ENGL 3320",
+    "ENGL 3330",
+    "ENGL 4780",
+    "ENGL 3120",
+    "ENGL 4000",
+    "ENGL 4010",
+    "ENGL 4850"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ENGL"
+    }
+  ],
+  "not_open_to": []
+}

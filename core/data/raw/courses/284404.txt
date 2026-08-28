@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4590 - Integrated Circuit Design
+3 Credits (2 Contact Hours)
+Design concepts and factors influencing the choice of technology; fundamental MOS device design; silicon foundries, custom and semicustom integrated circuits; computer-aided design software/hardware trends and future developments; hands-on use of CAD tools to design standard library cells; systems design considerations, testing, and packaging. Preq: ECE 3200 with a C or better. Coreq: ECE 4591.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ENGR 1410 - Design Solutions with Artificial Intelligence
+3 Credits (2 Contact Hours)
+Students gain foundational programming skills, frame engineering problems in a way in which artificial intelligence (AI) can assist, and critically evaluate AI-generated outputs. Through hands-on projects and team-based design challenges, students use large language models (LLMs) to brainstorm ideas, debug code, generate documentation, and model systems more effectively. Includes Honors sections. Preq: ENGR 1020 with a grade of C or higher; or ENGR 1060 with a grade of C or higher; or ENGR 1520 with a grade of C or higher. Coreq: ENGR 1411.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

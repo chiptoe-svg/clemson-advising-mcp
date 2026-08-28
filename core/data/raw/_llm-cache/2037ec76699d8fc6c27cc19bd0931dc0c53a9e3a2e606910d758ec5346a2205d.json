@@ -1,0 +1,17 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "AAH 1010",
+    "ART 2100",
+    "ART 1520",
+    "ART 1550",
+    "ART 2330"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "ARCH, ART, CRP, CSM"
+    }
+  ],
+  "not_open_to": []
+}

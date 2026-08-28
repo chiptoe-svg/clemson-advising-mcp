@@ -1,0 +1,17 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ENGL 3040",
+    "ENGL 3120",
+    "ENGL 3140",
+    "PCID 3040",
+    "PCID 3140"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "at least six must be at the 4000 level from the specified list"
+    }
+  ],
+  "not_open_to": []
+}

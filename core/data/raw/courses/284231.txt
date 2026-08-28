@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 2310 - Introduction to Computer Organization
+4 Credits (3 Contact Hours)
+Study of the machine architectures on which algorithms are implemented and requirements of architectures that support high-level languages, programming environments, and applications. Preq: CPSC 1020 with a C or better or CPSC 1070 with a C or better. Coreq: CPSC 2311.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

@@ -1,0 +1,11 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ARCH 1010",
+    "ARCH 4710",
+    "ARCH 4720",
+    "DSGN 3700"
+  ],
+  "elective_rules": [],
+  "not_open_to": []
+}

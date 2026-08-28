@@ -1,0 +1,18 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "SPAN 2020",
+    "ECON 4100"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "GEOG or HIST"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "SPAN"
+    }
+  ],
+  "not_open_to": []
+}

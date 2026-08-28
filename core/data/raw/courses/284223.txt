@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 1610 - Introduction to Visual Basic Programming
+3 Credits (2 Contact Hours)
+Introduction to programming using the Visual Basic language. Topics include simple and complex data types, arithmetic operations, control flow, files, and database programming. Several projects are implemented during the semester. Coreq: CPSC 1611.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

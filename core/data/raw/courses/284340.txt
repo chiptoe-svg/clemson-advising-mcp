@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 2090 - Logic and Computing Devices Laboratory
+1 Credit (2 Contact Hours)
+Introduction to designing, building, simulating and testing digital logic circuits. Topics include SSI and MSI ICs; general combinational circuits; adders, decoders and multiplexors; general sequential circuits; shift registers, counters and memory; logic simulation, timing diagrams, hardware description language (HDL), microarchitecture, computer organization, and assembly language programming. Includes Honors sections. Preq: ECE 2010 with a grade of C or higher. Preq or concurrent enrollment: ECE 2720 with a grade of C or higher.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

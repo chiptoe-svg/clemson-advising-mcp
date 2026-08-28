@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ME 4730 - Integrated Computational Materials Engineering
+3 Credits (3 Contact Hours)
+This course familiarizes students with the concept of Integrated Computational Materials Engineering as an approach to design components, the materials that comprise them, and the manufacturing methods by linking materials models at different time and length scales. The focus is on materials and how processing generates different microstructures giving rise to different properties. The key idea is to understand the main processes occurring at different scales leading process-structure-properties-performance relationships. The students have hands-on tutorials and learn to use state-of-the-art computational tools to compute materials properties required to obtain an accurate component design. Virtual open access tools are used to learn different simulation techniques and how information can be passed between models. Prior experience with coding/scripting in Python or similar is beneficial. Preq: Senior standing.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

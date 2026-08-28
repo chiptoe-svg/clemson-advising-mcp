@@ -1,0 +1,23 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ENGL, THEA, WCIN"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ANTH, PAS, POSC, RS, SOC"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "GEOG, HIST, POSC"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ENGL, THEA, WCIN, ANTH, PAS, POSC, RS, SOC, GEOG, HIST"
+    }
+  ],
+  "not_open_to": []
+}

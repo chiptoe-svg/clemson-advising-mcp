@@ -1,0 +1,15 @@
+{
+  "total_credits": 24,
+  "required_courses": [
+    "AS 1090",
+    "AS 1100",
+    "AS 2090",
+    "AS 2100",
+    "AS 3090",
+    "AS 3100",
+    "AS 4090",
+    "AS 4100"
+  ],
+  "elective_rules": [],
+  "not_open_to": []
+}

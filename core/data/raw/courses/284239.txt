@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 3500 - Foundations of Computer Science
+3 Credits (3 Contact Hours)
+Development of the theoretical foundations of programming, algorithms, languages, automata, computability, complexity, data structures, and operating systems; a broad range of fundamental topics is consolidated and extended in preparation for further study. Preq: CPSC 2070 and CPSC 2120, each with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

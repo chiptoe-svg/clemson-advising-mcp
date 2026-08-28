@@ -1,0 +1,18 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "POSC 1010",
+    "POSC 3210",
+    "POSC 3410",
+    "POSC 4210"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ACCT, AGRB, AS, CRP, ECON, EDF, ENR, ENSP, FDSC, FOR, HIST, HLTH, MGT, NURS, PES, PHIL, POSC, PRTM, RS, SOC, WFB"
+    }
+  ],
+  "not_open_to": [
+    "Political Science majors"
+  ]
+}

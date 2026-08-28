@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 2010 - Logic and Computing Devices
+3 Credits (3 Contact Hours)
+Introduction to Boolean algebra and digital logic. Topics include number systems and representation of information; Boolean operators and algebra; expression minimization; combinational circuits, including adders, comparators, decoders and multiplexors; sequential logic, including flip-flops, shift registers, counters and memory. Includes Honors sections. Preq: Sophomore standing.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

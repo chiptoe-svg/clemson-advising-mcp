@@ -1,0 +1,25 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "DPA 3070",
+    "DPA 4000",
+    "DPA 4010",
+    "DPA 4020",
+    "DPA 4030"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "CPSC 4040, CPSC 4050, CPSC 4160, DPA 4810, DPA 4820, DPA 4830, ENGL 3570, PKSC 2200, PKSC 3200, THEA 2880, THEA 4870, THEA 4970"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "AAH 1010, ART 2050, ART 2100, ART 2130, ART 4210, DPA 4810, DPA 4820, DPA 4830, ENGL 3570, GC 3400, PKSC 2200, PKSC 3200, THEA 2880, THEA 4870, THEA 4970"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "AAH 1010, ART 2100, CPSC 4040, CPSC 4050, CPSC 4160, DPA 4810, DPA 4820, DPA 4830, ENGL 3570, PKSC 2200"
+    }
+  ],
+  "not_open_to": []
+}

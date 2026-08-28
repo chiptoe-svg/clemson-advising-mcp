@@ -1,0 +1,18 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "MGT 2010",
+    "MGT 2180",
+    "MGT 3180",
+    "MGT 4000"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ELE 3010, MGT 3100, or MGT 3900"
+    }
+  ],
+  "not_open_to": [
+    "Management majors"
+  ]
+}

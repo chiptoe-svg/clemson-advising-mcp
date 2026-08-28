@@ -1,0 +1,17 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "HORT 2120",
+    "HORT 4120",
+    "PES 2020"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "AGM 4020, HORT 4330, PLPA 4060"
+    }
+  ],
+  "not_open_to": [
+    "Horticulture majors"
+  ]
+}

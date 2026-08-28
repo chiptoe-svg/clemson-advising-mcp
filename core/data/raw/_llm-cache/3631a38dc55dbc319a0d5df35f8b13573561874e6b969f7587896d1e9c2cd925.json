@@ -1,0 +1,22 @@
+{
+  "total_credits": 23,
+  "required_courses": [
+    "GER 2020",
+    "GER 3060",
+    "GER 3150",
+    "GER 3160",
+    "MATH 2060",
+    "MATH 2080"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "GER 3050, GER 3060, GER 3100, GER 3400, GER 3600, GER 3690, GER 3980, GER 4050, GER 4160, GER 4170, GER 4500, GER 4550, GER 4600, GER 4610, GER 4750, GER 4980, or technical courses taught in German (BE, BIOE, CH, ECE, EES, IE, MATH, ME, PHYS)"
+    }
+  ],
+  "not_open_to": [
+    "Language",
+    "International Health",
+    "Language and International Business majors whose emphasis area is German"
+  ]
+}

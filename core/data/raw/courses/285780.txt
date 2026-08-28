@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ME 4710 - Computer-Aided Engineering Analysis and Design
+3 Credits (2 Contact Hours)
+Students are exposed to geometric and solid modeling, finite elements, optimization, and rapid-prototyping. Students design an artifact, represent it on the computer, analyze it using FEA, then optimize before prototyping it. Emphasizes the use of computer-based tools for engineering design. Preq: ENGR 1090 and ME 3070, each with a C or better. Coreq: ME 4711.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

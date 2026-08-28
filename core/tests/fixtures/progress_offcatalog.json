@@ -1,0 +1,17 @@
+{
+  "version": "gc-progress-v1",
+  "catalog_year": "2026-2027",
+  "program": "Graphic Communications, BS",
+  "passed": [
+    {"code": "GC 1010", "term": "Fall 2024", "credits": 1},
+    {"code": "XFER 1001", "term": "Fall 2023", "credits": 3},
+    {"code": "XFER 1002", "term": "Fall 2023", "credits": 3},
+    {"code": "XFER 1003", "term": "Spring 2024", "credits": 3},
+    {"code": "XFER 1004", "term": "Spring 2024", "credits": 3},
+    {"code": "XFER 1005", "term": "Spring 2024", "credits": 3}
+  ],
+  "in_progress": [],
+  "minor": null,
+  "grade_checks": {},
+  "warnings": []
+}

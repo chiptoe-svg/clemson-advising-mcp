@@ -1,0 +1,17 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "COMM 2010",
+    "COMM 2020",
+    "COMM 2090",
+    "COMM 3310",
+    "COMM 3550",
+    "COMM 3240",
+    "COMM 3280"
+  ],
+  "elective_rules": [],
+  "not_open_to": [
+    "Communication majors",
+    "Sports Communication majors"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ART 1510"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "ART or AAH at 2000 level or above"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "ART or AAH at 3000 or 4000 level"
+    }
+  ],
+  "not_open_to": [
+    "Students with more than 60 credits"
+  ]
+}

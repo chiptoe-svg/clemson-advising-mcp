@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4420 - Artificial Intelligence
+3 Credits (3 Contact Hours)
+This course presents fundamental concepts in Artificial Intelligence. Specific topics include uninformed and informed search techniques, game playing, Markov decision processes, reinforcement learning, uncertain knowledge and probabilistic reasoning, constraint satisfaction problems, and supervised learning. Preq: CPSC 1020 or CPSC 1070 or ECE 2220; and MATH 3020 or STAT 3090 or STAT 3300. Students must have earned a grade of C or higher in all prerequisite courses.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

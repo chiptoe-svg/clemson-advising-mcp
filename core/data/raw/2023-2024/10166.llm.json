@@ -1,0 +1,18 @@
+{
+  "total_credits": 12,
+  "required_courses": [
+    "MKT 4200",
+    "MKT 4950"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Orthopaedics"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "BCHM, BIOE, BIOL, HLTH, IE, MKT"
+    }
+  ],
+  "not_open_to": []
+}

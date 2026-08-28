@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4400 - Performance Analysis of Local Computer Networks
+3 Credits (3 Contact Hours)
+Introduction to methods of modeling and performance analysis of local computer networks. Topics include basic queueing models based on probability theory and random processes, performance driven network design, and software defined networking methods. Preq: ECE 2720 and ECE 3170, each with a C or better.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

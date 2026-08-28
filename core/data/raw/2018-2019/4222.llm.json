@@ -1,0 +1,26 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "ENSP 2000",
+    "ENSP 4000"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "Group I - Science and Engineering"
+    },
+    {
+      "credits": 2,
+      "level_or_subject_pattern": "Group II - Resource Management"
+    },
+    {
+      "credits": 2,
+      "level_or_subject_pattern": "Group III - Environmental Policy and Social Impact"
+    },
+    {
+      "credits": 2,
+      "level_or_subject_pattern": "Any group"
+    }
+  ],
+  "not_open_to": []
+}

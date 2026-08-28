@@ -1,0 +1,17 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "FR 3050"
+  ],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000- and 4000-level FR courses, including at least one 4000-level literature course (FR 4000, FR 4100, FR 4120, FR 4200, or FR 4990)"
+    }
+  ],
+  "not_open_to": [
+    "Language and International Business majors",
+    "Language and International Health majors whose target language is French",
+    "Modern Languages majors whose emphasis area is French"
+  ]
+}

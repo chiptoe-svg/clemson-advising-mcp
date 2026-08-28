@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 2020 - Electric Circuits I
+3 Credits (3 Contact Hours)
+Study of DC resistive circuits, Kirchhoff’s Laws, Nodal and Mesh emphasis, sources, Thevenin’s and Norton’s theorems, RC, RL, RLC circuit solutions with initial condition using homogenous or nonhomogenous ordinary differential equations having constant coefficients, and DC analysis of ideal operational amplifier circuits. Includes Honors sections. Preq: MATH 1080 with a grade of C or higher. Preq or concurrent enrollment: PHYS 2210 with a grade of C or higher.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

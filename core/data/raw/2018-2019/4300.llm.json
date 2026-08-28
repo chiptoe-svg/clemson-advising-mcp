@@ -1,0 +1,13 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 15,
+      "level_or_subject_pattern": "3000- and 4000-level SPAN, including at least one 4000-level literature course from SPAN 4010, SPAN 4030, SPAN 4040, SPAN 4050, SPAN 4060, SPAN 4070, SPAN 4220, SPAN 4990"
+    }
+  ],
+  "not_open_to": [
+    "Language and International Trade majors"
+  ]
+}

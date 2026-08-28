@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+AI 4910 - Capstone in Artificial Intelligence
+3 Credits (2 Contact Hours)
+Provides students with a comprehensive, hands-on experience implementing an Artificial Intelligence (AI) solution to a real-world problem. Includes individual and team assignments. Students integrate knowledge from machine learning, data science, and ethical AI practices. Preq: CPSC 4420 and CPSC 4430 and HCC 4600, each with a grade of C or higher. Coreq: AI 4911.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

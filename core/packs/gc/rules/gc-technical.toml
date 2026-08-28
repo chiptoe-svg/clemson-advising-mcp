@@ -1,0 +1,8 @@
+slot_type = "Graphic Communication Technical Requirement"
+
+[[wildcards]]
+type = "subject_nonrequired"
+subject = "GC"
+number_exclude = "37XX"
+deny = ["GC 3610"]
+allow_except = ["GC 3720"]

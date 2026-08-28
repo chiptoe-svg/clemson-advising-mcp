@@ -12,9 +12,7 @@ name: ci
 # There is deliberately no Python job: core/'s pytest suite needs the built
 # catalog DB, which is not in git.
 #
-# `npm run format:check` is NOT run here. It fails on 29 files today, and
-# reformatting them is out of scope for this change; adding it would make the
-# first green run impossible.
+# `npm run format:check` is NOT run here. Formatting is not enforced here yet.
 
 on:
   pull_request:
@@ -25,12 +23,6 @@ jobs:
   test:
     name: typecheck + tests
     runs-on: ubuntu-latest
-    env:
-      # Not a secret: the provider-resolution tests only need SOME gateway key
-      # to be configured so the OpenAI-track target resolves. The real key
-      # normally arrives via .env, which CI does not have. Without this the
-      # two baseUrl/api-shape regression tests would skip instead of running.
-      CLEMSON_LLM_API_KEY: test-dummy
     steps:
       - uses: actions/checkout@v4
 

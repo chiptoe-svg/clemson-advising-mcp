@@ -1,0 +1,25 @@
+{
+  "total_credits": 48,
+  "required_courses": [
+    "AGED 3030",
+    "AGED 4030",
+    "AGED 2010",
+    "EDSP 3700",
+    "AGED 1000",
+    "AGED 2030",
+    "EDF 3020",
+    "AGED 4230",
+    "AGED 4000",
+    "AGED 4010",
+    "EDLT 4980",
+    "AGED 4060",
+    "AGED 4250"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Agriculture (AFNR) Content Elective"
+    }
+  ],
+  "not_open_to": []
+}

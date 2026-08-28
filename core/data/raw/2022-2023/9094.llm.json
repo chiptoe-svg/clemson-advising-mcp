@@ -1,0 +1,14 @@
+{
+  "total_credits": 9,
+  "required_courses": [
+    "MKT 4200",
+    "MKT 4240"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "MKT"
+    }
+  ],
+  "not_open_to": []
+}

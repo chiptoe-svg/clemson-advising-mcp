@@ -1,0 +1,15 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "AGM 2050, AGM 2060, AGM 2200, AGM 2210, AGM 3010, AGED 3030"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "AGM 4020, AGM 4050, AGM 4060, AGM 4100, AGM 4520, AGM 4600, AGM 4720"
+    }
+  ],
+  "not_open_to": []
+}

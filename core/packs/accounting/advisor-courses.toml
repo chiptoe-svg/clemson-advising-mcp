@@ -1,0 +1,25 @@
+# REACH Act correction: the Accounting catalog page's REACH line carries
+# misaligned footnote markers ([5,6] point at the internship and taxation
+# notes), so rule derivation captured ACCT 4100 as REACH-satisfying. The
+# registrar's rule (blank What-If) is HIST 1010 / POSC 1010 / POSC 1030.
+
+[[course]]
+slot_type = "South Carolina REACH Act Requirement"
+code = "ACCT 4100"
+action = "deny"
+note = "footnote mis-association artifact — ACCT 4100 belongs to Business Taxation, not REACH"
+
+[[course]]
+slot_type = "South Carolina REACH Act Requirement"
+code = "HIST 1010"
+note = "registrar REACH option (blank What-If 2026-27)"
+
+[[course]]
+slot_type = "South Carolina REACH Act Requirement"
+code = "POSC 1010"
+note = "registrar REACH option (blank What-If 2026-27)"
+
+[[course]]
+slot_type = "South Carolina REACH Act Requirement"
+code = "POSC 1030"
+note = "registrar REACH option (blank What-If 2026-27)"

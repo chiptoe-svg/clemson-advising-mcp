@@ -1,0 +1,20 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "AVS 1500",
+    "AVS 1510"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "AVS 2000, AVS 2010, AVS 2030, AVS 2040, AVS 2060, AVS 2090, AVS 2110, AVS 2120, AVS 3020, AVS 3090, AVS 4050, AVS 4550, or AVS 4570"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "3000- or 4000-level AVS"
+    }
+  ],
+  "not_open_to": [
+    "Animal and Veterinary Sciences majors in any concentration"
+  ]
+}

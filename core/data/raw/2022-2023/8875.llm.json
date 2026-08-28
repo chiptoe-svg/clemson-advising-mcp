@@ -1,0 +1,16 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ASL 3010",
+    "ASL 3020"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "ASL courses at the 3000 or 4000 level"
+    }
+  ],
+  "not_open_to": [
+    "Modern Languages majors whose emphasis area is American Sign Language"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "WS 1030",
+    "WS 3010",
+    "WS 4230",
+    "WS 4360",
+    "WS 4590"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "selected from ANTH 4230, COMM 3070, COMM 3830, COMM 3800, ENGL 3530, ENGL 3800, ENGL 4320, ENGL 4360, ENGL 4560, FR 4100, FR 4990, HIST 3160, HIST 3180, HIST 3520, HIST 3530, HLTH 3100, PHIL 3280, PHIL 3490, POSC 4800, PRTM 3250, PSYC 3060, PSYC 4080, SOC 3100, SOC 3110, SOC 4600, SOC 4610, SOC 4840, SPAN 4030, THEA 3170, THEA 3180, WS 3490 and WS 4230; must be selected from two different subject areas"
+    }
+  ],
+  "not_open_to": [
+    "Women\u2019s Leadership majors"
+  ]
+}

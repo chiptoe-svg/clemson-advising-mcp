@@ -1,0 +1,18 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "HEHD 4100",
+    "WS 1030",
+    "WS 3010",
+    "WS 2300",
+    "WS 3900",
+    "WS 4010"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "AAH, ANTH, COMM, ENGL, FR, HIST, HLTH, PHIL, POSC, PRTM, PSYC, SOC, SPAN, THEA"
+    }
+  ],
+  "not_open_to": []
+}

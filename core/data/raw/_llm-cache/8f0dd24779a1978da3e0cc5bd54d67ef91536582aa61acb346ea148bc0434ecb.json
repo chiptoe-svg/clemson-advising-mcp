@@ -1,0 +1,16 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "HORT 3030",
+    "FOR 4270",
+    "FOR 4800",
+    "HORT 2080"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "CRP 4010, HORT 3080"
+    }
+  ],
+  "not_open_to": []
+}

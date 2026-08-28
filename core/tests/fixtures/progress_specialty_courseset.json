@@ -1,0 +1,19 @@
+{
+  "version": "gc-progress-v1",
+  "catalog_year": "2026-2027",
+  "program": "Graphic Communications, BS",
+  "passed": [
+    {"code": "GC 1010", "term": "Fall 2023", "credits": 1},
+    {"code": "GC 1020", "term": "Fall 2023", "credits": 3},
+    {"code": "GC 2070", "term": "Spring 2024", "credits": 3},
+    {"code": "CHE 2200", "term": "Fall 2024", "credits": 3},
+    {"code": "CHE 3070", "term": "Fall 2024", "credits": 3},
+    {"code": "CPSC 2020", "term": "Spring 2025", "credits": 3},
+    {"code": "CPSC 2150", "term": "Spring 2025", "credits": 3},
+    {"code": "GC 3700", "term": "Fall 2025", "credits": 3}
+  ],
+  "in_progress": [],
+  "minor": null,
+  "grade_checks": {"c_or_better": ["GC 1010", "GC 1020"]},
+  "warnings": []
+}

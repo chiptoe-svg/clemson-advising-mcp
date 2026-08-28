@@ -1,0 +1,25 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "DPA 3070",
+    "DPA 4000",
+    "DPA 4010",
+    "DPA 4020",
+    "DPA 4030"
+  ],
+  "elective_rules": [
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "CPSC, DPA, ENGL, PKSC, THEA"
+    },
+    {
+      "credits": 6,
+      "level_or_subject_pattern": "AAH, ART, DPA, ENGL, GC, HCC, PKSC, THEA"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "AAH, ART, CPSC, DPA, ENGL, PKSC"
+    }
+  ],
+  "not_open_to": []
+}

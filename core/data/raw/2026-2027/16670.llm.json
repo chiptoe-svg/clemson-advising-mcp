@@ -1,0 +1,21 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "GBS 1000",
+    "HIST 3110",
+    "HIST 3120"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "social sciences"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "humanities"
+    }
+  ],
+  "not_open_to": [
+    "Global Black Studies majors"
+  ]
+}

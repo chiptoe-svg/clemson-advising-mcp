@@ -1,0 +1,40 @@
+slot_type = "Business Requirement"
+# Registrar rule (What-Ifs, docs/degreeworks/freshman_accounting_*.md):
+# 2023-24..2025-26: ACCT/ECON/ELE/FIN/LAW/MGT 3000:4999 (6 subjects).
+# 2026-27 ADDS MKT 3000:4999 — but pack rules are not year-scoped, so this
+# rule carries only the 6 subjects shared by every year. Direction chosen
+# deliberately: a 2026-27 student using MKT under-allows to "unmet, see
+# advisor" (safe) instead of back-year students over-allowing to a wrong
+# "met" (unsafe). MKT-in-2026-27 is recorded in docs/known-data-gaps.md
+# until per-year pack rules exist. The internship-or-business alternative
+# (ACCT 3990) falls inside ACCT 3000:4999, so one set covers both slots.
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "ACCT"
+min = 3000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "ECON"
+min = 3000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "ELE"
+min = 3000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "FIN"
+min = 3000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "LAW"
+min = 3000
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "MGT"
+min = 3000

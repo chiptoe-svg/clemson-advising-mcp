@@ -1,0 +1,23 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "POSC 1030"
+  ],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group I"
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "Group II"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "Group I or Group II"
+    }
+  ],
+  "not_open_to": [
+    "Political Science majors"
+  ]
+}

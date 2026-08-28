@@ -1,0 +1,16 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "CSM 2030",
+    "CSM 2050"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "CSM"
+    }
+  ],
+  "not_open_to": [
+    "Construction Science and Management majors"
+  ]
+}

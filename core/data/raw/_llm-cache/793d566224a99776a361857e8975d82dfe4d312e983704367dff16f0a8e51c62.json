@@ -1,0 +1,11 @@
+{
+  "total_credits": 12,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "4000-level AUE"
+    }
+  ],
+  "not_open_to": []
+}

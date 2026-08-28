@@ -1,0 +1,18 @@
+{
+  "total_credits": 18,
+  "required_courses": [
+    "ECE 2020",
+    "ECE 2620",
+    "ECE 3200"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "any ECE courses"
+    }
+  ],
+  "not_open_to": [
+    "Computer Engineering majors",
+    "Electrical Engineering majors"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "total_credits": 16,
+  "required_courses": [
+    "MATH 2080"
+  ],
+  "elective_rules": [
+    {
+      "credits": 12,
+      "level_or_subject_pattern": "MATH or STAT courses numbered 3000 or higher"
+    }
+  ],
+  "not_open_to": [
+    "Data Science",
+    "Mathematics",
+    "Mathematics Teaching",
+    "Secondary Education - Mathematics Teaching Area"
+  ]
+}

@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+ECE 4600 - Computer-Aided Analysis and Design
+3 Credits (3 Contact Hours)
+Principles and methods suited to the solution of engineering problems on the digital computer. Topics include widely used methods for the solution of the systems of algebraic and/or differential equations which arise in modeling of engineering systems, data approximation and curve fitting, continuous system simulation languages, and design-oriented programming systems. Preq: ECE 2620 with a C or better.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

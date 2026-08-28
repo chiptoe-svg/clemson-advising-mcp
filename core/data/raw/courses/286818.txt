@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 3120 - Introduction to Design and Analysis of Algorithms
+3 Credits (3 Contact Hours)
+Introduction to algorithm design and analysis. Topics include advanced data structures, amortized analysis, dynamic programming, graph algorithms, intractability and applications. Preq: CPSC 2120.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

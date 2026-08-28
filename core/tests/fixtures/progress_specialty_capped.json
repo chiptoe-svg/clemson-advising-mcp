@@ -1,0 +1,17 @@
+{
+  "version": "gc-progress-v1",
+  "catalog_year": "2026-2027",
+  "program": "Graphic Communications, BS",
+  "passed": [
+    {"code": "GC 1010", "term": "Fall 2023", "credits": 1},
+    {"code": "GC 1020", "term": "Fall 2023", "credits": 3},
+    {"code": "BIOL 1090", "term": "Spring 2024", "credits": 4},
+    {"code": "BIOL 1100", "term": "Fall 2024", "credits": 4},
+    {"code": "BIOL 1110", "term": "Spring 2025", "credits": 4},
+    {"code": "CPSC 2070", "term": "Fall 2025", "credits": 3}
+  ],
+  "in_progress": [],
+  "minor": null,
+  "grade_checks": {},
+  "warnings": []
+}

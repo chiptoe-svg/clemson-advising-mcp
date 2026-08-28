@@ -1,0 +1,25 @@
+slot_type = "South Carolina REACH Act Requirement"
+# Registrar's rule, from a DegreeWorks BLANK What-If audit — in-progress
+# courses occlude rule text exactly as completed ones do, so the blank variant
+# is the only place the full option set renders:
+#
+#   SC REACH ACT REQUIREMENT Still needed: 3 Credits in HIST 1010 or POSC 1010 or 1030
+#
+# docs/degreeworks/freshman_accounting_blank_2627cleaned.md line 27 (gitignored
+# record derivative); the rule line alone is committed at
+# tests/fixtures/registrar/reach-act.txt so pack<->registrar drift stays
+# testable on a fresh checkout. Stable across all catalog years and every
+# program we hold; "or 1030" is DegreeWorks eliding the repeated POSC subject.
+#
+# The catalog itself cannot derive this: it renders REACH in a two-column
+# layout, so footnote refs from the neighbouring column land on the REACH row
+# and derivation reads whatever prose sits beside it (Pre-Business got 15
+# business courses, Accounting ACCT 4100, Management MGT 4150, Economics BS
+# FIN 3110). requirement_rules.DERIVATION_SKIP now refuses to derive REACH at
+# all, leaving this pack as the single source.
+#
+# STILL OUT OF SCOPE (the deferred REACH block redesign, see
+# docs/known-data-gaps.md): the EXEMPTION path (AP / IB / dual enrollment) and
+# the 3-credit spillover into Required Electives when exempt. This rule makes
+# the COURSE path correct; an exempt student still needs an advisor's eye.
+explicit_courses = ["HIST 1010", "POSC 1010", "POSC 1030"]

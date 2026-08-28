@@ -1,0 +1,19 @@
+{
+  "total_credits": 15,
+  "required_courses": [],
+  "elective_rules": [
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "HUM 1010 or three credits of alternate coursework approved by the Pathways director"
+    },
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "HUM 3010, HUM 3020, HUM 3060, or alternate coursework approved by the Pathways director totaling nine credits. Alternate courses must be selected from courses with different subjects and at least two of the courses must be at or above the 3000 level."
+    },
+    {
+      "credits": 3,
+      "level_or_subject_pattern": "HUM 3090 or three credits of alternate coursework approved by the Pathways director at or above the 3000 level."
+    }
+  ],
+  "not_open_to": []
+}

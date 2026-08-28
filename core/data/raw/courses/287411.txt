@@ -1,0 +1,13 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+GEN 4450 - Medical Bioinformatics
+3 Credits (3 Contact Hours)
+This computational biology course provides students with hands-on experience using data-intensive computational and statistical methods to discover and interpret molecular systems underlying human phenotypes. Students build on prior Linux command line experience to learn how to employ modern data transfer techniques, workflow managers, container technology, and software repositories to process large biological datasets.  Data-intensive bioinformatics workflows are applied by the student to process large human wild-type and cancer datasets. Representative workflows include high-throughput RNA profiling, differential gene expression analysis, co-expression network analysis, biomarker discovery using artificial intelligence and network biology approaches, functional enrichment analysis, and integrating individual patient samples for precision medicine applications. Preq: BCHM 4400 or BIOL 4030 or GEN 4400 with a grade of C or higher.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

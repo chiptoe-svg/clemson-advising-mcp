@@ -1,0 +1,506 @@
+{
+  "audit_version": "gc-audit-v1",
+  "catalog_year": "2026-2027",
+  "credits_earned": 117.0,
+  "credits_remaining": 3.0,
+  "eligible_next": [],
+  "flags": [],
+  "gen_ed": [
+    {
+      "constraints": "",
+      "credits_earned": 6,
+      "min_credits": 6,
+      "name": "Communication",
+      "status": "met"
+    },
+    {
+      "constraints": "",
+      "credits_earned": 3,
+      "min_credits": 3,
+      "name": "Mathematics",
+      "status": "met"
+    },
+    {
+      "constraints": "",
+      "credits_earned": 4,
+      "min_credits": 4,
+      "name": "Natural Sciences with Lab",
+      "status": "met"
+    },
+    {
+      "constraints": "",
+      "credits_earned": 6,
+      "min_credits": 6,
+      "name": "Arts and Humanities",
+      "status": "met"
+    },
+    {
+      "constraints": "Social Sciences credit hours must be\u00a0selected from two different fields.",
+      "credits_earned": 6,
+      "min_credits": 6,
+      "name": "Social Sciences",
+      "status": "met"
+    },
+    {
+      "constraints": "Global Challenges credit hours must be selected from two different fields unless identified below as interdisciplinary.  At least three credit hours must be selected from a course(s) at the 3000 level or higher. \u00a0A transfer course may not be used to satisfy the upper-level General Education Global Challenges requirement.  Students must enroll in a 3000- or 4000-level\u00a0Clemson course(s) on the Global Challenges list to fulfill the upper level Global Challenges Requirement.",
+      "credits_earned": 10,
+      "min_credits": 6,
+      "name": "Global Challenges",
+      "status": "met"
+    }
+  ],
+  "items": [
+    {
+      "course_code": "GC 1010",
+      "credits": 1,
+      "group": "Freshman/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 1020",
+      "credits": 2,
+      "group": "Freshman/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 1050",
+      "credits": 2,
+      "group": "Freshman/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "PSYC 2010",
+      "credits": 3,
+      "group": "Freshman/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "counted_courses": [
+        "CH 1010"
+      ],
+      "course_code": null,
+      "credits": 4,
+      "credits_earned": 4,
+      "credits_required": 4,
+      "flags": [],
+      "group": "Freshman/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Approved Laboratory Science Requirement",
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": null,
+      "flags": [],
+      "group": "Freshman/First Semester",
+      "kind": "slot",
+      "minor": "Business Administration Minor",
+      "one_of": [],
+      "slot_type": "Specialty Area Requirement",
+      "status": "met",
+      "via": "minor"
+    },
+    {
+      "course_code": "ENGL 1030",
+      "credits": 3,
+      "group": "Freshman/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "ENSP 2000",
+      "credits": 3,
+      "group": "Freshman/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 1040",
+      "credits": 4,
+      "group": "Freshman/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "group": "Freshman/Second Semester",
+      "kind": "choice",
+      "one_of": [
+        "STAT 2220",
+        "STAT 2300",
+        "STAT 3090",
+        "STAT 3300"
+      ],
+      "satisfied_by": [
+        "STAT 2220"
+      ],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "counted_courses": [],
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 0,
+      "credits_required": 3,
+      "flags": [],
+      "group": "Freshman/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "South Carolina REACH Act Requirement",
+      "status": "unmet"
+    },
+    {
+      "course_code": "ACCT 2010",
+      "credits": 3,
+      "group": "Sophomore/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 2070",
+      "credits": 4,
+      "group": "Sophomore/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "MGT 2010",
+      "credits": 3,
+      "group": "Sophomore/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "PKSC 1020",
+      "credits": 2,
+      "group": "Sophomore/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 6,
+      "gen_ed_category": "Arts and Humanities",
+      "group": "Sophomore/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Arts and Humanities (Literature) Requirement",
+      "status": "met"
+    },
+    {
+      "course_code": "ACCT 2020",
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "choice",
+      "one_of": [
+        "ECON 2000",
+        "ECON 2110"
+      ],
+      "satisfied_by": [
+        "ECON 2000"
+      ],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 2400",
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 3460",
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "group": "Sophomore/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Elective",
+      "status": "met"
+    },
+    {
+      "course_code": "COOP 2010",
+      "credits": 0,
+      "group": "Sophomore/Summer",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 3500",
+      "credits": 1,
+      "group": "Sophomore/Summer",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 3400",
+      "credits": 4,
+      "group": "Junior/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 4060",
+      "credits": 4,
+      "group": "Junior/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "MKT 3010",
+      "credits": 3,
+      "group": "Junior/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 3,
+      "gen_ed_category": "Communication",
+      "group": "Junior/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Oral Communication Requirement",
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 1,
+      "group": "Junior/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Elective",
+      "status": "met"
+    },
+    {
+      "course_code": "GC 3800",
+      "credits": 1,
+      "group": "Junior/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 4400",
+      "credits": 4,
+      "group": "Junior/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "group": "Junior/Second Semester",
+      "kind": "choice",
+      "one_of": [
+        "PCID 3040",
+        "PCID 3140"
+      ],
+      "satisfied_by": [
+        "PCID 3040"
+      ],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": 3,
+      "gen_ed_category": "Arts and Humanities",
+      "group": "Junior/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Arts and Humanities (Non-Literature) Requirement",
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 3,
+      "credits_earned": null,
+      "flags": [],
+      "group": "Junior/Second Semester",
+      "kind": "slot",
+      "minor": "Business Administration Minor",
+      "one_of": [],
+      "slot_type": "Specialty Area Requirement",
+      "status": "met",
+      "via": "minor"
+    },
+    {
+      "course_code": null,
+      "credits": 1,
+      "group": "Junior/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Elective",
+      "status": "met"
+    },
+    {
+      "course_code": "COOP 2020",
+      "credits": 0,
+      "group": "Junior/Summer",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 4500",
+      "credits": 1,
+      "group": "Junior/Summer",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 4440",
+      "credits": 4,
+      "group": "Senior/First Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "counted_courses": [
+        "GC 3450",
+        "GC 3600",
+        "GC 3620",
+        "GC 4070",
+        "GC 4510"
+      ],
+      "course_code": null,
+      "credits": 6,
+      "credits_earned": 16,
+      "credits_required": 6,
+      "flags": [],
+      "group": "Senior/First Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Graphic Communication Technical Requirement",
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 5,
+      "credits_earned": null,
+      "flags": [],
+      "group": "Senior/First Semester",
+      "kind": "slot",
+      "minor": "Business Administration Minor",
+      "one_of": [],
+      "slot_type": "Specialty Area Requirement",
+      "status": "met",
+      "via": "minor"
+    },
+    {
+      "course_code": "GC 4480",
+      "credits": 3,
+      "group": "Senior/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": "GC 4800",
+      "credits": 1,
+      "group": "Senior/Second Semester",
+      "kind": "fixed_course",
+      "one_of": [],
+      "slot_type": null,
+      "status": "met"
+    },
+    {
+      "course_code": null,
+      "credits": 4,
+      "credits_earned": null,
+      "flags": [],
+      "group": "Senior/Second Semester",
+      "kind": "slot",
+      "minor": "Business Administration Minor",
+      "one_of": [],
+      "slot_type": "Specialty Area Requirement",
+      "status": "met",
+      "via": "minor"
+    },
+    {
+      "course_code": null,
+      "credits": 4,
+      "group": "Senior/Second Semester",
+      "kind": "slot",
+      "one_of": [],
+      "slot_type": "Elective",
+      "status": "met"
+    }
+  ],
+  "program": "Graphic Communications, BS",
+  "source_url": "https://catalog.clemson.edu/preview_program.php?catoid=49&poid=16765",
+  "total_credits_required": 120
+}

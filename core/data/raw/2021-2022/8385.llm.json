@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "MGT 2010",
+    "MGT 3070",
+    "MGT 3100",
+    "MGT 3180",
+    "MGT 3900"
+  ],
+  "elective_rules": [],
+  "not_open_to": [
+    "Management majors"
+  ]
+}

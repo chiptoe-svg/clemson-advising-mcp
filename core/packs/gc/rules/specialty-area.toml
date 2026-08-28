@@ -1,0 +1,41 @@
+slot_type = "Specialty Area Requirement"
+
+[[wildcards]]
+type = "dept_any"
+dept = "CHE"
+
+[[wildcards]]
+type = "dept_any"
+dept = "ECE"
+
+[[wildcards]]
+type = "dept_any"
+dept = "ENGR"
+
+[[wildcards]]
+type = "dept_any"
+dept = "IE"
+
+[[wildcards]]
+type = "dept_any"
+dept = "ME"
+
+[[wildcards]]
+type = "dept_any"
+dept = "MSE"
+
+[[wildcards]]
+type = "dept_level_min"
+dept = "CPSC"
+min = 2000
+
+[[wildcards]]
+type = "dept_capped"
+depts = ["BIOL", "CH", "PHYS"]
+cap_credits = 4
+
+[[wildcards]]
+type = "subject_pattern"
+subject = "GC"
+number_glob = "37XX"
+allow = true

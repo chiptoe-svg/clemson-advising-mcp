@@ -38,11 +38,10 @@ import path from "node:path";
 // imports from config-mcp.ts alone. See
 // docs/superpowers/specs/2026-08-27-mcp-extraction-design.md.
 import {
-  CLEMSON_LLM_API_KEY,
   GC_ADVISOR_DB,
   GC_ADVISOR_PYTHON,
   STATE_DIR,
-} from "../src/config.ts";
+} from "../src/config-mcp.ts";
 
 /** The built GC catalog database (core/db/gc_advisor.db) exists. */
 export const CORE_DB_PRESENT = fs.existsSync(GC_ADVISOR_DB);
@@ -65,7 +64,7 @@ export function SNAPSHOT_PRESENT(term?: string): boolean {
 }
 
 /** The Clemson LLM gateway key is configured (normally via .env). */
-export const GATEWAY_KEY_PRESENT = CLEMSON_LLM_API_KEY !== "";
+export const GATEWAY_KEY_PRESENT = true;
 
 // --- `{ skip }` reasons -----------------------------------------------------
 //
@@ -123,7 +122,6 @@ export function requireArtifacts(...terms: string[]): void {
   const missing: string[] = [];
   if (!CORE_DB_PRESENT) missing.push(`GC_ADVISOR_DB=${GC_ADVISOR_DB}`);
   if (!CORE_PYTHON_PRESENT) missing.push(`GC_ADVISOR_PYTHON=${GC_ADVISOR_PYTHON}`);
-  if (!GATEWAY_KEY_PRESENT) missing.push("CLEMSON_LLM_API_KEY");
   if (terms.length === 0) {
     if (!SNAPSHOT_PRESENT()) missing.push(`${STATE_DIR}/clemson/<term>.db`);
   } else {

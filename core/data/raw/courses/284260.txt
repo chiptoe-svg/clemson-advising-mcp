@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4720 - Software Development Methodology
+3 Credits (3 Contact Hours)
+Advanced topics in software development methodology. Techniques such as chief programmer teams, structured design and structured walk-throughs are discussed and used in a major project. Emphasizes the application of these techniques to large-scale software implementation projects. Also includes additional topics such as mathematical foundations of structured programming and verification techniques. Includes Honors sections. Preq: CPSC 3720 with a C or better.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

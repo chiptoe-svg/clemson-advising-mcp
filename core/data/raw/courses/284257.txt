@@ -1,0 +1,14 @@
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)
+Add to Portfolio (opens a new window)
+
+CPSC 4280 - Design and Implementation of Programming Languages
+3 Credits (3 Contact Hours)
+Overview of programming language structures and features and their implementation. Control and data structures found in various languages are studied. Also includes runtime organization and environment and implementation models. Preq: CPSC 2310 and CPSC 3500, each with a C or better.
+This 4000-level course has a 6000-level counterpart. Students should refer to the Graduate Catalog for the 6000-level description and requirements.
+
+Add to Portfolio (opens a new window)
+Add to My Favorites (opens a new window)
+Print (opens a new window)
+Help (opens a new window)

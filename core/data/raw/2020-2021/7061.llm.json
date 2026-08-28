@@ -1,0 +1,14 @@
+{
+  "total_credits": 15,
+  "required_courses": [
+    "ASL 3010",
+    "ASL 3020"
+  ],
+  "elective_rules": [
+    {
+      "credits": 9,
+      "level_or_subject_pattern": "ASL 3000 or 4000"
+    }
+  ],
+  "not_open_to": []
+}
