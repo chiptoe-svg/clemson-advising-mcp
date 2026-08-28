@@ -1,12 +1,16 @@
 # Clemson Advising MCP Servers — background, architecture, and operations
 
-**Status:** current as of 2026-08-27 · **Audience:** a maintainer or reviewer with
+**Status:** current as of 2026-08-28 · **Audience:** a maintainer or reviewer with
 no prior exposure to this system, including Clemson IT security.
 
 This document explains what these two servers are, why they exist, how they are
-built, how to diagnose them when they misbehave, and what hardware they need to
-serve a campus population. It is written to be read start to finish by someone
-who has never seen the code.
+built, and how to diagnose them when they misbehave. It is written to be read
+start to finish by someone who has never seen the code.
+
+Three companion documents carry the detail you consult rather than read:
+**`security.md`** (threat model, controls, known limitations),
+**`operations.md`** (install, TLS, refresh, restart, backup), and
+**`capacity.md`** (measurements and sizing).
 
 ---
 
@@ -141,43 +145,35 @@ does not depend on it at all.
 | `state/clemson/<term>.db` | ~3 MB × 7 terms = 21 MB | daily Banner refresh, 05:00 | no |
 
 Total working set **~27 MB** — small enough that the OS page cache holds all of
-it after the first read. This matters for the capacity section below.
+it after the first read. This matters for the throughput figures in `capacity.md`.
 
 ---
 
 ## 4. Security model
 
-**These servers hold no student data and no credentials.** They serve published
-catalog and schedule information. That is the primary control, and it is
-structural rather than procedural.
+Full treatment, including the threat model and the known limitations, is in
+**`security.md`**. The shape of it:
 
-- **Authentication** — every request needs `Authorization: Bearer <token>`. Tokens
-  are matched by constant-time comparison against a sha256 hash; the raw token is
-  never stored. Each server has its **own registry file**, so a token minted for
-  one is rejected by the other, and revoking one does not touch the other.
-- **Fail-closed startup** — with zero configured consumers the server refuses to
-  start rather than serving open (`resolveCredentialedAuth` throws).
-- **Backend attestation** — each consumer declares the AI backend it runs on
-  (`anthropic`, `openai_api`, `chatgpt_edu`). Policy declares which backends are
-  authorized and **for which data classes**; these servers declare `dataClass:
-  "public"`. A backend restricted to public data cannot authenticate against a
-  student-data surface, and a server that fails to declare its class is refused
-  outright.
-- **Scopes** — a consumer may carry a scope list; `ListTools` and `CallTool` both
-  filter by it, so a narrowly-scoped agent cannot even see tools outside its grant.
-- **Abuse limits** — unauthenticated requests are logged (first, then every 100th
-  per source per minute) and throttled to 429 above 30/min/source. Bodies over
-  1 MiB are rejected.
-- **Usage ledger** — every call appends one line to
-  `state/analytics/mcp-calls.jsonl`: timestamp, server, consumer id, provider,
-  tool. **No arguments, no results.**
+- **The primary control is structural.** These servers hold no student data and
+  no credentials. They serve published catalog and schedule information, so a
+  full compromise yields data that is public by definition.
+- **Every request needs a bearer token**, matched by constant-time comparison
+  against a sha256 hash. Each server has its **own registry file**, so a token
+  minted for one is rejected by the other.
+- **Fail-closed throughout** — no configured consumers means the server refuses
+  to start; an authenticator that throws returns 503; one that hangs is timed
+  out and denies; a malformed expiry is rejected.
+- **Backend attestation and data classes.** Each consumer declares the AI
+  backend it runs on; policy declares which backends are authorized for which
+  data classes. Both servers declare `public`.
+- **Bounded** — unauthenticated requests throttle per client address,
+  authenticated ones per credential, bodies over 1 MiB are refused.
+- **Audited** — one ledger line per call: who, which tool, what outcome. No
+  arguments and no results.
 
-**Known limitation, stated plainly:** `StreamableHTTPServerTransport` performs no
-Host/Origin validation, so off-loopback the bearer token is the only gate. There
-is no DNS-rebinding protection to enable. Any deployment beyond loopback must
-treat token issuance and rotation as the primary control, which is why
-per-consumer tokens (not one shared token) are mandatory in a multi-user
-deployment.
+The limitation to know before reading further: `StreamableHTTPServerTransport`
+performs no Host/Origin validation, so off loopback the bearer token is the only
+gate. Per-consumer tokens are therefore mandatory in a multi-user deployment.
 
 ---
 
@@ -301,156 +297,27 @@ ground it covered.** New tools should say what they searched.
 
 ---
 
-## 6. Capacity planning
+## 6. Capacity and operations
 
-### Measured performance (2026-08-27, 16-core Apple Silicon, 64 GB)
+Both have their own documents, because both are things you consult while doing
+something rather than while reading:
 
-Measured with an in-process Node load generator against the live servers. An
-earlier `curl`-per-request harness reported far worse numbers — it was measuring
-process spawn in the *test client*, not the server. These figures are the server.
+- **`capacity.md`** — measured throughput, the user-to-request arithmetic,
+  sizing, and the thresholds that would change any of it. The headline: a
+  measured ceiling of 968-1,171 req/s against a projected 10.6 req/s for 200
+  users, so roughly a 90x margin. The caveat that matters is that agent traffic
+  is not human traffic and the arithmetic assumes a human reading between calls.
+- **`operations.md`** — install, configure, serve over TLS, keep the data fresh,
+  restart, health, back up, and how this repository was extracted.
 
-**SQLite-backed tools** (most tools; in-process, no subprocess):
+Two operational facts are worth stating here because they explain the design
+above rather than merely following from it:
 
-| Concurrency | Throughput | p50 | p95 | p99 |
-|---|---|---|---|---|
-| 1 | 333 req/s | 2 ms | 5 ms | 7 ms |
-| 10 | 1,063 req/s | 6 ms | 15 ms | 35 ms |
-| 50 | 1,171 req/s | 34 ms | 58 ms | 136 ms |
-
-**Catalog tools BEFORE the SQL-in-Node port** (each call spawned `query.py`):
-
-| Concurrency | Throughput | p50 | p95 | p99 |
-|---|---|---|---|---|
-| 1 | 31 req/s | 31 ms | 35 ms | 102 ms |
-| 10 | 216 req/s | 42 ms | 55 ms | 78 ms |
-| 25 | 267 req/s | 79 ms | 143 ms | 153 ms |
-
-**Catalog tools AFTER the port** (2026-08-27, `get-gc-program-plan`, same box,
-same load generator):
-
-| Concurrency | Throughput | p50 | p95 | p99 |
-|---|---|---|---|---|
-| 1 | **429 req/s** (13.8x) | **2 ms** | 3 ms | 5 ms |
-| 10 | 841 req/s | 7 ms | 27 ms | 58 ms |
-| 25 | **968 req/s** (3.6x) | 19 ms | 39 ms | 60 ms |
-
-The binding constraint is gone: catalog reads now perform like the schedule
-tools, because they are now the same kind of work — an in-process read of a
-page-cached SQLite file. Verified with no `query.py` process spawning during
-sustained traffic (baseline 0, under load 0).
-
-`audit-gc-progress` still shells out to Python and still carries the old
-profile. It was called **0 times in 366 real tool calls**, so it is not on any
-hot path; if that changes, convert it to a persistent worker rather than
-porting the 439-line golden-tested engine.
-
-### Translating users into requests
-
-From 138 real advising turns: **2.65 MCP tool calls per turn** (median 1, max 19).
-Human advising is slow — an advisor reads a 7–33 s answer, thinks, then asks
-again. One turn per user per 45–60 s is a realistic sustained rate.
-
-```
-200 concurrent users ÷ 50 s per turn × 2.65 calls  ≈  10.6 req/s
-```
-
-Against a measured ceiling of 968 req/s on the catalog path after the port
-(1,171 req/s on the schedule path), that is **~1% of capacity — a 90x margin.**
-For the 64-student class: ~3.4 req/s, about 0.35%.
-
-**Conclusion: for human-driven use, these servers are not the bottleneck and
-will not be.** Turn latency is dominated by LLM inference (median 7.1 s), of
-which MCP calls are ~16 ms — roughly 0.2%. If the advising experience feels slow
-with 200 users, the constraint is GPU inference capacity, not this service.
-
-**The caveat that matters:** *agent* traffic is not human traffic. An autonomous
-agent can fire 20–50 calls in a burst with no think time. 200 concurrent agents
-behaving that way would reach the Python ceiling. Size for the workload you
-actually expect, and watch `mcp-calls.jsonl` for the real shape.
-
-### Recommended machine
-
-| | Minimum | Recommended |
-|---|---|---|
-| vCPU | 4 | **8** |
-| RAM | 8 GB | **16 GB** |
-| Disk | 50 GB SSD | **100 GB NVMe** |
-| OS | any Linux with Node 22 + Python 3.12+ | same |
-
-Reasoning, dimension by dimension:
-
-- **CPU is the only dimension that scales with load**, and only because of Python
-  process spawn. Throughput on that path is roughly linear in cores; 8 vCPU
-  should land near 130–270 req/s depending on clock — still >10× the projected
-  200-user load.
-- **RAM is nearly irrelevant.** The daemons use 31 MB and 49 MB resident; the
-  entire data set is 27 MB and lives in page cache. 8 GB is generous; 16 GB is
-  for the OS, the daily refresh job, and headroom, not for the servers.
-- **Disk is for logs, backups, and snapshot growth** (~3 MB per term), not data.
-  50 GB is already generous.
-- **No GPU.** These servers do no inference.
-
-### Hardware — what to actually buy or repurpose (2026-08-27)
-
-These figures assume the planned port of the catalog reads to SQL-in-Node
-(see the extraction spec, Decision 2). After it, every serving request is an
-in-process SQLite read from a 27 MB page-cached dataset: no inference, no
-subprocess spawn, negligible CPU.
-
-**Spec floor: 2 cores, 4 GB RAM, 50 GB SSD.** (The earlier 8 vCPU / 16 GB
-recommendation was sized against the Python-spawn ceiling; removing Python from
-the serving path collapses the CPU requirement.)
-
-Options, best first:
-
-1. **A small VM from Clemson IT** — 2 vCPU / 4 GB / 50 GB. Usually free or
-   near-free to a department, and it hands off patching, backup, uptime, static
-   DNS, and the TLS certificate: the parts that actually make departmental
-   infrastructure hard. Ask during the security review conversation.
-2. **An old Mac mini (2018 Intel or any M-series).** Every plist, log path, and
-   runbook already targets macOS/launchd, so there is no porting. **Requirement:
-   it must run a currently-supported macOS** — an unsupported version is an
-   IT-review finding, not a saving.
-3. **Raspberry Pi 5, 8 GB (~$100).** ARM64 Node 22 and better-sqlite3 prebuilds
-   both work; it would idle at single-digit CPU.
-4. **Any x86 box, 2015+, 8 GB, SSD**, running Ubuntu LTS. Costs a port of the
-   launchd plists to systemd units.
-
-What matters more than the specs: an SSD (any), a static IP + DNS name for the
-certificate, remote reboot, a UPS if it sits under a desk, and a supported OS.
-
-**Why cheap hardware is defensible here:** the service is almost entirely
-rebuildable. The catalog DB rebuilds from the published catalog; snapshots
-re-fetch from Banner; code is in git. The only irreplaceable state is the
-consumer token registry and `mcp-calls.jsonl` — both a few KB and both in the
-nightly backup. Total hardware failure costs a restore and a rebuild measured in
-hours, not data loss. Buy cheap, keep a spare.
-
-**What would change this:** storing per-student state (saved plans, advisor
-notes) raises reliability requirements *and* is the trigger to revisit Postgres.
-Both arrive together; neither is on the roadmap.
-
-### The single highest-leverage optimization
-
-Replace the per-call Python spawn with either a **persistent worker process** or
-**SQL-in-Node** (which is what `find-course-in-program` already does — hence its
-2 ms p50 versus 31 ms). That alone would raise the binding ceiling roughly 4×
-and remove the only real scaling risk in the system. It is not needed for 200
-human users; it becomes worth doing if agent traffic grows or the audit engine
-sees heavy use.
-
----
-
-## 7. Deployment checklist
-
-1. Node 22+, Python 3.12+, a provisioned `core/.venv`, a built
-   `core/db/gc_advisor.db`, and at least one Banner snapshot.
-2. Mint a token per consumer (`npm run mcp:pair -- --server <public|catalog>
-   --id <agent> --provider <backend>`). Never share one token between consumers —
-   that is what makes the usage ledger meaningless.
-3. Bind both servers to loopback; terminate TLS in a reverse proxy in front.
-4. Confirm each server's startup line shows the expected bind, consumer count,
-   and tool list.
-5. Schedule the daily schedule refresh and a health check.
-6. Confirm `state/analytics/mcp-calls.jsonl` is being written and is included in
-   backups — it is the only record of who used what.
+1. **The servers load their tool registry and policy once, at process start.**
+   Editing source does not change a running server; it keeps serving the old
+   build and the new tool simply never appears in `tools/list`. A restart is
+   part of shipping a tool change, not an afterthought.
+2. **Silent staleness is the most common failure** (see s5). Nothing breaks — the
+   servers keep answering confidently from an old snapshot. The daily refresh
+   job is what prevents it, and the `data as of` stamp on every schedule answer
+   is what makes it visible.

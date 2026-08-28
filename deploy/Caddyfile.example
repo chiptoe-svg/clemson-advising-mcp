@@ -1,0 +1,100 @@
+# Reverse proxy for the two MCP servers, terminating TLS on the campus network.
+#
+# The servers themselves stay on LOOPBACK and speak plain HTTP. This file is the
+# only thing bound to a routable address. Copy it, fill in the four marked
+# values, and run it with `caddy run --config Caddyfile`.
+#
+# WHY A PROXY AT ALL: clients such as Codex refuse plain HTTP. The servers have
+# no TLS of their own and should not grow any — certificate renewal, cipher
+# policy, and HTTP/2 are exactly the things a proxy already does well and a
+# 700-line Node service does not.
+#
+# WHAT THIS IS NOT: it is not an authenticator. Every request still needs its
+# bearer token, and the servers still refuse to start with no consumers
+# configured. The proxy adds transport security and access scoping, nothing else.
+
+{
+	# Own admin port, so this never collides with another Caddy on :2019.
+	admin localhost:2020
+	auto_https disable_redirects
+}
+
+# --- 1. FILL IN: the hostname on the certificate ----------------------------
+#
+# Campus certificates (InCommon/Internet2 OV, which is what Clemson IT issues)
+# typically carry exactly ONE subject-alternative name. That single fact decides
+# the layout below: the two servers live at PATH PREFIXES on one hostname rather
+# than at two hostnames, because a second hostname would need a second cert
+# request. If your cert has multiple SANs, separate hostnames are cleaner.
+#
+# Port 8443 rather than 443 because 443 needs root. If you want 443, redirect to
+# it at the firewall (pf) rather than running this as root.
+mcp.example.clemson.edu:8443 {
+	# --- 2. FILL IN: the certificate and key -------------------------------
+	# A campus OV cert is issued manually and expires — put its expiry date in
+	# your operations doc and set a calendar reminder. There is no ACME renewal
+	# for these; an expired cert takes every client down at once.
+	tls /path/to/fullchain.pem /path/to/privkey.pem
+
+	# --- 3. OPTIONAL: restrict to campus addresses -------------------------
+	# Only if your network does NOT already block public inbound at the edge.
+	# Get the actual CIDRs from IT — do not guess them, and do not copy the
+	# placeholder below into production.
+	#
+	# @offcampus not remote_ip 10.0.0.0/8 <CAMPUS-CIDR-FROM-IT>
+	# respond @offcampus "not available from this network" 403
+
+	# Bound request bodies at the edge as well as in the server (which rejects
+	# over 1 MiB itself). Cheap, and it keeps oversized bodies off the app.
+	request_body {
+		max_size 1MB
+	}
+
+	# --- Class-schedule server (Banner) ------------------------------------
+	redir /schedule /schedule/
+	handle_path /schedule/* {
+		reverse_proxy 127.0.0.1:8766 {
+			# MCP replies are text/event-stream. Today each carries a
+			# content-length and closes immediately, so buffering costs only
+			# latency — but a future SDK that streams progress notifications
+			# would have them held until the stream ended. Free to disable.
+			flush_interval -1
+		}
+	}
+
+	# --- Catalog server (curriculum) ---------------------------------------
+	# Its OWN registry and its OWN token: a bearer minted for /schedule is
+	# rejected here, and revoking one does not touch the other.
+	redir /catalog /catalog/
+	handle_path /catalog/* {
+		reverse_proxy 127.0.0.1:8767 {
+			flush_interval -1
+		}
+	}
+
+	# --- 4. KEEP THIS: an explicit 404 for everything else -----------------
+	#
+	# Not tidiness — a trap we walked into (2026-08-28). On a host where this
+	# block instead fell through to another application, a client posting to a
+	# MISSPELLED MCP path reached that other app, which answered
+	# "Authentication required." An auth error from the wrong service reads
+	# exactly like an auth error from the right one, and the misconfiguration
+	# stayed invisible until someone traced it. An unmapped path must fail as
+	# an unmapped path.
+	handle {
+		respond "no MCP server at this path" 404
+	}
+}
+
+# ---------------------------------------------------------------------------
+# AFTER DEPLOYING, verify with a REAL MCP client rather than curl alone. A 200
+# proves routing; it does not prove initialize negotiated, that instructions
+# arrived, or that tools/call round-trips. See docs/mcp-operations.md,
+# "Verifying the TLS path".
+#
+# One server-side setting pairs with this file: MCP_TRUSTED_PROXIES. Behind a
+# proxy every caller arrives from the proxy's address, so the servers read the
+# real client from X-Forwarded-For — but only when the connection came from a
+# trusted address. The default (loopback) is correct when the proxy runs on the
+# same host as the servers, which is the layout above. Set it only if the proxy
+# lives elsewhere, and set it to the PROXY's address.
