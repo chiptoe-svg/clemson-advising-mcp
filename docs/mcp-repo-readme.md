@@ -88,13 +88,15 @@ reverse proxy that terminates TLS.
 src/mcp-public.ts, src/mcp-catalog.ts   the two entry points
 src/mcp-tools/                          transport, auth, policy, the tools
 src/policy.ts, policy/                  authorized backends and data classes
-core/                                   Python catalog pipeline — BUILD TIME ONLY
+core/                                   catalog scraper + parsers + corpus (build time only)
 test/                                   the suite; no test is allowed to skip
 deploy/                                 reverse-proxy configuration
 ```
 
-`core/` is the only Python in the project and never runs on a request path. A
-serving host needs Node and a prebuilt database; it does not need Python at all.
+`core/` is the only Python in the project and never runs on a request path — it
+is the catalog scraper and its parsers, plus 5,096 cached catalog pages, so this
+repository can rebuild its own database rather than depending on another machine
+to produce one. Serving needs only Node, SQLite, and a built database.
 
 ## History
 

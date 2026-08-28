@@ -25,23 +25,37 @@ Three data artifacts are not in git and must be provided:
 | `state/clemson/*.db`    | Banner class-schedule snapshots, ~21 MB    | The refresh job (§4)                                                |
 | `.env`                  | Per-server bearer tokens and bind settings | Written at deploy time (§2)                                         |
 
-**The catalog database cannot be built on a serving host, and this is not a
-matter of convenience.** `core/scripts/rebuild_db.sh` needs Playwright, a live
-crawl of the Clemson catalog, an LLM for minor and certificate extraction, and
-roughly 4,000 cached page snapshots that are deliberately not in this
-repository. A cold build is hours; a warm one on the build box is minutes.
-
-The intended shape is therefore a **build box** that owns the Python pipeline
-and its caches and produces a `.db`, and a **serving box** that receives that
-file. The catalog changes annually, so this is one file copy a year — not an
-ongoing coupling.
-
-On the build box:
+**The catalog database is built here, from this repository.** The scraper, its
+parsers, and its cached corpus all travel with the code: `core/data/raw` holds
+5,096 scraped catalog pages across nine catalog years plus a content-addressed
+cache of prior LLM extractions. That cache is what makes a rebuild minutes
+rather than hours — without it, every minor and certificate page would go back
+through a language model.
 
 ```bash
 python3 -m venv core/.venv && core/.venv/bin/pip install -e "core[dev]"
+core/.venv/bin/python -m playwright install chromium
 core/scripts/rebuild_db.sh
 ```
+
+Three things a rebuild needs, and it will refuse to start without them:
+
+|                                                       | Why                                                                                                |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Network to `catalog.clemson.edu`                      | Program pages are re-rendered live. A rebuild is a data refresh, not a byte-identical reproduction |
+| Playwright + Chromium                                 | The catalog is a JavaScript application; the pages do not exist as static HTML                     |
+| An LLM endpoint (`GC_LLM_API_KEY`, `GC_LLM_BASE_URL`) | Minor and certificate requirements are extracted by a model                                        |
+
+**The LLM requirement does not go away because the cache is warm, and this is
+worth understanding before planning around it.** The cache is keyed on page
+CONTENT, so a page Clemson has edited misses — and a changed page is precisely
+what you are rebuilding for. Most pages hit; the interesting ones do not. Point
+`GC_LLM_BASE_URL` at whichever Clemson-hosted model this deployment is entitled
+to use.
+
+The catalog changes annually, so this runs about once a year. Copying a built
+`.db` from another machine that already has one remains perfectly valid and is
+the faster path when one exists.
 
 Keeping the serving host Python-free is deliberate: one runtime in production
 and a smaller review surface. One tool still shells out to Python —
