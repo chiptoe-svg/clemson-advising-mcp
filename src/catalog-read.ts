@@ -323,6 +323,16 @@ export function getCourseEntry(
 }
 
 /**
+ * Render program names as an unambiguous list. Every registrar name CONTAINS a
+ * comma ("Accounting, BS"), so a plain ", " join renders eight programs as
+ * fifteen. Quoting each and separating with "; " is the only thing telling the
+ * reader — or the model reading a tool error — where one name ends.
+ */
+export function formatProgramList(names: readonly string[]): string {
+  return names.map((n) => `"${n}"`).join("; ");
+}
+
+/**
  * Normalize "gc4061", "GC 4061", "GC  4061" -> "GC 4061". Returns null for
  * anything that is not a plausible course code, so junk fails as junk rather
  * than as a miss.

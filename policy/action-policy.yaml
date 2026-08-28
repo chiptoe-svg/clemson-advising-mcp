@@ -143,6 +143,27 @@ actions:
     constraints:
       - public_data_only
 
+  # Authoritative section rows by CRN, read from the local Banner snapshot.
+  # Backs the advisor's host-side confirmation that a model-proposed CRN is
+  # real before a schedule is rendered into a printable document.
+  # CRNs resolved from course + section, for pastes that carry no CRN.
+  # Ambiguity resolves to null, never a guess.
+  - id: clemson.resolve_crns
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
+  - id: clemson.sections_by_crn
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
   - id: clemson.find_conflict_free_schedule
     surface: external_read
     risk: low

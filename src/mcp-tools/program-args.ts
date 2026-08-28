@@ -23,7 +23,10 @@
 // gets whatever validation it does on its own side; the handlers' own checks
 // are what protect that path.
 
-import { listPrograms, formatProgramList } from "../advisor-catalog.js";
+import Database from "better-sqlite3";
+
+import { GC_ADVISOR_DB } from "../config-mcp.js";
+import { formatProgramList, listProgramOptions } from "../catalog-read.js";
 
 /** Schema blurb for the canonical `program` key. */
 export const PROGRAM_ARG_DESCRIPTION =
@@ -63,9 +66,19 @@ export function resolveCatalogYearArg(
  * back to a plain sentence if the catalog DB cannot be read.
  */
 export function missingProgramMessage(extra = ""): string {
+  // Read the catalog DIRECTLY, not through the advisor's MCP-backed helper.
+  // This runs INSIDE the catalog server; routing it through MCP would have the
+  // server call itself over HTTP to build an error message. The advisor's web
+  // surface has the opposite requirement — it must not touch the file — so the
+  // two deliberately read the same data by different routes.
   let names: string[] = [];
   try {
-    names = listPrograms().programs.map((p) => p.name);
+    const db = new Database(GC_ADVISOR_DB, { readonly: true, fileMustExist: true });
+    try {
+      names = listProgramOptions(db).programs.map((p) => p.name);
+    } finally {
+      db.close();
+    }
   } catch {
     names = [];
   }

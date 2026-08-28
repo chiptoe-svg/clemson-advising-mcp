@@ -228,6 +228,98 @@ export function openScheduleDb(term: string): Database.Database | null {
   }
 }
 
+/** One section as the snapshot records it, with its meeting rows. */
+export interface SnapshotSection {
+  crn: string;
+  subject_course: string;
+  section: string;
+  title: string;
+  credit_hours: number | null;
+  meetings: Array<{
+    day: string;
+    start_min: number | null;
+    end_min: number | null;
+    building: string | null;
+    room: string | null;
+  }>;
+}
+
+/**
+ * Look up sections by CRN in a term snapshot, returning the rows that exist AND
+ * the CRNs that do not.
+ *
+ * The `notFound` list is the load-bearing half. This backs the advisor's
+ * host-side check that a model-proposed CRN is real, and a fabricated CRN that
+ * came back as merely an absent row would be indistinguishable from a section
+ * with no meetings — which is exactly the failure the check exists to catch.
+ * Absence is reported, never implied.
+ */
+export function getSectionsByCrn(
+  db: Database.Database,
+  term: string,
+  crns: string[],
+): { sections: SnapshotSection[]; notFound: string[] } {
+  const unique = [...new Set(crns)];
+  if (unique.length === 0) return { sections: [], notFound: [] };
+  const phs = unique.map(() => "?").join(",");
+
+  const rows = db
+    .prepare(
+      `SELECT crn, subject_course, section, title, credit_hours
+         FROM sections WHERE term = ? AND crn IN (${phs})`,
+    )
+    .all(term, ...unique) as Array<Omit<SnapshotSection, "meetings">>;
+
+  const meetingRows = db
+    .prepare(
+      `SELECT crn, day, start_min, end_min, building, room
+         FROM meetings WHERE term = ? AND crn IN (${phs})`,
+    )
+    .all(term, ...unique) as Array<
+    { crn: string } & SnapshotSection["meetings"][number]
+  >;
+
+  const byCrn = new Map<string, SnapshotSection>();
+  for (const r of rows) byCrn.set(r.crn, { ...r, meetings: [] });
+  for (const m of meetingRows) {
+    const { crn, ...rest } = m;
+    byCrn.get(crn)?.meetings.push(rest);
+  }
+
+  return {
+    sections: unique.filter((c) => byCrn.has(c)).map((c) => byCrn.get(c)!),
+    notFound: unique.filter((c) => !byCrn.has(c)),
+  };
+}
+
+/**
+ * Resolve CRNs from course + section, for pastes that carry no CRN (Clemson
+ * Navigator exports). Course codes compare spaceless and case-insensitively
+ * ("GC 3400" == "GC3400"). One entry per input, aligned BY INDEX.
+ *
+ * Null means "no single match" — either nothing matched, or more than one did.
+ * Ambiguity is a null, never a guess: picking one of two sections silently
+ * assigns a student to a class they may not be in.
+ */
+export function resolveCrns(
+  db: Database.Database,
+  term: string,
+  wanted: ReadonlyArray<{ subjectCourse: string; section: string }>,
+): (string | null)[] {
+  const stmt = db.prepare(
+    `SELECT crn FROM sections
+      WHERE term = ? AND UPPER(REPLACE(subject_course, ' ', '')) = ? AND section = ?`,
+  );
+  return wanted.map((w) => {
+    const rows = stmt.all(
+      term,
+      w.subjectCourse.replace(/\s+/g, "").toUpperCase(),
+      w.section,
+    ) as Array<{ crn: string }>;
+    return rows.length === 1 ? rows[0]!.crn : null;
+  });
+}
+
 export function getScheduleDbMeta(db: Database.Database): ScheduleDbMeta {
   const rows = db
     .prepare("SELECT key, value FROM meta")

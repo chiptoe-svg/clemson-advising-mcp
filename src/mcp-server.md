@@ -179,9 +179,11 @@ any tool/operation change and commit the result;
 | `find-conflict-free-schedule` | cuassistant-public  | `clemson.find_conflict_free_schedule` | `clemson.find_conflict_free_schedule` | external-http | scheduling        | yes     |
 | `get-course-details`          | cuassistant-public  | `clemson.course_details`              | `clemson.course_details`              | external-http | core              | yes     |
 | `get-schedule-freshness`      | cuassistant-public  | `clemson.schedule_freshness`          | `clemson.schedule_freshness`          | external-http | meta              | yes     |
+| `get-sections-by-crn`         | cuassistant-public  | `clemson.sections_by_crn`             | `clemson.sections_by_crn`             | external-http | scheduling        | yes     |
 | `get-skill-docs`              | cuassistant-public  | `host.get_skill_docs`                 | `host.get_skill_docs`                 | host-state    | meta              | yes     |
 | `list-clemson-terms`          | cuassistant-public  | `clemson.list_terms`                  | `clemson.list_terms`                  | external-http | meta              | yes     |
 | `list-skills`                 | cuassistant-public  | `host.list_skills`                    | `host.list_skills`                    | host-state    | meta              | yes     |
+| `resolve-crns`                | cuassistant-public  | `clemson.resolve_crns`                | `clemson.resolve_crns`                | external-http | scheduling        | yes     |
 | `search-classes`              | cuassistant-public  | `clemson.search_classes`              | `clemson.search_classes`              | external-http | core              | yes     |
 
 <!-- END GENERATED operation-table -->

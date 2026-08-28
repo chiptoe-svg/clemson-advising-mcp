@@ -49,7 +49,7 @@ returning an empty result the caller might read as "nothing exists".
 | Port | 8766 | 8767 |
 | Serves | Clemson class schedule | Degree catalog and curriculum |
 | Data source | Banner snapshots (SQLite, refreshed daily 05:00) | Built catalog DB (SQLite) + Python query/audit CLI |
-| Tools | 9 | 9 (10 as of 2026-08-27) |
+| Tools | 11 | 12 |
 | Holds student data | No | No |
 | Holds credentials | No | No |
 
@@ -62,12 +62,13 @@ restarted, revoked, or taken down without touching the other.
 
 **Public (8766)** — `list-clemson-terms`, `search-classes`, `get-course-details`,
 `check-conflicts`, `find-conflict-free-schedule`, `find-alternatives`,
-`get-schedule-freshness`, `list-skills`, `get-skill-docs`
+`get-schedule-freshness`, `get-sections-by-crn`, `resolve-crns`, `list-skills`,
+`get-skill-docs`
 
 **Catalog (8767)** — `list-gc-catalog-years`, `get-gc-program-plan`,
 `get-gc-requirement-rules`, `get-gc-gen-ed`, `get-program-requirements`,
-`find-requirement-sections`, `find-course-in-program`, `audit-gc-progress`,
-`list-gc-skills`, `get-gc-skill-docs`
+`find-requirement-sections`, `find-course-in-program`, `list-gc-programs`,
+`get-gc-course`, `audit-gc-progress`, `list-gc-skills`, `get-gc-skill-docs`
 
 ---
 
@@ -107,7 +108,7 @@ A shared stateless transport returns 500 on the post-initialize
 `server.ts`. The cost is a small per-request allocation; the benefit is that no
 request can corrupt another's transport state.
 
-### Module map (32 TypeScript files, the full closure)
+### Module map (34 TypeScript files, the full closure)
 
 ```
 entry points        mcp-public.ts, mcp-catalog.ts
@@ -118,14 +119,14 @@ entry points        mcp-public.ts, mcp-catalog.ts
   tool barrels      mcp-tools/index-public.ts  side-effect imports that register public tools
                     mcp-tools/index-catalog.ts  … and catalog tools
   schedule tools    mcp-tools/clemson-classes.ts, clemson-schedule.ts, section-query.ts
-                    clemson-schedule-db.ts     snapshot queries, conflict detection
+                    clemson-schedule-db.ts     snapshot queries, CRN lookup, conflict detection
                     clemson-classes.ts         Banner shapes
                     clemson-room-capacity.ts, term-resolve.ts, eastern-time.ts
   catalog tools     mcp-tools/catalog.ts       program plan, rules, gen-ed, audit, find-course
                     mcp-tools/clemson-advising.ts  requirement sections, program requirements
                     mcp-tools/gc-coreqs.ts, program-args.ts, gc-skill-renames.ts
                     gc-curriculum.ts           the Python CLI bridge (execFile, 15 s timeout)
-                    advisor-catalog.ts         listPrograms() over the catalog DB
+                    catalog-read.ts            direct SQLite reads: programs, course entries
   cross-cutting     config.ts (all env), log.ts (rotating), state.ts, types.ts
                     mcp-tools/usage.ts   per-call usage ledger
                     mcp-tools/audit.ts   write-intent audit rows (unused by these read-only servers)

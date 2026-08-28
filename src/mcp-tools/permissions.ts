@@ -80,6 +80,21 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     status: "active",
     policyActionId: "clemson.course_details",
   },
+  // Authoritative section rows by CRN from the term snapshot. Added
+  // 2026-08-28 so the advisor's host-side check that a model-proposed CRN is
+  // real can run over MCP instead of opening state/clemson/<term>.db directly.
+  // CRNs from course+section, for schedule data that carries no CRN (a Clemson
+  // Navigator export). Companion to sections_by_crn; same snapshot, different key.
+  "clemson.resolve_crns": {
+    backend: "external-http",
+    status: "active",
+    policyActionId: "clemson.resolve_crns",
+  },
+  "clemson.sections_by_crn": {
+    backend: "external-http",
+    status: "active",
+    policyActionId: "clemson.sections_by_crn",
+  },
   "clemson.find_conflict_free_schedule": {
     backend: "external-http",
     status: "active",
@@ -308,6 +323,8 @@ const CLEMSON_SCHEDULE_OPS = [
   "clemson.check_conflicts",
   "clemson.course_details",
   "clemson.find_conflict_free_schedule",
+  "clemson.sections_by_crn",
+  "clemson.resolve_crns",
   "clemson.schedule_freshness",
 ];
 
@@ -335,6 +352,8 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.check_conflicts",
     "clemson.course_details",
     "clemson.find_conflict_free_schedule",
+    "clemson.sections_by_crn",
+    "clemson.resolve_crns",
     "clemson.gc_catalog_years",
     "clemson.gc_program_plan",
     "clemson.gc_requirement_rules",
