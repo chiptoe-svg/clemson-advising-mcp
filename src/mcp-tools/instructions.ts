@@ -81,6 +81,13 @@ a wrong answer to a real advisor:
 - PROGRAM AND CATALOG YEAR ARE REQUIRED and there is no default program. Eight
   programs exist; if you were not told which, ask rather than assuming. If the
   session supplied one by assumption rather than choice, say which you used.
+- PREREQUISITE ELIGIBILITY IS THREE-VALUED, not yes/no. \`find-requirement-sections\`
+  returns \`prereqEligible: "eligible" | "not_eligible" | "undetermined"\`.
+  "undetermined" is the honest answer for a rule the structured data cannot
+  decide — an OR ("ECON 2000 or ECON 2110 or ECON 2120"), a grade minimum, a
+  standing or consent gate, or a text that did not parse. That is roughly a
+  third of courses with prerequisites. NEVER report a student ineligible on an
+  "undetermined": read \`prereqText\` and tell them what the rule says.
 - AUDIT VERDICTS FOR NON-GC PROGRAMS ARE ADVISORY. Confirm against DegreeWorks.
 - REQUIREMENTS ARE PER CATALOG YEAR. A student follows the catalog they entered
   under, which is often not the newest.

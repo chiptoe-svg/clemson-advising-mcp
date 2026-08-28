@@ -119,6 +119,29 @@ function buildGcAdvisorFixture(): void {
     }),
   );
 
+  const OR_PREREQ_SLOT = "Or Prereq Requirement";
+  insertRule.run(
+    2,
+    OR_PREREQ_SLOT,
+    JSON.stringify({
+      slot_type: OR_PREREQ_SLOT,
+      total_credits: 3,
+      explicit_courses: ["GC 3070"],
+      raw_text: "or prereq test rule",
+    }),
+  );
+  const UNPARSED_PREREQ_SLOT = "Unparsed Prereq Requirement";
+  insertRule.run(
+    2,
+    UNPARSED_PREREQ_SLOT,
+    JSON.stringify({
+      slot_type: UNPARSED_PREREQ_SLOT,
+      total_credits: 3,
+      explicit_courses: ["GC 3080"],
+      raw_text: "unparsed prereq test rule",
+    }),
+  );
+
   // A rule gc_advisor has flagged bogus (the footnote mis-association family —
   // the real case is Management, BS 2025-2026 "Natural Science Requirement"
   // -> MGT 4150). requirement_rule_effective hides it; the tool must read
@@ -147,6 +170,20 @@ function buildGcAdvisorFixture(): void {
   insertCourse.run("GC 3030", "GC", "3030", null, null);
   insertCourse.run("GC 3040", "GC", "3040", null, null);
   insertCourse.run("GC 3050", "GC", "3050", null, null); // no prereq — narrowedCourses fixture
+  // OR-prereq: the shape that produced a confident FALSE NEGATIVE on required
+  // coursework (MKT 3010 in the live catalog: a Marketing student holding
+  // ECON 2110 was told they could not take their own major's gateway course).
+  insertCourse.run(
+    "GC 3070",
+    "GC",
+    "3070",
+    "GC 3010 or GC 3020",
+    JSON.stringify(["GC 3010", "GC 3020"]),
+  );
+  // Prereq text that did not parse at all — 820 such courses live. The flat
+  // list is empty, so the OLD code read them as prereq-FREE: the opposite
+  // error, admitting students who cannot enrol.
+  insertCourse.run("GC 3080", "GC", "3080", "Junior standing and consent of instructor", null);
   // Two parsed prerequisites — the ALL-of fixture (T5).
   insertCourse.run(
     "GC 3060",
@@ -238,6 +275,9 @@ const SNAP: ClemsonTermSnapshot = {
     // GC3060-90020: the only section of "Two Prereq Requirement"'s only
     // course. Not referenced by SLOT, so it cannot affect any test above.
     section({ crn: "90020", subjectCourse: "GC3060", section: "001", title: "Capstone Prep", meetings: [meeting("W", "1400", "1450")] }),
+    // GC3070-90021: OR-prereq fixture. GC3080-90022: prereq text that did not parse.
+    section({ crn: "90021", subjectCourse: "GC3070", section: "001", title: "Or Prereq Course", meetings: [meeting("W", "1500", "1550")] }),
+    section({ crn: "90022", subjectCourse: "GC3080", section: "001", title: "Unparsed Prereq Course", meetings: [meeting("W", "1600", "1650")] }),
     // GC3050: 16 sections (> querySectionsEngine's NARROW_THRESHOLD of 15) —
     // "Narrow Test Requirement"'s only explicit course, dedicated to the
     // narrowedCourses note test. Not referenced by SLOT, so it can't affect
@@ -293,14 +333,20 @@ const BASE_ARGS = {
 // Updated in Phase B4: `program` is now required (no GC default) and
 // catalog_year is called out as defaulting to the program's latest.
 const EXPECTED_DESCRIPTION =
-  "Find sections that fill a named degree requirement slot and that the " +
-  "student is eligible to take (prerequisites checked against " +
-  "completed_courses). Requires requirement — the requirement slot name; " +
-  "an unknown name returns the valid slot list — and program, which has no " +
-  "default. Optional: catalog_year (defaults to the program's latest), " +
-  "completed_courses, fits_around_crns, days, no_meeting_before, " +
-  "no_meeting_after, exclude_days, open_seats_only. Term is optional — " +
-  "defaults to the current registration term.";
+  "Find sections that fill a named degree requirement slot and that the" +
+  " student is eligible to take (prerequisites checked against complete" +
+  "d_courses). `prereqEligible` is THREE-VALUED — \"eligible\", \"not_elig" +
+  "ible\", or \"undetermined\" — never a boolean. \"undetermined\" means the" +
+  " stated rule cannot be decided from the structured data (it contains" +
+  " OR, a grade minimum, a standing or consent gate, or did not parse);" +
+  " READ `prereqText` and say what the rule actually is rather than rep" +
+  "orting the student ineligible. Roughly a third of Clemson courses wi" +
+  "th prerequisites fall in this class. Requires requirement — the requ" +
+  "irement slot name; an unknown name returns the valid slot list — and" +
+  " program, which has no default. Optional: catalog_year (defaults to " +
+  "the program's latest), completed_courses, fits_around_crns, days, no" +
+  "_meeting_before, no_meeting_after, exclude_days, open_seats_only. Te" +
+  "rm is optional — defaults to the current registration term.";
 
 test("registered with the exact kebab-case name and the verbatim brief description", () => {
   assert.equal(findRequirementSections.tool.name, "find-requirement-sections");
@@ -451,20 +497,20 @@ test("sections carry the EngineSection fields plus prereqEligible/prereqText", a
   assert.equal(s.maxEnrollment, 20);
   assert.ok(Array.isArray(s.instructors));
   assert.ok(Array.isArray(s.meetings));
-  assert.equal(s.prereqEligible, true); // GC 3010 has no prereq
+  assert.equal(s.prereqEligible, "eligible"); // GC 3010 has no prereq
 });
 
-test("prereqEligible is false when completed_courses doesn't satisfy the course's prereq", async () => {
+test("prereqEligible is \"not_eligible\" when a PURE-CONJUNCTION prereq is unmet", async () => {
   const out = await call({ ...BASE_ARGS, completed_courses: [] });
   const s = out.sections.find((x: any) => x.crn === "90003"); // GC3020, requires GC 3010
-  assert.equal(s.prereqEligible, false);
+  assert.equal(s.prereqEligible, "not_eligible");
   assert.equal(s.prereqText, "GC 3010");
 });
 
-test("prereqEligible is true once the prereq is in completed_courses", async () => {
+test("prereqEligible is \"eligible\" once the prereq is in completed_courses", async () => {
   const out = await call({ ...BASE_ARGS, completed_courses: ["GC 1010", "GC 3010"] });
   const s = out.sections.find((x: any) => x.crn === "90003"); // GC3020, requires GC 3010
-  assert.equal(s.prereqEligible, true);
+  assert.equal(s.prereqEligible, "eligible");
 });
 
 // T5 (2026-08-26 mutation review): mutating checkPrereqEligible's
@@ -485,27 +531,27 @@ async function twoPrereqSection(completed: string[]): Promise<any> {
   return s;
 }
 
-test("prereqEligible is false when only ONE of a two-course prereq is completed", async () => {
+test("prereqEligible is \"not_eligible\" when only ONE of a two-course prereq is completed", async () => {
   const first = await twoPrereqSection(["GC 3010"]);
   assert.equal(
     first.prereqEligible,
-    false,
+    "not_eligible",
     "GC 3060 needs GC 3010 AND GC 3020 — one of the two is not eligibility",
   );
   const second = await twoPrereqSection(["GC 3020"]);
   assert.equal(
     second.prereqEligible,
-    false,
+    "not_eligible",
     "the other half alone is not eligibility either",
   );
   const neither = await twoPrereqSection([]);
-  assert.equal(neither.prereqEligible, false, "neither prereq completed");
+  assert.equal(neither.prereqEligible, "not_eligible", "neither prereq completed");
   assert.equal(neither.prereqText, "GC 3010 and GC 3020");
 });
 
-test("prereqEligible is true only when BOTH courses of a two-course prereq are completed", async () => {
+test("prereqEligible is \"eligible\" only when BOTH courses of a two-course prereq are completed", async () => {
   const s = await twoPrereqSection(["GC 3010", "GC 3020", "GC 1010"]);
-  assert.equal(s.prereqEligible, true);
+  assert.equal(s.prereqEligible, "eligible");
 });
 
 // ---------------------------------------------------------------------------
@@ -613,4 +659,61 @@ test("a course offering more sections than NARROW_THRESHOLD is omitted and noted
   assert.equal(out.sections.length, 0);
   assert.match(out.note, /GC 3050/);
   assert.match(out.note, /more sections than can be listed/);
+});
+
+// --- three-state prereq eligibility (2026-08-28) ----------------------------
+//
+// checkPrereqEligible returned a BOOLEAN over a flat code list, so an OR rule
+// read as AND. Verified live: MKT 3010's prereq_text is "ECON 2000 or ECON 2110
+// or ECON 2120 or any 2000-level AGRB course; and sophomore standing" while its
+// prereq_parsed is ["ECON 2000","ECON 2110","ECON 2120"] — a Marketing student
+// with ECON 2110 was told they were ineligible for their own gateway course.
+// 927 of 2,624 prereq texts contain OR.
+//
+// The opposite error existed too: 820 courses have prereq text that did not
+// parse, so an empty list read as prereq-FREE.
+
+test("an OR prereq with one option satisfied is NOT reported ineligible", async () => {
+  const out = await call({
+    requirement: "Or Prereq Requirement",
+    program: PROGRAM,
+    completed_courses: ["GC 3010"],
+  });
+  const s = out.sections.find((x: any) => x.crn === "90021");
+  assert.ok(s, "the OR-prereq fixture section must be returned");
+  assert.notEqual(
+    s.prereqEligible,
+    "not_eligible",
+    'an OR rule must never report "not_eligible" from a flat list — this is the MKT 3010 defect',
+  );
+  assert.equal(s.prereqEligible, "undetermined");
+  assert.equal(s.prereqText, "GC 3010 or GC 3020", "the real rule must reach the caller");
+});
+
+test("an OR prereq with ALL options satisfied is eligible (a fortiori)", async () => {
+  const out = await call({
+    requirement: "Or Prereq Requirement",
+    program: PROGRAM,
+    completed_courses: ["GC 3010", "GC 3020"],
+  });
+  const s = out.sections.find((x: any) => x.crn === "90021");
+  // Every code satisfied implies the rule holds under ANY reading, so the
+  // answer is determinate even though the text carries structure we cannot parse.
+  assert.equal(s.prereqEligible, "eligible");
+});
+
+test("unparsed prereq text is undetermined, NOT prereq-free", async () => {
+  const out = await call({
+    requirement: "Unparsed Prereq Requirement",
+    program: PROGRAM,
+    completed_courses: [],
+  });
+  const s = out.sections.find((x: any) => x.crn === "90022");
+  assert.ok(s, "the unparsed-prereq fixture section must be returned");
+  assert.equal(
+    s.prereqEligible,
+    "undetermined",
+    "a rule we cannot read must not be reported as no rule at all",
+  );
+  assert.equal(s.prereqText, "Junior standing and consent of instructor");
 });

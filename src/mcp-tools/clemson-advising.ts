@@ -154,22 +154,73 @@ function getRequirementRule(
   };
 }
 
-function checkPrereqEligible(
+/**
+ * Whether a student's completed courses satisfy a course's prerequisites.
+ *
+ * THREE STATES, NOT A BOOLEAN (2026-08-28). `prereq_parsed` is a FLAT LIST of
+ * codes; the real rule lives in `prereq_text` and is frequently not a
+ * conjunction. Treating the list as "all of these" produced confident FALSE
+ * NEGATIVES on required coursework:
+ *
+ *   MKT 3010  prereq_text   "ECON 2000 or ECON 2110 or ECON 2120 or any
+ *                            2000-level AGRB course; and sophomore standing"
+ *             prereq_parsed ["ECON 2000","ECON 2110","ECON 2120"]
+ *
+ * A Marketing student holding ECON 2110 was told they were ineligible for the
+ * gateway course of their own major. Measured across the catalog: 2,624 courses
+ * carry prereq_text, 927 contain OR, 369 carry a grade minimum the flat list
+ * drops, and 820 have prereq text that did not parse AT ALL — those last read as
+ * prereq-FREE, which is the OPPOSITE error and admits students who cannot enrol.
+ *
+ * So the answer is "yes", "no", or "I cannot tell from this" — and the third is
+ * a permanent state, not a placeholder. A future prereq expression in core
+ * resolves the OR structure; it does not make a grade minimum, a standing gate,
+ * a consent requirement, or an unparsed text determinate. Those live here
+ * forever. (Endorsed as the end state by the core maintainer, 2026-08-28.)
+ *
+ * Callers already receive `prereqText` alongside this field, so an
+ * "undetermined" answer costs them nothing: the real rule is in their hands.
+ *
+ * This is the same defect shape as the PCID miss (find-course-in-program):
+ * a tool reading its own partial view and reporting a confident negative.
+ */
+export type PrereqEligibility = "eligible" | "not_eligible" | "undetermined";
+
+/** OR / grade / standing / consent markers that a flat code list cannot express. */
+const PREREQ_UNDETERMINABLE =
+  /\bor\b|\bconcurrent|\bconsent\b|\bpermission\b|\bstanding\b|\bminimum grade\b|\bgrade of\b|\bC or better\b/i;
+
+export function checkPrereqEligible(
   prereqParsed: string | null,
   completedCourses: Set<string>,
-): boolean {
-  if (!prereqParsed) return true;
+  prereqText: string | null = null,
+): PrereqEligibility {
+  // No stated prerequisite at all: genuinely eligible.
+  const hasText = typeof prereqText === "string" && prereqText.trim() !== "";
+  if (!prereqParsed) {
+    // Text present but nothing parsed (820 courses) — the rule exists and we
+    // cannot read it. Reporting "eligible" here is a false POSITIVE.
+    return hasText ? "undetermined" : "eligible";
+  }
   let codes: string[];
   try {
     codes = JSON.parse(prereqParsed) as string[];
   } catch {
-    return true;
+    return hasText ? "undetermined" : "eligible";
   }
-  if (!Array.isArray(codes) || codes.length === 0) return true;
-  // prereq_parsed is a flat list of codes; ALL must be completed.
-  // (Simplification — raw_text may have OR logic; agent can read prereq_text for full rule.)
+  if (!Array.isArray(codes) || codes.length === 0) {
+    return hasText ? "undetermined" : "eligible";
+  }
   // completedCourses is already normalized (spaceless upper); normalize each code too.
-  return codes.every((c) => completedCourses.has(normCode(c)));
+  const satisfiedAll = codes.every((c) => completedCourses.has(normCode(c)));
+  // ALL of a flat list satisfied implies the rule holds under any reading —
+  // an OR is satisfied a fortiori — so "eligible" is safe even when the text
+  // carries structure this function cannot parse.
+  if (satisfiedAll) return "eligible";
+  // Not all satisfied. Only a text we can be confident is a pure conjunction
+  // justifies "not_eligible"; anything else is undetermined.
+  if (hasText && PREREQ_UNDETERMINABLE.test(prereqText)) return "undetermined";
+  return "not_eligible";
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +248,14 @@ export function makeFindRequirementSections(
     description:
       "Find sections that fill a named degree requirement slot and that the " +
       "student is eligible to take (prerequisites checked against " +
-      "completed_courses). Requires requirement — the requirement slot " +
+      "completed_courses). `prereqEligible` is THREE-VALUED — \"eligible\", " +
+      "\"not_eligible\", or \"undetermined\" — never a boolean. " +
+      "\"undetermined\" means the stated rule cannot be decided from the " +
+      "structured data (it contains OR, a grade minimum, a standing or consent " +
+      "gate, or did not parse); READ `prereqText` and say what the rule " +
+      "actually is rather than reporting the student ineligible. Roughly a " +
+      "third of Clemson courses with prerequisites fall in this class. " +
+      "Requires requirement — the requirement slot " +
       "name; an unknown name returns the valid slot list — and program, " +
       "which has no default. Optional: catalog_year (defaults to the " +
       "program's latest), completed_courses, fits_around_crns, days, " +
@@ -517,7 +575,11 @@ export function makeFindRequirementSections(
         const courseInfo = courseMap.get(normCode(s.subjectCourse));
         return {
           ...s,
-          prereqEligible: checkPrereqEligible(courseInfo?.prereq_parsed ?? null, completedSet),
+          prereqEligible: checkPrereqEligible(
+            courseInfo?.prereq_parsed ?? null,
+            completedSet,
+            courseInfo?.prereq_text ?? null,
+          ),
           prereqText: courseInfo?.prereq_text ?? null,
         };
       });
