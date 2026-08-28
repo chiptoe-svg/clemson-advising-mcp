@@ -164,23 +164,102 @@ export function renameRegisteredTool(
   toolMap.set(to, t);
 }
 
-/** The authenticated caller: id (audit identity), allowed operation set, provider. */
+/**
+ * The authenticated caller.
+ *
+ * Shaped for a future in which the credential is an OAuth/OIDC token from a
+ * Clemson identity provider rather than a static bearer from our own registry
+ * (see docs/superpowers/specs/2026-08-27-mcp-extraction-design.md). Today every
+ * field but `id`/`scopes` is optional and the registry authenticator fills only
+ * what it knows; the point is that adding a second scheme does not change this
+ * type, the handler, or the audit trail.
+ *
+ * `id` stays the AUDIT identity — what appears in mcp-calls.jsonl — so the usage
+ * ledger remains comparable across an auth migration.
+ */
 export interface Principal {
+  /** Audit identity. Registry: the consumer id. OAuth: typically subject or client. */
   id: string;
   scopes: Set<string>;
+  /** Attested model backend, checked against policy agent_backends. */
   provider?: string;
+  /**
+   * WHO, when the credential carries an end user (OAuth `sub`). Distinct from
+   * `clientId` (WHAT software) — the registry conflates them because a static
+   * token identifies only an agent, and that conflation is exactly what an SSO
+   * migration would need to undo.
+   */
+  subject?: string;
+  /** WHAT software is calling (OAuth client_id), when distinguishable. */
+  clientId?: string;
+  /** Epoch ms after which this principal must not be reused. Registry tokens do not expire. */
+  expiresAt?: number;
+  /** How the caller authenticated — recorded so a migration is visible in the ledger. */
+  authMethod: "registry-token" | "open" | "oauth";
 }
 
-/** Authenticates an HTTP request; returns the Principal, or null to reject. */
-export type Authenticator = (
+/**
+ * Context handed to an authenticator. An object rather than a bare header
+ * because OAuth needs more than the Authorization value: DPoP binds to method
+ * and URL, resource indicators need the request target, and useful audit logs
+ * need the source.
+ */
+export interface AuthContext {
+  authHeader: string | undefined;
+  method: string;
+  url: string;
+  headers: http.IncomingHttpHeaders;
+  source: string;
+}
+
+/**
+ * Build an AuthContext from just a bearer header, defaulting the rest.
+ *
+ * For callers that have no HTTP request to describe — the stdio transport, and
+ * tests — so that adding a field to AuthContext does not break every call site.
+ */
+export function authContext(
   authHeader: string | undefined,
-) => Principal | null;
+  over: Partial<AuthContext> = {},
+): AuthContext {
+  return { authHeader, method: "POST", url: "/", headers: {}, source: "local", ...over };
+}
+
+/**
+ * Authenticates a request; resolves to the Principal, or null to reject.
+ *
+ * ASYNC ON PURPOSE, though today's registry check is pure computation: every
+ * realistic OAuth path is asynchronous (JWKS fetch, token introspection,
+ * revocation check). Making this async once, now, costs one `await`; retrofitting
+ * it later would touch the request path, both authenticators, and every test.
+ */
+export type Authenticator = (ctx: AuthContext) => Promise<Principal | null>;
 
 /** Open mode: no credentials (public server, loopback-only). Full public scope. */
-export const openAuthenticator: Authenticator = () => ({
+export const openAuthenticator: Authenticator = async () => ({
   id: "public",
   scopes: allExposedOperations(),
+  authMethod: "open",
 });
+
+/**
+ * Try each authenticator in order; the first non-null wins.
+ *
+ * The migration seam: an OAuth authenticator can be placed ahead of the registry
+ * one so both credential types work at once, then the registry entry removed
+ * when every consumer has moved. Neither the handler nor the tools change.
+ */
+export function chainAuthenticators(
+  authenticators: readonly Authenticator[],
+): Authenticator {
+  return async (ctx) => {
+    for (const a of authenticators) {
+      const p = await a(ctx);
+      if (p) return p;
+    }
+    return null;
+  };
+}
 
 /** Fail closed: open mode is only allowed on a loopback bind. */
 export function isLoopbackHost(host: string): boolean {
@@ -252,8 +331,8 @@ export function resolveCredentialedAuth(
         "the env-token consumer has no provider and will be rejected at auth time.",
     );
   }
-  return (authHeader) => {
-    const consumer = authenticateConsumer(authHeader, gather());
+  return async (ctx) => {
+    const consumer = authenticateConsumer(ctx.authHeader, gather());
     if (!consumer) return null;
     // Runtime attestation re-check (fail closed): the consumer must declare a
     // provider that policy currently authorizes. Flipping authorized:false in
@@ -275,6 +354,11 @@ export function resolveCredentialedAuth(
       id: consumer.id,
       scopes: expandScopes(consumer.scopes),
       provider: consumer.provider,
+      // A static registry token identifies an AGENT, not a person, so there is
+      // no subject to report. An OAuth authenticator would fill `subject` here,
+      // and that difference is deliberately visible rather than papered over.
+      clientId: consumer.id,
+      authMethod: "registry-token",
     };
   };
 }
@@ -338,6 +422,8 @@ function buildServer(name: string, principal?: Principal): Server {
       consumerId,
       provider: principal?.provider,
       tool: toolName,
+      authMethod: principal?.authMethod,
+      subject: principal?.subject,
     });
     return auditContext.run({ consumerId, provider: principal?.provider }, () =>
       tool.handler(args ?? {}),
@@ -353,9 +439,23 @@ export function createHttpHandler(
 ): http.RequestListener {
   const now = opts.now ?? Date.now;
   return (req, res) => {
-    const principal = authenticate(req.headers.authorization);
+    void (async () => {
+    const source = req.socket.remoteAddress ?? "?";
+    let principal = await authenticate({
+      authHeader: req.headers.authorization,
+      method: req.method ?? "?",
+      url: req.url ?? "/",
+      headers: req.headers,
+      source,
+    });
+    // Expiry is enforced HERE, once, rather than inside each authenticator:
+    // registry tokens never expire, but OAuth access tokens always do, and a
+    // scheme that forgot the check would fail open. Central and unmissable.
+    if (principal?.expiresAt !== undefined && principal.expiresAt <= now()) {
+      appLog.warn("mcp credential expired", { server: name, id: principal.id });
+      principal = null;
+    }
     if (!principal) {
-      const source = req.socket.remoteAddress ?? "?";
       const verdict = noteUnauthenticated(source, now());
       if (verdict === "throttle") {
         res.writeHead(429, { "content-type": "application/json", "retry-after": "60" });
@@ -370,7 +470,13 @@ export function createHttpHandler(
           countInWindow: unauthBySource.get(source)?.count ?? 1,
         });
       }
-      res.writeHead(401, { "content-type": "application/json" });
+      // RFC 6750 challenge. Correct for plain bearer today, and the exact header
+      // an MCP OAuth client expects to discover where to authenticate — a future
+      // scheme extends this value rather than adding a new mechanism.
+      res.writeHead(401, {
+        "content-type": "application/json",
+        "www-authenticate": `Bearer realm="${name}"`,
+      });
       res.end(JSON.stringify({ error: "unauthorized" }));
       return;
     }
@@ -414,6 +520,20 @@ export function createHttpHandler(
         await server.connect(transport);
         await transport.handleRequest(req, res, body);
       })();
+    });
+    })().catch((err) => {
+      // An authenticator that throws (a JWKS fetch failing, an introspection
+      // endpoint timing out) must fail CLOSED and must not take the process
+      // down. Today's registry check cannot throw; a future network-backed one
+      // certainly can, which is the whole reason this catch exists now.
+      appLog.error("mcp auth pipeline failed", {
+        server: name,
+        err: err instanceof Error ? err.message : String(err),
+      });
+      if (!res.headersSent) {
+        res.writeHead(503, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "authentication_unavailable" }));
+      }
     });
   };
 }

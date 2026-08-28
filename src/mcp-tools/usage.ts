@@ -36,6 +36,18 @@ export interface McpCallRecord {
   provider?: string;
   /** The MCP tool name as exposed to clients. */
   tool: string;
+  /**
+   * How the caller authenticated. Recorded so an auth migration is legible in
+   * the ledger itself: when OAuth arrives alongside registry tokens, "who is
+   * still on the old scheme" is a grep rather than a guess.
+   */
+  authMethod?: string;
+  /**
+   * The end user, when the credential identifies a person (OAuth `sub`).
+   * Absent for registry tokens, which identify an agent and not a human — that
+   * absence is the honest signal that per-user attribution is not yet possible.
+   */
+  subject?: string;
 }
 
 /**
@@ -53,6 +65,8 @@ export function recordMcpCall(rec: McpCallRecord): void {
       server: rec.server,
       consumer_id: rec.consumerId,
       ...(rec.provider !== undefined ? { provider: rec.provider } : {}),
+      ...(rec.authMethod !== undefined ? { auth_method: rec.authMethod } : {}),
+      ...(rec.subject !== undefined ? { subject: rec.subject } : {}),
       tool: rec.tool,
     };
     const dir = analyticsDir();

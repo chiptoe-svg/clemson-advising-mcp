@@ -19,6 +19,7 @@ import {
   assertHttpAuthConfig,
   resolveCredentialedAuth,
   startMcpServer,
+  authContext,
 } from "../src/mcp-tools/server.ts";
 import { hashToken, type Consumer } from "../src/mcp-tools/consumers.ts";
 
@@ -64,28 +65,28 @@ test("fail closed: an empty consumer source is not rescued by the on-disk regist
   );
 });
 
-test("per-server separation: each key opens only its own server", () => {
+test("per-server separation: each key opens only its own server", async () => {
   const authPublic = publicStyleAuth("public-key");
   const authCatalog = publicStyleAuth("catalog-key");
 
-  assert.equal(authPublic("Bearer public-key")?.id, "env-token");
-  assert.equal(authCatalog("Bearer catalog-key")?.id, "env-token");
+  assert.equal((await authPublic(authContext("Bearer public-key")))?.id, "env-token");
+  assert.equal((await authCatalog(authContext("Bearer catalog-key")))?.id, "env-token");
 
   // The cross pairings are what "revoking one must not revoke the other"
   // reduces to: neither key is accepted by the other server.
   assert.equal(
-    authPublic("Bearer catalog-key"),
+    await authPublic(authContext("Bearer catalog-key")),
     null,
     "the catalog key must not authenticate against the public server",
   );
   assert.equal(
-    authCatalog("Bearer public-key"),
+    await authCatalog(authContext("Bearer public-key")),
     null,
     "the public key must not authenticate against the catalog server",
   );
 });
 
-test("per-server separation: 8765 registry tokens do not open 8766/8767", () => {
+test("per-server separation: 8765 registry tokens do not open 8766/8767", async () => {
   const registryTokens: Consumer[] = [
     {
       id: "linda",
@@ -96,37 +97,39 @@ test("per-server separation: 8765 registry tokens do not open 8766/8767", () => 
   ];
   // Sanity: that token IS valid against a credentialed-style authenticator.
   const credentialed = resolveCredentialedAuth({ load: () => registryTokens });
-  assert.equal(credentialed("Bearer registry-token")?.id, "linda");
+  assert.equal((await credentialed(authContext("Bearer registry-token")))?.id, "linda");
 
   // But not against the public server, whose consumer source is empty.
   const authPublic = publicStyleAuth("public-key");
-  assert.equal(authPublic("Bearer registry-token"), null);
+  assert.equal(await authPublic(authContext("Bearer registry-token")), null);
 });
 
-test("missing and malformed credentials are rejected", () => {
+test("missing and malformed credentials are rejected", async () => {
   const authPublic = publicStyleAuth("public-key");
-  assert.equal(authPublic(undefined), null, "no Authorization header");
-  assert.equal(authPublic(""), null, "empty Authorization header");
-  assert.equal(authPublic("Bearer "), null, "empty bearer");
-  assert.equal(authPublic("Bearer wrong-key"), null, "wrong key");
-  assert.equal(authPublic("public-key"), null, "missing Bearer prefix");
-  assert.equal(authPublic("Basic public-key"), null, "wrong scheme");
+  assert.equal(await authPublic(authContext(undefined)), null, "no Authorization header");
+  assert.equal(await authPublic(authContext("")), null, "empty Authorization header");
+  assert.equal(await authPublic(authContext("Bearer ")), null, "empty bearer");
+  assert.equal(await authPublic(authContext("Bearer wrong-key")), null, "wrong key");
+  assert.equal(await authPublic(authContext("public-key")), null, "missing Bearer prefix");
+  assert.equal(await authPublic(authContext("Basic public-key")), null, "wrong scheme");
   // A prefix of the real key must not pass — the comparison is over
   // fixed-length hashes, so length never leaks and truncation never matches.
-  assert.equal(authPublic("Bearer public-ke"), null, "truncated key");
+  assert.equal(await authPublic(authContext("Bearer public-ke")), null, "truncated key");
 });
 
-test("an unauthorized attested provider is rejected even with the right key", () => {
-  // policy/action-policy.yaml lists anthropic with authorized: false.
+test("an unauthorized attested provider is rejected even with the right key", async () => {
+  // policy/action-policy.yaml authorizes anthropic ONLY for data_classes
+  // [public] (2026-08-27). This call declares no dataClass, so the scoped
+  // backend fails closed — an undeclared surface cannot be shown to be public.
   const auth = resolveCredentialedAuth({
     envToken: "public-key",
     envTokenProvider: "anthropic",
     load: () => [],
   });
   assert.equal(
-    auth("Bearer public-key"),
+    await auth(authContext("Bearer public-key")),
     null,
-    "a correct key with an unauthorized provider must still be refused",
+    "a correct key whose provider is not authorized for this surface must still be refused",
   );
 });
 
