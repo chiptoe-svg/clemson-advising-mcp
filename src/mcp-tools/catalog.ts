@@ -344,6 +344,70 @@ export const findCourseInProgram: McpToolDefinition = {
       required: ["course"],
       additionalProperties: false,
     },
+    // Declaring outputSchema tells the model what it will get BEFORE it calls —
+    // which is tool-SELECTION information, and mis-selection is what produced
+    // the PCID wrong answer. `found` as a typed boolean is also far harder to
+    // misread than the same fact inside a JSON string.
+    //
+    // An outputSchema is a PROMISE: a response that does not conform is a
+    // protocol violation, not merely surprising. test/mcp-output-schema.test.ts
+    // holds this handler to it against the live catalog DB.
+    outputSchema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "The normalised course code or subject prefix that was searched." },
+        matched_as: {
+          type: "string",
+          enum: ["course_code", "subject_prefix"],
+          description: "Whether the query resolved to one course or a whole subject prefix.",
+        },
+        program: { type: "string" },
+        catalog_year: { type: "string" },
+        found: {
+          type: "boolean",
+          description:
+            "True if the course/subject appears anywhere in this program-year. " +
+            "FALSE IS AUTHORITATIVE: both the semester plan and the requirement " +
+            "rules were searched, so false means the program does not require it.",
+        },
+        plan_appearances: {
+          type: "array",
+          description: "Every appearance in the semester-by-semester plan.",
+          items: {
+            type: "object",
+            properties: {
+              where: { type: "string", description: "The plan group, e.g. 'Junior/Second Semester'." },
+              kind: { type: "string", description: "'fixed_course' or 'choice'." },
+              course: { type: "string" },
+              choose_one_of: { type: "array", items: { type: "string" } },
+              slot_type: { type: "string" },
+              credits: { type: ["number", "null"] },
+            },
+            required: ["where", "kind"],
+          },
+        },
+        requirement_rule_mentions: {
+          type: "array",
+          description: "Named requirement slots whose rule text mentions the query.",
+          items: {
+            type: "object",
+            properties: { slot_type: { type: "string" }, rule: { type: "string" } },
+            required: ["slot_type", "rule"],
+          },
+        },
+        _source: { type: "string" },
+      },
+      required: [
+        "query",
+        "matched_as",
+        "program",
+        "catalog_year",
+        "found",
+        "plan_appearances",
+        "requirement_rule_mentions",
+        "_source",
+      ],
+    },
   },
   async handler(args) {
     try {
