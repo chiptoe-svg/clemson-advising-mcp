@@ -85,6 +85,32 @@ export const MCP_CATALOG_HTTP_PORT = Number(
   process.env.MCP_CATALOG_HTTP_PORT || 8767,
 );
 
+// --- Trusted reverse proxies -----------------------------------------------
+// Addresses whose `X-Forwarded-For` this server will believe. Everything else
+// is attributed to the socket peer, so a client cannot claim to be someone
+// else by sending the header itself.
+//
+// WHY (observed 2026-08-28): with the servers on loopback behind the campus
+// TLS proxy, `req.socket.remoteAddress` is 127.0.0.1 for EVERY caller. A real
+// request from the campus network through
+// https://gcworkflow.clemson.edu:8443/cu_schedule/ logged
+// `source: "127.0.0.1"` — which reads as "a local caller" but means "we did
+// not look". That is the silence-read-as-absence class again, and it costs two
+// concrete things: the audit log attributes nothing, and the per-source
+// unauthenticated throttle (UNAUTH_LIMIT/min) collapses into ONE shared bucket,
+// so a single scanner at the front door 429s every other client and the
+// throttle can no longer target the abuser.
+//
+// Loopback by default, because that is where a reverse proxy on the same host
+// connects from. Set this only for a proxy on another address, and set it to
+// the PROXY's address — never to a client range.
+export const MCP_TRUSTED_PROXIES = (
+  process.env.MCP_TRUSTED_PROXIES || "127.0.0.1,::1,::ffff:127.0.0.1"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 // --- Credentials -----------------------------------------------------------
 // Per-server bearer keys. Each server accepts only its own key plus its own
 // consumer registry (state/mcp-consumers-<server>.json), so rotating or

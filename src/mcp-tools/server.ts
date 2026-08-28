@@ -26,6 +26,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { MCP_TRUSTED_PROXIES } from "../config-mcp.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -65,6 +66,37 @@ export const AUTH_TIMEOUT_MS = 10_000;
 
 function log(msg: string): void {
   process.stderr.write(`[cuassistant-mcp] ${msg}\n`);
+}
+
+// --- Who is actually calling ---------------------------------------------
+//
+// Behind a reverse proxy the socket peer is the PROXY, so every caller looks
+// identical. `X-Forwarded-For` carries the real one — but only a proxy we trust
+// may set it, or any client could name itself whatever it likes and both the
+// audit log and the per-source throttle would believe it.
+//
+// So: believe the header only when the connection came from a configured
+// trusted proxy (MCP_TRUSTED_PROXIES, loopback by default). Take the RIGHTMOST
+// entry, which is the address the nearest proxy observed; entries to its left
+// are whatever the client sent and are not evidence of anything.
+//
+// Verified against the deployed proxy (Caddy 2.11, 2026-08-28): it REPLACES a
+// client-supplied X-Forwarded-For with the peer it actually saw rather than
+// appending to it — `curl -H 'X-Forwarded-For: 9.9.9.9'` arrived as the real
+// peer address, and so did a forged two-hop chain. Do not rely on that
+// generosity: the trusted-peer check above is what makes this safe, and a
+// different proxy may well append.
+export function clientSource(req: {
+  socket?: { remoteAddress?: string | undefined };
+  headers?: Record<string, string | string[] | undefined>;
+}): string {
+  const peer = req.socket?.remoteAddress ?? "?";
+  if (!MCP_TRUSTED_PROXIES.includes(peer)) return peer;
+  const raw = req.headers?.["x-forwarded-for"];
+  const header = Array.isArray(raw) ? raw.join(",") : raw;
+  if (!header) return peer;
+  const hops = header.split(",").map((h) => h.trim()).filter(Boolean);
+  return hops.length > 0 ? hops[hops.length - 1]! : peer;
 }
 
 // --- Unauthenticated-request accounting ---------------------------------
@@ -541,7 +573,7 @@ export function createHttpHandler(
   const now = opts.now ?? Date.now;
   return (req, res) => {
     void (async () => {
-    const source = req.socket.remoteAddress ?? "?";
+    const source = clientSource(req);
     // The 503 path below covers an authenticator that THROWS. It does not cover
     // one that never settles — a JWKS fetch or introspection call with no
     // timeout — which holds the socket and the handler open indefinitely
