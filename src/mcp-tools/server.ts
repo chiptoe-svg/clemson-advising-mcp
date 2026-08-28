@@ -58,6 +58,9 @@ import { log as appLog } from "../log.js";
 /** Reject bodies larger than this on the HTTP transport (local DoS guard). */
 const MAX_BODY_BYTES = 1_048_576; // 1 MiB
 
+/** An authenticator that has not answered within this long denies the request. */
+export const AUTH_TIMEOUT_MS = 10_000;
+
 function log(msg: string): void {
   process.stderr.write(`[cuassistant-mcp] ${msg}\n`);
 }
@@ -379,6 +382,12 @@ export function isToolInScope(toolName: string, scopes: Set<string>): boolean {
   return !!t && scopes.has(t.operation);
 }
 
+/** Test seam: buildServer is module-private, but wiring tests must exercise the
+ *  real thing (instructions attached, _meta stamped) rather than its parts. */
+export function __buildServerForTest(name: string, principal?: Principal): Server {
+  return buildServer(name, principal);
+}
+
 function buildServer(name: string, principal?: Principal): Server {
   const scopes = principal?.scopes ?? allExposedOperations();
   const consumerId = principal?.id ?? "stdio";
@@ -462,19 +471,48 @@ export function createHttpHandler(
   return (req, res) => {
     void (async () => {
     const source = req.socket.remoteAddress ?? "?";
-    let principal = await authenticate({
-      authHeader: req.headers.authorization,
-      method: req.method ?? "?",
-      url: req.url ?? "/",
-      headers: req.headers,
-      source,
+    // The 503 path below covers an authenticator that THROWS. It does not cover
+    // one that never settles — a JWKS fetch or introspection call with no
+    // timeout — which holds the socket and the handler open indefinitely
+    // (verified: neither headersTimeout nor requestTimeout applies, because both
+    // measure request RECEIPT, which has already completed). Race it.
+    let timer: NodeJS.Timeout | undefined;
+    let principal = await Promise.race([
+      authenticate({
+        authHeader: req.headers.authorization,
+        method: req.method ?? "?",
+        url: req.url ?? "/",
+        headers: req.headers,
+        source,
+      }),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => {
+          appLog.warn("mcp auth timed out", { server: name, source });
+          resolve(null); // fail CLOSED: a slow authenticator denies, never admits
+        }, AUTH_TIMEOUT_MS);
+      }),
+    ]).finally(() => {
+      if (timer) clearTimeout(timer);
     });
     // Expiry is enforced HERE, once, rather than inside each authenticator:
     // registry tokens never expire, but OAuth access tokens always do, and a
     // scheme that forgot the check would fail open. Central and unmissable.
-    if (principal?.expiresAt !== undefined && principal.expiresAt <= now()) {
-      appLog.warn("mcp credential expired", { server: name, id: principal.id });
-      principal = null;
+    // Reject anything that is not a FINITE, FUTURE number. `NaN <= now()` is
+    // false, so the original `!== undefined && <= now()` accepted NaN — and NaN
+    // is the single most likely value a real OAuth authenticator produces on a
+    // malformed token (`Number(claims.exp)`, `Date.parse(bad)`, and
+    // `Number(undefined)` all yield it). Found by adversarial review 2026-08-27
+    // in the one check described as "central and unmissable".
+    if (principal?.expiresAt !== undefined) {
+      const exp = principal.expiresAt;
+      if (typeof exp !== "number" || !Number.isFinite(exp) || exp <= now()) {
+        appLog.warn("mcp credential expired or malformed", {
+          server: name,
+          id: principal.id,
+          expiresAt: String(exp),
+        });
+        principal = null;
+      }
     }
     if (!principal) {
       const verdict = noteUnauthenticated(source, now());

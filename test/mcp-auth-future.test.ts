@@ -176,3 +176,66 @@ test("an authenticator that throws fails CLOSED with 503, not open and not a cra
   assert.equal(out.status, 503, "an auth outage must deny, never admit");
   assert.match(out.body, /authentication_unavailable/);
 });
+
+// --- hardening from adversarial review (2026-08-27) -------------------------
+
+test("a NON-FINITE expiresAt is refused, not accepted", async () => {
+  // `NaN <= now()` is false, so the original check ACCEPTED NaN — and NaN is
+  // the single most likely value a real OAuth authenticator produces from a
+  // malformed token: Number(claims.exp), Date.parse(bad), Number(undefined).
+  // The original test pinned only `expiresAt: 1` and absent.
+  for (const bad of [NaN, Infinity, -Infinity]) {
+    const auth: Authenticator = async () => ({
+      id: "x", scopes: new Set<string>(), authMethod: "oauth", expiresAt: bad,
+    });
+    const out = await run(auth, { authorization: "Bearer whatever" });
+    assert.equal(out.status, 401, `expiresAt=${String(bad)} must be refused`);
+  }
+});
+
+test("a non-numeric expiresAt is refused", async () => {
+  const auth: Authenticator = async () =>
+    ({ id: "x", scopes: new Set<string>(), authMethod: "oauth",
+       expiresAt: "later" } as unknown as Principal);
+  const out = await run(auth, { authorization: "Bearer whatever" });
+  assert.equal(out.status, 401);
+});
+
+test("a far-future expiresAt still passes (the check is not just 'reject if set')", async () => {
+  const auth: Authenticator = async () => ({
+    id: "ok", scopes: new Set<string>(), authMethod: "oauth",
+    expiresAt: Date.now() + 3_600_000,
+  });
+  const out = await run(auth, { authorization: "Bearer whatever" });
+  assert.notEqual(out.status, 401, "a valid future expiry must be accepted");
+});
+
+test("a HUNG authenticator denies rather than holding the request open forever", async () => {
+  // The 503 path covers an authenticator that THROWS. One that never settles —
+  // a JWKS fetch with no timeout — held the socket and handler indefinitely;
+  // neither headersTimeout nor requestTimeout applies, because both measure
+  // request RECEIPT, which has already completed.
+  const { AUTH_TIMEOUT_MS } = await import("../src/mcp-tools/server.ts");
+  assert.ok(AUTH_TIMEOUT_MS > 0 && AUTH_TIMEOUT_MS <= 30_000, "timeout must be bounded and sane");
+
+  const hung: Authenticator = () => new Promise<null>(() => {});
+  const started = Date.now();
+  const out = await new Promise<{ status: number }>((resolve) => {
+    __resetUnauthTrackerForTest();
+    const handler = createHttpHandler("t", hung);
+    const req = fakeReq({ authorization: "Bearer whatever" });
+    const { captured, res } = captureRes();
+    handler(
+      req as unknown as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
+    const poll = setInterval(() => {
+      if (captured.status !== 0) { clearInterval(poll); resolve(captured); }
+    }, 50);
+  });
+  assert.equal(out.status, 401, "a hung authenticator must fail CLOSED");
+  assert.ok(
+    Date.now() - started < AUTH_TIMEOUT_MS + 5_000,
+    "it must resolve near the timeout, not hang",
+  );
+});

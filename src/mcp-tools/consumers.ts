@@ -91,11 +91,28 @@ export function loadConsumers(registry?: string): Consumer[] {
 /** Persist the registry with owner-only permissions. */
 export function saveConsumers(consumers: Consumer[], registry?: string): void {
   fs.mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 });
-  fs.writeFileSync(
-    REGISTRY_PATH(registry),
-    JSON.stringify({ consumers }, null, 2) + "\n",
-    { mode: 0o600 },
-  );
+  // ATOMIC: write to a temp file in the same directory, then rename. A plain
+  // writeFileSync truncates in place, so a concurrent reader sees a partial
+  // file — measured at 21% of reads during a write — and parseConsumers
+  // swallows the JSON error and returns []. A concurrent read-modify-write
+  // (mcp:pair --revoke) then wrote that [] back: an adversarial-review probe
+  // destroyed all 3001 seeded entries this way. rename(2) is atomic within a
+  // filesystem, so a reader sees either the old file or the new one.
+  const target = REGISTRY_PATH(registry);
+  const tmp = `${target}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify({ consumers }, null, 2) + "\n", {
+    mode: 0o600,
+  });
+  try {
+    fs.renameSync(tmp, target);
+  } catch (e) {
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      /* best effort */
+    }
+    throw e;
+  }
   try {
     fs.chmodSync(REGISTRY_PATH(registry), 0o600);
   } catch {
