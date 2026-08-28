@@ -66,6 +66,21 @@ function relationshipFor(queried: CourseRow, paired: CourseRow): string {
  * directions); falls back to parsing the lab-description prose only when that
  * column is empty. Empty array when there is no coreq or the DB is unavailable.
  */
+/**
+ * KNOWN SHAPE, currently harmless (2026-08-28): this returns `[]` for four
+ * distinct reasons — malformed input, an unopenable DB, a course not in the
+ * catalog, and genuinely no corequisites — and the caller omits the field
+ * entirely when it is empty, so all four read to a model as "no corequisites".
+ * That is the silence-read-as-absence defect documented in
+ * docs/mcp-architecture.md, which has bitten this project four other times.
+ *
+ * Left as-is deliberately rather than fixed blind: the DB-open branch is nearly
+ * unreachable (the caller's getCourse opens the same file first and errors),
+ * the not-found branch is now pre-empted by an explicit not-found error, and
+ * ZERO courses currently have coreq_text without a parse — against 820 for
+ * prereqs, which is why that one was worth a three-state answer and this is not
+ * yet. If that count ever moves off zero, this needs the same treatment.
+ */
 export function findCoreqs(rawCode: string): CoreqCourse[] {
   const code = normCourseCode(rawCode);
   if (!code) return [];

@@ -247,6 +247,36 @@ the next call.
 | Catalog tools fail, schedule tools fine | `core/` venv or DB missing | `ls core/db/gc_advisor.db core/.venv/bin/python` |
 | Answers are wrong but confident | wrong store queried — see below | `find-course-in-program` |
 
+### The recurring defect: silence read as absence
+
+Five instances in one week, across two codebases. Worth stating as a design rule
+because it keeps arriving in different disguises:
+
+| Where | Silence | Reported as |
+|---|---|---|
+| `find-requirement-sections` (PCID) | one of two requirement stores had no row | "no such requirement exists" |
+| `checkPrereqEligible` | a prereq rule that did not parse | "no prerequisite" / "not eligible" |
+| core plan-next | a course absent from the student's plan | "unreachable" |
+| a bare freshness timestamp | never crawled | "unchanged" |
+| `findCoreqs` (latent) | malformed `coreq_parsed`, or an unreadable DB | "no corequisites" |
+
+The shared root, as the core maintainer put it: **the data layer represents
+presence well and the absence of knowledge not at all.** So every consumer has to
+invent its own encoding for "I don't know", and the cheapest encoding — an empty
+array, a false, a null — is indistinguishable from "no".
+
+The rule that follows, and the one question to ask of any new field:
+
+> **What does this return when we haven't looked?**
+
+If the answer is the same value as "we looked and there is nothing", the field is
+wrong. Give it a third state (`prereqEligible` is now
+`eligible | not_eligible | undetermined`), or carry a note saying what ground was
+covered (`find-course-in-program` states that both stores were searched, which is
+what makes its `found: false` authoritative), or return an error. What is not
+acceptable is a confident negative the data cannot support — that is worse than
+no answer, because an advisor acts on it.
+
 ### The "wrong store" class of bug (worth understanding)
 
 A program's obligations live in **two** places: `requirement_rule` (named slots)
