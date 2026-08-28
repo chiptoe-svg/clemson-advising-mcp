@@ -204,3 +204,36 @@ test("a well-formed policy in a child process still grants public (control)", as
   assert.equal(got.pub, true, "the real policy must still grant public");
   assert.equal(got.student, false, "and must still refuse student");
 });
+
+// --- clemson_hosted (owner approved 2026-08-28) -----------------------------
+//
+// agent_backends had no vocabulary for Clemson-hosted inference, so the
+// advisor — whose chain is spark,rcd — could not describe itself and fell back
+// to the "openai_api" default in src/config-mcp.ts. That default is why every
+// attestation on these servers was false. This entry is what lets each caller
+// attest honestly once tokens are issued per consumer.
+
+test("clemson_hosted is authorized and unrestricted by data class", () => {
+  // Unrestricted on purpose: these are exactly the destinations
+  // docs/policy/student-data.md authorizes for IDENTIFIABLE student data, so
+  // narrowing them would be wrong, not safer.
+  assert.equal(isAgentBackendAuthorized("clemson_hosted"), true);
+  assert.equal(isAgentBackendAuthorized("clemson_hosted", "public"), true);
+  assert.equal(isAgentBackendAuthorized("clemson_hosted", "student"), true);
+});
+
+test("clemson_hosted is declared local scope, unlike the external backends", () => {
+  const entry = getAgentBackends().find((b) => b.provider === "clemson_hosted");
+  assert.ok(entry, "the record must exist");
+  assert.equal(entry.scope, "local");
+  assert.match(entry.basis, /does not leave Clemson/i);
+  // The distinction the schema cannot express must be stated in the basis, so a
+  // reviewer is not left to infer that "local" means "on this machine" here.
+  assert.match(entry.basis, /leaves this host/i);
+});
+
+test("adding clemson_hosted did not disturb the existing scoped grant", () => {
+  assert.equal(isAgentBackendAuthorized("anthropic", "public"), true);
+  assert.equal(isAgentBackendAuthorized("anthropic", "student"), false);
+  assert.equal(isAgentBackendAuthorized("openai_api", "student"), true);
+});

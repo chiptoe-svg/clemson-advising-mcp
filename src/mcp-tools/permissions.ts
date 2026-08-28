@@ -274,8 +274,45 @@ export function describeMcpOperations(): Array<{
  * which fails if this map ever again omits an operation that
  * MCP_ALLOWED_OPERATIONS declares.
  */
+// SCOPE VOCABULARY.
+//
+// `clemson` grants everything and is kept for compatibility with any token
+// already carrying it. The two narrower tokens below exist because scoping was
+// all-or-nothing until 2026-08-28: an agent that only needed class times had to
+// be granted the degree catalog and the audit engine as well. They map to the
+// two servers, which is the boundary consumers actually reason about — a
+// schedule-only agent takes `clemson.schedule` and is structurally unable to
+// call a catalog tool, on either server.
+//
+// Adding an operation to a tool WITHOUT adding it to one of these lists makes
+// it reachable only by an unscoped (full-access) token;
+// test/mcp-registry-consistency.test.ts fails on any operation missing from the
+// union, so the omission is loud rather than silent.
+const CLEMSON_SCHEDULE_OPS = [
+  "clemson.list_terms",
+  "clemson.search_classes",
+  "clemson.find_alternatives",
+  "clemson.check_conflicts",
+  "clemson.course_details",
+  "clemson.find_conflict_free_schedule",
+  "clemson.schedule_freshness",
+];
+
+const CLEMSON_CATALOG_OPS = [
+  "clemson.gc_catalog_years",
+  "clemson.gc_program_plan",
+  "clemson.gc_requirement_rules",
+  "clemson.gc_find_course_in_program",
+  "clemson.gc_gen_ed",
+  "clemson.gc_audit_progress",
+  "clemson.find_requirement_sections",
+  "clemson.gc_program_requirements",
+];
+
 export const SCOPE_OPERATIONS: Record<string, string[]> = {
   host: ["host.list_skills", "host.get_skill_docs"],
+  "clemson.schedule": CLEMSON_SCHEDULE_OPS,
+  "clemson.catalog": CLEMSON_CATALOG_OPS,
   clemson: [
     "clemson.list_terms",
     "clemson.search_classes",

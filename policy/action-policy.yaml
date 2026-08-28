@@ -255,6 +255,32 @@ data_egress:
   # is the IT-reviewable record of which AI providers Clemson data may reach via
   # an agent's own reasoning model (distinct from the classifier list above).
   agent_backends:
+    # Clemson-hosted inference: the DGX Spark box (gcspark.clemson.edu) and the
+    # RCD campus LLM service. This is the advisor's own model chain
+    # (ADVISOR_PROVIDER_CHAIN defaults to "spark,rcd") and the most
+    # privacy-preserving backend in this table — content stays on Clemson-owned,
+    # Clemson-managed hardware and reaches no third party.
+    #
+    # Added 2026-08-28 (owner approved). It was missing entirely, so the advisor
+    # had no way to describe itself and fell back to the "openai_api" default in
+    # src/config-mcp.ts — a record of a route it does not use. Its absence is
+    # what made every attestation on these servers false; adding it is what lets
+    # each caller attest honestly once tokens are issued per consumer.
+    #
+    # No `data_classes`, i.e. unrestricted: these are exactly the destinations
+    # docs/policy/student-data.md already authorizes for IDENTIFIABLE student
+    # data, so nothing here needs narrowing.
+    #
+    # `scope: local` needs its qualifier read. The two values this schema offers
+    # are local and external; the existing `local` entry below means "does not
+    # leave the machine". Spark and RCD leave this host but do NOT leave
+    # Clemson — a third category the schema has no word for. `local` is the
+    # closer of the two and the basis states the distinction rather than
+    # letting a reviewer infer it.
+    - provider: clemson_hosted
+      scope: local
+      basis: "Clemson-owned, Clemson-managed inference (DGX Spark, RCD campus LLM); leaves this host, does not leave Clemson"
+      authorized: true
     - provider: chatgpt_edu
       scope: external
       basis: "ChatGPT Edu institutional agreement (Clemson)"
