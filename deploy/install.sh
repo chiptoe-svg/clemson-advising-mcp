@@ -78,8 +78,15 @@ else
 fi
 
 # Ports must be free, or launchd will restart-loop a server that cannot bind.
+#
+# SCOPED TO LOOPBACK, and that is not a detail. The servers bind 127.0.0.1, but
+# `lsof -iTCP:8766` matches that port on EVERY address — so a forwarder or any
+# other service listening on a different interface reads as "in use" and this
+# preflight refuses to install against a port that is genuinely free. Observed
+# 2026-08-28 during the first real cutover: a container-bridge TCP forwarder on
+# the bridge gateway address blocked an install onto free loopback ports.
 for p in 8766 8767; do
-  if lsof -nP -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1; then
+  if lsof -nP -iTCP@127.0.0.1:"$p" -sTCP:LISTEN >/dev/null 2>&1; then
     if launchctl list 2>/dev/null | grep -q "advising-mcp"; then
       warn "port $p in use (likely this service — it will be restarted)"
     else
