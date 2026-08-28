@@ -103,6 +103,26 @@ export const MCP_PUBLIC_AUTH_TOKEN_PROVIDER =
 export const MCP_CATALOG_AUTH_TOKEN_PROVIDER =
   process.env.MCP_CATALOG_AUTH_TOKEN_PROVIDER || "openai_api";
 
+// --- The ADVISOR'S OWN client credentials ----------------------------------
+//
+// The advisor is a CLIENT of 8766/8767. It used to present MCP_*_AUTH_TOKEN —
+// the very value the SERVERS accept as their shared env token — so the advisor
+// was indistinguishable from every other caller, and every row in
+// state/analytics/mcp-calls.jsonl read `consumer_id: "env-token"`.
+//
+// These variables let the advisor carry its OWN paired credential (minted with
+// `npm run mcp:pair --provider clemson_hosted`), which is what makes per-caller
+// attribution and honest attestation possible: the advisor runs on Clemson-
+// hosted models, an agent runs on Anthropic, and one shared token cannot
+// truthfully attest both.
+//
+// They FALL BACK to the shared env token, so an unconfigured deployment behaves
+// exactly as before and this change cannot break anyone by itself.
+export const ADVISOR_MCP_PUBLIC_TOKEN =
+  process.env.ADVISOR_MCP_PUBLIC_TOKEN || MCP_PUBLIC_AUTH_TOKEN;
+export const ADVISOR_MCP_CATALOG_TOKEN =
+  process.env.ADVISOR_MCP_CATALOG_TOKEN || MCP_CATALOG_AUTH_TOKEN;
+
 // --- Catalog core (core/) --------------------------------------------------
 // The catalog data and the Python that BUILDS it. Since the SQL-in-Node port
 // (2026-08-27) the serving path reads GC_ADVISOR_DB directly and never spawns
