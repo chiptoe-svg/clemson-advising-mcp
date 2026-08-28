@@ -30,9 +30,9 @@ import {
   listCatalogYears,
   openCatalog,
 } from "../src/catalog-read.ts";
-import { SKIP_NO_CORE_DB, SKIP_NO_CORE_PYTHON, requireArtifacts } from "./_artifacts.ts";
+import { SKIP_NO_CORE_DB, SKIP_NO_CORE_PYTHON, requireCoreArtifacts } from "./_artifacts.ts";
 
-requireArtifacts("core-db", "core-python");
+requireCoreArtifacts({ python: true });
 
 const SKIP = SKIP_NO_CORE_DB || SKIP_NO_CORE_PYTHON;
 

@@ -205,7 +205,17 @@ function asCliError(err: unknown, year: string): never {
   const msg = err instanceof Error ? err.message : String(err);
   if (/^No program /.test(msg)) {
     const known = withCatalog((db) => knownPrograms(db, year));
-    throw new GcCliError(msg, known);
+    // The list must go in the MESSAGE, not only on the property. The MCP tool
+    // handlers surface `e.message` and nothing else, so a knownPrograms property
+    // never reaches the model — which is how the port silently dropped the
+    // disambiguation an advisor asking about "Economics" used to get, while
+    // test/core-cli-e2e.test.ts kept passing because it asserts the property.
+    // Format is byte-identical to rethrowCliFailure's, so the two paths are
+    // genuinely indistinguishable downstream, as the port claimed.
+    throw new GcCliError(
+      known.length ? `${msg}. Known programs: ${known.join("; ")}` : msg,
+      known,
+    );
   }
   throw err;
 }

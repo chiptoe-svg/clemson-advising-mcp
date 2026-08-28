@@ -99,6 +99,20 @@ export function skipAny(...reasons: Array<false | string>): false | string {
  * @param terms snapshot term codes this file needs; none means "any snapshot".
  */
 export function requireArtifacts(...terms: string[]): void {
+  // A term code is six digits (e.g. "202608"). Anything else is a caller
+  // mistake, and silently resolving it to state/clemson/<junk>.db produced a
+  // gate that had been RED since 2026-08-27 while every commit reported a green
+  // `npm test` — three files passed "core-db"/"core-python" here as if they
+  // were terms. Refuse loudly rather than misinterpret: the same lesson the
+  // data_classes parser had to learn the same day.
+  for (const t of terms) {
+    if (!/^\d{6}$/.test(t)) {
+      throw new Error(
+        `requireArtifacts() takes six-digit Banner term codes, got ${JSON.stringify(t)}. ` +
+          `For core-database tests use requireCoreArtifacts().`,
+      );
+    }
+  }
   if (process.env.REQUIRE_ARTIFACTS !== "1") return;
   const missing: string[] = [];
   if (!CORE_DB_PRESENT) missing.push(`GC_ADVISOR_DB=${GC_ADVISOR_DB}`);
@@ -116,6 +130,29 @@ export function requireArtifacts(...terms: string[]): void {
     throw new Error(
       `REQUIRE_ARTIFACTS=1 but these are missing, so artifact-dependent tests ` +
         `would silently skip: ${missing.join(", ")}`,
+    );
+  }
+}
+
+/**
+ * Gate for tests that need the CATALOG artifacts and nothing else — the built
+ * core DB, and optionally the Python venv for differential tests.
+ *
+ * Distinct from requireArtifacts() because those tests need no Banner snapshot
+ * and no gateway key; demanding them would fail on a machine that legitimately
+ * has the catalog but not the schedule. Takes no strings, so the term-code
+ * confusion that silently disabled the gate cannot recur here.
+ */
+export function requireCoreArtifacts(opts: { python?: boolean } = {}): void {
+  if (process.env.REQUIRE_ARTIFACTS !== "1") return;
+  const missing: string[] = [];
+  if (!CORE_DB_PRESENT) missing.push(`GC_ADVISOR_DB=${GC_ADVISOR_DB}`);
+  if (opts.python && !CORE_PYTHON_PRESENT)
+    missing.push(`GC_ADVISOR_PYTHON=${GC_ADVISOR_PYTHON}`);
+  if (missing.length > 0) {
+    throw new Error(
+      `REQUIRE_ARTIFACTS=1 but these are missing, so catalog tests would ` +
+        `silently skip: ${missing.join(", ")}`,
     );
   }
 }

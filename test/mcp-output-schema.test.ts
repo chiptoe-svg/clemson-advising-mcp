@@ -20,9 +20,9 @@ import test from "node:test";
 
 import { okJson, type McpToolDefinition } from "../src/mcp-tools/types.ts";
 import { findCourseInProgram } from "../src/mcp-tools/catalog.ts";
-import { SKIP_NO_CORE_DB, requireArtifacts } from "./_artifacts.ts";
+import { SKIP_NO_CORE_DB, requireCoreArtifacts } from "./_artifacts.ts";
 
-requireArtifacts("core-db");
+requireCoreArtifacts();
 
 type Schema = Record<string, any>;
 

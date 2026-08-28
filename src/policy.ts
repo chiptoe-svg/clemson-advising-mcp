@@ -100,8 +100,14 @@ export function agentBackendAuthorizedIn(
 ): boolean {
   const entry = backends.find((b) => b.provider === provider);
   if (entry?.authorized !== true) return false;
-  // Unrestricted entry: authorized for every surface.
-  if (!entry.data_classes || entry.data_classes.length === 0) return true;
+  // ONLY an absent data_classes field means unrestricted. An EMPTY array does
+  // not — it is what a malformed entry degrades to, and treating it as
+  // unrestricted turned a one-character typo ("Public", "publik", or the YAML
+  // scalar form) into a silent grant of student-data access to a backend scoped
+  // to public. Found by adversarial review 2026-08-27; the comment here
+  // previously claimed the opposite of what the code did.
+  if (entry.data_classes === undefined) return true;
+  if (entry.data_classes.length === 0) return false;
   // Restricted entry: the caller must declare a class, and it must be listed.
   if (!dataClass) return false;
   return entry.data_classes.includes(dataClass);
@@ -161,14 +167,21 @@ function parseDataEgress(raw: unknown): DataEgress | undefined {
             b.scope === "local" ? ("local" as const) : ("external" as const),
           basis: typeof b.basis === "string" ? b.basis : "",
           authorized: b.authorized === true,
-          // Only the two known classes survive parsing; an unrecognised value
-          // is dropped rather than trusted, so a typo narrows access instead
-          // of silently widening it.
-          ...(Array.isArray(b.data_classes)
+          // An unrecognised class is REFUSED, not dropped. Dropping it left an
+          // empty array, which the checker read as unrestricted — so a typo
+          // widened access instead of narrowing it. Now a malformed entry
+          // becomes an empty array that DENIES (see agentBackendAuthorizedIn),
+          // and a non-array value is likewise treated as a restriction that
+          // matches nothing rather than as an absent field.
+          ...(b.data_classes !== undefined
             ? {
-                data_classes: b.data_classes
-                  .map(String)
-                  .filter((c): c is DataClass => c === "public" || c === "student"),
+                data_classes: Array.isArray(b.data_classes)
+                  ? b.data_classes.every(
+                      (c) => c === "public" || c === "student",
+                    )
+                    ? (b.data_classes as DataClass[])
+                    : [] // any unrecognised member poisons the whole list -> deny
+                  : [], // a scalar or object where an array belongs -> deny
               }
             : {}),
         }))
