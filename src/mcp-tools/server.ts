@@ -100,6 +100,45 @@ function noteUnauthenticated(source: string, now: number): "log" | "throttle" | 
   return "silent";
 }
 
+// --- Per-consumer rate limiting -----------------------------------------
+//
+// The throttle above bounds UNAUTHENTICATED attempts per source address. An
+// AUTHENTICATED consumer was unbounded: a paired agent in a retry loop, or one
+// whose token leaked, could saturate the server without ever tripping a limit.
+// Tolerable while the only caller was the advisor on loopback; not tolerable
+// once these are campus-served and tokens are handed to other people's agents
+// (extraction spec s4).
+//
+// Deliberately generous — this is an abuse ceiling, not a quota. Measured
+// production shape is ~2.65 tool calls per advising turn and ~10 req/s at 200
+// concurrent users, so a single consumer doing 600/min is already two orders of
+// magnitude past normal use. A legitimate burst (an agent fanning out over a
+// course list) stays well under it.
+//
+// Keyed on the CONSUMER, not the address: several agents can share an egress IP,
+// and the point is to bound one credential's blast radius, not one network's.
+const CONSUMER_WINDOW_MS = 60_000;
+export const CONSUMER_LIMIT = Number(process.env.MCP_CONSUMER_RATE_LIMIT || 600);
+const consumerHits = new Map<string, { windowStart: number; count: number }>();
+
+export function __resetConsumerRateForTest(): void {
+  consumerHits.clear();
+}
+
+/** True when this consumer has exceeded its per-minute ceiling. */
+function consumerOverLimit(id: string, now: number): boolean {
+  let e = consumerHits.get(id);
+  if (!e || now - e.windowStart >= CONSUMER_WINDOW_MS) {
+    e = { windowStart: now, count: 0 };
+    consumerHits.set(id, e);
+    // Bounded: one entry per registered consumer plus env-token, but a
+    // pathological id set cannot grow this without limit.
+    if (consumerHits.size > 10_000) consumerHits.clear();
+  }
+  e.count += 1;
+  return e.count > CONSUMER_LIMIT;
+}
+
 const allTools: McpToolDefinition[] = [];
 const toolMap = new Map<string, McpToolDefinition>();
 
@@ -571,6 +610,23 @@ export function createHttpHandler(
       res.end(JSON.stringify({ error: "unauthorized" }));
       return;
     }
+    // Bound the authenticated caller too. Placed AFTER auth so the limit is per
+    // credential rather than per address, and BEFORE the body is read so a
+    // flooding consumer is cut off cheaply.
+    if (consumerOverLimit(principal.id, now())) {
+      appLog.warn("mcp consumer rate limit", {
+        server: name,
+        consumer: principal.id,
+        limit: CONSUMER_LIMIT,
+      });
+      res.writeHead(429, {
+        "content-type": "application/json",
+        "retry-after": "60",
+      });
+      res.end(JSON.stringify({ error: "rate_limited", consumer: principal.id }));
+      return;
+    }
+
     const chunks: Buffer[] = [];
     let size = 0;
     let tooLarge = false;
