@@ -163,6 +163,7 @@ any tool/operation change and commit the result;
 | Tool                          | Server              | Operation key                         | Policy action                         | Backend       | Category          | Exposed |
 | ----------------------------- | ------------------- | ------------------------------------- | ------------------------------------- | ------------- | ----------------- | ------- |
 | `audit-gc-progress`           | cuassistant-catalog | `clemson.gc_audit_progress`           | `clemson.gc_audit_progress`           | external-http | curriculum-extras | yes     |
+| `find-course-in-program`      | cuassistant-catalog | `clemson.gc_find_course_in_program`   | `clemson.gc_find_course_in_program`   | external-http | curriculum-extras | yes     |
 | `find-requirement-sections`   | cuassistant-catalog | `clemson.find_requirement_sections`   | `clemson.find_requirement_sections`   | external-http | core              | yes     |
 | `get-gc-gen-ed`               | cuassistant-catalog | `clemson.gc_gen_ed`                   | `clemson.gc_gen_ed`                   | external-http | curriculum-extras | yes     |
 | `get-gc-program-plan`         | cuassistant-catalog | `clemson.gc_program_plan`             | `clemson.gc_program_plan`             | external-http | curriculum-extras | yes     |

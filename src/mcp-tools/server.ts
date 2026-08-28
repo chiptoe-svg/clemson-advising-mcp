@@ -44,8 +44,9 @@ import {
   expandScopes,
   isMcpOperationExposed,
 } from "./permissions.js";
-import { isAgentBackendAuthorized } from "../policy.js";
+import { isAgentBackendAuthorized, type DataClass } from "../policy.js";
 import { auditContext } from "./audit.js";
+import { recordMcpCall } from "./usage.js";
 import { log as appLog } from "../log.js";
 
 /** Reject bodies larger than this on the HTTP transport (local DoS guard). */
@@ -201,6 +202,17 @@ export interface ResolveAuthOptions {
   load?: () => Consumer[];
   /** Called with the consumer id on each successful auth (for last-seen touch). */
   onSeen?: (consumerId: string) => void;
+  /**
+   * The data class this server serves. Passed to the policy attestation check,
+   * so a backend restricted to `public` (policy/action-policy.yaml
+   * `agent_backends[].data_classes`) is accepted here only if this server
+   * declares itself public.
+   *
+   * Omitted = undeclared. A restricted backend is REFUSED against an undeclared
+   * server — fail closed, so adding a new server without saying what it serves
+   * loses access rather than silently inheriting it.
+   */
+  dataClass?: DataClass;
 }
 
 /**
@@ -246,10 +258,14 @@ export function resolveCredentialedAuth(
     // provider that policy currently authorizes. Flipping authorized:false in
     // policy cuts the agent off on the next request after a process restart
     // (policy is loaded once at process start, like every other policy action).
-    if (!consumer.provider || !isAgentBackendAuthorized(consumer.provider)) {
+    if (
+      !consumer.provider ||
+      !isAgentBackendAuthorized(consumer.provider, opts.dataClass)
+    ) {
       log(
         `auth: rejecting "${consumer.id}" — provider ` +
-          `"${consumer.provider ?? "(none)"}" not authorized (model_unauthorized)`,
+          `"${consumer.provider ?? "(none)"}" not authorized for data class ` +
+          `"${opts.dataClass ?? "(undeclared)"}" (model_unauthorized)`,
       );
       return null;
     }
@@ -303,6 +319,16 @@ function buildServer(name: string, principal?: Principal): Server {
         isError: true,
       };
     }
+    // Usage accounting BEFORE the handler runs: the question this answers is
+    // "who called what, how often", and a call that throws or times out is
+    // still a call. Recording after the await would silently under-count
+    // exactly the failures worth seeing. Never throws (see usage.ts).
+    recordMcpCall({
+      server: name,
+      consumerId,
+      provider: principal?.provider,
+      tool: toolName,
+    });
     return auditContext.run({ consumerId, provider: principal?.provider }, () =>
       tool.handler(args ?? {}),
     );
@@ -401,8 +427,20 @@ export type AuthConfig =
        * It is also what makes the fail-closed check meaningful for them: with
        * an empty registry, a missing env key means zero consumers and
        * resolveCredentialedAuth throws at startup instead of serving open.
+       *
+       * UPDATE 2026-08-26: 8766/8767 now pass a loader scoped to their OWN
+       * registry file (`loadConsumers("public")` / `loadConsumers("catalog")`),
+       * not `() => []`. Every guarantee above still holds — the files are
+       * per-server, so a token minted for one is not accepted by the other and
+       * revocation stays per-server. What changed is only that each server can
+       * now have MORE than one credential, so callers are individually
+       * identifiable in state/analytics/mcp-calls.jsonl instead of sharing one
+       * anonymous env token. 8765's registry (the unnamed default path) is
+       * still never consulted here.
        */
       load?: () => Consumer[];
+      /** The data class this server serves; see ResolveAuthOptions.dataClass. */
+      dataClass?: DataClass;
     };
 
 export interface StartOptions {
@@ -438,6 +476,7 @@ export async function startMcpServer(
         envToken: opts.auth.envToken,
         envTokenProvider: opts.auth.envTokenProvider,
         onSeen: opts.auth.onSeen,
+        dataClass: opts.auth.dataClass,
         load,
       });
       const count = load().length + (opts.auth.envToken ? 1 : 0);

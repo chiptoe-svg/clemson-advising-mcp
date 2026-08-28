@@ -38,11 +38,26 @@ export interface EgressClassifier {
  * same `provider` vocabulary. `authorized` is the operator's attestation
  * (recorded, not proven) that Clemson's agreement covers it.
  */
+/** Data sensitivity classes a backend may be authorized for. */
+export type DataClass = "public" | "student";
+
 export interface AgentBackend {
   provider: string;
   scope: "external" | "local";
   basis: string;
   authorized: boolean;
+  /**
+   * Restricts this backend to specific data classes. ABSENT = unrestricted
+   * (authorized wherever `authorized` is true) — that is the shape every
+   * pre-2026-08-26 entry has, so omitting it preserves existing behaviour.
+   *
+   * When PRESENT, a caller that does not declare its own data class is
+   * REJECTED: an undeclared surface cannot be shown to be one of the classes
+   * this entry allows, and a restricted backend must fail closed rather than
+   * inherit unrestricted access from a caller that forgot to say what it
+   * serves.
+   */
+  data_classes?: DataClass[];
 }
 
 export interface DataEgress {
@@ -81,8 +96,15 @@ export function egressAuthorizedIn(
 export function agentBackendAuthorizedIn(
   backends: AgentBackend[],
   provider: string,
+  dataClass?: DataClass,
 ): boolean {
-  return backends.find((b) => b.provider === provider)?.authorized === true;
+  const entry = backends.find((b) => b.provider === provider);
+  if (entry?.authorized !== true) return false;
+  // Unrestricted entry: authorized for every surface.
+  if (!entry.data_classes || entry.data_classes.length === 0) return true;
+  // Restricted entry: the caller must declare a class, and it must be listed.
+  if (!dataClass) return false;
+  return entry.data_classes.includes(dataClass);
 }
 
 function loadPolicyFile(): ActionPolicy {
@@ -139,6 +161,16 @@ function parseDataEgress(raw: unknown): DataEgress | undefined {
             b.scope === "local" ? ("local" as const) : ("external" as const),
           basis: typeof b.basis === "string" ? b.basis : "",
           authorized: b.authorized === true,
+          // Only the two known classes survive parsing; an unrecognised value
+          // is dropped rather than trusted, so a typo narrows access instead
+          // of silently widening it.
+          ...(Array.isArray(b.data_classes)
+            ? {
+                data_classes: b.data_classes
+                  .map(String)
+                  .filter((c): c is DataClass => c === "public" || c === "student"),
+              }
+            : {}),
         }))
     : [];
   if (classifiers.length === 0 && agent_backends.length === 0) return undefined;
@@ -172,10 +204,14 @@ export function getEgressClassifiers(): EgressClassifier[] {
 }
 
 /** Whether `provider` is an authorized agent backend per policy. Fail closed. */
-export function isAgentBackendAuthorized(provider: string): boolean {
+export function isAgentBackendAuthorized(
+  provider: string,
+  dataClass?: DataClass,
+): boolean {
   return agentBackendAuthorizedIn(
     ACTION_POLICY.data_egress?.agent_backends ?? [],
     provider,
+    dataClass,
   );
 }
 

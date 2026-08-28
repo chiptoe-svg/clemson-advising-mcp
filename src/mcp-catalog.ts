@@ -3,13 +3,21 @@
 // query.py for catalog data. Defaults to stdio; serves HTTP when
 // MCP_TRANSPORT=http. Holds no secrets and only reads public catalog data.
 //
-// AUTH: a single bearer, MCP_CATALOG_AUTH_TOKEN, distinct from the public
-// server's key and from anything on 8765. See src/mcp-public.ts for the full
-// rationale of the empty consumer source and the fail-closed startup.
+// AUTH: MCP_CATALOG_AUTH_TOKEN, distinct from the public server's key and from
+// anything on 8765, PLUS this server's own consumer registry
+// (state/mcp-consumers-catalog.json — a different file from the public
+// server's, so tokens are not interchangeable). See src/mcp-public.ts for the
+// full rationale and the fail-closed startup.
+//
+// DATA CLASS: "public" — published GC curriculum/catalog data, no student
+// information. audit-gc-progress takes a progress LEDGER supplied by the
+// caller (course codes, terms, credits); it stores nothing and returns catalog
+// verdicts, so this server holds no student records of its own.
 //
 // BIND: MCP_CATALOG_HTTP_HOST (its own variable, default loopback). Set to
 // 0.0.0.0 for campus reachability; off loopback the bearer is the only gate.
 import "./mcp-tools/index-catalog.js";
+import { loadConsumers, recordSeen } from "./mcp-tools/consumers.js";
 import { CATALOG_SKILLS, setSkillExposure } from "./mcp-tools/skills.js";
 import { startMcpServer } from "./mcp-tools/server.js";
 import { applyGcSkillRenames } from "./mcp-tools/gc-skill-renames.js";
@@ -56,7 +64,9 @@ startMcpServer({
     kind: "registry",
     envToken: MCP_CATALOG_AUTH_TOKEN,
     envTokenProvider: MCP_CATALOG_AUTH_TOKEN_PROVIDER,
-    load: () => [],
+    dataClass: "public",
+    load: () => loadConsumers("catalog"),
+    onSeen: (id) => recordSeen(id, new Date().toISOString(), "catalog"),
   },
 }).catch((err) => {
   process.stderr.write(

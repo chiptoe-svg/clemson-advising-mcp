@@ -36,7 +36,17 @@ export interface Consumer {
   scopes?: string[];
 }
 
-const REGISTRY_PATH = (): string => path.join(STATE_DIR, "mcp-consumers.json");
+/**
+ * Registry file for one server. Each HTTP server keeps its OWN registry so a
+ * token minted for one is not accepted by another — preserving the per-server
+ * key isolation the env tokens have always had (see src/mcp-public.ts's AUTH
+ * note). The unnamed default is the original path, kept for token-portal.ts.
+ */
+const REGISTRY_PATH = (registry?: string): string =>
+  path.join(
+    STATE_DIR,
+    registry ? `mcp-consumers-${registry}.json` : "mcp-consumers.json",
+  );
 const DAY_MS = 86_400_000;
 
 /** sha256 hex digest of a token. */
@@ -70,24 +80,24 @@ export function parseConsumers(raw: string): Consumer[] {
 }
 
 /** Load the on-disk registry (empty when the file is absent or unreadable). */
-export function loadConsumers(): Consumer[] {
+export function loadConsumers(registry?: string): Consumer[] {
   try {
-    return parseConsumers(fs.readFileSync(REGISTRY_PATH(), "utf-8"));
+    return parseConsumers(fs.readFileSync(REGISTRY_PATH(registry), "utf-8"));
   } catch {
     return [];
   }
 }
 
 /** Persist the registry with owner-only permissions. */
-export function saveConsumers(consumers: Consumer[]): void {
+export function saveConsumers(consumers: Consumer[], registry?: string): void {
   fs.mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 });
   fs.writeFileSync(
-    REGISTRY_PATH(),
+    REGISTRY_PATH(registry),
     JSON.stringify({ consumers }, null, 2) + "\n",
     { mode: 0o600 },
   );
   try {
-    fs.chmodSync(REGISTRY_PATH(), 0o600);
+    fs.chmodSync(REGISTRY_PATH(registry), 0o600);
   } catch {
     /* best effort */
   }
@@ -127,13 +137,13 @@ export function authenticateBearer(
 }
 
 /** Update a consumer's last_seen_at (best effort; no-op for unknown ids). */
-export function recordSeen(id: string, nowIso: string): void {
+export function recordSeen(id: string, nowIso: string, registry?: string): void {
   try {
-    const list = loadConsumers();
+    const list = loadConsumers(registry);
     const c = list.find((x) => x.id === id);
     if (!c) return; // e.g. the synthetic "env-token" is not on disk
     c.last_seen_at = nowIso;
-    saveConsumers(list);
+    saveConsumers(list, registry);
   } catch {
     /* best effort */
   }

@@ -74,6 +74,18 @@ actions:
     constraints:
       - public_data_only
 
+  # Searches the semester plan AND the requirement rules for one course or
+  # subject code. Same public catalog data as the two tools it spans; exists
+  # because a not-found from either one alone is not evidence of absence
+  # (2026-08-27 PCID miss).
+  - id: clemson.gc_find_course_in_program
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
   - id: clemson.gc_program_plan
     surface: external_read
     risk: low
@@ -251,10 +263,26 @@ data_egress:
       scope: external
       basis: "OpenAI — covered under Clemson institutional contract"
       authorized: true
+    # Owner decision 2026-08-26. Anthropic-backed agents (Claude Code) are
+    # authorized ONLY against public-data surfaces: the class-schedule server
+    # (8766) and the GC catalog server (8767), which serve published Clemson
+    # course, section, and curriculum data and hold no student information
+    # (docs/policy/student-data.md). `data_classes` is what enforces that — a
+    # caller that does not declare its data class is refused, and a surface
+    # declaring "student" is refused, so this entry cannot widen by accident
+    # if a credentialed server ever returns to this repo.
+    #
+    # It does NOT authorize Anthropic for student data, which remains barred
+    # everywhere by the same policy document. Before 2026-08-26 this record
+    # read `authorized: false` while MCP_PUBLIC/CATALOG_AUTH_TOKEN_PROVIDER
+    # defaulted to "openai_api" (src/config.ts) — so Claude Code was already
+    # reaching both servers under an OpenAI attestation. This entry replaces
+    # that silent misattestation with an accurate, scoped one.
     - provider: anthropic
       scope: external
-      basis: "no Clemson agreement covering Anthropic"
-      authorized: false
+      basis: "public Clemson catalog/schedule data only; no student data (owner decision 2026-08-26)"
+      authorized: true
+      data_classes: [public]
     # `local` is the agent --provider value for on-host inference; distinct
     # namespace from the classifier list's local_omlx / local_ollama above.
     - provider: local

@@ -115,6 +115,11 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     status: "active",
     policyActionId: "clemson.gc_requirement_rules",
   },
+  "clemson.gc_find_course_in_program": {
+    backend: "external-http",
+    status: "active",
+    policyActionId: "clemson.gc_find_course_in_program",
+  },
   "clemson.gc_gen_ed": {
     backend: "external-http",
     status: "active",
@@ -281,6 +286,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.gc_catalog_years",
     "clemson.gc_program_plan",
     "clemson.gc_requirement_rules",
+    "clemson.gc_find_course_in_program",
     "clemson.gc_gen_ed",
     "clemson.gc_audit_progress",
     "clemson.find_requirement_sections",
