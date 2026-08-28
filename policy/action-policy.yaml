@@ -86,6 +86,26 @@ actions:
     constraints:
       - public_data_only
 
+  # The program list and a single course's catalog entry. Added 2026-08-28 so
+  # the advisor's Program selector and course hover card can read them over MCP
+  # instead of opening gc_advisor.db on a shared filesystem — the coupling that
+  # stops working the moment these servers move to their own machine.
+  - id: clemson.gc_list_programs
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
+  - id: clemson.gc_get_course
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
   - id: clemson.gc_program_plan
     surface: external_read
     risk: low

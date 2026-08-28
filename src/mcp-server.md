@@ -165,12 +165,14 @@ any tool/operation change and commit the result;
 | `audit-gc-progress`           | cuassistant-catalog | `clemson.gc_audit_progress`           | `clemson.gc_audit_progress`           | external-http | curriculum-extras | yes     |
 | `find-course-in-program`      | cuassistant-catalog | `clemson.gc_find_course_in_program`   | `clemson.gc_find_course_in_program`   | external-http | curriculum-extras | yes     |
 | `find-requirement-sections`   | cuassistant-catalog | `clemson.find_requirement_sections`   | `clemson.find_requirement_sections`   | external-http | core              | yes     |
+| `get-gc-course`               | cuassistant-catalog | `clemson.gc_get_course`               | `clemson.gc_get_course`               | external-http | curriculum-extras | yes     |
 | `get-gc-gen-ed`               | cuassistant-catalog | `clemson.gc_gen_ed`                   | `clemson.gc_gen_ed`                   | external-http | curriculum-extras | yes     |
 | `get-gc-program-plan`         | cuassistant-catalog | `clemson.gc_program_plan`             | `clemson.gc_program_plan`             | external-http | curriculum-extras | yes     |
 | `get-gc-requirement-rules`    | cuassistant-catalog | `clemson.gc_requirement_rules`        | `clemson.gc_requirement_rules`        | external-http | curriculum-extras | yes     |
 | `get-gc-skill-docs`           | cuassistant-catalog | `host.get_skill_docs`                 | `host.get_skill_docs`                 | host-state    | meta              | yes     |
 | `get-program-requirements`    | cuassistant-catalog | `clemson.gc_program_requirements`     | `clemson.gc_program_requirements`     | external-http | curriculum-extras | yes     |
 | `list-gc-catalog-years`       | cuassistant-catalog | `clemson.gc_catalog_years`            | `clemson.gc_catalog_years`            | external-http | curriculum-extras | yes     |
+| `list-gc-programs`            | cuassistant-catalog | `clemson.gc_list_programs`            | `clemson.gc_list_programs`            | external-http | curriculum-extras | yes     |
 | `list-gc-skills`              | cuassistant-catalog | `host.list_skills`                    | `host.list_skills`                    | host-state    | meta              | yes     |
 | `check-conflicts`             | cuassistant-public  | `clemson.check_conflicts`             | `clemson.check_conflicts`             | external-http | core              | yes     |
 | `find-alternatives`           | cuassistant-public  | `clemson.find_alternatives`           | `clemson.find_alternatives`           | external-http | core              | yes     |

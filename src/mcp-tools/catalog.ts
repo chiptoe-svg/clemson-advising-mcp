@@ -4,6 +4,11 @@ import Database from "better-sqlite3";
 
 import { getGcProgramPlan, listGcCatalogYears, getGcRequirementRules, getGcGenEd, auditGcProgress } from "../gc-curriculum.js";
 import { GC_ADVISOR_DB } from "../config-mcp.js";
+import {
+  getCourseEntry,
+  listProgramOptions,
+  normalizeCourseCode,
+} from "../catalog-read.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
@@ -542,4 +547,173 @@ function safeJsonArray(raw: string): string[] | string {
   }
 }
 
-registerTools([catalogYears, programPlan, requirementRules, genEd, auditProgress, findCourseInProgram]);
+
+/**
+ * The program + catalog-year list, as a tool.
+ *
+ * WHY IT EXISTS (2026-08-28): the advisor's own Program and Catalog-year
+ * selectors were reading this straight off gc_advisor.db with better-sqlite3,
+ * which is fine while the servers and the advisor share a filesystem and is
+ * exactly what stops being true when these servers move to their own box. This
+ * is the MCP replacement for advisor-catalog.ts's listPrograms().
+ *
+ * It is also genuinely useful to a model: "which programs can you advise on"
+ * previously had no answer except an error message from another tool, which
+ * listed known programs only once you had already guessed wrong.
+ */
+export const listPrograms: McpToolDefinition = {
+  operation: "clemson.gc_list_programs",
+  category: "curriculum-extras",
+  tool: {
+    name: "list-gc-programs",
+    description:
+      "List every program this catalog can advise on, with the catalog years " +
+      "each one exists in. Use it to discover valid values for the `program` " +
+      "argument other tools take, or to answer \"which programs do you " +
+      "cover\". Majors with a semester-by-semester plan, plus Pre-Business; " +
+      "minors and certificates are NOT here — look those up by name with " +
+      "get-program-requirements. Read-only, no login.",
+    inputSchema: { type: "object" as const, properties: {}, additionalProperties: false },
+    outputSchema: {
+      type: "object" as const,
+      properties: {
+        catalog_years: {
+          type: "array",
+          items: { type: "string" },
+          description: "Every catalog year in the database, newest first.",
+        },
+        programs: {
+          type: "array",
+          description: "Programs a conversation can be about, by name.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: 'Exact registrar name, e.g. "Accounting, BS". Every name contains a comma.' },
+              years: { type: "array", items: { type: "string" }, description: "Catalog years this program exists in, newest first." },
+            },
+            required: ["name", "years"],
+          },
+        },
+      },
+      required: ["catalog_years", "programs"],
+    },
+  },
+  async handler() {
+    try {
+      assertMcpOperation("clemson.gc_list_programs");
+    } catch (e) {
+      return permissionErr(e);
+    }
+    let db: InstanceType<typeof Database>;
+    try {
+      db = new Database(GC_ADVISOR_DB, { readonly: true });
+    } catch {
+      // NOT an empty list. "I could not open the catalog" and "this catalog has
+      // no programs" are different facts, and the caller — a model, or the
+      // advisor's selector — cannot tell them apart from an empty array.
+      return err(
+        "Could not open the Clemson catalog database (gc_advisor.db). It may not be loaded yet. This is NOT the same as there being no programs.",
+      );
+    }
+    try {
+      const { catalogYears, programs } = listProgramOptions(db);
+      return okJson({
+        catalog_years: catalogYears,
+        programs,
+        _source: "Clemson University Online Catalog (gc_advisor)",
+      });
+    } catch (e) {
+      return err(`GC program list unavailable: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      db.close();
+    }
+  },
+};
+
+/**
+ * One course's catalog entry by exact code.
+ *
+ * Distinct from find-course-in-program, which searches WITHIN one program, and
+ * from the schedule server's get-course-details, which returns Banner section
+ * data (times, seats, instructor) rather than the catalog entry.
+ *
+ * `found: false` means this catalog has no such course. A database that cannot
+ * be opened is an ERROR, never `found: false` — the advisor's hover card
+ * previously collapsed both into "no catalog entry", so a catalog that had not
+ * finished loading rendered as every course simultaneously ceasing to exist.
+ */
+export const getCourse: McpToolDefinition = {
+  operation: "clemson.gc_get_course",
+  category: "curriculum-extras",
+  tool: {
+    name: "get-gc-course",
+    description:
+      "Look up ONE course's catalog entry — title, credits, and catalog " +
+      "description — by its exact code (\"GC 4061\", case- and " +
+      "spacing-insensitive). This is the CATALOG entry, not a class section: " +
+      "for meeting times, seats, or instructor use the schedule server's " +
+      "get-course-details. To find where a course appears in a program's " +
+      "requirements, use find-course-in-program. Read-only, no login.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        course: { type: "string", description: 'A course code, e.g. "GC 4061" or "gc4061".' },
+      },
+      required: ["course"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object" as const,
+      properties: {
+        code: { type: "string", description: "The normalised code that was looked up." },
+        found: {
+          type: "boolean",
+          description:
+            "True if this catalog has an entry for the course. FALSE IS AUTHORITATIVE — " +
+            "the catalog was read and has no such course. A catalog that could not be " +
+            "read returns an ERROR instead, never false.",
+        },
+        title: { type: ["string", "null"] },
+        credits: { type: ["string", "null"] },
+        description: { type: ["string", "null"] },
+      },
+      required: ["code", "found"],
+    },
+  },
+  async handler(args: Record<string, unknown>) {
+    try {
+      assertMcpOperation("clemson.gc_get_course");
+    } catch (e) {
+      return permissionErr(e);
+    }
+    const raw = typeof args.course === "string" ? args.course : "";
+    const code = normalizeCourseCode(raw);
+    if (!code) {
+      return err(`"${raw}" is not a course code. Expected a form like "GC 4061".`);
+    }
+    let db: InstanceType<typeof Database>;
+    try {
+      db = new Database(GC_ADVISOR_DB, { readonly: true });
+    } catch {
+      return err(
+        "Could not open the Clemson catalog database (gc_advisor.db). It may not be loaded yet. This is NOT the same as the course not existing.",
+      );
+    }
+    try {
+      const row = getCourseEntry(db, code);
+      return okJson(
+        row
+          ? { code, found: true, title: row.title, credits: row.credits, description: row.description,
+              _source: "Clemson University Online Catalog (gc_advisor)" }
+          : { code, found: false, title: null, credits: null, description: null,
+              _source: "Clemson University Online Catalog (gc_advisor)" },
+      );
+    } catch (e) {
+      return err(`GC course lookup failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      db.close();
+    }
+  },
+};
+
+registerTools([catalogYears, programPlan, requirementRules, genEd, auditProgress, findCourseInProgram, listPrograms, getCourse]);

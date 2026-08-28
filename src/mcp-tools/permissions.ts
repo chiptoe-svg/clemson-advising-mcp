@@ -120,6 +120,19 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     status: "active",
     policyActionId: "clemson.gc_find_course_in_program",
   },
+  // The program list and one course's catalog entry. Added 2026-08-28 so the
+  // advisor's Program selector and course hover card read them over MCP rather
+  // than opening gc_advisor.db across a shared filesystem.
+  "clemson.gc_list_programs": {
+    backend: "external-http",
+    status: "active",
+    policyActionId: "clemson.gc_list_programs",
+  },
+  "clemson.gc_get_course": {
+    backend: "external-http",
+    status: "active",
+    policyActionId: "clemson.gc_get_course",
+  },
   "clemson.gc_gen_ed": {
     backend: "external-http",
     status: "active",
@@ -303,6 +316,8 @@ const CLEMSON_CATALOG_OPS = [
   "clemson.gc_program_plan",
   "clemson.gc_requirement_rules",
   "clemson.gc_find_course_in_program",
+  "clemson.gc_list_programs",
+  "clemson.gc_get_course",
   "clemson.gc_gen_ed",
   "clemson.gc_audit_progress",
   "clemson.find_requirement_sections",
@@ -324,6 +339,8 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.gc_program_plan",
     "clemson.gc_requirement_rules",
     "clemson.gc_find_course_in_program",
+    "clemson.gc_list_programs",
+    "clemson.gc_get_course",
     "clemson.gc_gen_ed",
     "clemson.gc_audit_progress",
     "clemson.find_requirement_sections",

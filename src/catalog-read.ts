@@ -246,6 +246,93 @@ export function getGenEd(db: Db, year: string): GenEdCategory[] {
  * in its error envelope so a caller who named a program wrong is told what the
  * valid choices are. Same query and same ordering as query.py's _known_programs.
  */
+/**
+ * The programs a conversation can be "about", with the catalog years each
+ * exists in. Backs the advisor's Program + Catalog-year selectors, which read
+ * this over MCP rather than opening the database themselves.
+ *
+ * "Program" means a College of Business MAJOR the catalog carries a
+ * semester-by-semester plan for (`kind = 'major'` with at least one plan_item,
+ * joined through requirement_group), plus Pre-Business, which is stored under
+ * its own kind and has no plan of its own. Minors and certificates are
+ * deliberately excluded: they are looked up by name through
+ * get-program-requirements, and they are not what a conversation is about.
+ *
+ * This is a straight port of advisor-catalog.ts's listPrograms() query, which
+ * it replaces. The SQL is unchanged so the selector's contents cannot shift as
+ * a side effect of moving where the read happens.
+ */
+export function listProgramOptions(db: Db): {
+  catalogYears: string[];
+  programs: { name: string; years: string[] }[];
+} {
+  const catalogYears = (
+    db.prepare("SELECT label FROM catalog_year ORDER BY label DESC").all() as {
+      label: string;
+    }[]
+  ).map((r) => r.label);
+
+  const rows = db
+    .prepare(
+      `SELECT p.name AS name, cy.label AS year
+         FROM program p
+         JOIN catalog_year cy ON cy.id = p.catalog_year_id
+        WHERE p.kind = 'pre_business'
+           OR (p.kind = 'major'
+               AND EXISTS (SELECT 1
+                             FROM requirement_group rg
+                             JOIN plan_item pi ON pi.group_id = rg.id
+                            WHERE rg.program_id = p.id))
+        ORDER BY p.name ASC, cy.label DESC`,
+    )
+    .all() as { name: string; year: string }[];
+
+  const byName = new Map<string, string[]>();
+  for (const row of rows) {
+    const list = byName.get(row.name) ?? [];
+    if (!list.includes(row.year)) list.push(row.year);
+    byName.set(row.name, list);
+  }
+  return {
+    catalogYears,
+    programs: [...byName.entries()].map(([name, years]) => ({ name, years })),
+  };
+}
+
+/**
+ * One course's catalog entry by exact code. Distinct from
+ * find-course-in-program, which searches WITHIN a program, and from the
+ * schedule server's get-course-details, which is Banner section data.
+ *
+ * Returns null ONLY for "this database has no such course". A database that
+ * cannot be opened throws, and the caller must not flatten the two — see the
+ * tool that wraps this.
+ */
+export function getCourseEntry(
+  db: Db,
+  code: string,
+): { code: string; title: string | null; credits: string | null; description: string | null } | null {
+  const row = db
+    .prepare(
+      "SELECT code, title, credits, description FROM course WHERE code = ? LIMIT 1",
+    )
+    .get(code) as
+    | { code: string; title: string | null; credits: string | null; description: string | null }
+    | undefined;
+  return row ?? null;
+}
+
+/**
+ * Normalize "gc4061", "GC 4061", "GC  4061" -> "GC 4061". Returns null for
+ * anything that is not a plausible course code, so junk fails as junk rather
+ * than as a miss.
+ */
+export function normalizeCourseCode(raw: string): string | null {
+  const m = /^\s*([A-Za-z]{2,4})\s*(\d{3,4}[A-Za-z]?)\s*$/.exec(raw);
+  if (!m) return null;
+  return `${m[1]!.toUpperCase()} ${m[2]!.toUpperCase()}`;
+}
+
 export function knownPrograms(db: Db, year: string): string[] {
   return (
     db
