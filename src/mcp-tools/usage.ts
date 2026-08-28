@@ -48,6 +48,13 @@ export interface McpCallRecord {
    * absence is the honest signal that per-user attribution is not yet possible.
    */
   subject?: string;
+  /**
+   * Why the call did not reach a handler, when it did not: "unknown_tool" or
+   * "out_of_scope". Absent for calls that were dispatched — including ones whose
+   * handler then returned isError, which are the tool's own business, not the
+   * gateway's.
+   */
+  outcome?: string;
 }
 
 /**
@@ -67,6 +74,7 @@ export function recordMcpCall(rec: McpCallRecord): void {
       ...(rec.provider !== undefined ? { provider: rec.provider } : {}),
       ...(rec.authMethod !== undefined ? { auth_method: rec.authMethod } : {}),
       ...(rec.subject !== undefined ? { subject: rec.subject } : {}),
+      ...(rec.outcome !== undefined ? { outcome: rec.outcome } : {}),
       tool: rec.tool,
     };
     const dir = analyticsDir();

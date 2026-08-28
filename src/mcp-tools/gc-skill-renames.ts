@@ -15,6 +15,7 @@
 // only imports renameRegisteredTool from server.ts — so it is safe to import
 // from a unit test without binding a port or opening a stdio transport.
 import { renameRegisteredTool } from "./server.js";
+import { setSkillListToolName } from "./skills.js";
 
 export interface GcSkillRename {
   from: string;
@@ -44,5 +45,9 @@ export const GC_SKILL_RENAMES: readonly GcSkillRename[] = [
 export function applyGcSkillRenames(): void {
   for (const { from, to, description } of GC_SKILL_RENAMES) {
     renameRegisteredTool(from, to, description);
+    // Runtime error strings must follow the advertised name too — renaming the
+    // tool while its own errors point at the old name is how 8767 came to tell
+    // callers to use a tool it does not have.
+    if (from === "list-skills") setSkillListToolName(to);
   }
 }

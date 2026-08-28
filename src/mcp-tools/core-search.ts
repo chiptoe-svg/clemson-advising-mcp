@@ -579,6 +579,18 @@ export function makeGetCourseDetails(
       if (courseCode) {
         try {
           const c = await getCourse(courseCode);
+          // getCourse returns null for a code the catalog does not have.
+          // Spreading null yields {}, which arrived as a SUCCESS with an empty
+          // body — indistinguishable from "found, but has no fields". A model
+          // cannot tell those apart, and the wrong reading ("the course exists,
+          // I just know nothing about it") is the dangerous one. Say it plainly.
+          // (Adversarial review, 2026-08-27.)
+          if (c === null || c === undefined) {
+            return err(
+              `No course "${courseCode}" in the Clemson catalog. Check the code, ` +
+                `or use find-course-in-program to see whether a program requires it.`,
+            );
+          }
           const coreqs = findCoreqs(courseCode);
           const body: Record<string, unknown> = { ...(c as object) };
           // Same convention as compactSearchResult (clemson-classes.ts):

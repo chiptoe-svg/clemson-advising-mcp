@@ -86,14 +86,40 @@ test("an authenticator may be genuinely async (I/O-backed, as OAuth requires)", 
   assert.equal(await slow(authContext("Bearer bad")), null);
 });
 
-test("the authenticator receives request context, not just the header", async () => {
-  let seen: unknown = null;
-  const spy: Authenticator = async (ctx) => { seen = ctx; return null; };
-  await run(spy, { authorization: "Bearer z" });
-  assert.deepEqual(
-    Object.keys(seen as object).sort(),
-    ["authHeader", "headers", "method", "source", "url"],
-    "DPoP and resource indicators need method and URL, not only the header",
+test("the authenticator receives the REAL request context, not just the header", async () => {
+  // Asserting key NAMES was not enough: replacing the real per-request values
+  // with authContext(header)'s defaults ("POST", "/", {}, "local") produced the
+  // identical key set and passed, so the stated rationale — DPoP binds to
+  // method and URL — was exactly what survived unbroken. (Review, 2026-08-27.)
+  // Assert the VALUES come from the request.
+  let seen: Record<string, unknown> | null = null;
+  const spy: Authenticator = async (ctx) => {
+    seen = ctx as unknown as Record<string, unknown>;
+    return null;
+  };
+  __resetUnauthTrackerForTest();
+  const handler = createHttpHandler("t", spy);
+  const req = fakeReq({ authorization: "Bearer z", "x-probe": "marker" });
+  req.method = "PATCH";
+  req.url = "/some/resource?x=1";
+  req.socket = { remoteAddress: "10.9.8.7" };
+  const { res } = captureRes();
+  handler(
+    req as unknown as Parameters<typeof handler>[0],
+    res as unknown as Parameters<typeof handler>[1],
+  );
+  await tick();
+
+  assert.ok(seen, "the authenticator must be called");
+  const ctx = seen as unknown as Record<string, unknown>;
+  assert.equal(ctx.authHeader, "Bearer z");
+  assert.equal(ctx.method, "PATCH", "the REQUEST's method, not a default");
+  assert.equal(ctx.url, "/some/resource?x=1", "the REQUEST's url, not a default");
+  assert.equal(ctx.source, "10.9.8.7", "the REQUEST's peer, not a default");
+  assert.equal(
+    (ctx.headers as Record<string, string>)["x-probe"],
+    "marker",
+    "the full header set must be passed through, not an empty object",
   );
 });
 

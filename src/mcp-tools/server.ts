@@ -32,6 +32,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import http from "http";
 
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+
 import {
   authenticateConsumer,
   hashToken,
@@ -409,15 +411,54 @@ function buildServer(name: string, principal?: Principal): Server {
   }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name: toolName, arguments: args } = request.params;
+    // Every result leaves through this, so the two REFUSAL paths below carry the
+    // same _meta as a successful one. They used to return bare objects, which
+    // contradicted the "stamp on EVERY result" comment and left a client unable
+    // to detect a stale skills doc from an error response. (Review, 2026-08-27.)
+    const withMeta = (r: CallToolResult): CallToolResult => ({
+      ...r,
+      _meta: {
+        ...(r._meta ?? {}),
+        [SKILLS_VERSION_META_KEY]: currentSkillsVersion(),
+        [SKILLS_DOC_TOOL_META_KEY]: toolMap.has("get-gc-skill-docs")
+          ? "get-gc-skill-docs"
+          : "get-skill-docs",
+      },
+    });
+
     const tool = toolMap.get(toolName);
     if (!tool) {
-      return {
+      // Recorded like any other call: "who asked for a tool that does not
+      // exist" is a real signal — a misconfigured client, or an agent working
+      // from a stale tool list — and it was invisible because recordMcpCall sat
+      // after this return.
+      recordMcpCall({
+        server: name,
+        consumerId,
+        provider: principal?.provider,
+        tool: toolName,
+        authMethod: principal?.authMethod,
+        subject: principal?.subject,
+        outcome: "unknown_tool",
+      });
+      return withMeta({
         content: [{ type: "text", text: `Unknown tool: ${toolName}` }],
         isError: true,
-      };
+      });
     }
     if (!scopes.has(tool.operation)) {
-      return {
+      // A scope violation is the single most security-relevant thing a caller
+      // can do here, and it was the one event the ledger did not record.
+      recordMcpCall({
+        server: name,
+        consumerId,
+        provider: principal?.provider,
+        tool: toolName,
+        authMethod: principal?.authMethod,
+        subject: principal?.subject,
+        outcome: "out_of_scope",
+      });
+      return withMeta({
         content: [
           {
             type: "text",
@@ -425,7 +466,7 @@ function buildServer(name: string, principal?: Principal): Server {
           },
         ],
         isError: true,
-      };
+      });
     }
     // Usage accounting BEFORE the handler runs: the question this answers is
     // "who called what, how often", and a call that throws or times out is
@@ -448,16 +489,7 @@ function buildServer(name: string, principal?: Principal): Server {
     // they differ — staleness is detected on a channel it is already reading,
     // with no extra round trip and no cooperation required for the information
     // to be present. See surface-version.ts.
-    return {
-      ...result,
-      _meta: {
-        ...(result._meta ?? {}),
-        [SKILLS_VERSION_META_KEY]: currentSkillsVersion(),
-        [SKILLS_DOC_TOOL_META_KEY]: toolMap.has("get-gc-skill-docs")
-          ? "get-gc-skill-docs"
-          : "get-skill-docs",
-      },
-    };
+    return withMeta(result);
   });
   return server;
 }

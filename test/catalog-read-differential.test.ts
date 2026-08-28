@@ -160,11 +160,18 @@ test("getCourse matches query.py across a sample of real course codes", { skip: 
       db.prepare("SELECT code FROM course ORDER BY code LIMIT 40").all() as Array<{ code: string }>
     ).map((r) => r.code);
     assert.ok(codes.length > 0);
+    let compared = 0;
     for (const code of codes) {
       const py = python(["course", "--code", code]);
       if (py === null) continue;
       assertSame(getCourse(db, code), py, `course ${code}`);
+      compared++;
     }
+    // The other three differentials guard on this; getCourse did not, so with a
+    // dead oracle (GC_ADVISOR_QUERY=/nonexistent) tests 1-4 failed while this
+    // one passed GREEN — its final null-vs-null line compares nothing to
+    // nothing. Demonstrated by adversarial review 2026-08-27.
+    assert.ok(compared > 0, "no course codes were actually compared");
     // A code that does not exist must be null in both, not an error in one.
     assertSame(getCourse(db, "ZZZZ 9999"), python(["course", "--code", "ZZZZ 9999"]), "course ZZZZ 9999");
   } finally {

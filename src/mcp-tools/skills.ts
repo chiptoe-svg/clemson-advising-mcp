@@ -22,6 +22,21 @@ import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
 // stale against the project that keeps changing it, and nothing would say so.
 const LOCAL_SKILLS_DIR = path.resolve(process.cwd(), "skills");
 
+// The name of the LIST tool as this process actually advertises it.
+//
+// The catalog server renames list-skills -> list-gc-skills at startup
+// (gc-skill-renames.ts), but these error strings hardcoded the pre-rename name,
+// so 8767 told callers to "use list-skills" — a tool that does not exist on
+// that server. Exactly the bug class gc-skill-renames.ts was written to prevent,
+// which it could not catch because it overrides descriptions, not runtime text.
+// Found by adversarial review 2026-08-27.
+let listToolName = "list-skills";
+
+/** Called by applyGcSkillRenames so runtime messages follow the advertised name. */
+export function setSkillListToolName(name: string): void {
+  listToolName = name;
+}
+
 let skillRoots: readonly string[] = [LOCAL_SKILLS_DIR, GC_ADVISOR_SKILLS];
 
 /** Override the roots. For tests only. */
@@ -206,7 +221,7 @@ const getSkillDocs: McpToolDefinition = {
     name: "get-skill-docs",
     description:
       "Return the full documentation for a CUassistant skill by name. " +
-      "Use list-skills to discover available skill names.",
+      `Use ${listToolName} to discover available skill names.`,
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -239,13 +254,13 @@ const getSkillDocs: McpToolDefinition = {
     // non-exposed skill exists on this host.
     if (!isSkillExposed(name)) {
       return err(
-        `Skill "${name}" not found. Use list-skills to see available skills.`,
+        `Skill "${name}" not found. Use ${listToolName} to see available skills.`,
       );
     }
     const dir = buildSkillIndex().get(name);
     if (dir === undefined) {
       return err(
-        `Skill "${name}" not found. Use list-skills to see available skills.`,
+        `Skill "${name}" not found. Use ${listToolName} to see available skills.`,
       );
     }
     const skillPath = path.join(dir, "SKILL.md");
@@ -254,7 +269,7 @@ const getSkillDocs: McpToolDefinition = {
       content = fs.readFileSync(skillPath, "utf-8");
     } catch {
       return err(
-        `Skill "${name}" not found. Use list-skills to see available skills.`,
+        `Skill "${name}" not found. Use ${listToolName} to see available skills.`,
       );
     }
     const { mtimeMs } = fs.statSync(skillPath);
