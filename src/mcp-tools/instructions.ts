@@ -102,8 +102,15 @@ export function serverInstructions(
     "",
     `Toolset version: ${toolsetVersion(toolNames)} (${toolNames.length} tools).`,
     "These instructions change only when the toolset does; cache them against",
-    "that version and re-read when it differs. `list-skills` / `get-skill-docs`",
-    "(named `list-gc-skills` / `get-gc-skill-docs` on the catalog server) carry",
-    "longer worked examples when you need more than the above.",
+    "that version and re-read when it differs.",
+    "",
+    "SKILL DOCUMENTS AND STALENESS. `list-skills` / `get-skill-docs` (named",
+    "`list-gc-skills` / `get-gc-skill-docs` on the catalog server) carry longer",
+    "worked examples. Fetch them ONCE and reuse them — but every tool result",
+    "carries `_meta[\"cuassistant/skillsVersion\"]`, a digest of the skill",
+    "documents' content. Record it when you fetch the docs; if a later result",
+    "shows a different value, your copy is out of date — re-fetch it with the",
+    "tool named in `_meta[\"cuassistant/skillsDocTool\"]`. The version changes",
+    "only when the documents' CONTENT changes, so it will not churn.",
   ].join("\n");
 }

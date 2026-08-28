@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 
 import { GC_ADVISOR_SKILLS } from "../config.js";
+import { setSkillRootsProvider } from "./surface-version.js";
 import { log } from "../log.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
@@ -24,6 +25,14 @@ const LOCAL_SKILLS_DIR = path.resolve(process.cwd(), "skills");
 let skillRoots: readonly string[] = [LOCAL_SKILLS_DIR, GC_ADVISOR_SKILLS];
 
 /** Override the roots. For tests only. */
+/** The skill roots currently in effect — read by surface-version.ts so the
+ *  reported skills version covers exactly the documents this server serves.
+ *  Registered rather than imported: see surface-version.ts on the import cycle. */
+export function currentSkillRoots(): readonly string[] {
+  return skillRoots;
+}
+setSkillRootsProvider(currentSkillRoots);
+
 export function __setSkillRoots(next: readonly string[]): void {
   skillRoots = [...next];
 }

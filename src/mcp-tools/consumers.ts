@@ -137,13 +137,39 @@ export function authenticateBearer(
 }
 
 /** Update a consumer's last_seen_at (best effort; no-op for unknown ids). */
-export function recordSeen(id: string, nowIso: string, registry?: string): void {
+// last_seen_at is a staleness signal measured in DAYS (staleConsumers), so it
+// does not need second-level precision — and paying a full registry
+// read-modify-write per authenticated request to get it is the kind of cost
+// that only bites once the system succeeds. Writes are debounced per consumer:
+// at most one every SEEN_DEBOUNCE_MS. Under sustained load this turns one file
+// rewrite per request into one per consumer per hour.
+const SEEN_DEBOUNCE_MS = 3_600_000; // 1 hour
+const lastSeenWrite = new Map<string, number>();
+
+/** Test seam: forget the debounce state. */
+export function __resetSeenDebounceForTest(): void {
+  lastSeenWrite.clear();
+}
+
+export function recordSeen(
+  id: string,
+  nowIso: string,
+  registry?: string,
+  nowMs: number = Date.now(),
+): void {
+  const key = `${registry ?? ""}:${id}`;
+  const last = lastSeenWrite.get(key);
+  if (last !== undefined && nowMs - last < SEEN_DEBOUNCE_MS) return;
   try {
     const list = loadConsumers(registry);
     const c = list.find((x) => x.id === id);
     if (!c) return; // e.g. the synthetic "env-token" is not on disk
     c.last_seen_at = nowIso;
     saveConsumers(list, registry);
+    // Only after a SUCCESSFUL write: a consumer absent from disk (the synthetic
+    // env-token) returns above without marking, so it never suppresses a real
+    // write should that id later be paired.
+    lastSeenWrite.set(key, nowMs);
   } catch {
     /* best effort */
   }

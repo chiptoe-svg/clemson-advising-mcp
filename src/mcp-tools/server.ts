@@ -48,6 +48,11 @@ import { isAgentBackendAuthorized, type DataClass } from "../policy.js";
 import { auditContext } from "./audit.js";
 import { recordMcpCall } from "./usage.js";
 import { serverInstructions } from "./instructions.js";
+import {
+  SKILLS_DOC_TOOL_META_KEY,
+  SKILLS_VERSION_META_KEY,
+  currentSkillsVersion,
+} from "./surface-version.js";
 import { log as appLog } from "../log.js";
 
 /** Reject bodies larger than this on the HTTP transport (local DoS guard). */
@@ -425,9 +430,25 @@ function buildServer(name: string, principal?: Principal): Server {
       authMethod: principal?.authMethod,
       subject: principal?.subject,
     });
-    return auditContext.run({ consumerId, provider: principal?.provider }, () =>
-      tool.handler(args ?? {}),
+    const result = await auditContext.run(
+      { consumerId, provider: principal?.provider },
+      () => tool.handler(args ?? {}),
     );
+    // Stamp the skills version on EVERY result. A client that cached the skill
+    // document compares this against the version it holds and re-fetches when
+    // they differ — staleness is detected on a channel it is already reading,
+    // with no extra round trip and no cooperation required for the information
+    // to be present. See surface-version.ts.
+    return {
+      ...result,
+      _meta: {
+        ...(result._meta ?? {}),
+        [SKILLS_VERSION_META_KEY]: currentSkillsVersion(),
+        [SKILLS_DOC_TOOL_META_KEY]: toolMap.has("get-gc-skill-docs")
+          ? "get-gc-skill-docs"
+          : "get-skill-docs",
+      },
+    };
   });
   return server;
 }
