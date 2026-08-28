@@ -47,6 +47,7 @@ import {
 import { isAgentBackendAuthorized, type DataClass } from "../policy.js";
 import { auditContext } from "./audit.js";
 import { recordMcpCall } from "./usage.js";
+import { serverInstructions } from "./instructions.js";
 import { log as appLog } from "../log.js";
 
 /** Reject bodies larger than this on the HTTP transport (local DoS guard). */
@@ -292,9 +293,18 @@ export function isToolInScope(toolName: string, scopes: Set<string>): boolean {
 function buildServer(name: string, principal?: Principal): Server {
   const scopes = principal?.scopes ?? allExposedOperations();
   const consumerId = principal?.id ?? "stdio";
+  // `instructions` reaches every client in the initialize response — no tool
+  // call, no agent initiative. That is why the guidance that MUST land (the
+  // two-store catalog trap, snapshot staleness, untimed sections) lives here
+  // rather than only in the skill documents, which measured 8 calls out of 366.
+  // Scoped to the tools this principal can actually see.
+  const visibleToolNames = toolsForScope(scopes).map((t) => t.name);
   const server = new Server(
     { name, version: "0.1.0" },
-    { capabilities: { tools: {} } },
+    {
+      capabilities: { tools: {} },
+      instructions: serverInstructions(name, visibleToolNames),
+    },
   );
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: toolsForScope(scopes),
