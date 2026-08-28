@@ -152,8 +152,14 @@ export const requirementRules: McpToolDefinition = {
     if (!year) return err("catalog_year is required (see list-gc-catalog-years)");
     try {
       const rules = await getGcRequirementRules(year, program);
+      // `rules` is an ARRAY. Spreading it produced index-keyed properties —
+      // {"0":{…},"1":{…},"program":…} — which was merely ugly while results
+      // were text-only, but became actively harmful when okJson started
+      // promoting the payload to typed `structuredContent` (2026-08-27): a
+      // model is now handed that shape as structure. okJson's own contract says
+      // list-shaped results belong under `items`. Found by adversarial review.
       return okJson({
-        ...(rules as object),
+        items: rules as unknown[],
         program,
         catalog_year: year,
         _source: `Clemson University Online Catalog, ${year} edition (gc_advisor)`,
@@ -207,8 +213,9 @@ export const genEd: McpToolDefinition = {
     if (!year) return err("catalog_year is required (see list-gc-catalog-years)");
     try {
       const cats = await getGcGenEd(year);
+      // Same array-spread bug as get-gc-requirement-rules; see the note there.
       return okJson({
-        ...(cats as object),
+        items: cats as unknown[],
         program: resolveProgramArg(args),
         catalog_year: year,
         _source: `Clemson University Online Catalog, ${year} edition (gc_advisor)`,

@@ -266,3 +266,70 @@ export function getCourse(db: Db, code: string): Record<string, unknown> | null 
     | undefined;
   return row ?? null;
 }
+
+/**
+ * A stale-flag tripwire for `requirement_rule.bogus`.
+ *
+ * WHY (adversarial review, 2026-08-27): Python recomputes `is_bogus_rule` at
+ * READ time; this module reads the flag MATERIALISED at write time via
+ * `requirement_rule_effective`. They agree today — verified across all 1,083
+ * rules — but only because every writer calls `refresh_bogus_flags`. Two ways
+ * that breaks, both reproduced by the reviewer on a copy of the database:
+ *
+ *   1. an advisor_course row added without a refresh — Node then HIDES a real
+ *      requirement the advisor curated;
+ *   2. rules inserted by `ingest_year.py`, which never calls refresh, left at
+ *      the column DEFAULT 0 — Node then ASSERTS a requirement the registrar
+ *      never stated (the exact false-requirement class the filter exists to
+ *      suppress).
+ *
+ * The second is the dangerous one, and it is detectable in pure SQL without
+ * reimplementing the 128-line predicate: a credit_set rule that names no
+ * courses, has no wildcards, and has no advisor entries can never be satisfied
+ * by anything, so it must be flagged bogus. Any such rule with `bogus = 0` means
+ * the flags are stale.
+ *
+ * Deliberately a HEURISTIC, and narrower than `is_bogus_rule` (it does not
+ * attempt the gen-ed-shadow tier). It exists to fail loudly on the common stale
+ * state, not to re-derive the semantics — those stay in Python, at build time.
+ * Cheap enough for a health probe: one indexed-free scan of ~1k rows.
+ */
+export function findStaleBogusFlags(db: Db): Array<{
+  program: string;
+  catalog_year: string;
+  slot_type: string;
+}> {
+  const rows = db
+    .prepare(
+      `SELECT p.name AS program, cy.label AS catalog_year,
+              rr.slot_type AS slot_type, rr.rule AS rule
+         FROM requirement_rule rr
+         JOIN program p ON p.id = rr.program_id
+         JOIN catalog_year cy ON cy.id = p.catalog_year_id
+        WHERE rr.bogus = 0`,
+    )
+    .all() as Array<{ program: string; catalog_year: string; slot_type: string; rule: string }>;
+
+  const stale: Array<{ program: string; catalog_year: string; slot_type: string }> = [];
+  for (const r of rows) {
+    const rule = parseJson<Record<string, unknown>>(r.rule, {});
+    // Prose-schema rules (minors/certificates) are a different contract the
+    // predicate does not judge — same carve-out Python makes first.
+    if ("required_courses" in rule || !("raw_text" in rule)) continue;
+    // A rule with its own `evaluator` is satisfied by a MECHANISM, not a course
+    // list — "minor_or_course_set" means completing any minor qualifies — so an
+    // empty explicit_courses is correct there, not vacuous. Omitting this check
+    // made the first version of this tripwire report 8 false positives that
+    // Python's is_bogus_rule returns False for; validated against that oracle
+    // before shipping, which is the only reason it is not crying wolf now.
+    if (typeof rule.evaluator === "string" && rule.evaluator.length > 0) continue;
+    const explicit = Array.isArray(rule.explicit_courses) ? rule.explicit_courses : [];
+    const wildcards = Array.isArray(rule.wildcards) ? rule.wildcards : [];
+    if (explicit.length > 0 || wildcards.length > 0) continue;
+    // Nothing explicit and no wildcards: only a curated advisor entry can save it.
+    const { allow } = advisorSets(db, r.slot_type, r.catalog_year, r.program);
+    if (allow.length > 0) continue;
+    stale.push({ program: r.program, catalog_year: r.catalog_year, slot_type: r.slot_type });
+  }
+  return stale;
+}

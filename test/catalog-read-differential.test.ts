@@ -29,6 +29,7 @@ import {
   getRequirementRules,
   listCatalogYears,
   openCatalog,
+  findStaleBogusFlags,
 } from "../src/catalog-read.ts";
 import { SKIP_NO_CORE_DB, SKIP_NO_CORE_PYTHON, requireCoreArtifacts } from "./_artifacts.ts";
 
@@ -190,4 +191,53 @@ test("the differential harness would actually catch a difference", { skip: SKIP 
   assert.throws(() => assertSame([1, 2], [1], "sanity"));
   // ...but key ORDER must not be treated as a difference.
   assert.doesNotThrow(() => assertSame({ a: 1, b: 2 }, { b: 2, a: 1 }, "sanity"));
+});
+
+// --- stale-flag tripwire (adversarial review, 2026-08-27) --------------------
+//
+// The port reads a MATERIALISED bogus flag; Python recomputes the predicate at
+// read time. They agree only while every writer calls refresh_bogus_flags — and
+// the reviewer found 12 advisor rows in the live DB that could not have been
+// written by the one writer that refreshes, plus an ingest path
+// (scripts/ingest_year.py) that never calls it. After the port, no serving-side
+// consumer would notice a missed refresh. This is that missing noticer.
+
+test("the live catalog DB has no stale bogus flags", { skip: SKIP_NO_CORE_DB }, () => {
+  const db = openCatalog(GC_ADVISOR_DB);
+  try {
+    const stale = findStaleBogusFlags(db);
+    assert.deepEqual(
+      stale,
+      [],
+      `unsatisfiable rules are not flagged bogus — refresh_bogus_flags has not ` +
+        `run since the last write. These would be reported to advisors as real ` +
+        `requirements: ${JSON.stringify(stale)}`,
+    );
+  } finally {
+    db.close();
+  }
+});
+
+test("the tripwire agrees with Python's is_bogus_rule on the live corpus", { skip: SKIP }, () => {
+  // The tripwire is a narrower HEURISTIC than the 128-line predicate, so its
+  // value depends entirely on not crying wolf. Its first version reported 8
+  // false positives (rules with an `evaluator`, satisfied by completing a minor
+  // rather than by a course list). This pins it against the oracle: anything it
+  // flags, Python must also consider bogus.
+  const db = openCatalog(GC_ADVISOR_DB);
+  try {
+    const flagged = findStaleBogusFlags(db);
+    for (const s of flagged) {
+      const rules = getRequirementRules(db, s.catalog_year, s.program) as Array<{
+        slot_type: string;
+      }>;
+      assert.ok(
+        !rules.some((r) => r.slot_type === s.slot_type),
+        `tripwire flagged ${s.program} ${s.catalog_year} ${s.slot_type}, but the ` +
+          `effective view still serves it — the heuristic is over-reporting`,
+      );
+    }
+  } finally {
+    db.close();
+  }
 });

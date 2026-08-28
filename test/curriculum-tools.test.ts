@@ -205,3 +205,49 @@ test("get-gc-gen-ed requires a catalog year", async () => {
   assert.equal(res.isError, true);
   assert.match((res.content[0] as { text: string }).text, /catalog_year is required/);
 });
+
+// --- list-shaped results use `items`, not index keys (review, 2026-08-27) ----
+//
+// get-gc-requirement-rules and get-gc-gen-ed spread an ARRAY into an object
+// literal, producing {"0":{…},"1":{…},"program":…}. Merely ugly while results
+// were text-only; actively harmful once okJson began promoting the payload to
+// typed structuredContent, because a model is then handed that shape AS
+// structure. okJson's own contract says list-shaped results belong under
+// `items`. list-gc-catalog-years already complies; these two did not.
+
+test("get-gc-requirement-rules returns its list under `items`, not index keys", async () => {
+  const r = await requirementRules.handler({
+    program: "Graphic Communications, BS",
+    catalog_year: "2025-2026",
+  });
+  const sc = r.structuredContent as Record<string, unknown>;
+  assert.ok(Array.isArray(sc.items), "the rule list must be an array under `items`");
+  assert.ok((sc.items as unknown[]).length > 0);
+  for (const k of Object.keys(sc)) {
+    assert.ok(!/^\d+$/.test(k), `index-keyed property "${k}" leaked into the result`);
+  }
+  // The echoed identifiers must survive the reshape.
+  assert.equal(sc.program, "Graphic Communications, BS");
+  assert.equal(sc.catalog_year, "2025-2026");
+});
+
+test("get-gc-gen-ed returns its list under `items`, not index keys", async () => {
+  const r = await genEd.handler({ catalog_year: "2025-2026" });
+  const sc = r.structuredContent as Record<string, unknown>;
+  assert.ok(Array.isArray(sc.items), "the category list must be an array under `items`");
+  assert.ok((sc.items as unknown[]).length > 0);
+  for (const k of Object.keys(sc)) {
+    assert.ok(!/^\d+$/.test(k), `index-keyed property "${k}" leaked into the result`);
+  }
+});
+
+test("the text block and structuredContent agree for list-shaped results", async () => {
+  // okJson emits both; a reshape that fixed one and not the other would hand
+  // two different answers to two kinds of client.
+  const r = await requirementRules.handler({
+    program: "Graphic Communications, BS",
+    catalog_year: "2025-2026",
+  });
+  const text = JSON.parse((r.content as Array<{ text: string }>)[0]!.text);
+  assert.deepEqual(text, r.structuredContent);
+});
