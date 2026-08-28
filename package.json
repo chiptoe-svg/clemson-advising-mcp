@@ -33,7 +33,8 @@
     "core:test": "cd core && .venv/bin/python -m pytest tests/ -q -rs -m \"not integration\"",
     "test:gate": "npm run typecheck && REQUIRE_ARTIFACTS=1 CORE_E2E=required npm test && npm run core:test",
     "health:check": "tsx scripts/health-check.ts",
-    "mcp:pair": "npx tsx scripts/mcp-pair.ts"
+    "mcp:pair": "npx tsx scripts/mcp-pair.ts",
+    "mcp:health": "tsx scripts/mcp-health-check.ts"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "^0.82.1",

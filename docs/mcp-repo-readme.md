@@ -45,13 +45,13 @@ section, the limitations we know about and have not fixed.
 
 ## Documentation
 
-| | |
-|---|---|
-| `docs/architecture.md` | How it works, module by module, and how to diagnose it |
-| `docs/security.md` | Threat model, authentication, authorization, known limitations |
-| `docs/operations.md` | Install, configure, serve over TLS, refresh, restart, back up |
-| `docs/capacity.md` | Measured throughput, sizing, and what would change it |
-| `deploy/Caddyfile.example` | Working reverse-proxy configuration for campus TLS |
+|                            |                                                                |
+| -------------------------- | -------------------------------------------------------------- |
+| `docs/architecture.md`     | How it works, module by module, and how to diagnose it         |
+| `docs/security.md`         | Threat model, authentication, authorization, known limitations |
+| `docs/operations.md`       | Install, configure, serve over TLS, refresh, restart, back up  |
+| `docs/capacity.md`         | Measured throughput, sizing, and what would change it          |
+| `deploy/Caddyfile.example` | Working reverse-proxy configuration for campus TLS             |
 
 ---
 
@@ -66,12 +66,21 @@ npm run mcp:pair -- --server public --id my-agent --provider clemson_hosted
 MCP_TRANSPORT=http npm run mcp:public:http
 ```
 
-Two data artifacts are not in git — a catalog database and Banner snapshots.
-`docs/operations.md` §1 explains where they come from. Without them the test
-suite reports a large **skipped** count rather than failing, so check the count
-and not just the colour.
+Two data artifacts are not in git — a curriculum database and Banner schedule
+snapshots. `docs/operations.md` §1 explains where each comes from. Without them
+the suite reports a large **skipped** count rather than failing, so check the
+count and not just the colour.
 
----
+To run it as a service rather than a terminal process:
+
+```bash
+cp deploy/env.example .env    # then fill it in
+bash deploy/install.sh        # launchd services + preflight + verification
+npm run mcp:health            # exit 0 healthy, 1 degraded, 2 down
+```
+
+`docs/operations.md` §4b is the full path for a fresh machine, including the
+reverse proxy that terminates TLS.
 
 ## Layout
 

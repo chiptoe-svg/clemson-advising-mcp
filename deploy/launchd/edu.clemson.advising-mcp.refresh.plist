@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Daily Banner class-schedule refresh.
+
+  This job is what stands between the service and its most common failure mode:
+  the servers keep answering, confidently, from a snapshot that stopped being
+  true. Nothing breaks when it stops running — which is exactly why its absence
+  is hard to notice. Alert on snapshot age, not on this job's exit status.
+
+  New terms are discovered automatically from Banner; "(View Only)" terms are
+  skipped. Placeholders are filled in by deploy/install.sh.
+
+  It does NOT rebuild the curriculum catalog, which changes annually and is
+  built elsewhere — see docs/operations.md, "Deploying to a new box".
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>edu.clemson.advising-mcp.refresh</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>NPM_PATH</string>
+    <string>run</string>
+    <string>clemson:refresh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>REPO_PATH</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>HOME_PATH</string>
+  </dict>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>5</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>HOME_PATH/Library/Logs/advising-mcp.refresh.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>HOME_PATH/Library/Logs/advising-mcp.refresh.err.log</string>
+</dict>
+</plist>

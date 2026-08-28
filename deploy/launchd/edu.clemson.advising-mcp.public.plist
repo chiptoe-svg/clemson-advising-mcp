@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Class-schedule MCP server (port 8766).
+
+  Do not edit the three placeholders by hand — deploy/install.sh fills in
+  REPO_PATH, NPM_PATH, and HOME_PATH and installs this file. It is checked in
+  as a template so the substitution is reviewable.
+
+  BIND: loopback. Campus reachability comes from the reverse proxy in front
+  (deploy/Caddyfile.example), never from binding this process to 0.0.0.0. The
+  MCP HTTP transport performs no Host/Origin validation, so off loopback the
+  bearer token would be the only gate.
+
+  AUTH: the bearer lives in the repo's gitignored .env. Never write a token
+  into this file — it is world-readable and it is in git.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>edu.clemson.advising-mcp.public</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>NPM_PATH</string>
+    <string>run</string>
+    <string>mcp:public:http</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>REPO_PATH</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>HOME_PATH</string>
+    <key>LOG_FILE</key>
+    <string>HOME_PATH/Library/Logs/advising-mcp.public.log</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>HOME_PATH/Library/Logs/advising-mcp.public.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>HOME_PATH/Library/Logs/advising-mcp.public.err.log</string>
+</dict>
+</plist>

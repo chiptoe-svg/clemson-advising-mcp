@@ -19,23 +19,35 @@ npm run typecheck
 
 Three data artifacts are not in git and must be provided:
 
-| Artifact | What it is | Where it comes from |
-|---|---|---|
-| `core/db/gc_advisor.db` | Curriculum catalog, ~5.7 MB | Built by the Python pipeline, or copied from a machine that has one |
-| `state/clemson/*.json` | Banner class-schedule snapshots, ~21 MB | The refresh job (§4) |
-| `.env` | Per-server bearer tokens and bind settings | Written at deploy time (§2) |
+| Artifact                | What it is                                 | Where it comes from                                                 |
+| ----------------------- | ------------------------------------------ | ------------------------------------------------------------------- |
+| `core/db/gc_advisor.db` | Curriculum catalog, ~5.7 MB                | Built by the Python pipeline, or copied from a machine that has one |
+| `state/clemson/*.db`    | Banner class-schedule snapshots, ~21 MB    | The refresh job (§4)                                                |
+| `.env`                  | Per-server bearer tokens and bind settings | Written at deploy time (§2)                                         |
 
-To build the catalog DB (build machine only):
+**The catalog database cannot be built on a serving host, and this is not a
+matter of convenience.** `core/scripts/rebuild_db.sh` needs Playwright, a live
+crawl of the Clemson catalog, an LLM for minor and certificate extraction, and
+roughly 4,000 cached page snapshots that are deliberately not in this
+repository. A cold build is hours; a warm one on the build box is minutes.
+
+The intended shape is therefore a **build box** that owns the Python pipeline
+and its caches and produces a `.db`, and a **serving box** that receives that
+file. The catalog changes annually, so this is one file copy a year — not an
+ongoing coupling.
+
+On the build box:
 
 ```bash
 python3 -m venv core/.venv && core/.venv/bin/pip install -e "core[dev]"
 core/scripts/rebuild_db.sh
 ```
 
-The intended shape is a **build box** that runs the Python pipeline and produces
-a `.db`, and a **serving box** that has Node, SQLite, and that file. Keeping the
-serving host Python-free is deliberate: it is one runtime in production and a
-smaller review surface.
+Keeping the serving host Python-free is deliberate: one runtime in production
+and a smaller review surface. One tool still shells out to Python —
+`audit-gc-progress`, which was called 0 times in 366 real calls. A serving box
+with no Python serves every other tool correctly and fails that one; if you
+need it, provision `core/.venv` there as well.
 
 Verify the install before going further:
 
@@ -167,6 +179,55 @@ restart the catalog server.
 
 ---
 
+## 4b. Deploying to a new box
+
+The end state is a machine that runs these two servers and nothing else, whose
+data other systems reach **only** through MCP. Nothing on it imports this code,
+opens its database, or shells into `core/`.
+
+```bash
+git clone <repo> && cd clemson-advising-mcp
+npm ci                                  # NOT a symlinked node_modules — see below
+cp deploy/env.example .env              # then fill it in (s2)
+# copy core/db/gc_advisor.db from the build box (s1)
+npm run clemson:refresh                 # first schedule snapshot
+npm test                                # 0 fail, 0 skipped
+bash deploy/install.sh
+```
+
+`deploy/install.sh` preflights, installs three launchd services (both servers
+plus the daily refresh), and verifies that each server answers 401 and loaded
+its tools. It refuses to install if the preflight fails, and it never writes
+`.env`, mints a token, or touches the proxy — those are decisions, not steps.
+`--check` preflights without changing anything; `--uninstall` removes the
+services and leaves the data.
+
+Two preflight failures are worth knowing in advance, because both look harmless:
+
+- **A symlinked `node_modules`.** Convenient when the repo is built beside a
+  sibling checkout, wrong for a service: launchd would depend on a directory
+  that can be moved, unmounted, or deleted out from under it.
+- **A missing catalog database.** The catalog server does not crash without it.
+  It answers, and its answers are empty — which a model reports as "there is no
+  such program."
+
+Then, in order: pair each consumer (§2), put the proxy in front (§3), verify
+over TLS with a real MCP client (§3), and confirm the refresh ran tomorrow.
+
+Ongoing monitoring:
+
+```bash
+npm run mcp:health          # exit 0 healthy, 1 degraded, 2 down
+npm run mcp:health -- --json
+```
+
+It needs no bearer token — everything it checks is observable without one, and
+a health check that holds a credential is a health check that can leak one.
+Alert on its exit code, and specifically on `schedule:freshness`: the refresh
+job failing is silent, and it is the failure this system actually has.
+
+---
+
 ## 5. Restart
 
 **Both servers load their tool registry and `policy/action-policy.yaml` once, at
@@ -198,20 +259,27 @@ change. Restarting the reverse proxy is not required for tool or policy changes.
 
 ## 6. Health
 
-There is no health endpoint, by design: an unauthenticated one would be a
-surface, and an authenticated one needs a token anyway. Three checks cover it:
-
 ```bash
-# 1. Alive and listening — a 401 proves routing and the listener are fine.
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8766/   # 401
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8767/   # 401
-
-# 2. Started clean, with the expected tools (§5).
-# 3. Data is fresh — call get-schedule-freshness, or check the snapshot mtime.
+npm run mcp:health          # exit 0 healthy, 1 degraded, 2 down
+npm run mcp:health -- --json
 ```
 
-A monitor should alert on the first two failing and on the third exceeding about
-36 hours, which is a missed daily refresh plus slack.
+Four things, and each is there because the obvious check would have missed it:
+
+| Check                                  | Why not something simpler                                                                                                                                  |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A 401 on each port                     | Proves routing, the listener, and the auth path in one. A **200** without a token is reported as DOWN, not healthy — serving open is worse than being down |
+| Tools loaded, from the startup line    | The only place the loaded tool list appears. A server restarted before a change was saved serves the old build, silently                                   |
+| Snapshot age                           | The failure this system actually has. Nothing else here would notice                                                                                       |
+| Catalog DB present and plausibly sized | Present-but-truncated makes the server answer "no such program" rather than fail                                                                           |
+
+There is no health _endpoint_, deliberately: an unauthenticated one is a
+surface, and an authenticated one needs a credential — so the check would have
+to hold a token, which is a thing that can leak. Everything above is observable
+from outside without one.
+
+Set `MCP_LOG_PATTERN` if your log names differ from
+`advising-mcp.{which}.err.log`.
 
 ---
 
@@ -220,10 +288,10 @@ A monitor should alert on the first two failing and on the third exceeding about
 Almost everything here is rebuildable, which is what makes cheap hardware
 defensible. Two things are not:
 
-| | Size | Consequence if lost |
-|---|---|---|
-| `state/mcp-consumers-*.json` | KB | Every paired agent must be re-issued a token |
-| `state/analytics/mcp-calls.jsonl` | MB | The only record of who used what |
+|                                   | Size | Consequence if lost                          |
+| --------------------------------- | ---- | -------------------------------------------- |
+| `state/mcp-consumers-*.json`      | KB   | Every paired agent must be re-issued a token |
+| `state/analytics/mcp-calls.jsonl` | MB   | The only record of who used what             |
 
 Both belong in a nightly off-box backup. `.env` holds unrecoverable secrets and
 is not in git — back it up before **any** edit, and never truncate or redirect
