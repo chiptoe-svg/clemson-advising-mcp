@@ -12,7 +12,7 @@ import {
   __resetGcGenEdRunner,
   AUDIT_SCHEMA_VERSION,
 } from "../src/gc-curriculum.ts";
-import { GC_ADVISOR_DB } from "../src/config.ts";
+import { GC_ADVISOR_DB } from "../src/config-mcp.ts";
 import { listGcCatalogYears as listLive } from "../src/gc-curriculum.ts";
 
 test("listGcCatalogYears calls the runner with ['years'] and parses JSON", async () => {

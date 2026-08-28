@@ -31,6 +31,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
+// EXTRACTION NOTE: CLEMSON_LLM_API_KEY is an ADVISOR prerequisite (the gateway
+// key its provider chain needs), not an MCP-server one, and it is the only
+// reason this file imports the full config rather than config-mcp. The
+// extracted MCP repo has no advisor, so its copy drops GATEWAY_KEY_PRESENT and
+// imports from config-mcp.ts alone. See
+// docs/superpowers/specs/2026-08-27-mcp-extraction-design.md.
 import {
   CLEMSON_LLM_API_KEY,
   GC_ADVISOR_DB,

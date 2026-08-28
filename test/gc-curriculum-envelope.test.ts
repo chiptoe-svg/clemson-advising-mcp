@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getGcRequirementRules, getGcProgramPlan, getGcCourse, getGcGenEd, listGcCatalogYears, auditGcProgress, __parseAuditOutput, __defaultQueryRunnerForTest, __setQueryExecFileForTest, GcCliError, AUDIT_SCHEMA_VERSION } from "../src/gc-curriculum.ts";
-import { GC_ADVISOR_DB, GC_ADVISOR_PYTHON, GC_ADVISOR_QUERY } from "../src/config.ts";
+import { GC_ADVISOR_DB, GC_ADVISOR_PYTHON, GC_ADVISOR_QUERY } from "../src/config-mcp.ts";
 
 // execFile's rejection carries stdout/stderr and the exit code on the Error.
 function cliFailure(code: number, stdout: string): Error & { code: number; stdout: string; stderr: string } {

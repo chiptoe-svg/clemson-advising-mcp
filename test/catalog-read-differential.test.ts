@@ -21,7 +21,7 @@ import {
   GC_ADVISOR_DB,
   GC_ADVISOR_PYTHON,
   GC_ADVISOR_QUERY,
-} from "../src/config.ts";
+} from "../src/config-mcp.ts";
 import {
   getCourse,
   getGenEd,
