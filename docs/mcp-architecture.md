@@ -287,8 +287,7 @@ process spawn in the *test client*, not the server. These figures are the server
 | 10 | 1,063 req/s | 6 ms | 15 ms | 35 ms |
 | 50 | 1,171 req/s | 34 ms | 58 ms | 136 ms |
 
-**Python-shell-out tools** (`get-gc-program-plan`, `audit-gc-progress`, etc. —
-each call spawns `query.py`):
+**Catalog tools BEFORE the SQL-in-Node port** (each call spawned `query.py`):
 
 | Concurrency | Throughput | p50 | p95 | p99 |
 |---|---|---|---|---|
@@ -296,8 +295,24 @@ each call spawns `query.py`):
 | 10 | 216 req/s | 42 ms | 55 ms | 78 ms |
 | 25 | 267 req/s | 79 ms | 143 ms | 153 ms |
 
-**The Python path is the binding constraint — roughly 4× slower than the SQLite
-path — and the cost is process spawn, not query work.**
+**Catalog tools AFTER the port** (2026-08-27, `get-gc-program-plan`, same box,
+same load generator):
+
+| Concurrency | Throughput | p50 | p95 | p99 |
+|---|---|---|---|---|
+| 1 | **429 req/s** (13.8x) | **2 ms** | 3 ms | 5 ms |
+| 10 | 841 req/s | 7 ms | 27 ms | 58 ms |
+| 25 | **968 req/s** (3.6x) | 19 ms | 39 ms | 60 ms |
+
+The binding constraint is gone: catalog reads now perform like the schedule
+tools, because they are now the same kind of work — an in-process read of a
+page-cached SQLite file. Verified with no `query.py` process spawning during
+sustained traffic (baseline 0, under load 0).
+
+`audit-gc-progress` still shells out to Python and still carries the old
+profile. It was called **0 times in 366 real tool calls**, so it is not on any
+hot path; if that changes, convert it to a persistent worker rather than
+porting the 439-line golden-tested engine.
 
 ### Translating users into requests
 
@@ -309,8 +324,9 @@ again. One turn per user per 45–60 s is a realistic sustained rate.
 200 concurrent users ÷ 50 s per turn × 2.65 calls  ≈  10.6 req/s
 ```
 
-Against a measured ceiling of 267 req/s on the *slowest* path, that is **~4% of
-capacity — a 25× margin.** For the 64-student class: ~3.4 req/s, about 1%.
+Against a measured ceiling of 968 req/s on the catalog path after the port
+(1,171 req/s on the schedule path), that is **~1% of capacity — a 90x margin.**
+For the 64-student class: ~3.4 req/s, about 0.35%.
 
 **Conclusion: for human-driven use, these servers are not the bottleneck and
 will not be.** Turn latency is dominated by LLM inference (median 7.1 s), of

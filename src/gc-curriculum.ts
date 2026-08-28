@@ -13,6 +13,16 @@ import {
 
 const execFileAsync = promisify(execFile);
 
+import {
+  getCourse as getCourseRow,
+  getGenEd as getGenEdRows,
+  getProgramPlan as getProgramPlanRow,
+  getRequirementRules as getRequirementRulesRows,
+  knownPrograms,
+  listCatalogYears,
+  openCatalog,
+} from "./catalog-read.js";
+
 /** The audit contract version this service understands (core/src/gc_advisor/audit/engine.py:AUDIT_SCHEMA_VERSION). */
 export const AUDIT_SCHEMA_VERSION = "gc-audit-v1";
 
@@ -160,20 +170,70 @@ export async function auditGcProgress(
   return __parseAuditOutput(out);
 }
 
+
+// --- Node-backed catalog reads (2026-08-27) ---------------------------------
+//
+// These five reads used to spawn core/scripts/query.py per call (~31 ms, and a
+// ~267 req/s ceiling). They are now served in-process from the same SQLite file
+// (~2 ms). The Python is unchanged and remains the oracle:
+// test/catalog-read-differential.test.ts diffs Node against it for EVERY
+// program x catalog year (36 plans, 36 rule sets, 9 gen-ed years, 40 courses).
+//
+// The `run` parameter is preserved on every function. When a caller passes one
+// explicitly — only tests do — the CLI path still runs, so the error-envelope
+// and timeout tests keep exercising the code they were written for. Production
+// callers omit it and get the Node path.
+//
+// auditGcProgress is NOT here: the audit engine stays in Python (see
+// src/catalog-read.ts).
+
+function withCatalog<T>(fn: (db: ReturnType<typeof openCatalog>) => T): T {
+  const db = openCatalog(GC_ADVISOR_DB);
+  try {
+    return fn(db);
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Translate a reader error into the SAME envelope query.py produced, so callers
+ * that already handle GcCliError (with its known_programs list) are unaffected
+ * by which implementation answered.
+ */
+function asCliError(err: unknown, year: string): never {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/^No program /.test(msg)) {
+    const known = withCatalog((db) => knownPrograms(db, year));
+    throw new GcCliError(msg, known);
+  }
+  throw err;
+}
+
 export async function listGcCatalogYears(
-  run: QueryRunner = defaultRunner,
+  run?: QueryRunner,
 ): Promise<string[]> {
-  const out = await run(["years"]).catch(rethrowCliFailure);
-  return parseCliJson("years", out) as string[];
+  if (run) {
+    const out = await run(["years"]).catch(rethrowCliFailure);
+    return parseCliJson("years", out) as string[];
+  }
+  return withCatalog((db) => listCatalogYears(db));
 }
 
 export async function getGcProgramPlan(
   year: string,
   name: string,
-  run: QueryRunner = defaultRunner,
+  run?: QueryRunner,
 ): Promise<unknown> {
-  const out = await run(["program-plan", "--year", year, "--name", name]).catch(rethrowCliFailure);
-  return parseCliJson("program-plan", out);
+  if (run) {
+    const out = await run(["program-plan", "--year", year, "--name", name]).catch(rethrowCliFailure);
+    return parseCliJson("program-plan", out);
+  }
+  try {
+    return withCatalog((db) => getProgramPlanRow(db, year, name));
+  } catch (e) {
+    return asCliError(e, year);
+  }
 }
 
 // Test-only seam: lets tests override the runner getGcRequirementRules falls
@@ -192,10 +252,17 @@ export function __resetGcRequirementRulesRunner(): void {
 export async function getGcRequirementRules(
   year: string,
   name: string,
-  run: QueryRunner = requirementRulesRunner,
+  run: QueryRunner | null = requirementRulesRunner === defaultRunner ? null : requirementRulesRunner,
 ): Promise<unknown> {
-  const out = await run(["req-rules", "--year", year, "--name", name]).catch(rethrowCliFailure);
-  return parseCliJson("req-rules", out);
+  if (run) {
+    const out = await run(["req-rules", "--year", year, "--name", name]).catch(rethrowCliFailure);
+    return parseCliJson("req-rules", out);
+  }
+  try {
+    return withCatalog((db) => getRequirementRulesRows(db, year, name));
+  } catch (e) {
+    return asCliError(e, year);
+  }
 }
 
 // Test-only seam, same shape as __setGcRequirementRulesRunner above.
@@ -211,16 +278,22 @@ export function __resetGcGenEdRunner(): void {
 
 export async function getGcGenEd(
   year: string,
-  run: QueryRunner = genEdRunner,
+  run: QueryRunner | null = genEdRunner === defaultRunner ? null : genEdRunner,
 ): Promise<unknown> {
-  const out = await run(["gen-ed", "--year", year]).catch(rethrowCliFailure);
-  return parseCliJson("gen-ed", out);
+  if (run) {
+    const out = await run(["gen-ed", "--year", year]).catch(rethrowCliFailure);
+    return parseCliJson("gen-ed", out);
+  }
+  return withCatalog((db) => getGenEdRows(db, year));
 }
 
 export async function getGcCourse(
   code: string,
-  run: QueryRunner = defaultRunner,
+  run?: QueryRunner,
 ): Promise<unknown> {
-  const out = await run(["course", "--code", code]).catch(rethrowCliFailure);
-  return parseCliJson("course", out);
+  if (run) {
+    const out = await run(["course", "--code", code]).catch(rethrowCliFailure);
+    return parseCliJson("course", out);
+  }
+  return withCatalog((db) => getCourseRow(db, code));
 }
