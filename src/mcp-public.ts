@@ -34,7 +34,7 @@ import {
   MCP_PUBLIC_HTTP_PORT,
   MCP_PUBLIC_AUTH_TOKEN,
   MCP_PUBLIC_AUTH_TOKEN_PROVIDER,
-} from "./config.js";
+} from "./config-mcp.js";
 
 startMcpServer({
   name: "cuassistant-public",

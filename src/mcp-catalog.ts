@@ -27,7 +27,7 @@ import {
   MCP_CATALOG_HTTP_PORT,
   MCP_CATALOG_AUTH_TOKEN,
   MCP_CATALOG_AUTH_TOKEN_PROVIDER,
-} from "./config.js";
+} from "./config-mcp.js";
 
 // SKILLS: an explicit allowlist of exactly the two GC skills, never a denylist.
 // The default exposure is the PUBLIC set (clemson-schedule-advising), which is

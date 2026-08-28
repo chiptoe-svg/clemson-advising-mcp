@@ -10,7 +10,7 @@
 // registration/entrypoint module for a helper.
 import Database from "better-sqlite3";
 
-import { GC_ADVISOR_DB } from "../config.js";
+import { GC_ADVISOR_DB } from "../config-mcp.js";
 
 // GC core courses come in lecture/lab pairs: a graded lecture (e.g. GC 4060)
 // and a non-credit lab COREQ (GC 4061) taken together — advisors say "4060"

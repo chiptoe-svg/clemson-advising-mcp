@@ -5,7 +5,7 @@
 import fs from "fs";
 import path from "path";
 
-import { GC_ADVISOR_SKILLS } from "../config.js";
+import { GC_ADVISOR_SKILLS } from "../config-mcp.js";
 import { setSkillRootsProvider } from "./surface-version.js";
 import { log } from "../log.js";
 import { assertMcpOperation } from "./permissions.js";

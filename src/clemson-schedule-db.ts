@@ -8,7 +8,7 @@ import fs from "fs";
 import path from "path";
 import Database from "better-sqlite3";
 
-import { STATE_DIR } from "./config.js";
+import { STATE_DIR } from "./config-mcp.js";
 import { log } from "./log.js";
 import { roomCapacity } from "./clemson-room-capacity.js";
 import { toEasternIso } from "./eastern-time.js";

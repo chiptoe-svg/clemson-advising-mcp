@@ -7,7 +7,7 @@ import path from "path";
 
 import YAML from "yaml";
 
-import { AUDIT_APPEND_ONLY, STATE_DIR } from "./config.js";
+import { AUDIT_APPEND_ONLY, STATE_DIR } from "./config-mcp.js";
 import { log } from "./log.js";
 import type { Account, PendingResidual, Progress, ScanMode } from "./types.js";
 

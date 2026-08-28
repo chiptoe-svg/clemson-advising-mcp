@@ -9,7 +9,7 @@ import {
   GC_ADVISOR_QUERY,
   GC_ADVISOR_AUDIT,
   GC_ADVISOR_DB,
-} from "./config.js";
+} from "./config-mcp.js";
 
 const execFileAsync = promisify(execFile);
 

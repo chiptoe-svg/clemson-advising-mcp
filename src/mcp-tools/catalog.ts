@@ -3,7 +3,7 @@
 import Database from "better-sqlite3";
 
 import { getGcProgramPlan, listGcCatalogYears, getGcRequirementRules, getGcGenEd, auditGcProgress } from "../gc-curriculum.js";
-import { GC_ADVISOR_DB } from "../config.js";
+import { GC_ADVISOR_DB } from "../config-mcp.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";

@@ -11,7 +11,7 @@
 import fs from "fs";
 import path from "path";
 
-import { STATE_DIR } from "./config.js";
+import { STATE_DIR } from "./config-mcp.js";
 
 export interface TermResolution {
   term: string;

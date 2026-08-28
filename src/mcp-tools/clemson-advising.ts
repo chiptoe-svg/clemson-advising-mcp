@@ -14,7 +14,7 @@
 // .superpowers/sdd/task-6-brief.md.
 import Database from "better-sqlite3";
 
-import { GC_ADVISOR_DB } from "../config.js";
+import { GC_ADVISOR_DB } from "../config-mcp.js";
 import { openScheduleDb, getScheduleDbMeta } from "../clemson-schedule-db.js";
 import { querySectionsEngine, type EngineSection } from "./section-query.js";
 import { resolveTerm } from "../term-resolve.js";

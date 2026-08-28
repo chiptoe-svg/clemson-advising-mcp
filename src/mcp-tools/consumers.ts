@@ -17,7 +17,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 
-import { STATE_DIR } from "../config.js";
+import { STATE_DIR } from "../config-mcp.js";
 
 export interface Consumer {
   /** Stable agent identifier, e.g. "nanoclaw-personal". Used as the audit id. */

@@ -5,7 +5,7 @@
 
 import Database from "better-sqlite3";
 
-import { GC_ADVISOR_DB } from "./config.js";
+import { GC_ADVISOR_DB } from "./config-mcp.js";
 
 export interface CatalogCourse {
   code: string;

@@ -20,7 +20,7 @@
 import { appendFileSync, mkdirSync } from "fs";
 import path from "path";
 
-import { STATE_DIR } from "../config.js";
+import { STATE_DIR } from "../config-mcp.js";
 import { log } from "../log.js";
 
 function analyticsDir(): string {
