@@ -35,7 +35,7 @@ src/gc_advisor/
   ingest/         the scraper and parsers — discovery, rendering, course pages,
                   program pages, gen-ed, corequisites, the LLM extractor
   db/             schema.sql, connection, and the read layer the audit uses
-  audit/          the degree-audit engine (see "Not currently reachable" below)
+  audit/          the degree-audit engine (see "Not exposed over MCP" below)
   models.py       the shared record shapes
 scripts/          one entry point per operation; rebuild_db.sh is the operator's
                   one-command path. `_capture_*.py` freeze test fixtures.
