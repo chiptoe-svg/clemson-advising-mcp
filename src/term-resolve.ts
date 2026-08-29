@@ -128,9 +128,34 @@ export function __setTermClockForTest(clock: (() => Date) | null): void {
   clockForTest = clock;
 }
 
+/**
+ * Parse a term WITHOUT requiring a snapshot for it.
+ *
+ * Split out from resolveTerm 2026-08-28. Both answers are needed, and
+ * conflating them is a defect: a tool whose response distinguishes "the
+ * snapshot has no such CRN" from "there is no snapshot" must still accept
+ * "Fall 2026" and normalise it, then decide for itself what an absent snapshot
+ * means. Tools that simply need a snapshot to read should keep calling
+ * resolveTerm, which adds the availability check and its redirect.
+ */
+export function parseTermCode(
+  input?: string,
+  now: Date = clockForTest ? clockForTest() : new Date(),
+): TermResolution | TermError {
+  return resolveTermInternal(input, now, false);
+}
+
 export function resolveTerm(
   input?: string,
   now: Date = clockForTest ? clockForTest() : new Date(),
+): TermResolution | TermError {
+  return resolveTermInternal(input, now, true);
+}
+
+function resolveTermInternal(
+  input: string | undefined,
+  now: Date,
+  requireSnapshot: boolean,
 ): TermResolution | TermError {
   const availableTerms = listSnapshotTerms();
   const trimmed = input?.trim() ?? "";
@@ -164,7 +189,7 @@ export function resolveTerm(
 
   const termName = formatTermName(termCode);
 
-  if (!availableTerms.includes(termCode)) {
+  if (requireSnapshot && !availableTerms.includes(termCode)) {
     return {
       error:
         `No snapshot available for ${termName} (${termCode}). ` +

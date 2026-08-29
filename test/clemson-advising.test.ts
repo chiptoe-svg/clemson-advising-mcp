@@ -444,13 +444,28 @@ test("get-schedule-freshness reports data_as_of and age for an ingested term", a
 });
 
 test("get-schedule-freshness reports has_snapshot:false for a term with no snapshot", async () => {
-  const out = await freshness({ term: "209999" });
+  // A REAL term this box has not ingested. It used to be "209999", which is
+  // not a term at all — since 2026-08-28 an unparseable term is an error, and
+  // a fixture that cannot occur in production was testing the wrong thing.
+  const out = await freshness({ term: "Spring 2027" });
   assert.equal(out.has_snapshot, false);
   assert.equal(out.data_as_of, undefined);
   assert.match(String(out.note), /no banner snapshot/i);
 });
 
-test("get-schedule-freshness requires a term", async () => {
-  const res = await scheduleFreshness.handler({});
+test("get-schedule-freshness defaults its term like every other schedule tool", async () => {
+  // Changed 2026-08-28. It used to reject an omitted term, which made it the
+  // odd one out: a model had to know which tools were picky. It now resolves
+  // the same way the search tools do.
+  const out = await freshness({});
+  assert.equal(typeof out.term, "string");
+  assert.match(String(out.term), /^\d{6}$/, "an omitted term resolves to a code");
+});
+
+test("get-schedule-freshness refuses a term it cannot parse", async () => {
+  // The distinction the fix turns on: "banana" is the caller being wrong, and
+  // must not be reported as a term that was never ingested.
+  const res = await scheduleFreshness.handler({ term: "banana" });
   assert.equal(res.isError, true);
+  assert.match((res.content[0] as { text: string }).text, /Unrecognized term/);
 });

@@ -176,10 +176,15 @@ test("both tools are registered and served", async () => {
     for (const n of ["get-sections-by-crn", "resolve-crns"]) {
       assert.ok(names.includes(n), `${n} missing from ${names.join(", ")}`);
     }
-    // A term with no snapshot must not report every CRN as fake.
+    // A term with no snapshot must not report every CRN as fake. This test
+    // runs against the real state directory, so the term has to be one that is
+    // VALID but certainly not ingested — Spring 2030. (It was "209999" until
+    // 2026-08-28: not a term at all, now an error, so it exercised the wrong
+    // branch; and "202701" turned out to be present on this box, which is why
+    // a fixture like this is worth checking rather than assuming.)
     const res = (await client.callTool({
       name: "get-sections-by-crn",
-      arguments: { term: "209999", crns: ["80773"] },
+      arguments: { term: "203001", crns: ["80773"] },
     })) as { structuredContent?: Record<string, unknown> };
     assert.equal(res.structuredContent?.has_snapshot, false);
     assert.deepEqual(

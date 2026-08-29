@@ -262,13 +262,14 @@ the next call.
 It keeps arriving in different disguises. Every row below is in this repository;
 the rule was learned partly in the application these servers came from:
 
-| Where                              | Silence                                       | Reported as                            |
-| ---------------------------------- | --------------------------------------------- | -------------------------------------- |
-| `find-requirement-sections` (PCID) | one of two requirement stores had no row      | "no such requirement exists"           |
-| `checkPrereqEligible`              | a prereq rule that did not parse              | "no prerequisite" / "not eligible"     |
-| a bare freshness timestamp         | never crawled                                 | "unchanged"                            |
-| `findCoreqs` (latent)              | malformed `coreq_parsed`, or an unreadable DB | "no corequisites"                      |
-| `get-sections-by-crn` (by design)  | a term with no snapshot                       | would have read as "every CRN is fake" |
+| Where                                 | Silence                                       | Reported as                                       |
+| ------------------------------------- | --------------------------------------------- | ------------------------------------------------- |
+| `find-requirement-sections` (PCID)    | one of two requirement stores had no row      | "no such requirement exists"                      |
+| `checkPrereqEligible`                 | a prereq rule that did not parse              | "no prerequisite" / "not eligible"                |
+| a bare freshness timestamp            | never crawled                                 | "unchanged"                                       |
+| `findCoreqs` (latent)                 | malformed `coreq_parsed`, or an unreadable DB | "no corequisites"                                 |
+| `get-sections-by-crn` (by design)     | a term with no snapshot                       | would have read as "every CRN is fake"            |
+| four schedule tools taking `term` raw | a term NAME the filename lookup missed        | "that term was never ingested" (fixed 2026-08-28) |
 
 The shared root, as the core maintainer put it: **the data layer represents
 presence well and the absence of knowledge not at all.** So every consumer has to

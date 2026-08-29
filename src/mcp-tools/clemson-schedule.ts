@@ -1,5 +1,6 @@
 // src/mcp-tools/clemson-schedule.ts
 // Deterministic schedule-conflict tools backed by the per-term SQLite snapshot.
+import { parseTermCode, resolveTerm } from "../term-resolve.js";
 import {
   openScheduleDb,
   getScheduleDbMeta,
@@ -31,7 +32,11 @@ const findConflictFree: McpToolDefinition = {
     inputSchema: {
       type: "object" as const,
       properties: {
-        term: { type: "string", description: "Term code, e.g. 202608." },
+        term: {
+          type: "string",
+          description:
+            'Term: a code (202608) or a name ("Fall 2026"). Defaults to the current registration term.',
+        },
         fixed_crns: {
           type: "array",
           items: { type: "string" },
@@ -52,11 +57,9 @@ const findConflictFree: McpToolDefinition = {
     } catch (e) {
       return permissionErr(e);
     }
-    const term = args.term as string | undefined;
     const fixedCrns = args.fixed_crns as string[] | undefined;
     const candidateCrns = args.candidate_crns as string[] | undefined;
     if (
-      !term ||
       !Array.isArray(fixedCrns) ||
       !Array.isArray(candidateCrns) ||
       candidateCrns.length === 0
@@ -64,6 +67,13 @@ const findConflictFree: McpToolDefinition = {
       return err(
         "term, fixed_crns, and a non-empty candidate_crns array are required",
       );
+    // This tool cannot answer without a snapshot, so the full resolver: it
+    // names the available terms rather than failing bare.
+    const resolved = resolveTerm(
+      typeof args.term === "string" ? args.term : undefined,
+    );
+    if ("error" in resolved) return err(resolved.error);
+    const { term } = resolved;
 
     const db = openScheduleDb(term);
     if (!db)
@@ -135,7 +145,8 @@ export const scheduleFreshness: McpToolDefinition = {
       properties: {
         term: {
           type: "string",
-          description: "Term code, e.g. 202608 (Fall 2026).",
+          description:
+            'Term: a code (202608) or a name ("Fall 2026"). Defaults to the current registration term.',
         },
       },
       required: ["term"],
@@ -148,8 +159,14 @@ export const scheduleFreshness: McpToolDefinition = {
       return permissionErr(e);
     }
 
-    const term = args.term as string | undefined;
-    if (!term) return err("term is required, e.g. 202608.");
+    // Parse but do NOT require a snapshot: reporting that a term has none is
+    // this tool's entire job. What it must not do is report a term it failed
+    // to understand as a term that was never ingested.
+    const parsedTerm = parseTermCode(
+      typeof args.term === "string" ? args.term : undefined,
+    );
+    if ("error" in parsedTerm) return err(parsedTerm.error);
+    const { term } = parsedTerm;
 
     const schedDb = openScheduleDb(term);
     if (!schedDb) {
@@ -224,7 +241,8 @@ const sectionsByCrn: McpToolDefinition = {
       properties: {
         term: {
           type: "string",
-          description: "Term code, e.g. 202608 (Fall 2026).",
+          description:
+            'Term: a code (202608) or a name ("Fall 2026"). Defaults to the current registration term.',
         },
         crns: {
           type: "array",
@@ -302,8 +320,15 @@ const sectionsByCrn: McpToolDefinition = {
     } catch (e) {
       return permissionErr(e);
     }
-    const term = typeof args.term === "string" ? args.term.trim() : "";
-    if (!term) return err("term is required, e.g. 202608.");
+    // "Fall 2026" must resolve to 202608, not fall through to
+    // has_snapshot:false — which reads as "that term was never ingested" about
+    // a term whose snapshot was fetched this morning. Reproduced 2026-08-28.
+    // Parse only: an absent snapshot is still reported, never implied.
+    const parsedTerm = parseTermCode(
+      typeof args.term === "string" ? args.term : undefined,
+    );
+    if ("error" in parsedTerm) return err(parsedTerm.error);
+    const { term } = parsedTerm;
     const crns = Array.isArray(args.crns)
       ? args.crns
           .filter((c): c is string => typeof c === "string")
@@ -368,7 +393,11 @@ const resolveCrnsTool: McpToolDefinition = {
     inputSchema: {
       type: "object" as const,
       properties: {
-        term: { type: "string", description: "Term code, e.g. 202608." },
+        term: {
+          type: "string",
+          description:
+            'Term: a code (202608) or a name ("Fall 2026"). Defaults to the current registration term.',
+        },
         sections: {
           type: "array",
           description:
@@ -413,8 +442,11 @@ const resolveCrnsTool: McpToolDefinition = {
     } catch (e) {
       return permissionErr(e);
     }
-    const term = typeof args.term === "string" ? args.term.trim() : "";
-    if (!term) return err("term is required, e.g. 202608.");
+    const parsedTerm = parseTermCode(
+      typeof args.term === "string" ? args.term : undefined,
+    );
+    if ("error" in parsedTerm) return err(parsedTerm.error);
+    const { term } = parsedTerm;
     const raw = Array.isArray(args.sections) ? args.sections : [];
     const wanted = raw
       .filter((r): r is Record<string, unknown> => !!r && typeof r === "object")
@@ -448,6 +480,15 @@ const resolveCrnsTool: McpToolDefinition = {
       db.close();
     }
   },
+};
+
+/** Test-only handle on the tool definitions, so a test can drive a handler
+ *  without standing up a server. */
+export const __schedTools = {
+  findConflictFree,
+  scheduleFreshness,
+  sectionsByCrn,
+  resolveCrns: resolveCrnsTool,
 };
 
 registerTools([

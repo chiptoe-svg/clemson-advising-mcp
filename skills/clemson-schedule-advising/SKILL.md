@@ -22,12 +22,10 @@ its own input schema (names, types, descriptions) — read that for the exact
 arguments; it is always current. This document covers what a schema can't: which
 tool to reach for, the order to call them in, and where the data lies to you.
 
-**Term handling differs by tool, and this catches people.** The four search
-tools (`search-classes`, `find-alternatives`, `check-conflicts`,
-`get-course-details`) and `find-requirement-sections` default to the current
-registration term and accept free text ("Spring 2027") as well as a Banner code.
-`get-schedule-freshness`, `get-sections-by-crn`, and `resolve-crns` **require**
-an explicit six-digit term code (`202608`).
+**Term is optional on every schedule tool, and every one accepts a name.**
+`"Fall 2026"`, `"fall"`, and `202608` all resolve; omit `term` and you get the
+current registration term. A term the tool cannot parse is an **error** naming
+the accepted forms — it is never reported as a term with no data.
 
 ---
 
@@ -42,7 +40,7 @@ an explicit six-digit term code (`202608`).
 | `find-conflict-free-schedule` | Which candidate CRNs fit around already-fixed CRNs, checked pairwise both ways                                                              | Answers "what combination works", not "what exists".                                                                                                                                                                                                                                      |
 | `get-sections-by-crn`         | Confirm CRNs you already have: authoritative rows and meetings straight from the snapshot                                                   | `not_found` is the load-bearing half — it means the snapshot was read and has no such CRN. `has_snapshot: false` means nothing was checked, and `not_found` is then empty rather than listing every CRN as fake.                                                                            |
 | `resolve-crns`                | Get CRNs for course + section pairs, for schedule data that carries no CRNs                                                                 | Results align **by index** with the input. A null means no single match — none, or several. It never guesses between candidates.                                                                                                                                                           |
-| `get-schedule-freshness`      | How old the snapshot is for a term                                                                                                          | `term` is required. Ask before trusting seat counts.                                                                                                                                                                                                                                      |
+| `get-schedule-freshness`      | How old the snapshot is for a term                                                                                                          | Ask before trusting seat counts. `has_snapshot: false` means that term has not been ingested — it does not mean the term does not exist.                                                                                                                                                   |
 | `list-clemson-terms`          | Banner term codes                                                                                                                           | Rarely needed — the search tools default their own term.                                                                                                                                                                                                                                  |
 
 ## Catalog tools (8767)
