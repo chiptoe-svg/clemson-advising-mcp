@@ -39,9 +39,18 @@ import path from "node:path";
 // docs/superpowers/specs/2026-08-27-mcp-extraction-design.md.
 import {
   GC_ADVISOR_DB,
-  GC_ADVISOR_PYTHON,
   STATE_DIR,
 } from "../src/config-mcp.ts";
+
+/**
+ * The Python oracle for the differential test (core/.venv/bin/python running
+ * core/scripts/query.py). Test-only: the servers never spawn an interpreter,
+ * so these paths live here rather than in src/config-mcp.ts.
+ */
+export const GC_ADVISOR_PYTHON =
+  process.env.GC_ADVISOR_PYTHON || path.resolve(process.cwd(), "core", ".venv", "bin", "python");
+export const GC_ADVISOR_QUERY =
+  process.env.GC_ADVISOR_QUERY || path.resolve(process.cwd(), "core", "scripts", "query.py");
 
 /** The built GC catalog database (core/db/gc_advisor.db) exists. */
 export const CORE_DB_PRESENT = fs.existsSync(GC_ADVISOR_DB);

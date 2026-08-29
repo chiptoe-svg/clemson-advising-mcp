@@ -93,8 +93,9 @@ test/                                   the suite; no test is allowed to skip
 deploy/                                 reverse-proxy configuration
 ```
 
-`core/` is the only Python in the project and never runs on a request path — it
-is the catalog scraper and its parsers, plus 5,096 cached catalog pages, so this
+`core/` is the only Python in the project, and no request ever runs it — the
+servers read the database it builds, in-process. It is the catalog scraper and
+its parsers, plus 5,096 cached catalog pages, so this
 repository can rebuild its own database rather than depending on another machine
 to produce one. Serving needs only Node, SQLite, and a built database.
 

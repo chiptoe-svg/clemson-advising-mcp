@@ -98,10 +98,6 @@ test("a schedule-scoped token cannot reach catalog operations", () => {
     !scoped.has("clemson.gc_program_plan"),
     "a schedule-only agent must not reach the degree catalog",
   );
-  assert.ok(
-    !scoped.has("clemson.gc_audit_progress"),
-    "a schedule-only agent must not reach the audit engine",
-  );
 });
 
 test("a catalog-scoped token cannot reach schedule operations", () => {

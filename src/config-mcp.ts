@@ -91,7 +91,7 @@ export const MCP_CATALOG_HTTP_PORT = Number(
 // https://gcworkflow.clemson.edu:8443/cu_schedule/ logged
 // `source: "127.0.0.1"` — which reads as "a local caller" but means "we did
 // not look". That is the silence-read-as-absence class again, and it costs two
-// concrete things: the audit log attributes nothing, and the per-source
+// concrete things: the usage ledger attributes nothing, and the per-source
 // unauthenticated throttle (UNAUTH_LIMIT/min) collapses into ONE shared bucket,
 // so a single scanner at the front door 429s every other client and the
 // throttle can no longer target the abuser.
@@ -114,21 +114,12 @@ export const MCP_PUBLIC_AUTH_TOKEN = process.env.MCP_PUBLIC_AUTH_TOKEN || "";
 export const MCP_CATALOG_AUTH_TOKEN = process.env.MCP_CATALOG_AUTH_TOKEN || "";
 
 // --- Catalog core (core/) --------------------------------------------------
-// The catalog data and the Python that BUILDS it. Since the SQL-in-Node port
-// (2026-08-27) the serving path reads GC_ADVISOR_DB directly and never spawns
-// Python; GC_ADVISOR_PYTHON/QUERY are retained for the differential test and
-// for tooling, and GC_ADVISOR_AUDIT for audit-gc-progress, which is still a
-// Python shell-out. A serving-only deployment needs the DB and the skills, not
-// the interpreter.
+// The built catalog database and the skill documents that describe how to
+// drive the catalog tools. The Python under core/ BUILDS the database; the
+// serving path reads GC_ADVISOR_DB in-process and never spawns an interpreter.
 const CORE_DIR = path.join(REPO_ROOT, "core");
 export const GC_ADVISOR_DB =
   process.env.GC_ADVISOR_DB || path.join(CORE_DIR, "db", "gc_advisor.db");
-export const GC_ADVISOR_PYTHON =
-  process.env.GC_ADVISOR_PYTHON || path.join(CORE_DIR, ".venv", "bin", "python");
-export const GC_ADVISOR_QUERY =
-  process.env.GC_ADVISOR_QUERY || path.join(CORE_DIR, "scripts", "query.py");
-export const GC_ADVISOR_AUDIT =
-  process.env.GC_ADVISOR_AUDIT || path.join(CORE_DIR, "scripts", "audit.py");
 // core/ also owns the SKILL.md documents that describe how to drive the
 // catalog tools. They are read in place: the tree that owns the data owns its
 // documentation.

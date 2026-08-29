@@ -144,8 +144,7 @@ When a student asks "can I take GC 3010?" or "what do I need before X?":
 
 ## Reading a DegreeWorks audit pasted into the conversation
 
-When an advisor pastes cleaned DegreeWorks text rather than driving
-`audit-gc-progress`, **you are the parser** — no schema is checking your reading.
+When an advisor pastes cleaned DegreeWorks text, **you are the parser** — no schema is checking your reading.
 One trap is common and easy to miss:
 
 **A requirement header may carry no course codes at all.** Its options sit on the
@@ -293,14 +292,12 @@ See `includes/transfer-and-substitutions.md` and `includes/internships.md`.
 
 ## Tool-driving
 
-`audit-gc-progress` / `get-gc-requirement-rules` (find unmet + eligible) →
+`get-gc-program-plan` / `get-gc-requirement-rules` (find unmet + eligible) →
 `find-requirement-sections` (candidate sections) → `check-conflicts` /
 `find-conflict-free-schedule` (fit) → for lab pairs, confirm both halves via
 `get-course-details` (`crn`, one per half). `eligible_next[].co_reqs` tells you
 which courses trigger the both-halves check. The advisor course list is surfaced on each rule as
 `advisor_courses` / `advisor_denies` (via `get-gc-requirement-rules`).
-`audit-gc-progress` accepts optional top-level `program`/`catalog_year` that
-fill the record when it lacks them; values already in the record win.
 
 ## Requirement + scheduling-constraint queries → ONE call, don't hand-filter
 

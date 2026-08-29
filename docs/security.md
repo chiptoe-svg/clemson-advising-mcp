@@ -176,8 +176,9 @@ unmapped paths. It is a configuration hazard rather than a code defect, and it
 is the kind that stays invisible.
 
 **7.5 The dependencies.** Three runtime packages: the MCP SDK, `better-sqlite3`,
-and a YAML parser. Node 22+ and, for the build-time catalog pipeline only,
-Python 3.12+. There is no web framework, no ORM, and no authentication library.
+and a YAML parser. Node 22+. Python 3.12+ exists only to build the catalog
+database; no request ever spawns it. There is no web framework, no ORM, and no
+authentication library.
 
 ---
 
@@ -189,7 +190,7 @@ Python 3.12+. There is no web framework, no ORM, and no authentication library.
    behaviour described there.
 3. `src/mcp-tools/consumers.ts` — token hashing, registry storage, atomic writes.
 4. `test/mcp-auth-future.test.ts`, `test/mcp-client-source.test.ts`,
-   `test/mcp-registry-per-server.test.ts` — the tests that pin the claims above.
+   `test/mcp-public-catalog-auth.test.ts` — the tests that pin the claims above.
    Each was demonstrated to fail with its fix reverted; a test that has never
    been shown red is not evidence.
 5. `docs/operations.md` — the deployment steps that these controls assume.

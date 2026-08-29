@@ -1,8 +1,9 @@
-// Public GC curriculum tools — backed by the gc_advisor project's query.py CLI
-// (see src/gc-curriculum.ts). Read-only, public catalog data, no credentials.
+// Public GC curriculum tools — in-process reads over the built catalog
+// database (see src/gc-curriculum.ts, src/catalog-read.ts). Read-only, public
+// catalog data, no credentials.
 import Database from "better-sqlite3";
 
-import { getGcProgramPlan, listGcCatalogYears, getGcRequirementRules, getGcGenEd, auditGcProgress } from "../gc-curriculum.js";
+import { getGcProgramPlan, listGcCatalogYears, getGcRequirementRules, getGcGenEd } from "../gc-curriculum.js";
 import { GC_ADVISOR_DB } from "../config-mcp.js";
 import {
   getCourseEntry,
@@ -230,81 +231,6 @@ export const genEd: McpToolDefinition = {
     }
   },
 };
-
-export const auditProgress: McpToolDefinition = {
-  operation: "clemson.gc_audit_progress",
-  category: "curriculum-extras",
-  tool: {
-    name: "audit-gc-progress",
-    description:
-      "Run a deterministic degree audit (any College of Business program; " +
-      "pass `program` and `catalog_year`, either inside the record or as " +
-      "top-level arguments) on a sanitized gc-progress-v1 record " +
-      "(passed course codes + terms + credits, in-progress, declared minor — " +
-      "NO grades or identity; produced by the GC Advisor clean flow). Returns " +
-      "requirements met/remaining, gen-ed progress, credits left, and " +
-      "prereq-eligible next courses. Use the results to advise; never compute " +
-      "the audit yourself. ADVISORY ONLY for programs other than Graphic " +
-      "Communications, BS (known allocation defects as of 2026-08-26): present " +
-      "those verdicts as tentative and tell the advisor to confirm with " +
-      "DegreeWorks.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        progress: {
-          type: "object",
-          description:
-            "gc-progress-v1 JSON object (from the GC Advisor page's cleaned " +
-            "output). Its `program` / `catalog_year` fields identify the " +
-            "degree being audited; the top-level program / catalog_year " +
-            "arguments below fill them when the record omits them.",
-        },
-        program: { type: "string", description: PROGRAM_ARG_DESCRIPTION },
-        catalog_year: {
-          type: "string",
-          description: CATALOG_YEAR_ARG_DESCRIPTION,
-        },
-      },
-      required: ["progress"],
-      additionalProperties: false,
-    },
-  },
-  async handler(args) {
-    try {
-      assertMcpOperation("clemson.gc_audit_progress");
-    } catch (e) {
-      return permissionErr(e);
-    }
-    if (!args.progress || typeof args.progress !== "object" || Array.isArray(args.progress))
-      return err("progress (gc-progress-v1 object) is required");
-    // The record's own program/catalog_year win; the top-level args only fill
-    // them in. Read by exact key — a gc-progress-v1 record must never be
-    // scanned for `name`, which in a student record means something else.
-    const record = args.progress as Record<string, unknown>;
-    const fromRecord = (key: string): string | null =>
-      typeof record[key] === "string" && (record[key] as string).trim() !== ""
-        ? (record[key] as string).trim()
-        : null;
-    const program = fromRecord("program") ?? resolveProgramArg(args);
-    if (!program) return err(missingProgramMessage());
-    const catalogYear = fromRecord("catalog_year") ?? resolveCatalogYearArg(args);
-    try {
-      const audited = await auditGcProgress({
-        ...record,
-        program,
-        ...(catalogYear ? { catalog_year: catalogYear } : {}),
-      });
-      return okJson({
-        ...(audited as object),
-        program,
-        catalog_year: catalogYear,
-      });
-    } catch (e) {
-      return err(`GC audit failed: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  },
-};
-
 
 /**
  * WHY THIS TOOL EXISTS (2026-08-27): a live advisor asked "what is the PCID
@@ -716,4 +642,4 @@ export const getCourse: McpToolDefinition = {
   },
 };
 
-registerTools([catalogYears, programPlan, requirementRules, genEd, auditProgress, findCourseInProgram, listPrograms, getCourse]);
+registerTools([catalogYears, programPlan, requirementRules, genEd, findCourseInProgram, listPrograms, getCourse]);

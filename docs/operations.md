@@ -57,11 +57,10 @@ The catalog changes annually, so this runs about once a year. Copying a built
 `.db` from another machine that already has one remains perfectly valid and is
 the faster path when one exists.
 
-Keeping the serving host Python-free is deliberate: one runtime in production
-and a smaller review surface. One tool still shells out to Python —
-`audit-gc-progress`, which was called 0 times in 366 real calls. A serving box
-with no Python serves every other tool correctly and fails that one; if you
-need it, provision `core/.venv` there as well.
+The serving host needs no Python: one runtime in production and a smaller
+review surface. Every tool is TypeScript reading SQLite. `core/.venv` is needed
+only to rebuild the database or to run the differential test that checks the
+Node reads against the Python they replaced.
 
 Verify the install before going further:
 

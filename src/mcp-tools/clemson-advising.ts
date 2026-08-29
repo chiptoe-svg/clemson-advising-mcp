@@ -96,8 +96,7 @@ function getProgramIdForCatalogYear(
 }
 
 // The catalog_year LABEL a given program row belongs to — needed to call
-// getGcRequirementRules (the gc_advisor query.py bridge, which takes a year
-// string, not an id) when a requirement lookup misses and the valid slot
+// getGcRequirementRules (which takes a year string, not an id) when a requirement lookup misses and the valid slot
 // list must be fetched for the redirect.
 function getCatalogYearLabelForProgram(
   db: Database.Database,
@@ -227,11 +226,10 @@ export function checkPrereqEligible(
 // MCP tool
 // ---------------------------------------------------------------------------
 
-/** Injectable for tests — defaults to the real gc_advisor query.py bridge.
- *  Mirrors core-search.ts's makeSearchClasses/makeGetCourseDetails DI idiom,
- *  needed here so the unknown-requirement redirect (which shells out to
- *  gc_advisor for the valid slot list) is testable without a real
- *  subprocess. */
+/** Injectable for tests — defaults to the real catalog reader. Mirrors
+ *  core-search.ts's makeSearchClasses/makeGetCourseDetails DI idiom, so the
+ *  unknown-requirement redirect (which fetches the valid slot list) is
+ *  testable against a fixture. */
 export interface FindRequirementSectionsDeps {
   getGcRequirementRules: typeof getGcRequirementRulesLive;
 }

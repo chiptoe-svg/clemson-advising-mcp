@@ -1,6 +1,6 @@
 // src/mcp-catalog.ts
-// Public GC curriculum MCP server. Bridges to the gc_advisor project's
-// query.py for catalog data. Defaults to stdio; serves HTTP when
+// Curriculum catalog MCP server. Reads the built catalog database in-process
+// (src/catalog-read.ts). Defaults to stdio; serves HTTP when
 // MCP_TRANSPORT=http. Holds no secrets and only reads public catalog data.
 //
 // AUTH: MCP_CATALOG_AUTH_TOKEN, distinct from the public server's key and from

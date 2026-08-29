@@ -49,7 +49,7 @@ returning an empty result the caller might read as "nothing exists".
 | Port | 8766 | 8767 |
 | Serves | Clemson class schedule | Degree catalog and curriculum |
 | Data source | Banner snapshots (SQLite, refreshed daily 05:00) | Built catalog DB (SQLite) + Python query/audit CLI |
-| Tools | 11 | 12 |
+| Tools | 11 | 11 |
 | Holds student data | No | No |
 | Holds credentials | No | No |
 
@@ -68,7 +68,7 @@ restarted, revoked, or taken down without touching the other.
 **Catalog (8767)** — `list-gc-catalog-years`, `get-gc-program-plan`,
 `get-gc-requirement-rules`, `get-gc-gen-ed`, `get-program-requirements`,
 `find-requirement-sections`, `find-course-in-program`, `list-gc-programs`,
-`get-gc-course`, `audit-gc-progress`, `list-gc-skills`, `get-gc-skill-docs`
+`get-gc-course`, `list-gc-skills`, `get-gc-skill-docs`
 
 ---
 
@@ -95,8 +95,8 @@ buildServer()  — a FRESH MCP Server + transport per request (stateless)
         ├── scope check
         ├── recordMcpCall()  src/mcp-tools/usage.ts   → analytics line
         └── tool.handler(args)
-              ├── SQLite read (better-sqlite3, readonly)      ─ most tools
-              └── execFile → core/scripts/query.py            ─ catalog tools
+              ├── SQLite read (better-sqlite3, readonly)      ─ catalog and schedule tools
+              └── fetch → Banner (regssb.sis.clemson.edu)     ─ live schedule lookups only
 ```
 
 ### Why stateless-per-request
@@ -131,10 +131,10 @@ entry points        mcp-public.ts, mcp-catalog.ts
                     mcp-tools/skills.ts  skill-document tools
 ```
 
-Plus **`core/`** — a Python package (the former `gc_advisor` project) providing
-`query.py` (catalog lookups) and `audit.py` (degree audits), and the built
-SQLite catalog database. The catalog server shells into it; the public server
-does not depend on it at all.
+Plus **`core/`** — a Python package (the former `gc_advisor` project) that
+BUILDS the SQLite catalog database from Clemson's published catalog. No request
+runs it: the catalog server reads the database it produces, in-process, and the
+public server does not depend on it at all.
 
 ### Data artifacts
 
@@ -235,8 +235,7 @@ the next call.
 | Server won't start, "no authorized consumers" | no token configured and empty registry — fail-closed working as designed | env token + registry file |
 | Schedule answers are stale/empty | daily refresh failed; snapshot old | `get-schedule-freshness`, snapshot mtime |
 | `totalCount=0` from Banner | keep-alive dropped the stickiness cookie | fixed 2026-08-12 (`Connection: close`); recheck if it returns |
-| Catalog tool times out at 15 s | Python CLI hung or venv missing | run `core/scripts/query.py` by hand |
-| Catalog tools fail, schedule tools fine | `core/` venv or DB missing | `ls core/db/gc_advisor.db core/.venv/bin/python` |
+| Catalog tools fail, schedule tools fine | catalog DB missing or unreadable | `ls -l core/db/gc_advisor.db`; the tools say "unreadable", never "not found" |
 | Answers are wrong but confident | wrong store queried — see below | `find-course-in-program` |
 
 ### The recurring defect: silence read as absence

@@ -15,11 +15,9 @@ import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
 // SKILL ROOTS
 // ===========
 // Skills come from two directories. The first is this repo's own `skills/`.
-// The second is gc_advisor's, read IN PLACE rather than copied here: the
-// catalog server already shells out to gc_advisor's query.py instead of
-// duplicating its data (src/config.ts), and the documents describing how to
-// drive those tools belong to the same owner. A copy in this repo would go
-// stale against the project that keeps changing it, and nothing would say so.
+// The second is core/skills, read IN PLACE rather than copied: the tree that
+// owns the catalog data owns the documents describing how to drive its tools,
+// and a copy would go stale with nothing to say so.
 const LOCAL_SKILLS_DIR = path.resolve(process.cwd(), "skills");
 
 // The name of the LIST tool as this process actually advertises it.

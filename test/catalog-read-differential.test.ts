@@ -17,11 +17,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
 
-import {
-  GC_ADVISOR_DB,
-  GC_ADVISOR_PYTHON,
-  GC_ADVISOR_QUERY,
-} from "../src/config-mcp.ts";
+import { GC_ADVISOR_DB } from "../src/config-mcp.ts";
 import {
   getCourse,
   getGenEd,
@@ -31,7 +27,13 @@ import {
   openCatalog,
   findStaleBogusFlags,
 } from "../src/catalog-read.ts";
-import { SKIP_NO_CORE_DB, SKIP_NO_CORE_PYTHON, requireCoreArtifacts } from "./_artifacts.ts";
+import {
+  GC_ADVISOR_PYTHON,
+  GC_ADVISOR_QUERY,
+  SKIP_NO_CORE_DB,
+  SKIP_NO_CORE_PYTHON,
+  requireCoreArtifacts,
+} from "./_artifacts.ts";
 
 requireCoreArtifacts({ python: true });
 

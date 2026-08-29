@@ -52,10 +52,6 @@ zero at baseline, zero under load.
 `initialize` completed in 55 ms and a `tools/call` round-trip in 12–19 ms
 against the catalog. The proxy hop is not a factor at this scale.
 
-One tool keeps the old profile: `audit-gc-progress` still shells out to Python.
-It was called **0 times in 366 real tool calls**. If that changes, make it a
-persistent worker rather than porting a 439-line golden-tested engine.
-
 ---
 
 ## 2. Translating users into requests
@@ -141,7 +137,6 @@ Each of these is a threshold, not a worry:
 | Signal | What it changes |
 |---|---|
 | Sustained agent traffic in the ledger, not human traffic | Re-measure; §2's arithmetic no longer applies |
-| `audit-gc-progress` becomes hot | Make it a persistent worker |
 | Per-student state with concurrent writes (saved plans, advisor notes) | Raises reliability requirements *and* triggers the SQLite-vs-Postgres question. Both arrive together |
 | The dataset outgrows RAM | The page-cache assumption underneath every number here |
 

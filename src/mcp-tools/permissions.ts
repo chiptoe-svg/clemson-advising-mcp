@@ -121,10 +121,6 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.gc_gen_ed",
   },
-  "clemson.gc_audit_progress": {
-    backend: "external-http",
-    policyActionId: "clemson.gc_audit_progress",
-  },
 };
 
 export class McpPermissionDeniedError extends Error {
@@ -235,7 +231,7 @@ export function isMcpOperationExposed(operation: string): boolean {
 // `clemson` grants everything and is kept for compatibility with any token
 // already carrying it. The two narrower tokens below exist because scoping was
 // all-or-nothing until 2026-08-28: an agent that only needed class times had to
-// be granted the degree catalog and the audit engine as well. They map to the
+// be granted the degree catalog as well. They map to the
 // two servers, which is the boundary consumers actually reason about — a
 // schedule-only agent takes `clemson.schedule` and is structurally unable to
 // call a catalog tool, on either server.
@@ -264,7 +260,6 @@ const CLEMSON_CATALOG_OPS = [
   "clemson.gc_list_programs",
   "clemson.gc_get_course",
   "clemson.gc_gen_ed",
-  "clemson.gc_audit_progress",
   "clemson.find_requirement_sections",
   "clemson.gc_program_requirements",
 ];
@@ -289,7 +284,6 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.gc_list_programs",
     "clemson.gc_get_course",
     "clemson.gc_gen_ed",
-    "clemson.gc_audit_progress",
     "clemson.find_requirement_sections",
     "clemson.gc_program_requirements",
     "clemson.schedule_freshness",

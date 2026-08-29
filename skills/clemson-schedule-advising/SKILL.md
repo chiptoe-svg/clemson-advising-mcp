@@ -57,7 +57,6 @@ with no dynamic tool loading), these are simply always-available MCP tools —
 | `get-gc-program-plan` | Full semester-by-semester GC degree plan | Groups → items (`fixed_course` / `choice` / `slot`) → footnotes. |
 | `get-gc-requirement-rules` | Lab-science / specialty-area / technical slot rules | The `slot_type` values here are what `find-requirement-sections` expects as `requirement`. |
 | `get-gc-gen-ed` | The six Gen-Ed categories with min credits + allowed courses | Apply the `rules` constraint sentences (e.g. Social Sciences "two different fields"). |
-| `audit-gc-progress` | Deterministic degree audit on a sanitized ledger | Input is course codes + terms + credits only — no identity, no grades (and none accepted). |
 | `get-program-requirements` | Requirement rules for a **minor or certificate** (not the full GC BS plan) | Partial/misspelled names return candidates. |
 | `find-conflict-free-schedule` | 8766 — which candidate CRNs fit around already-fixed CRNs, checked pairwise both ways | Grouped here because it answers a curriculum-shaped "what combination works" question, not a bare lookup. |
 
@@ -114,8 +113,7 @@ on the same tool now, not separate lookups.
 
 **Full advising session**
 `load-tools { category: "curriculum-extras" }` → `get-gc-program-plan`
-(identify open slots) → `audit-gc-progress` (what's satisfied vs open) →
-`get-gc-requirement-rules` (explicit courses / slot names for open slots) →
+(identify open slots) → `get-gc-requirement-rules` (explicit courses / slot names for open slots) →
 `find-requirement-sections` per open slot → `check-conflicts` on the candidate
 set → `propose-schedule` on the final proposal. For lab pairs, confirm **both**
 halves have seats and don't conflict.
