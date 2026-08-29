@@ -14,13 +14,13 @@ in here is about the human advisors who use the system.
 
 ## Build time vs. request time
 
-| | Build time (this package) | Request time (the servers) |
-| --- | --- | --- |
-| Runs | About once a year, by hand | Per MCP call |
-| Needs network | Yes — `catalog.clemson.edu` | No |
-| Needs Playwright + Chromium | Yes — the catalog is a JavaScript application | No |
-| Needs an LLM endpoint | Yes — minor and certificate requirements are extracted by a model | No |
-| Writes | `core/db/gc_advisor.db`, and refreshes `core/data/raw` | Nothing |
+|                             | Build time (this package)                                         | Request time (the servers) |
+| --------------------------- | ----------------------------------------------------------------- | -------------------------- |
+| Runs                        | About once a year, by hand                                        | Per MCP call               |
+| Needs network               | Yes — `catalog.clemson.edu`                                       | No                         |
+| Needs Playwright + Chromium | Yes — the catalog is a JavaScript application                     | No                         |
+| Needs an LLM endpoint       | Yes — minor and certificate requirements are extracted by a model | No                         |
+| Writes                      | `core/db/gc_advisor.db`, and refreshes `core/data/raw`            | Nothing                    |
 
 One consequence worth stating for a reviewer: **there is no code path from an
 MCP request into this package.** The tool that used to shell into it
@@ -74,13 +74,21 @@ catalog page. A rebuild refreshes these files in the working tree, so
 `rebuild_db.sh` will leave tracked data modified; review that diff and commit it
 as a data refresh, or discard it.
 
-## Not currently reachable: `audit/`
+## Not exposed over MCP: `audit/`
 
-The degree-audit engine is still here, with its golden tests, but nothing calls
-it: the MCP tool that did was removed, and rebuilding it as a host-side feature
-of the advising application is an open decision. It is kept rather than deleted
-because deleting a 439-line golden-tested engine to re-derive it later is the
-expensive order to do things in.
+The degree-audit engine is whole and working — `scripts/audit.py` runs it
+against the built database and returns a full `gc-audit-v1` result (requirement
+items, gen-ed progress, credits remaining, prereq-eligible next courses), and 38
+tests cover it including golden fixtures. What was removed on 2026-08-28 is the
+MCP tool that wrapped it, so no _request_ can reach it; the CLI still can.
+
+```bash
+echo '{"version":"gc-progress-v1","catalog_year":"2026-2027","program":"Graphic Communications, BS","passed":[]}' \
+  | .venv/bin/python scripts/audit.py --db db/gc_advisor.db
+```
+
+The `version` field is required; without it the CLI exits 2 with a JSON error
+envelope rather than guessing at the payload's shape.
 
 ## What was deliberately withheld
 
