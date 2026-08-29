@@ -19,7 +19,7 @@ test("assertHttpAuthConfig: open mode allowed only on loopback", () => {
   assert.doesNotThrow(() => assertHttpAuthConfig("", "::1"));
   assert.throws(
     () => assertHttpAuthConfig("", "0.0.0.0"),
-    /required when MCP_HTTP_HOST is not loopback/,
+    /required when the bind host is not loopback/,
   );
   assert.doesNotThrow(() => assertHttpAuthConfig("tok", "0.0.0.0"));
 });
@@ -48,7 +48,6 @@ test("resolveCredentialedAuth authenticates a registered token and reports it", 
       id: "agent-1",
       token_hash: hashToken("cma_tok"),
       created_at: "x",
-      provider: "chatgpt_edu",
     },
   ];
   const authenticate = resolveCredentialedAuth({
@@ -64,7 +63,6 @@ test("resolveCredentialedAuth accepts the env token as a consumer", async () => 
   const authenticate = resolveCredentialedAuth({
     load: () => [],
     envToken: "env-secret",
-    envTokenProvider: "chatgpt_edu",
   });
   assert.equal((await authenticate(authContext("Bearer env-secret")))?.id, "env-token");
 });

@@ -113,17 +113,6 @@ export const MCP_TRUSTED_PROXIES = (
 export const MCP_PUBLIC_AUTH_TOKEN = process.env.MCP_PUBLIC_AUTH_TOKEN || "";
 export const MCP_CATALOG_AUTH_TOKEN = process.env.MCP_CATALOG_AUTH_TOKEN || "";
 
-// Attested model backend for those keys; must be authorized in
-// policy/action-policy.yaml under agent_backends, for this server's data class,
-// or auth is rejected. NOTE the default: an unset variable attests
-// "openai_api", which is how an Anthropic-backed agent reached these servers
-// under an OpenAI attestation before 2026-08-27. Set it explicitly per
-// deployment rather than relying on this.
-export const MCP_PUBLIC_AUTH_TOKEN_PROVIDER =
-  process.env.MCP_PUBLIC_AUTH_TOKEN_PROVIDER || "openai_api";
-export const MCP_CATALOG_AUTH_TOKEN_PROVIDER =
-  process.env.MCP_CATALOG_AUTH_TOKEN_PROVIDER || "openai_api";
-
 // --- Catalog core (core/) --------------------------------------------------
 // The catalog data and the Python that BUILDS it. Since the SQL-in-Node port
 // (2026-08-27) the serving path reads GC_ADVISOR_DB directly and never spawns

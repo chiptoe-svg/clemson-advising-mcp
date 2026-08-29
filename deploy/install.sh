@@ -153,8 +153,8 @@ if [ "$FAILED" = 0 ]; then
 ==> installed.
 
 Remaining, in order — none of these are automated on purpose:
-  1. Pair each consumer:  npm run mcp:pair -- --server public  --id <agent> --provider <backend>
-                          npm run mcp:pair -- --server catalog --id <agent> --provider <backend>
+  1. Pair each consumer:  npm run mcp:pair -- --server public  --id <agent>
+                          npm run mcp:pair -- --server catalog --id <agent>
   2. Put the reverse proxy in front:  deploy/Caddyfile.example
   3. Verify over TLS with a REAL MCP client — a curl 200 proves routing and
      nothing else:  docs/operations.md, "Verifying the TLS path"

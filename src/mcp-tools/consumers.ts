@@ -1,17 +1,17 @@
-// Per-agent credential registry for the credentialed MCP HTTP server.
+// Per-consumer credential registry for the two MCP HTTP servers.
 //
-// Each authorized agent (a NanoClaw group, etc.) is provisioned its OWN bearer
-// token via `npm run mcp:pair -- --id <agent>`. Only the SHA-256 hash of each
-// token is stored, in state/mcp-consumers.json. The server accepts a request
-// only if the presented bearer hashes to a registered consumer; the matched
-// consumer id becomes the audit identity. Grant = add an entry + inject the
-// token into that one container; revoke = remove the entry. There is NO shared
-// global secret, so an un-provisioned agent on the same host has no access.
+// Each authorized caller is provisioned its OWN bearer token with
+// `npm run mcp:pair -- --server <public|catalog> --id <agent>`. Only the
+// SHA-256 hash of each token is stored, in state/mcp-consumers-<server>.json.
+// A request is accepted only if the presented bearer hashes to a registered
+// consumer; the matched consumer id becomes the identity in the usage ledger.
+// Grant = add an entry; revoke = remove it. Each server reads its own file, so
+// a token minted for one is not accepted by the other.
 //
-// Tokens do not expire (an expiry timer would silently sever the connection —
-// the failure mode an mTLS cert would introduce). Lifecycle is instead managed
-// by explicit revoke + staleness reporting (`staleConsumers`): created_at and
-// last_seen_at make stale/unused tokens visible without breaking anything.
+// Tokens do not expire (an expiry timer would silently sever a working
+// integration). Lifecycle is instead explicit revoke plus staleness reporting
+// (`staleConsumers`): created_at and last_seen_at make unused tokens visible
+// without breaking anything.
 
 import crypto from "crypto";
 import fs from "fs";
@@ -20,7 +20,7 @@ import path from "path";
 import { STATE_DIR } from "../config-mcp.js";
 
 export interface Consumer {
-  /** Stable agent identifier, e.g. "nanoclaw-personal". Used as the audit id. */
+  /** Stable caller identifier, e.g. "advisor". Used as the ledger identity. */
   id: string;
   /** sha256 hex of the bearer token. The raw token is never stored. */
   token_hash: string;
@@ -30,8 +30,6 @@ export interface Consumer {
   last_seen_at?: string;
   /** Free-text operator note (e.g. what the agent is for). */
   note?: string;
-  /** Attested model-backend provider (e.g. "chatgpt_edu"). Absent = unattested. */
-  provider?: string;
   /** Capability scope tokens (see SCOPE_OPERATIONS); absent/empty = full access. */
   scopes?: string[];
 }
@@ -127,7 +125,7 @@ export function saveConsumers(consumers: Consumer[], registry?: string): void {
  *
  * The returned object is a live reference into the caller's `consumers` array —
  * read it, do not mutate it. Persisted changes go through loadConsumers ->
- * mutate -> saveConsumers (see recordSeen / attestConsumer).
+ * mutate -> saveConsumers (see recordSeen).
  */
 export function authenticateConsumer(
   authHeader: string | undefined,
@@ -190,24 +188,6 @@ export function recordSeen(
   } catch {
     /* best effort */
   }
-}
-
-/**
- * Set a consumer's attested provider (and optionally scopes) IN PLACE, without
- * touching its token_hash or last_seen_at. Mutates and returns the list.
- * Throws if the id is not present. This backs `mcp:consumers --attest`.
- */
-export function attestConsumer(
-  consumers: Consumer[],
-  id: string,
-  provider: string,
-  scopes?: string[],
-): Consumer[] {
-  const c = consumers.find((x) => x.id === id);
-  if (!c) throw new Error(`No consumer "${id}" found.`);
-  c.provider = provider;
-  if (scopes !== undefined) c.scopes = scopes;
-  return consumers;
 }
 
 export interface StaleOptions {

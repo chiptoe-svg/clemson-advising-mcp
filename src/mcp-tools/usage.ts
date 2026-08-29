@@ -4,7 +4,7 @@
 // tools/call.
 //
 // What is recorded: timestamp, server name, the authenticated consumer id and
-// its attested provider, and the tool name. NOT the arguments, and NOT the
+// the tool name. NOT the arguments, and NOT the
 // results — a course code is public, but there is no reason to accumulate a
 // per-consumer query history to answer a volume question, and not collecting it
 // is a stronger guarantee than redacting it. This mirrors the contract in
@@ -28,8 +28,6 @@ export interface McpCallRecord {
   server: string;
   /** Authenticated consumer id — the audit identity ("env-token" before pairing). */
   consumerId: string;
-  /** The consumer's attested model backend, when it declared one. */
-  provider?: string;
   /** The MCP tool name as exposed to clients. */
   tool: string;
   /**
@@ -67,7 +65,6 @@ export function recordMcpCall(rec: McpCallRecord): void {
       ts: new Date().toISOString(),
       server: rec.server,
       consumer_id: rec.consumerId,
-      ...(rec.provider !== undefined ? { provider: rec.provider } : {}),
       ...(rec.authMethod !== undefined ? { auth_method: rec.authMethod } : {}),
       ...(rec.subject !== undefined ? { subject: rec.subject } : {}),
       ...(rec.outcome !== undefined ? { outcome: rec.outcome } : {}),

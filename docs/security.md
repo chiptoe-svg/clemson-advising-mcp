@@ -73,24 +73,14 @@ where to authenticate. These seams are pinned by tests
 
 Authentication answers _who_; these answer _what they may reach_.
 
-- **Backend attestation.** Each consumer declares the AI backend it runs on
-  (`clemson_hosted`, `anthropic`, `openai_api`, `chatgpt_edu`, `local`).
-  `policy/action-policy.yaml` declares which backends are authorized and **for
-  which data classes**. Both servers declare `dataClass: "public"`.
-- **Data-class scoping fails closed, in three separate ways.** A backend with no
-  `data_classes` key is unrestricted; one with an explicit list is confined to
-  it; one with an **empty** list is denied everything. A caller that declares no
-  data class at all is refused. And the policy parser rejects an unrecognised
-  class name by poisoning the list to empty — so a typo such as `[Public]`
-  denies rather than silently granting. That last case was a real
-  fail-open defect found by adversarial review and fixed with a red-proofed test.
 - **Scopes.** A consumer may carry a scope list. Both `tools/list` and
   `tools/call` filter by it, so a narrowly-scoped agent cannot see, let alone
   call, tools outside its grant.
 
-The practical effect: an Anthropic-backed agent is authorized against these
-public-data servers and, by the same record, barred from any surface that
-declares a student data class.
+There is no per-consumer restriction on _what the caller does with the data_:
+everything served is already published by Clemson, so the servers do not ask a
+consumer which AI vendor, if any, sits behind it. Scopes exist to keep an
+integration to the tools it needs, not to classify data.
 
 ---
 
@@ -138,7 +128,7 @@ and escape the per-source throttle by rotating a header.
 ## 6. Audit
 
 Every call appends one line to `state/analytics/mcp-calls.jsonl`: timestamp,
-server, consumer id, attested provider, auth method, outcome, tool name.
+server, consumer id, auth method, outcome, tool name.
 
 **No arguments and no results are recorded.** This is a deliberate trade. It
 means the ledger cannot reconstruct what anyone asked about — no course, no
@@ -172,20 +162,12 @@ migration path, and it is attributed in the ledger as `env-token`, so its
 traffic is distinguishable from any paired consumer's. It should be retired once
 every real caller holds its own token.
 
-**7.3 Backend attestation is an assertion, not a proof.** A consumer declares
-its AI backend when its token is minted; nothing verifies that claim at request
-time. The record exists so the deployment can state where data may go and be
-audited against it — not to enforce it technically. The default value is a trap
-worth knowing about: an unset provider variable attests `openai_api`, which
-means a misconfigured deployment produces a ledger that names the wrong
-destination. Set it explicitly (`operations.md`).
-
-**7.4 No mutual TLS and no client certificates.** Access control is the bearer
+**7.3 No mutual TLS and no client certificates.** Access control is the bearer
 token plus whatever the network provides. On a campus network whose edge blocks
 public inbound, that is the actual perimeter, and it is worth confirming rather
 than assuming that this is still true of the network you deploy onto.
 
-**7.5 An unmapped proxy path can reach the wrong application.** Observed
+**7.4 An unmapped proxy path can reach the wrong application.** Observed
 2026-08-28: a client posting to a misspelled MCP path fell through a proxy's
 catch-all to a different local application, which answered "Authentication
 required." — an auth error from the wrong service, indistinguishable from the
@@ -193,7 +175,7 @@ right one. The mitigation is in the shipped proxy config: an explicit 404 for
 unmapped paths. It is a configuration hazard rather than a code defect, and it
 is the kind that stays invisible.
 
-**7.6 The dependencies.** Three runtime packages: the MCP SDK, `better-sqlite3`,
+**7.5 The dependencies.** Three runtime packages: the MCP SDK, `better-sqlite3`,
 and a YAML parser. Node 22+ and, for the build-time catalog pipeline only,
 Python 3.12+. There is no web framework, no ORM, and no authentication library.
 

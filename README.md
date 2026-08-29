@@ -62,7 +62,7 @@ npm ci
 npm run typecheck
 npm test                      # expect 0 fail, 0 skipped
 
-npm run mcp:pair -- --server public --id my-agent --provider clemson_hosted
+npm run mcp:pair -- --server public --id my-agent
 MCP_TRANSPORT=http npm run mcp:public:http
 ```
 
@@ -87,7 +87,7 @@ reverse proxy that terminates TLS.
 ```
 src/mcp-public.ts, src/mcp-catalog.ts   the two entry points
 src/mcp-tools/                          transport, auth, policy, the tools
-src/policy.ts, policy/                  authorized backends and data classes
+src/policy.ts, policy/                  the action allow-list every tool is checked against
 core/                                   catalog scraper + parsers + corpus (build time only)
 test/                                   the suite; no test is allowed to skip
 deploy/                                 reverse-proxy configuration

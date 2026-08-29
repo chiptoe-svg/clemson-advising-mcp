@@ -27,7 +27,6 @@ import { hashToken, type Consumer } from "../src/mcp-tools/consumers.ts";
 function publicStyleAuth(envToken: string) {
   return resolveCredentialedAuth({
     envToken,
-    envTokenProvider: "openai_api",
     load: () => [], // empty consumer source — the env key is the ONLY credential
   });
 }
@@ -53,7 +52,6 @@ test("fail closed: an empty consumer source is not rescued by the on-disk regist
       id: "linda",
       token_hash: hashToken("registry-token"),
       created_at: "x",
-      provider: "openai_api",
     },
   ];
   assert.doesNotThrow(() =>
@@ -92,7 +90,6 @@ test("per-server separation: 8765 registry tokens do not open 8766/8767", async 
       id: "linda",
       token_hash: hashToken("registry-token"),
       created_at: "x",
-      provider: "openai_api",
     },
   ];
   // Sanity: that token IS valid against a credentialed-style authenticator.
@@ -117,22 +114,6 @@ test("missing and malformed credentials are rejected", async () => {
   assert.equal(await authPublic(authContext("Bearer public-ke")), null, "truncated key");
 });
 
-test("an unauthorized attested provider is rejected even with the right key", async () => {
-  // policy/action-policy.yaml authorizes anthropic ONLY for data_classes
-  // [public] (2026-08-27). This call declares no dataClass, so the scoped
-  // backend fails closed — an undeclared surface cannot be shown to be public.
-  const auth = resolveCredentialedAuth({
-    envToken: "public-key",
-    envTokenProvider: "anthropic",
-    load: () => [],
-  });
-  assert.equal(
-    await auth(authContext("Bearer public-key")),
-    null,
-    "a correct key whose provider is not authorized for this surface must still be refused",
-  );
-});
-
 // The tests above exercise resolveCredentialedAuth directly. This one goes
 // through startMcpServer, which is what mcp-public.ts / mcp-catalog.ts
 // actually call — it covers the `load` plumbing in the registry branch, so
@@ -150,7 +131,6 @@ test("startMcpServer refuses to bind a keyless server with an empty consumer sou
       auth: {
         kind: "registry",
         envToken: "",
-        envTokenProvider: "openai_api",
         load: () => [],
       },
     });
@@ -173,7 +153,7 @@ test("a non-loopback bind is refused when auth is open", () => {
   // `auth: { kind: "open" }` while bound to 0.0.0.0, startup must abort.
   assert.throws(
     () => assertHttpAuthConfig("", "0.0.0.0"),
-    /required when MCP_HTTP_HOST is not loopback/,
+    /required when the bind host is not loopback/,
   );
   assert.doesNotThrow(() => assertHttpAuthConfig("", "127.0.0.1"));
 });

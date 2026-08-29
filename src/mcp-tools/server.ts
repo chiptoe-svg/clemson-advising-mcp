@@ -47,7 +47,6 @@ import {
   expandScopes,
   isMcpOperationExposed,
 } from "./permissions.js";
-import { isAgentBackendAuthorized, type DataClass } from "../policy.js";
 import { recordMcpCall } from "./usage.js";
 import { serverInstructions } from "./instructions.js";
 import {
@@ -261,8 +260,6 @@ export interface Principal {
   /** Audit identity. Registry: the consumer id. OAuth: typically subject or client. */
   id: string;
   scopes: Set<string>;
-  /** Attested model backend, checked against policy agent_backends. */
-  provider?: string;
   /**
    * WHO, when the credential carries an end user (OAuth `sub`). Distinct from
    * `clientId` (WHAT software) — the registry conflates them because a static
@@ -348,31 +345,19 @@ export function isLoopbackHost(host: string): boolean {
 export function assertHttpAuthConfig(expected: string, host: string): void {
   if (!expected && !isLoopbackHost(host)) {
     throw new Error(
-      `MCP_AUTH_TOKEN is required when MCP_HTTP_HOST is not loopback (got "${host}")`,
+      `a bearer token (MCP_PUBLIC_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN) is required ` +
+        `when the bind host is not loopback (got "${host}")`,
     );
   }
 }
 
 export interface ResolveAuthOptions {
-  /** Optional single token (MCP_AUTH_TOKEN) accepted as an "env-token" consumer. */
+  /** Optional shared token (MCP_<SERVER>_AUTH_TOKEN) accepted as the "env-token" consumer. */
   envToken?: string;
-  /** Provider attested for the env-token consumer (MCP_AUTH_TOKEN_PROVIDER). */
-  envTokenProvider?: string;
   /** Registry loader; defaults to the on-disk registry. Injectable for tests. */
   load?: () => Consumer[];
   /** Called with the consumer id on each successful auth (for last-seen touch). */
   onSeen?: (consumerId: string) => void;
-  /**
-   * The data class this server serves. Passed to the policy attestation check,
-   * so a backend restricted to `public` (policy/action-policy.yaml
-   * `agent_backends[].data_classes`) is accepted here only if this server
-   * declares itself public.
-   *
-   * Omitted = undeclared. A restricted backend is REFUSED against an undeclared
-   * server — fail closed, so adding a new server without saying what it serves
-   * loses access rather than silently inheriting it.
-   */
-  dataClass?: DataClass;
 }
 
 /**
@@ -385,7 +370,6 @@ export function resolveCredentialedAuth(
 ): Authenticator {
   const load = opts.load ?? loadConsumers;
   const envToken = (opts.envToken ?? "").trim();
-  const envTokenProvider = (opts.envTokenProvider ?? "").trim();
   const gather = (): Consumer[] => {
     const live = load();
     if (envToken) {
@@ -393,47 +377,24 @@ export function resolveCredentialedAuth(
         id: "env-token",
         token_hash: hashToken(envToken),
         created_at: "",
-        provider: envTokenProvider || undefined,
       });
     }
     return live;
   };
   if (gather().length === 0) {
     throw new Error(
-      "credentialed MCP HTTP server has no authorized consumers — provision " +
-        "one with `npm run mcp:pair -- --id <agent> --provider <p>` (or set " +
-        "MCP_AUTH_TOKEN + MCP_AUTH_TOKEN_PROVIDER). Refusing to start open.",
-    );
-  }
-  if (envToken && !envTokenProvider) {
-    log(
-      "warning: MCP_AUTH_TOKEN is set but MCP_AUTH_TOKEN_PROVIDER is empty — " +
-        "the env-token consumer has no provider and will be rejected at auth time.",
+      "MCP HTTP server has no authorized consumers — pair one with " +
+        "`npm run mcp:pair -- --server <public|catalog> --id <agent>` or set " +
+        "MCP_PUBLIC_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN. Refusing to start open.",
     );
   }
   return async (ctx) => {
     const consumer = authenticateConsumer(ctx.authHeader, gather());
     if (!consumer) return null;
-    // Runtime attestation re-check (fail closed): the consumer must declare a
-    // provider that policy currently authorizes. Flipping authorized:false in
-    // policy cuts the agent off on the next request after a process restart
-    // (policy is loaded once at process start, like every other policy action).
-    if (
-      !consumer.provider ||
-      !isAgentBackendAuthorized(consumer.provider, opts.dataClass)
-    ) {
-      log(
-        `auth: rejecting "${consumer.id}" — provider ` +
-          `"${consumer.provider ?? "(none)"}" not authorized for data class ` +
-          `"${opts.dataClass ?? "(undeclared)"}" (model_unauthorized)`,
-      );
-      return null;
-    }
     opts.onSeen?.(consumer.id);
     return {
       id: consumer.id,
       scopes: expandScopes(consumer.scopes),
-      provider: consumer.provider,
       // A static registry token identifies an AGENT, not a person, so there is
       // no subject to report. An OAuth authenticator would fill `subject` here,
       // and that difference is deliberately visible rather than papered over.
@@ -505,7 +466,6 @@ function buildServer(name: string, principal?: Principal): Server {
       recordMcpCall({
         server: name,
         consumerId,
-        provider: principal?.provider,
         tool: toolName,
         authMethod: principal?.authMethod,
         subject: principal?.subject,
@@ -522,7 +482,6 @@ function buildServer(name: string, principal?: Principal): Server {
       recordMcpCall({
         server: name,
         consumerId,
-        provider: principal?.provider,
         tool: toolName,
         authMethod: principal?.authMethod,
         subject: principal?.subject,
@@ -545,7 +504,6 @@ function buildServer(name: string, principal?: Principal): Server {
     recordMcpCall({
       server: name,
       consumerId,
-      provider: principal?.provider,
       tool: toolName,
       authMethod: principal?.authMethod,
       subject: principal?.subject,
@@ -718,7 +676,6 @@ export type AuthConfig =
   | {
       kind: "registry";
       envToken?: string;
-      envTokenProvider?: string;
       onSeen?: (id: string) => void;
       /**
        * Override the consumer source. Defaults to the shared on-disk registry
@@ -744,8 +701,6 @@ export type AuthConfig =
        * still never consulted here.
        */
       load?: () => Consumer[];
-      /** The data class this server serves; see ResolveAuthOptions.dataClass. */
-      dataClass?: DataClass;
     };
 
 export interface StartOptions {
@@ -779,9 +734,7 @@ export async function startMcpServer(
       const load = opts.auth.load ?? loadConsumers;
       authenticate = resolveCredentialedAuth({
         envToken: opts.auth.envToken,
-        envTokenProvider: opts.auth.envTokenProvider,
         onSeen: opts.auth.onSeen,
-        dataClass: opts.auth.dataClass,
         load,
       });
       const count = load().length + (opts.auth.envToken ? 1 : 0);

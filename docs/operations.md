@@ -86,14 +86,7 @@ MCP_PUBLIC_HTTP_HOST=127.0.0.1     # keep loopback; TLS terminates in the proxy
 MCP_PUBLIC_HTTP_PORT=8766
 MCP_CATALOG_HTTP_HOST=127.0.0.1
 MCP_CATALOG_HTTP_PORT=8767
-MCP_PUBLIC_AUTH_TOKEN_PROVIDER=clemson_hosted
-MCP_CATALOG_AUTH_TOKEN_PROVIDER=clemson_hosted
 ```
-
-**Set the two `_PROVIDER` values explicitly.** Unset, they attest `openai_api`,
-and the usage ledger will then name a destination the deployment does not use.
-The value must be a backend that `policy/action-policy.yaml` authorizes for this
-server's data class; anything else is refused at startup.
 
 `MCP_TRUSTED_PROXIES` defaults to loopback, which is correct when the reverse
 proxy runs on the same host. Set it only for a proxy on a different address, and
@@ -102,8 +95,8 @@ set it to the **proxy's** address, never to a client range.
 ### Tokens
 
 ```bash
-npm run mcp:pair -- --server public  --id <agent> --provider <backend>
-npm run mcp:pair -- --server catalog --id <agent> --provider <backend>
+npm run mcp:pair -- --server public  --id <agent>
+npm run mcp:pair -- --server catalog --id <agent>
 npm run mcp:pair -- --server public  --list
 npm run mcp:pair -- --server public  --revoke <agent>
 ```

@@ -84,9 +84,8 @@ client (AI agent / advisor chat)
   │  HTTP, loopback
   ▼
 createHttpHandler            src/mcp-tools/server.ts
-  ├── authenticate()         → Principal { id, scopes, provider } or null
-  │     ├── registry lookup  src/mcp-tools/consumers.ts  (sha256 token match)
-  │     └── policy check     src/policy.ts  (is this backend authorized?)
+  ├── authenticate()         → Principal { id, scopes } or null
+  │     └── registry lookup  src/mcp-tools/consumers.ts  (sha256 token match)
   ├── 401 + throttle on failure  (>30/min/source → 429)
   ├── body size guard        (1 MiB)
   ▼
@@ -163,9 +162,6 @@ Full treatment, including the threat model and the known limitations, is in
 - **Fail-closed throughout** — no configured consumers means the server refuses
   to start; an authenticator that throws returns 503; one that hangs is timed
   out and denies; a malformed expiry is rejected.
-- **Backend attestation and data classes.** Each consumer declares the AI
-  backend it runs on; policy declares which backends are authorized for which
-  data classes. Both servers declare `public`.
 - **Bounded** — unauthenticated requests throttle per client address,
   authenticated ones per credential, bodies over 1 MiB are refused.
 - **Audited** — one ledger line per call: who, which tool, what outcome. No
@@ -235,7 +231,7 @@ the next call.
 | Symptom | Likely cause | Check |
 |---|---|---|
 | New tool absent from `tools/list` | daemon not restarted | startup line in `*.err.log` |
-| All requests 401 | token mismatch, or consumer's provider not authorized in policy | `auth: rejecting "<id>" — provider …` in err.log |
+| All requests 401 | token mismatch — wrong server, revoked, or the shared token changed | `npm run mcp:pair -- --server <s> --list` |
 | Server won't start, "no authorized consumers" | no token configured and empty registry — fail-closed working as designed | env token + registry file |
 | Schedule answers are stale/empty | daily refresh failed; snapshot old | `get-schedule-freshness`, snapshot mtime |
 | `totalCount=0` from Banner | keep-alive dropped the stickiness cookie | fixed 2026-08-12 (`Connection: close`); recheck if it returns |

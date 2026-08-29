@@ -9,62 +9,37 @@ const loadWith = (c: Partial<Consumer>) => (): Consumer[] => [
   { id: "a", token_hash: hashToken(TOKEN), created_at: "t", ...c },
 ];
 
-test("Principal returned for an attested, authorized, scoped consumer", async () => {
-  const auth = resolveCredentialedAuth({
-    load: loadWith({ provider: "chatgpt_edu", scopes: ["clemson"] }),
-  });
+test("Principal returned for a scoped consumer carries only its scope", async () => {
+  const auth = resolveCredentialedAuth({ load: loadWith({ scopes: ["clemson"] }) });
   const p = await auth(authContext(`Bearer ${TOKEN}`));
   assert.equal(p?.id, "a");
-  assert.equal(p?.provider, "chatgpt_edu");
   assert.equal(p?.scopes.has("clemson.list_terms"), true);
   assert.equal(p?.scopes.has("host.list_skills"), false);
 });
 
-test("unscoped attested consumer gets the full exposed scope", async () => {
-  const auth = resolveCredentialedAuth({
-    load: loadWith({ provider: "openai_api" }),
-  });
+test("an unscoped consumer gets the full exposed scope", async () => {
+  const auth = resolveCredentialedAuth({ load: loadWith({}) });
   const p = await auth(authContext(`Bearer ${TOKEN}`));
   assert.equal(p?.scopes.has("clemson.list_terms"), true);
   assert.equal(p?.scopes.has("host.list_skills"), true);
 });
 
-test("unattested consumer (no provider) is rejected", async () => {
-  const auth = resolveCredentialedAuth({ load: loadWith({}) });
-  assert.equal(await auth(authContext(`Bearer ${TOKEN}`)), null);
-});
-
-test("consumer with an unauthorized provider is rejected", async () => {
-  const auth = resolveCredentialedAuth({
-    load: loadWith({ provider: "anthropic" }),
-  });
-  assert.equal(await auth(authContext(`Bearer ${TOKEN}`)), null);
+test("a registry entry carrying legacy extra fields still authenticates", async () => {
+  // Registries written before 2026-08-28 carry a `provider` key. The parser
+  // keeps unknown fields and the authenticator ignores them, so an existing
+  // consumer keeps working across the upgrade without re-pairing.
+  const legacy = { provider: "clemson_hosted" } as unknown as Partial<Consumer>;
+  const auth = resolveCredentialedAuth({ load: loadWith(legacy) });
+  assert.equal((await auth(authContext(`Bearer ${TOKEN}`)))?.id, "a");
 });
 
 test("wrong token is rejected", async () => {
-  const auth = resolveCredentialedAuth({
-    load: loadWith({ provider: "chatgpt_edu" }),
-  });
+  const auth = resolveCredentialedAuth({ load: loadWith({}) });
   assert.equal(await auth(authContext("Bearer nope")), null);
 });
 
-test("env-token uses its configured provider", async () => {
-  const auth = resolveCredentialedAuth({
-    load: (): Consumer[] => [],
-    envToken: "cma_env",
-    envTokenProvider: "chatgpt_edu",
-  });
+test("the env token authenticates as the env-token consumer", async () => {
+  const auth = resolveCredentialedAuth({ load: (): Consumer[] => [], envToken: "cma_env" });
   assert.equal((await auth(authContext(`Bearer cma_env`)))?.id, "env-token");
-  const authBad = resolveCredentialedAuth({
-    load: (): Consumer[] => [],
-    envToken: "cma_env2",
-    envTokenProvider: "anthropic",
-  });
-  assert.equal(await authBad(authContext(`Bearer cma_env2`)), null);
-  // env-token with no provider configured is rejected (silent-misconfig guard).
-  const authNoProvider = resolveCredentialedAuth({
-    load: (): Consumer[] => [],
-    envToken: "cma_env3",
-  });
-  assert.equal(await authNoProvider(authContext(`Bearer cma_env3`)), null);
+  assert.equal(await auth(authContext(`Bearer cma_other`)), null);
 });

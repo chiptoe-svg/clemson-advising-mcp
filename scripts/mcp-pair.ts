@@ -2,8 +2,8 @@
 // Mint, list, and revoke per-agent bearer tokens for the public (8766) and
 // catalog (8767) MCP servers.
 //
-//   npm run mcp:pair -- --server public  --id claude-code --provider anthropic
-//   npm run mcp:pair -- --server catalog --id claude-code --provider anthropic
+//   npm run mcp:pair -- --server public  --id claude-code
+//   npm run mcp:pair -- --server catalog --id claude-code
 //   npm run mcp:pair -- --server public  --list
 //   npm run mcp:pair -- --server public  --revoke claude-code
 //
@@ -25,7 +25,6 @@ import {
   saveConsumers,
   type Consumer,
 } from "../src/mcp-tools/consumers.js";
-import { getAgentBackends } from "../src/policy.js";
 
 type Server = "public" | "catalog";
 
@@ -59,7 +58,7 @@ if (has("list")) {
   } else {
     for (const c of consumers) {
       process.stdout.write(
-        `${c.id}\tprovider=${c.provider ?? "(none)"}\tcreated=${c.created_at}` +
+        `${c.id}\tcreated=${c.created_at}` +
           `\tlast_seen=${c.last_seen_at ?? "never"}${c.note ? `\t${c.note}` : ""}\n`,
       );
     }
@@ -79,29 +78,7 @@ if (revokeId) {
 
 // --- mint -------------------------------------------------------------------
 const id = flag("id");
-const provider = flag("provider");
 if (!id) fail("--id <agent> is required");
-if (!provider) fail("--provider <backend> is required (it is checked against policy at auth time)");
-
-// Fail EARLY on a provider policy will reject, rather than minting a token that
-// silently 401s on first use. The data-class dimension is not re-checked here:
-// policy is the authority at auth time, and this is a convenience guard.
-const declared = getAgentBackends().find((b) => b.provider === provider);
-if (!declared) {
-  fail(
-    `provider '${provider}' is not declared in policy/action-policy.yaml agent_backends ` +
-      `(declared: ${getAgentBackends().map((b) => b.provider).join(", ")})`,
-  );
-}
-if (!declared.authorized) {
-  fail(`provider '${provider}' is declared but authorized: false — pairing it would 401`);
-}
-if (declared.data_classes && !declared.data_classes.includes("public")) {
-  fail(
-    `provider '${provider}' is restricted to data classes ` +
-      `[${declared.data_classes.join(", ")}] and both MCP servers serve 'public'`,
-  );
-}
 
 if (consumers.some((c) => c.id === id)) {
   fail(`consumer '${id}' already exists on ${registry} — revoke it first to rotate`);
@@ -112,13 +89,12 @@ const entry: Consumer = {
   id,
   token_hash: hashToken(token),
   created_at: new Date().toISOString(),
-  provider,
   ...(flag("note") ? { note: flag("note") } : {}),
 };
 saveConsumers([...consumers, entry], registry);
 
 process.stdout.write(
-  `paired '${id}' on ${registry} (provider=${provider})\n\n` +
+  `paired '${id}' on ${registry}\n\n` +
     `  Authorization: Bearer ${token}\n\n` +
     `This token is shown ONCE and is not recoverable. It works only on the ` +
     `${registry} server and takes effect on the next request.\n`,

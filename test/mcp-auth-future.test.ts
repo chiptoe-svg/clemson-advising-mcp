@@ -127,7 +127,7 @@ test("the authenticator receives the REAL request context, not just the header",
 
 test("Principal separates the agent (clientId) from a future end user (subject)", async () => {
   const consumers: Consumer[] = [
-    { id: "agent-7", token_hash: hashToken("tok"), created_at: "t", provider: "chatgpt_edu" },
+    { id: "agent-7", token_hash: hashToken("tok"), created_at: "t" },
   ];
   const auth = resolveCredentialedAuth({ load: () => consumers });
   const p = (await auth(authContext("Bearer tok"))) as Principal;

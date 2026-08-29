@@ -9,11 +9,6 @@
 // server's, so tokens are not interchangeable). See src/mcp-public.ts for the
 // full rationale and the fail-closed startup.
 //
-// DATA CLASS: "public" — published GC curriculum/catalog data, no student
-// information. audit-gc-progress takes a progress LEDGER supplied by the
-// caller (course codes, terms, credits); it stores nothing and returns catalog
-// verdicts, so this server holds no student records of its own.
-//
 // BIND: MCP_CATALOG_HTTP_HOST (its own variable, default loopback). Set to
 // 0.0.0.0 for campus reachability; off loopback the bearer is the only gate.
 import "./mcp-tools/index-catalog.js";
@@ -26,7 +21,6 @@ import {
   MCP_CATALOG_HTTP_HOST,
   MCP_CATALOG_HTTP_PORT,
   MCP_CATALOG_AUTH_TOKEN,
-  MCP_CATALOG_AUTH_TOKEN_PROVIDER,
 } from "./config-mcp.js";
 
 // SKILLS: an explicit allowlist of exactly the two GC skills, never a denylist.
@@ -63,8 +57,6 @@ startMcpServer({
   auth: {
     kind: "registry",
     envToken: MCP_CATALOG_AUTH_TOKEN,
-    envTokenProvider: MCP_CATALOG_AUTH_TOKEN_PROVIDER,
-    dataClass: "public",
     load: () => loadConsumers("catalog"),
     onSeen: (id) => recordSeen(id, new Date().toISOString(), "catalog"),
   },
