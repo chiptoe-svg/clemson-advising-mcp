@@ -1,5 +1,5 @@
 // src/mcp-tools/skills.ts
-// Serve CUassistant skill documentation to external agents.
+// Serve skill documents (advising guidance for a model) to clients.
 // Read-only, no credentials. Skills live at skills/<name>/SKILL.md.
 
 import fs from "fs";
@@ -181,7 +181,7 @@ const listSkills: McpToolDefinition = {
   tool: {
     name: "list-skills",
     description:
-      "List available CUassistant skill documents by name and description. " +
+      "List the skill documents this server serves, by name and description. " +
       "Pass a name to get-skill-docs to retrieve the full content.",
     inputSchema: {
       type: "object" as const,
@@ -217,7 +217,7 @@ const getSkillDocs: McpToolDefinition = {
   tool: {
     name: "get-skill-docs",
     description:
-      "Return the full documentation for a CUassistant skill by name. " +
+      "Return the full text of one skill document by name. " +
       `Use ${listToolName} to discover available skill names.`,
     inputSchema: {
       type: "object" as const,

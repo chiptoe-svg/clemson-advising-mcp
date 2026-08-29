@@ -62,7 +62,7 @@ const FIND_ALTERNATIVES_DESCRIPTION =
   "Find sections that fit around a student's existing schedule without time " +
   "conflicts. Requires current_crns — the CRNs the student is keeping. Optional: " +
   "subject, credits, days, no_meeting_before, no_meeting_after, exclude_days, " +
-  "open_seats_only. Returns options ready for show-schedule-options. Term is " +
+  "open_seats_only. Returns options ready to present side by side. Term is " +
   "optional — defaults to the current registration term. When many fit, the " +
   "response contains the top sections by open seats plus a needsNarrowing " +
   "summary — show a few, don't ask first.";

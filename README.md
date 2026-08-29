@@ -57,8 +57,8 @@ usage**, not to protect data. There is no confidential data here to protect.
 1. **`docs/security.md`** — what the servers hold, what defeating each control
    would gain an attacker, what leaves this machine, and a section of known
    limitations we have not fixed.
-2. **`docs/architecture.md`** §1–§3 — what the two servers are and how a request
-   is served.
+2. **`docs/overview.md`** — how the data gets from Clemson's published sources
+   into two databases and out through the servers, and what every tool does.
 3. `src/mcp-tools/server.ts` — transport, authentication, rate limits: one file.
 
 Who owns it, how to reach them, and how it is maintained: `docs/security.md`
@@ -74,6 +74,7 @@ doing something, not documents to read front to back.
 |                                       |                                                                                     |
 | ------------------------------------- | ----------------------------------------------------------------------------------- |
 | `docs/security.md`                    | Threat model, authentication, what leaves the machine, known limitations            |
+| `docs/overview.md`                    | The data from source to answer, and every tool described                            |
 | `docs/architecture.md`                | How it works, module by module, and how to diagnose it                              |
 | `docs/operations.md`                  | Install, configure, serve over TLS, refresh, restart, back up                       |
 | `docs/capacity.md`                    | Measured throughput, sizing, and what would change it                               |
