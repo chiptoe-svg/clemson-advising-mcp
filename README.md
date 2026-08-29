@@ -116,7 +116,7 @@ src/mcp-tools/                          transport, auth, policy check, the tools
 src/policy.ts, policy/                  the action allow-list every tool is checked against
 skills/, core/skills/                   documents served to clients by the skill tools
 scripts/                                refresh, token pairing, health check
-core/                                   the catalog scraper, its parsers, and its page corpus
+core/                                   the catalog builder — see core/README.md
 test/                                   the suite
 deploy/                                 launchd services, reverse-proxy config, env template
 state/                                  runtime data: snapshots, registries, usage ledger (not in git)

@@ -40,6 +40,9 @@ core/.venv/bin/python -m playwright install chromium
 core/scripts/rebuild_db.sh
 ```
 
+`core/README.md` is the map of that package: what runs at build time, what the
+page corpus holds, and why the LLM cache does not remove the LLM requirement.
+
 Three things a rebuild needs, and it will refuse to start without them:
 
 |                                                       | Why                                                                                                |
