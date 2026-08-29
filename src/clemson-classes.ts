@@ -636,7 +636,8 @@ export async function refreshClemsonSnapshot(
     sectionCount: fetched.sections.length,
     sections: fetched.sections,
   };
-  writeScheduleDb(snap);
+  // A snapshot that did not reach disk is not a refresh, whatever Banner said.
+  if (!writeScheduleDb(snap)) return null;
   return snap;
 }
 

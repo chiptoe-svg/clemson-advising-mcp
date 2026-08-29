@@ -53,6 +53,7 @@ test("unauthenticated requests: 401 up to the per-source limit, then 429 for the
 
 import {
   CONSUMER_LIMIT,
+  parseConsumerLimit,
   __resetConsumerRateForTest,
 } from "../src/mcp-tools/server.ts";
 
@@ -123,4 +124,15 @@ test("the limit follows the CREDENTIAL, not the source address", async () => {
     429,
     "the same consumer from a DIFFERENT address is still over its ceiling",
   );
+});
+
+test("MCP_CONSUMER_RATE_LIMIT: garbage falls back to the default instead of disabling the limit", () => {
+  // Number("abc") is NaN and `count > NaN` is always false — the old parse
+  // turned a typo into an unlimited credential.
+  assert.equal(parseConsumerLimit("abc"), 600);
+  assert.equal(parseConsumerLimit(""), 600);
+  assert.equal(parseConsumerLimit(undefined), 600);
+  assert.equal(parseConsumerLimit("0"), 600);
+  assert.equal(parseConsumerLimit("-5"), 600);
+  assert.equal(parseConsumerLimit("250"), 250);
 });

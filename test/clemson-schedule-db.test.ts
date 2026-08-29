@@ -8,7 +8,7 @@ import path from "node:path";
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "cuassistant-sched-"));
 process.env.STATE_DIR = TMP;
 
-const { writeScheduleDb, openScheduleDb, queryScheduleDb, getMeetingsForCrns, findConflicts } =
+const { writeScheduleDb, openScheduleDb, queryScheduleDb, getMeetingsForCrns, findConflicts, scheduleDbPath, isTermCode } =
   await import("../src/clemson-schedule-db.ts");
 import type { ClemsonTermSnapshot } from "../src/clemson-classes.ts";
 
@@ -167,4 +167,30 @@ test("findConflicts detects same-day overlap", () => {
 test("writeScheduleDb is atomic — .tmp is gone after write", () => {
   const tmp = path.join(TMP, "clemson", "202608.db.tmp");
   assert.ok(!fs.existsSync(tmp), ".tmp file should not exist after successful write");
+});
+
+test("a term that is not a term code never becomes a path component", () => {
+  // Reproduced 2026-08-28: openScheduleDb("../../core/db/gc_advisor") opened
+  // the catalog database. Bounded by readonly + the forced .db suffix + the
+  // sections schema, so not an exposure — but a path is not a place for
+  // caller input.
+  assert.equal(isTermCode("202608"), true);
+  for (const bad of ["../../core/db/gc_advisor", "2026-08", "", "202608/x", "Fall 2026"]) {
+    assert.equal(isTermCode(bad), false, bad);
+    assert.throws(() => scheduleDbPath(bad), /not a term code/);
+    assert.equal(openScheduleDb(bad), null, `${bad} must read as "no snapshot"`);
+  }
+});
+
+test("writeScheduleDb reports failure instead of swallowing it", () => {
+  // An invalid term makes the path construction throw inside the write; the
+  // caller must learn the snapshot did NOT land.
+  const ok = writeScheduleDb({
+    term: "../nope",
+    termDescription: "x",
+    fetchedAt: new Date().toISOString(),
+    sectionCount: 0,
+    sections: [],
+  });
+  assert.equal(ok, false);
 });

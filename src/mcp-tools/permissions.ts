@@ -186,15 +186,14 @@ export function assertMcpOperation(
   const spec = MCP_ALLOWED_OPERATIONS[operation];
   if (!spec) {
     throw new McpPermissionDeniedError(
-      `MCP operation "${operation}" is not in the allow-list. ` +
-        `Edit src/mcp-tools/permissions.ts to add it.`,
+      `MCP operation "${operation}" is not in the allow-list.`,
     );
   }
   const policyAction = getPolicyAction(spec.policyActionId);
   if (!policyAction) {
     throw new McpPermissionDeniedError(
-      `MCP operation "${operation}" maps to missing policy action ` +
-        `"${spec.policyActionId}". Add it to policy/action-policy.yaml.`,
+      `MCP operation "${operation}" maps to a policy action ` +
+        `"${spec.policyActionId}" that the policy does not declare.`,
     );
   }
   if (policyAction.approval !== "none") {

@@ -16,6 +16,10 @@ REPO="$(cd "$(dirname "$0")/.." && pwd -P)"
 AGENTS="$HOME/Library/LaunchAgents"
 LABELS=(edu.clemson.advising-mcp.public edu.clemson.advising-mcp.catalog edu.clemson.advising-mcp.refresh)
 MODE="${1:-install}"
+case "$MODE" in
+  install|--check|--uninstall) ;;
+  *) echo "usage: $0 [--check | --uninstall]   (no argument installs)" >&2; exit 2 ;;
+esac
 
 ok()   { printf '  \033[32mok\033[0m    %s\n' "$*"; }
 warn() { printf '  \033[33mwarn\033[0m  %s\n' "$*"; }
@@ -57,13 +61,29 @@ else
   bad "node_modules missing — run 'npm ci'"
 fi
 
-[ -f "$REPO/.env" ] && ok ".env present" \
-  || bad ".env missing — copy deploy/env.example to .env and fill it in"
+if [ -f "$REPO/.env" ]; then
+  ok ".env present"
+  # Loopback is the whole transport story (docs/security.md §5); a hand-edited
+  # .env that binds elsewhere would put an MCP server with no Host/Origin check
+  # on a campus-reachable interface. Existence alone proves nothing.
+  for v in MCP_PUBLIC_HTTP_HOST MCP_CATALOG_HTTP_HOST; do
+    h="$(grep -E "^$v=" "$REPO/.env" | tail -1 | cut -d= -f2- | tr -d '[:space:]')"
+    case "${h:-127.0.0.1}" in
+      127.0.0.1|::1|localhost) ok "$v is loopback" ;;
+      *) bad "$v=$h — the servers must bind loopback; TLS terminates at the proxy" ;;
+    esac
+  done
+  grep -qE '^MCP_TRANSPORT=http\s*$' "$REPO/.env" \
+    && ok "MCP_TRANSPORT=http" \
+    || bad "MCP_TRANSPORT=http is not set in .env — launchd would start a stdio server"
+else
+  bad ".env missing — copy deploy/env.example to .env and fill it in"
+fi
 
-# The catalog DB cannot be built here: the pipeline needs Playwright, a live
-# crawl, and ~4,000 cached page snapshots that are deliberately not in this
-# repo. It is built on a build box and copied across. A missing DB does not
-# crash the catalog server — it answers, wrongly, with nothing.
+# The catalog DB is built by core/ (needs network, Playwright, and an LLM
+# endpoint — docs/operations.md §1) or copied from a machine that has one. A
+# missing DB does not crash the catalog server; its tools report the catalog
+# as unreadable, so check for the file rather than for a running process.
 if [ -f "$REPO/core/db/gc_advisor.db" ]; then
   ok "catalog DB present ($(du -h "$REPO/core/db/gc_advisor.db" | cut -f1))"
 else
@@ -87,7 +107,12 @@ fi
 # the bridge gateway address blocked an install onto free loopback ports.
 for p in 8766 8767; do
   if lsof -nP -iTCP@127.0.0.1:"$p" -sTCP:LISTEN >/dev/null 2>&1; then
-    if launchctl list 2>/dev/null | grep -q "advising-mcp"; then
+    # `launchctl list | grep -q` is wrong here: grep -q exits on the first
+    # match, launchctl takes SIGPIPE, and under pipefail the pipeline is 141 —
+    # so a RUNNING install of this very service read as "something else" and
+    # a re-install refused. Ask launchd about the specific labels instead.
+    if launchctl print "gui/$(id -u)/edu.clemson.advising-mcp.public" >/dev/null 2>&1 \
+      || launchctl print "gui/$(id -u)/edu.clemson.advising-mcp.catalog" >/dev/null 2>&1; then
       warn "port $p in use (likely this service — it will be restarted)"
     else
       bad "port $p is in use by something else"

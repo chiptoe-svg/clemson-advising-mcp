@@ -12,7 +12,7 @@ import fs from "fs";
 import path from "path";
 import zlib from "zlib";
 
-import { STATE_DIR } from "../src/config.js";
+import { STATE_DIR } from "../src/config-mcp.js";
 import { writeScheduleDb, scheduleDbPath } from "../src/clemson-schedule-db.js";
 import type { ClemsonTermSnapshot } from "../src/clemson-classes.js";
 

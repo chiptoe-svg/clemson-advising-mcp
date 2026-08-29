@@ -148,7 +148,14 @@ function noteUnauthenticated(source: string, now: number): "log" | "throttle" | 
 // Keyed on the CONSUMER, not the address: several agents can share an egress IP,
 // and the point is to bound one credential's blast radius, not one network's.
 const CONSUMER_WINDOW_MS = 60_000;
-export const CONSUMER_LIMIT = Number(process.env.MCP_CONSUMER_RATE_LIMIT || 600);
+/** Parse MCP_CONSUMER_RATE_LIMIT. Anything but a positive finite number falls
+ *  back to the default — `Number("abc")` is NaN, and `count > NaN` is always
+ *  false, which would silently switch the limit OFF. */
+export function parseConsumerLimit(raw: string | undefined, fallback = 600): number {
+  const n = Number(raw);
+  return raw !== undefined && raw !== "" && Number.isFinite(n) && n > 0 ? n : fallback;
+}
+export const CONSUMER_LIMIT = parseConsumerLimit(process.env.MCP_CONSUMER_RATE_LIMIT);
 const consumerHits = new Map<string, { windowStart: number; count: number }>();
 
 export function __resetConsumerRateForTest(): void {

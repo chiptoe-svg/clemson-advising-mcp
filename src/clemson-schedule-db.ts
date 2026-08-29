@@ -27,7 +27,16 @@ import type {
 function scheduleDir(): string {
   return path.join(STATE_DIR, "clemson");
 }
+/** A Banner term code: four-digit year + two-digit month, e.g. 202608. */
+export function isTermCode(term: string): boolean {
+  return /^\d{6}$/.test(term);
+}
+
 export function scheduleDbPath(term: string): string {
+  // The term is a path component. Every tool that accepts one should resolve
+  // it first, but this is the one place a stray "../x" cannot get past —
+  // openScheduleDb turns the throw into "no snapshot", never into a file read.
+  if (!isTermCode(term)) throw new Error(`not a term code: ${JSON.stringify(term)}`);
   return path.join(scheduleDir(), `${term}.db`);
 }
 
@@ -105,7 +114,13 @@ export function minsToHHMM(m: number): string {
 // Write
 // ---------------------------------------------------------------------------
 
-export function writeScheduleDb(snap: ClemsonTermSnapshot): void {
+/**
+ * Write a term snapshot atomically (tmp + rename). Returns false — and leaves
+ * whatever was on disk untouched — when the write fails. Callers MUST check it:
+ * a refresh that swallowed this and reported "N sections" left the old
+ * snapshot serving with nothing saying so (2026-08-28 review).
+ */
+export function writeScheduleDb(snap: ClemsonTermSnapshot): boolean {
   try {
     fs.mkdirSync(scheduleDir(), { recursive: true });
     const tmp = `${scheduleDbPath(snap.term)}.tmp`;
@@ -196,11 +211,13 @@ export function writeScheduleDb(snap: ClemsonTermSnapshot): void {
       term: snap.term,
       sections: snap.sections.length,
     });
+    return true;
   } catch (err) {
     log.warn("clemson schedule db write failed", {
       term: snap.term,
       err: String(err),
     });
+    return false;
   }
 }
 
@@ -214,6 +231,8 @@ export interface ScheduleDbMeta {
 }
 
 export function openScheduleDb(term: string): Database.Database | null {
+  // Not a term code → no snapshot. Never a thrown path error up into a tool.
+  if (!isTermCode(term)) return null;
   const p = scheduleDbPath(term);
   try {
     fs.statSync(p);

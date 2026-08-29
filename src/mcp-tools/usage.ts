@@ -20,8 +20,16 @@ import { STATE_DIR } from "../config-mcp.js";
 import { log } from "../log.js";
 
 function analyticsDir(): string {
-  return process.env.ADVISOR_ANALYTICS_DIR || path.join(STATE_DIR, "analytics");
+  return process.env.MCP_ANALYTICS_DIR || path.join(STATE_DIR, "analytics");
 }
+
+/**
+ * Longest tool name the ledger will store. The `unknown_tool` path records the
+ * CALLER-SUPPLIED name, and an authenticated caller could otherwise append an
+ * arbitrarily long line per request (an 800 KB name was reproduced, 2026-08-28
+ * review) — a log that fills a disk is an availability defect.
+ */
+export const MAX_TOOL_NAME_RECORDED = 128;
 
 export interface McpCallRecord {
   /** The server that served the call, e.g. "cuassistant-public". */
@@ -68,7 +76,10 @@ export function recordMcpCall(rec: McpCallRecord): void {
       ...(rec.authMethod !== undefined ? { auth_method: rec.authMethod } : {}),
       ...(rec.subject !== undefined ? { subject: rec.subject } : {}),
       ...(rec.outcome !== undefined ? { outcome: rec.outcome } : {}),
-      tool: rec.tool,
+      tool:
+        rec.tool.length > MAX_TOOL_NAME_RECORDED
+          ? `${rec.tool.slice(0, MAX_TOOL_NAME_RECORDED)}…(${rec.tool.length} chars)`
+          : rec.tool,
     };
     const dir = analyticsDir();
     mkdirSync(dir, { recursive: true });

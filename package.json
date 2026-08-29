@@ -11,7 +11,7 @@
   },
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "mcp:public": "tsx src/mcp-public.ts",
@@ -20,7 +20,7 @@
     "mcp:catalog:http": "MCP_TRANSPORT=http tsx src/mcp-catalog.ts",
     "clemson:refresh": "tsx scripts/clemson-refresh.ts",
     "clemson:convert": "tsx scripts/clemson-convert-snapshots.ts",
-    "test": "node --import tsx --test --test-timeout=60000 \"test/**/*.test.ts\"",
+    "test": "MCP_USAGE_ANALYTICS=off node --import tsx --test --test-timeout=60000 \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "format": "prettier --write \"src/**/*.ts\" \"*.{md,json}\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"*.{md,json}\"",
