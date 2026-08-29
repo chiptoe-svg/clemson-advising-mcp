@@ -36,7 +36,8 @@ export function scheduleDbPath(term: string): string {
   // The term is a path component. Every tool that accepts one should resolve
   // it first, but this is the one place a stray "../x" cannot get past —
   // openScheduleDb turns the throw into "no snapshot", never into a file read.
-  if (!isTermCode(term)) throw new Error(`not a term code: ${JSON.stringify(term)}`);
+  if (!isTermCode(term))
+    throw new Error(`not a term code: ${JSON.stringify(term)}`);
   return path.join(scheduleDir(), `${term}.db`);
 }
 
@@ -132,9 +133,7 @@ export function writeScheduleDb(snap: ClemsonTermSnapshot): boolean {
     const db = new Database(tmp);
     try {
       db.exec(SCHEMA);
-      const setMeta = db.prepare(
-        "INSERT OR REPLACE INTO meta VALUES (?, ?)",
-      );
+      const setMeta = db.prepare("INSERT OR REPLACE INTO meta VALUES (?, ?)");
       setMeta.run("fetched_at", snap.fetchedAt);
       setMeta.run("term_description", snap.termDescription);
 
@@ -340,9 +339,10 @@ export function resolveCrns(
 }
 
 export function getScheduleDbMeta(db: Database.Database): ScheduleDbMeta {
-  const rows = db
-    .prepare("SELECT key, value FROM meta")
-    .all() as Array<{ key: string; value: string }>;
+  const rows = db.prepare("SELECT key, value FROM meta").all() as Array<{
+    key: string;
+    value: string;
+  }>;
   const m = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   return {
     // Stored as UTC ISO; surfaced with an explicit Eastern offset so the
@@ -463,7 +463,9 @@ function buildSections(
     const mgMap = meetingMap.get(row.crn);
     const meetings: ClemsonMeeting[] = mgMap
       ? [...mgMap.values()].map((mg) => ({
-          days: [...mg.days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)).join(""),
+          days: [...mg.days]
+            .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+            .join(""),
           beginTime: minsToHHMM(mg.startMin),
           endTime: minsToHHMM(mg.endMin),
           building: mg.building,
@@ -528,7 +530,9 @@ export function queryScheduleDb(
 
   const where = conditions.join(" AND ");
   const allRows = db
-    .prepare(`SELECT * FROM sections WHERE ${where} ORDER BY subject_course, section`)
+    .prepare(
+      `SELECT * FROM sections WHERE ${where} ORDER BY subject_course, section`,
+    )
     .all(...bindings) as SectionRow[];
 
   const totalCount = allRows.length;
@@ -558,7 +562,10 @@ export function loadAllSectionsFromDb(
       "SELECT * FROM sections WHERE term = ? ORDER BY subject_course, section",
     )
     .all(term) as SectionRow[];
-  return { sections: buildSections(db, term, meta.termDescription, rows), meta };
+  return {
+    sections: buildSections(db, term, meta.termDescription, rows),
+    meta,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -597,7 +604,7 @@ export interface ConflictPair {
   crn_b: string;
   day: string;
   overlap_start: string; // HHMM
-  overlap_end: string;   // HHMM
+  overlap_end: string; // HHMM
 }
 
 export function findConflicts(meetings: MeetingInterval[]): ConflictPair[] {

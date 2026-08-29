@@ -36,7 +36,9 @@ import {
   matchesBuildingRoom,
   matchesDayTimeFilters,
   type EngineSection,
-  type EngineMeeting, UNTIMED_FILTER_NOTE } from "./section-query.js";
+  type EngineMeeting,
+  UNTIMED_FILTER_NOTE,
+} from "./section-query.js";
 import { resolveTerm } from "../term-resolve.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
@@ -104,7 +106,9 @@ function strArrOrUndef(v: unknown): string[] | undefined {
 // a live Banner query. Task 7's display handoff depends on this shape: crn,
 // subjectCourse, title, creditHours, enrollment, maxEnrollment,
 // seatsAvailable, instructors, meetings.
-function toEngineMeetings(meetings: ClemsonSection["meetings"]): EngineMeeting[] {
+function toEngineMeetings(
+  meetings: ClemsonSection["meetings"],
+): EngineMeeting[] {
   const out: EngineMeeting[] = [];
   for (const m of meetings) {
     if (!m.beginTime || !m.endTime) continue; // untimed/online — no day rows
@@ -145,7 +149,9 @@ function findMissingCrns(
   if (crns.length === 0) return [];
   const placeholders = crns.map(() => "?").join(",");
   const rows = db
-    .prepare(`SELECT crn FROM sections WHERE term = ? AND crn IN (${placeholders})`)
+    .prepare(
+      `SELECT crn FROM sections WHERE term = ? AND crn IN (${placeholders})`,
+    )
     .all(term, ...crns) as Array<{ crn: string }>;
   const existing = new Set(rows.map((r) => r.crn));
   return crns.filter((c) => !existing.has(c));
@@ -186,7 +192,8 @@ export function makeSearchClasses(
           },
           course_number: {
             type: "string",
-            description: "Course number, e.g. 1010. Required unless subject is given.",
+            description:
+              "Course number, e.g. 1010. Required unless subject is given.",
           },
           instructor: {
             type: "string",
@@ -198,15 +205,21 @@ export function makeSearchClasses(
           },
           days: {
             type: "string",
-            description: "Day pattern using M T W R F S U, e.g. 'MWF'." + UNTIMED_FILTER_NOTE,
+            description:
+              "Day pattern using M T W R F S U, e.g. 'MWF'." +
+              UNTIMED_FILTER_NOTE,
           },
           no_meeting_before: {
             type: "string",
-            description: "HHMM — exclude sections with any meeting starting earlier." + UNTIMED_FILTER_NOTE,
+            description:
+              "HHMM — exclude sections with any meeting starting earlier." +
+              UNTIMED_FILTER_NOTE,
           },
           no_meeting_after: {
             type: "string",
-            description: "HHMM — exclude sections with any meeting ending later." + UNTIMED_FILTER_NOTE,
+            description:
+              "HHMM — exclude sections with any meeting ending later." +
+              UNTIMED_FILTER_NOTE,
           },
           open_seats_only: {
             type: "boolean",
@@ -369,7 +382,8 @@ export const findAlternatives: McpToolDefinition = {
         },
         no_meeting_before: {
           type: "string",
-          description: "HHMM — exclude sections with any meeting starting earlier.",
+          description:
+            "HHMM — exclude sections with any meeting starting earlier.",
         },
         no_meeting_after: {
           type: "string",
@@ -484,7 +498,9 @@ export const checkConflicts: McpToolDefinition = {
       }
 
       const baseConflicts = findConflicts(getMeetingsForCrns(db, term, crns));
-      const conflictingCrns = new Set(baseConflicts.flatMap((c) => [c.crn_a, c.crn_b]));
+      const conflictingCrns = new Set(
+        baseConflicts.flatMap((c) => [c.crn_a, c.crn_b]),
+      );
       const result: Record<string, unknown> = {
         term,
         snapshot_date: getScheduleDbMeta(db).fetchedAt,
@@ -496,14 +512,20 @@ export const checkConflicts: McpToolDefinition = {
 
       if (candidateCrns && candidateCrns.length > 0) {
         const fixedSet = new Set(crns);
-        const allConflicts = findConflicts(getMeetingsForCrns(db, term, allCrns));
+        const allConflicts = findConflicts(
+          getMeetingsForCrns(db, term, allCrns),
+        );
         result.candidates = candidateCrns.map((crn) => {
           const crnConflicts = allConflicts.filter(
             (c) =>
               (c.crn_a === crn && fixedSet.has(c.crn_b)) ||
               (c.crn_b === crn && fixedSet.has(c.crn_a)),
           );
-          return { crn, conflict_free: crnConflicts.length === 0, conflicts: crnConflicts };
+          return {
+            crn,
+            conflict_free: crnConflicts.length === 0,
+            conflicts: crnConflicts,
+          };
         });
       }
 
@@ -529,7 +551,8 @@ export function makeGetCourseDetails(
   deps: Partial<GetCourseDetailsDeps> = {},
 ): McpToolDefinition {
   const getCourse = deps.getGcCourse ?? getGcCourseLive;
-  const getSectionDetails = deps.getClemsonSectionDetails ?? getClemsonSectionDetailsLive;
+  const getSectionDetails =
+    deps.getClemsonSectionDetails ?? getClemsonSectionDetailsLive;
   const findCoreqs = deps.findCoreqs ?? findCoreqsLive;
   return {
     operation: "clemson.course_details",
@@ -618,4 +641,9 @@ export const getCourseDetails: McpToolDefinition = makeGetCourseDetails();
 
 // ---------------------------------------------------------------------------
 
-registerTools([searchClasses, findAlternatives, checkConflicts, getCourseDetails]);
+registerTools([
+  searchClasses,
+  findAlternatives,
+  checkConflicts,
+  getCourseDetails,
+]);

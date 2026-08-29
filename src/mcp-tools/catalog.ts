@@ -3,7 +3,12 @@
 // catalog data, no credentials.
 import Database from "better-sqlite3";
 
-import { getGcProgramPlan, listGcCatalogYears, getGcRequirementRules, getGcGenEd } from "../gc-curriculum.js";
+import {
+  getGcProgramPlan,
+  listGcCatalogYears,
+  getGcRequirementRules,
+  getGcGenEd,
+} from "../gc-curriculum.js";
 import { GC_ADVISOR_DB } from "../config-mcp.js";
 import {
   getCourseEntry,
@@ -99,7 +104,8 @@ export const programPlan: McpToolDefinition = {
     const program = resolveProgramArg(args);
     if (!program) return err(missingProgramMessage());
     const year = resolveCatalogYearArg(args);
-    if (!year) return err("catalog_year is required (see list-gc-catalog-years)");
+    if (!year)
+      return err("catalog_year is required (see list-gc-catalog-years)");
     try {
       const plan = await getGcProgramPlan(year, program);
       return okJson({
@@ -155,7 +161,8 @@ export const requirementRules: McpToolDefinition = {
     const program = resolveProgramArg(args);
     if (!program) return err(missingProgramMessage());
     const year = resolveCatalogYearArg(args);
-    if (!year) return err("catalog_year is required (see list-gc-catalog-years)");
+    if (!year)
+      return err("catalog_year is required (see list-gc-catalog-years)");
     try {
       const rules = await getGcRequirementRules(year, program);
       // `rules` is an ARRAY. Spreading it produced index-keyed properties —
@@ -171,7 +178,9 @@ export const requirementRules: McpToolDefinition = {
         _source: `Clemson University Online Catalog, ${year} edition (gc_advisor)`,
       });
     } catch (e) {
-      return err(`GC requirement rules lookup failed: ${e instanceof Error ? e.message : String(e)}`);
+      return err(
+        `GC requirement rules lookup failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   },
 };
@@ -216,7 +225,8 @@ export const genEd: McpToolDefinition = {
       return permissionErr(e);
     }
     const year = resolveCatalogYearArg(args);
-    if (!year) return err("catalog_year is required (see list-gc-catalog-years)");
+    if (!year)
+      return err("catalog_year is required (see list-gc-catalog-years)");
     try {
       const cats = await getGcGenEd(year);
       // Same array-spread bug as get-gc-requirement-rules; see the note there.
@@ -227,7 +237,9 @@ export const genEd: McpToolDefinition = {
         _source: `Clemson University Online Catalog, ${year} edition (gc_advisor)`,
       });
     } catch (e) {
-      return err(`GC gen-ed lookup failed: ${e instanceof Error ? e.message : String(e)}`);
+      return err(
+        `GC gen-ed lookup failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   },
 };
@@ -258,12 +270,12 @@ export const findCourseInProgram: McpToolDefinition = {
       "catalog year — searching BOTH the semester-by-semester plan " +
       "(fixed courses and one-of choice slots) AND the named requirement " +
       "rules. Use this whenever a question names a specific course or " +
-      "subject prefix (e.g. \"what is the PCID requirement\", \"do GC " +
-      "students take STAT 3090\"): it is the only tool that covers both " +
+      'subject prefix (e.g. "what is the PCID requirement", "do GC ' +
+      'students take STAT 3090"): it is the only tool that covers both ' +
       "stores, so a not-found here is meaningful, whereas a not-found in " +
       "get-gc-requirement-rules or get-gc-program-plan alone is NOT — each " +
-      "sees only half the program. Accepts a full code (\"PCID 3040\") or a " +
-      "bare subject (\"PCID\", which matches every course with that prefix). " +
+      'sees only half the program. Accepts a full code ("PCID 3040") or a ' +
+      'bare subject ("PCID", which matches every course with that prefix). ' +
       "Read-only, no login. Takes program + optional catalog_year (defaults " +
       "to the program's newest).",
     inputSchema: {
@@ -276,7 +288,10 @@ export const findCourseInProgram: McpToolDefinition = {
             "Case- and spacing-insensitive.",
         },
         program: { type: "string", description: PROGRAM_ARG_DESCRIPTION },
-        catalog_year: { type: "string", description: CATALOG_YEAR_ARG_DESCRIPTION },
+        catalog_year: {
+          type: "string",
+          description: CATALOG_YEAR_ARG_DESCRIPTION,
+        },
         year: { type: "string", description: YEAR_ALIAS_DESCRIPTION },
       },
       required: ["course"],
@@ -293,11 +308,16 @@ export const findCourseInProgram: McpToolDefinition = {
     outputSchema: {
       type: "object" as const,
       properties: {
-        query: { type: "string", description: "The normalised course code or subject prefix that was searched." },
+        query: {
+          type: "string",
+          description:
+            "The normalised course code or subject prefix that was searched.",
+        },
         matched_as: {
           type: "string",
           enum: ["course_code", "subject_prefix"],
-          description: "Whether the query resolved to one course or a whole subject prefix.",
+          description:
+            "Whether the query resolved to one course or a whole subject prefix.",
         },
         program: { type: "string" },
         catalog_year: { type: "string" },
@@ -314,8 +334,14 @@ export const findCourseInProgram: McpToolDefinition = {
           items: {
             type: "object",
             properties: {
-              where: { type: "string", description: "The plan group, e.g. 'Junior/Second Semester'." },
-              kind: { type: "string", description: "'fixed_course' or 'choice'." },
+              where: {
+                type: "string",
+                description: "The plan group, e.g. 'Junior/Second Semester'.",
+              },
+              kind: {
+                type: "string",
+                description: "'fixed_course' or 'choice'.",
+              },
               course: { type: "string" },
               choose_one_of: { type: "array", items: { type: "string" } },
               slot_type: { type: "string" },
@@ -326,10 +352,14 @@ export const findCourseInProgram: McpToolDefinition = {
         },
         requirement_rule_mentions: {
           type: "array",
-          description: "Named requirement slots whose rule text mentions the query.",
+          description:
+            "Named requirement slots whose rule text mentions the query.",
           items: {
             type: "object",
-            properties: { slot_type: { type: "string" }, rule: { type: "string" } },
+            properties: {
+              slot_type: { type: "string" },
+              rule: { type: "string" },
+            },
             required: ["slot_type", "rule"],
           },
         },
@@ -356,9 +386,10 @@ export const findCourseInProgram: McpToolDefinition = {
     const program = resolveProgramArg(args);
     if (!program) return err(missingProgramMessage());
 
-    const raw = typeof (args as { course?: unknown }).course === "string"
-      ? ((args as { course: string }).course)
-      : "";
+    const raw =
+      typeof (args as { course?: unknown }).course === "string"
+        ? (args as { course: string }).course
+        : "";
     // Normalise "pcid3040" / "PCID  3040" / " pcid 3040 " to "PCID 3040".
     const cleaned = raw.trim().toUpperCase().replace(/\s+/g, " ");
     const withSpace = cleaned.replace(/^([A-Z]+)\s*(\d.*)$/, "$1 $2");
@@ -373,7 +404,9 @@ export const findCourseInProgram: McpToolDefinition = {
     try {
       db = new Database(GC_ADVISOR_DB, { readonly: true });
     } catch {
-      return err("Could not open the Clemson catalog database (gc_advisor.db). It may not be loaded yet.");
+      return err(
+        "Could not open the Clemson catalog database (gc_advisor.db). It may not be loaded yet.",
+      );
     }
     try {
       // Resolve the year here rather than requiring it: the caller may not know
@@ -382,14 +415,19 @@ export const findCourseInProgram: McpToolDefinition = {
       const explicitYear = resolveCatalogYearArg(args);
       const year =
         explicitYear ??
-        (db
-          .prepare(
-            `SELECT cy.label AS label FROM program p
+        (
+          db
+            .prepare(
+              `SELECT cy.label AS label FROM program p
                JOIN catalog_year cy ON cy.id = p.catalog_year_id
               WHERE p.name = ? ORDER BY cy.label DESC LIMIT 1`,
-          )
-          .get(program) as { label?: string } | undefined)?.label;
-      if (!year) return err(`No catalog years found for "${program}" (see list-gc-catalog-years).`);
+            )
+            .get(program) as { label?: string } | undefined
+        )?.label;
+      if (!year)
+        return err(
+          `No catalog years found for "${program}" (see list-gc-catalog-years).`,
+        );
 
       // Match a full code exactly, or any course under a bare subject prefix.
       const exact = subjectOnly ? null : withSpace;
@@ -413,9 +451,13 @@ export const findCourseInProgram: McpToolDefinition = {
             ORDER BY rg.ordering, pi.ordering`,
         )
         .all(program, year, exact, exact, likeCode, likeOneOf) as Array<{
-          group_label: string; kind: string; course_code: string | null;
-          one_of: string | null; slot_type: string | null; credits: number | null;
-        }>;
+        group_label: string;
+        kind: string;
+        course_code: string | null;
+        one_of: string | null;
+        slot_type: string | null;
+        credits: number | null;
+      }>;
 
       // requirement_rule_effective, NEVER the raw table: the view drops rules
       // flagged bogus, which the advisor must not quote as fact.
@@ -427,7 +469,10 @@ export const findCourseInProgram: McpToolDefinition = {
              JOIN catalog_year cy ON cy.id = p.catalog_year_id
             WHERE p.name = ? AND cy.label = ? AND rr.rule LIKE ?`,
         )
-        .all(program, year, `%${withSpace}%`) as Array<{ slot_type: string; rule: string }>;
+        .all(program, year, `%${withSpace}%`) as Array<{
+        slot_type: string;
+        rule: string;
+      }>;
 
       const plan_appearances = planRows.map((r) => ({
         where: r.group_label,
@@ -456,7 +501,9 @@ export const findCourseInProgram: McpToolDefinition = {
         _source: `Clemson University Online Catalog, ${year} edition (gc_advisor)`,
       });
     } catch (e) {
-      return err(`Course lookup failed: ${e instanceof Error ? e.message : String(e)}`);
+      return err(
+        `Course lookup failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
     } finally {
       db.close();
     }
@@ -472,7 +519,6 @@ function safeJsonArray(raw: string): string[] | string {
     return raw;
   }
 }
-
 
 /**
  * The program + catalog-year list, as a tool.
@@ -495,11 +541,15 @@ export const listPrograms: McpToolDefinition = {
     description:
       "List every program this catalog can advise on, with the catalog years " +
       "each one exists in. Use it to discover valid values for the `program` " +
-      "argument other tools take, or to answer \"which programs do you " +
-      "cover\". Majors with a semester-by-semester plan, plus Pre-Business; " +
+      'argument other tools take, or to answer "which programs do you ' +
+      'cover". Majors with a semester-by-semester plan, plus Pre-Business; ' +
       "minors and certificates are NOT here — look those up by name with " +
       "get-program-requirements. Read-only, no login.",
-    inputSchema: { type: "object" as const, properties: {}, additionalProperties: false },
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      additionalProperties: false,
+    },
     outputSchema: {
       type: "object" as const,
       properties: {
@@ -514,8 +564,17 @@ export const listPrograms: McpToolDefinition = {
           items: {
             type: "object",
             properties: {
-              name: { type: "string", description: 'Exact registrar name, e.g. "Accounting, BS". Every name contains a comma.' },
-              years: { type: "array", items: { type: "string" }, description: "Catalog years this program exists in, newest first." },
+              name: {
+                type: "string",
+                description:
+                  'Exact registrar name, e.g. "Accounting, BS". Every name contains a comma.',
+              },
+              years: {
+                type: "array",
+                items: { type: "string" },
+                description:
+                  "Catalog years this program exists in, newest first.",
+              },
             },
             required: ["name", "years"],
           },
@@ -549,7 +608,9 @@ export const listPrograms: McpToolDefinition = {
         _source: "Clemson University Online Catalog (gc_advisor)",
       });
     } catch (e) {
-      return err(`GC program list unavailable: ${e instanceof Error ? e.message : String(e)}`);
+      return err(
+        `GC program list unavailable: ${e instanceof Error ? e.message : String(e)}`,
+      );
     } finally {
       db.close();
     }
@@ -575,7 +636,7 @@ export const getCourse: McpToolDefinition = {
     name: "get-gc-course",
     description:
       "Look up ONE course's catalog entry — title, credits, and catalog " +
-      "description — by its exact code (\"GC 4061\", case- and " +
+      'description — by its exact code ("GC 4061", case- and ' +
       "spacing-insensitive). This is the CATALOG entry, not a class section: " +
       "for meeting times, seats, or instructor use the schedule server's " +
       "get-course-details. To find where a course appears in a program's " +
@@ -583,7 +644,10 @@ export const getCourse: McpToolDefinition = {
     inputSchema: {
       type: "object" as const,
       properties: {
-        course: { type: "string", description: 'A course code, e.g. "GC 4061" or "gc4061".' },
+        course: {
+          type: "string",
+          description: 'A course code, e.g. "GC 4061" or "gc4061".',
+        },
       },
       required: ["course"],
       additionalProperties: false,
@@ -591,7 +655,10 @@ export const getCourse: McpToolDefinition = {
     outputSchema: {
       type: "object" as const,
       properties: {
-        code: { type: "string", description: "The normalised code that was looked up." },
+        code: {
+          type: "string",
+          description: "The normalised code that was looked up.",
+        },
         found: {
           type: "boolean",
           description:
@@ -615,7 +682,9 @@ export const getCourse: McpToolDefinition = {
     const raw = typeof args.course === "string" ? args.course : "";
     const code = normalizeCourseCode(raw);
     if (!code) {
-      return err(`"${raw}" is not a course code. Expected a form like "GC 4061".`);
+      return err(
+        `"${raw}" is not a course code. Expected a form like "GC 4061".`,
+      );
     }
     let db: InstanceType<typeof Database>;
     try {
@@ -629,17 +698,39 @@ export const getCourse: McpToolDefinition = {
       const row = getCourseEntry(db, code);
       return okJson(
         row
-          ? { code, found: true, title: row.title, credits: row.credits, description: row.description,
-              _source: "Clemson University Online Catalog (gc_advisor)" }
-          : { code, found: false, title: null, credits: null, description: null,
-              _source: "Clemson University Online Catalog (gc_advisor)" },
+          ? {
+              code,
+              found: true,
+              title: row.title,
+              credits: row.credits,
+              description: row.description,
+              _source: "Clemson University Online Catalog (gc_advisor)",
+            }
+          : {
+              code,
+              found: false,
+              title: null,
+              credits: null,
+              description: null,
+              _source: "Clemson University Online Catalog (gc_advisor)",
+            },
       );
     } catch (e) {
-      return err(`GC course lookup failed: ${e instanceof Error ? e.message : String(e)}`);
+      return err(
+        `GC course lookup failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
     } finally {
       db.close();
     }
   },
 };
 
-registerTools([catalogYears, programPlan, requirementRules, genEd, findCourseInProgram, listPrograms, getCourse]);
+registerTools([
+  catalogYears,
+  programPlan,
+  requirementRules,
+  genEd,
+  findCourseInProgram,
+  listPrograms,
+  getCourse,
+]);

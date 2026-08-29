@@ -22,7 +22,10 @@ interface LogConfig {
 function envConfig(): LogConfig {
   return {
     file: process.env.LOG_FILE || undefined,
-    maxBytes: Number(process.env.LOG_MAX_BYTES) > 0 ? Number(process.env.LOG_MAX_BYTES) : 10_485_760,
+    maxBytes:
+      Number(process.env.LOG_MAX_BYTES) > 0
+        ? Number(process.env.LOG_MAX_BYTES)
+        : 10_485_760,
     keep: Number(process.env.LOG_KEEP) > 0 ? Number(process.env.LOG_KEEP) : 5,
     sink: (line) => process.stderr.write(line),
   };
@@ -54,7 +57,8 @@ function writeLine(line: string): void {
     } catch {
       size = 0;
     }
-    if (size + Buffer.byteLength(line) > config.maxBytes && size > 0) rotate(config.file, config.keep);
+    if (size + Buffer.byteLength(line) > config.maxBytes && size > 0)
+      rotate(config.file, config.keep);
     fs.appendFileSync(config.file, line);
   } catch (err) {
     // Never let logging take the process down; fall back to stderr once.
@@ -70,10 +74,12 @@ function emit(level: Level, msg: string, ctx?: Record<string, unknown>): void {
 }
 
 export const log = {
-  debug: (msg: string, ctx?: Record<string, unknown>) => emit("debug", msg, ctx),
+  debug: (msg: string, ctx?: Record<string, unknown>) =>
+    emit("debug", msg, ctx),
   info: (msg: string, ctx?: Record<string, unknown>) => emit("info", msg, ctx),
   warn: (msg: string, ctx?: Record<string, unknown>) => emit("warn", msg, ctx),
-  error: (msg: string, ctx?: Record<string, unknown>) => emit("error", msg, ctx),
+  error: (msg: string, ctx?: Record<string, unknown>) =>
+    emit("error", msg, ctx),
 };
 
 /** Test seam: override file/limits/sink without touching the environment. */

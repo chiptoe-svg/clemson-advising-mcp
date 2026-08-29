@@ -93,7 +93,10 @@ export function clientSource(req: {
   const raw = req.headers?.["x-forwarded-for"];
   const header = Array.isArray(raw) ? raw.join(",") : raw;
   if (!header) return peer;
-  const hops = header.split(",").map((h) => h.trim()).filter(Boolean);
+  const hops = header
+    .split(",")
+    .map((h) => h.trim())
+    .filter(Boolean);
   return hops.length > 0 ? hops[hops.length - 1]! : peer;
 }
 
@@ -110,14 +113,20 @@ export function clientSource(req: {
 const UNAUTH_WINDOW_MS = 60_000;
 export const UNAUTH_LIMIT = 30;
 const LOG_EVERY = 100;
-const unauthBySource = new Map<string, { windowStart: number; count: number }>();
+const unauthBySource = new Map<
+  string,
+  { windowStart: number; count: number }
+>();
 
 export function __resetUnauthTrackerForTest(): void {
   unauthBySource.clear();
 }
 
 /** Returns "log" when this hit should be logged, "throttle" when it exceeds the limit, else "silent". */
-function noteUnauthenticated(source: string, now: number): "log" | "throttle" | "silent" {
+function noteUnauthenticated(
+  source: string,
+  now: number,
+): "log" | "throttle" | "silent" {
   let entry = unauthBySource.get(source);
   if (!entry || now - entry.windowStart >= UNAUTH_WINDOW_MS) {
     entry = { windowStart: now, count: 0 };
@@ -151,11 +160,18 @@ const CONSUMER_WINDOW_MS = 60_000;
 /** Parse MCP_CONSUMER_RATE_LIMIT. Anything but a positive finite number falls
  *  back to the default — `Number("abc")` is NaN, and `count > NaN` is always
  *  false, which would silently switch the limit OFF. */
-export function parseConsumerLimit(raw: string | undefined, fallback = 600): number {
+export function parseConsumerLimit(
+  raw: string | undefined,
+  fallback = 600,
+): number {
   const n = Number(raw);
-  return raw !== undefined && raw !== "" && Number.isFinite(n) && n > 0 ? n : fallback;
+  return raw !== undefined && raw !== "" && Number.isFinite(n) && n > 0
+    ? n
+    : fallback;
 }
-export const CONSUMER_LIMIT = parseConsumerLimit(process.env.MCP_CONSUMER_RATE_LIMIT);
+export const CONSUMER_LIMIT = parseConsumerLimit(
+  process.env.MCP_CONSUMER_RATE_LIMIT,
+);
 const consumerHits = new Map<string, { windowStart: number; count: number }>();
 
 export function __resetConsumerRateForTest(): void {
@@ -204,7 +220,10 @@ export function registerTools(tools: McpToolDefinition[]): void {
       log(`warning: duplicate tool "${t.tool.name}" — skipping`);
       continue;
     }
-    t.tool._meta = { ...(t.tool._meta ?? {}), [TOOL_CATEGORY_META_KEY]: t.category };
+    t.tool._meta = {
+      ...(t.tool._meta ?? {}),
+      [TOOL_CATEGORY_META_KEY]: t.category,
+    };
     allTools.push(t);
     toolMap.set(t.tool.name, t);
   }
@@ -306,7 +325,14 @@ export function authContext(
   authHeader: string | undefined,
   over: Partial<AuthContext> = {},
 ): AuthContext {
-  return { authHeader, method: "POST", url: "/", headers: {}, source: "local", ...over };
+  return {
+    authHeader,
+    method: "POST",
+    url: "/",
+    headers: {},
+    source: "local",
+    ...over,
+  };
 }
 
 /**
@@ -424,7 +450,10 @@ export function isToolInScope(toolName: string, scopes: Set<string>): boolean {
 
 /** Test seam: buildServer is module-private, but wiring tests must exercise the
  *  real thing (instructions attached, _meta stamped) rather than its parts. */
-export function __buildServerForTest(name: string, principal?: Principal): Server {
+export function __buildServerForTest(
+  name: string,
+  principal?: Principal,
+): Server {
   return buildServer(name, principal);
 }
 
@@ -534,133 +563,140 @@ export function createHttpHandler(
   const now = opts.now ?? Date.now;
   return (req, res) => {
     void (async () => {
-    const source = clientSource(req);
-    // The 503 path below covers an authenticator that THROWS. It does not cover
-    // one that never settles — a JWKS fetch or introspection call with no
-    // timeout — which holds the socket and the handler open indefinitely
-    // (verified: neither headersTimeout nor requestTimeout applies, because both
-    // measure request RECEIPT, which has already completed). Race it.
-    let timer: NodeJS.Timeout | undefined;
-    let principal = await Promise.race([
-      authenticate({
-        authHeader: req.headers.authorization,
-        method: req.method ?? "?",
-        url: req.url ?? "/",
-        headers: req.headers,
-        source,
-      }),
-      new Promise<null>((resolve) => {
-        timer = setTimeout(() => {
-          appLog.warn("mcp auth timed out", { server: name, source });
-          resolve(null); // fail CLOSED: a slow authenticator denies, never admits
-        }, AUTH_TIMEOUT_MS);
-      }),
-    ]).finally(() => {
-      if (timer) clearTimeout(timer);
-    });
-    // Expiry is enforced HERE, once, rather than inside each authenticator:
-    // registry tokens never expire, but OAuth access tokens always do, and a
-    // scheme that forgot the check would fail open. Central and unmissable.
-    // Reject anything that is not a FINITE, FUTURE number. `NaN <= now()` is
-    // false, so the original `!== undefined && <= now()` accepted NaN — and NaN
-    // is the single most likely value a real OAuth authenticator produces on a
-    // malformed token (`Number(claims.exp)`, `Date.parse(bad)`, and
-    // `Number(undefined)` all yield it). Found by adversarial review 2026-08-27
-    // in the one check described as "central and unmissable".
-    if (principal?.expiresAt !== undefined) {
-      const exp = principal.expiresAt;
-      if (typeof exp !== "number" || !Number.isFinite(exp) || exp <= now()) {
-        appLog.warn("mcp credential expired or malformed", {
-          server: name,
-          id: principal.id,
-          expiresAt: String(exp),
-        });
-        principal = null;
-      }
-    }
-    if (!principal) {
-      const verdict = noteUnauthenticated(source, now());
-      if (verdict === "throttle") {
-        res.writeHead(429, { "content-type": "application/json", "retry-after": "60" });
-        res.end(JSON.stringify({ error: "too many unauthenticated requests" }));
-        return;
-      }
-      if (verdict === "log") {
-        appLog.warn("mcp unauthorized request", {
-          server: name,
+      const source = clientSource(req);
+      // The 503 path below covers an authenticator that THROWS. It does not cover
+      // one that never settles — a JWKS fetch or introspection call with no
+      // timeout — which holds the socket and the handler open indefinitely
+      // (verified: neither headersTimeout nor requestTimeout applies, because both
+      // measure request RECEIPT, which has already completed). Race it.
+      let timer: NodeJS.Timeout | undefined;
+      let principal = await Promise.race([
+        authenticate({
+          authHeader: req.headers.authorization,
           method: req.method ?? "?",
+          url: req.url ?? "/",
+          headers: req.headers,
           source,
-          countInWindow: unauthBySource.get(source)?.count ?? 1,
-        });
-      }
-      // RFC 6750 challenge. Correct for plain bearer today, and the exact header
-      // an MCP OAuth client expects to discover where to authenticate — a future
-      // scheme extends this value rather than adding a new mechanism.
-      res.writeHead(401, {
-        "content-type": "application/json",
-        "www-authenticate": `Bearer realm="${name}"`,
+        }),
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => {
+            appLog.warn("mcp auth timed out", { server: name, source });
+            resolve(null); // fail CLOSED: a slow authenticator denies, never admits
+          }, AUTH_TIMEOUT_MS);
+        }),
+      ]).finally(() => {
+        if (timer) clearTimeout(timer);
       });
-      res.end(JSON.stringify({ error: "unauthorized" }));
-      return;
-    }
-    // Bound the authenticated caller too. Placed AFTER auth so the limit is per
-    // credential rather than per address, and BEFORE the body is read so a
-    // flooding consumer is cut off cheaply.
-    if (consumerOverLimit(principal.id, now())) {
-      appLog.warn("mcp consumer rate limit", {
-        server: name,
-        consumer: principal.id,
-        limit: CONSUMER_LIMIT,
-      });
-      res.writeHead(429, {
-        "content-type": "application/json",
-        "retry-after": "60",
-      });
-      res.end(JSON.stringify({ error: "rate_limited", consumer: principal.id }));
-      return;
-    }
-
-    const chunks: Buffer[] = [];
-    let size = 0;
-    let tooLarge = false;
-    req.on("data", (c) => {
-      const buf = c as Buffer;
-      size += buf.length;
-      if (size > MAX_BODY_BYTES) {
-        tooLarge = true;
-        res.writeHead(413, { "content-type": "application/json" });
-        res.end(JSON.stringify({ error: "payload_too_large" }));
-        req.destroy();
-        return;
-      }
-      chunks.push(buf);
-    });
-    req.on("end", () => {
-      if (tooLarge) return;
-      let body: unknown = undefined;
-      if (chunks.length) {
-        try {
-          body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
-        } catch {
-          /* no body */
+      // Expiry is enforced HERE, once, rather than inside each authenticator:
+      // registry tokens never expire, but OAuth access tokens always do, and a
+      // scheme that forgot the check would fail open. Central and unmissable.
+      // Reject anything that is not a FINITE, FUTURE number. `NaN <= now()` is
+      // false, so the original `!== undefined && <= now()` accepted NaN — and NaN
+      // is the single most likely value a real OAuth authenticator produces on a
+      // malformed token (`Number(claims.exp)`, `Date.parse(bad)`, and
+      // `Number(undefined)` all yield it). Found by adversarial review 2026-08-27
+      // in the one check described as "central and unmissable".
+      if (principal?.expiresAt !== undefined) {
+        const exp = principal.expiresAt;
+        if (typeof exp !== "number" || !Number.isFinite(exp) || exp <= now()) {
+          appLog.warn("mcp credential expired or malformed", {
+            server: name,
+            id: principal.id,
+            expiresAt: String(exp),
+          });
+          principal = null;
         }
       }
-      // Stateless MCP: a FRESH server+transport per request. Sharing one
-      // stateless transport across requests 500s on the post-initialize
-      // notifications/initialized POST (verified by the nanoclaw integration test).
-      void (async () => {
-        const server = buildServer(name, principal);
-        const transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: undefined,
+      if (!principal) {
+        const verdict = noteUnauthenticated(source, now());
+        if (verdict === "throttle") {
+          res.writeHead(429, {
+            "content-type": "application/json",
+            "retry-after": "60",
+          });
+          res.end(
+            JSON.stringify({ error: "too many unauthenticated requests" }),
+          );
+          return;
+        }
+        if (verdict === "log") {
+          appLog.warn("mcp unauthorized request", {
+            server: name,
+            method: req.method ?? "?",
+            source,
+            countInWindow: unauthBySource.get(source)?.count ?? 1,
+          });
+        }
+        // RFC 6750 challenge. Correct for plain bearer today, and the exact header
+        // an MCP OAuth client expects to discover where to authenticate — a future
+        // scheme extends this value rather than adding a new mechanism.
+        res.writeHead(401, {
+          "content-type": "application/json",
+          "www-authenticate": `Bearer realm="${name}"`,
         });
-        res.on("close", () => {
-          void transport.close();
-          void server.close();
+        res.end(JSON.stringify({ error: "unauthorized" }));
+        return;
+      }
+      // Bound the authenticated caller too. Placed AFTER auth so the limit is per
+      // credential rather than per address, and BEFORE the body is read so a
+      // flooding consumer is cut off cheaply.
+      if (consumerOverLimit(principal.id, now())) {
+        appLog.warn("mcp consumer rate limit", {
+          server: name,
+          consumer: principal.id,
+          limit: CONSUMER_LIMIT,
         });
-        await server.connect(transport);
-        await transport.handleRequest(req, res, body);
-      })();
-    });
+        res.writeHead(429, {
+          "content-type": "application/json",
+          "retry-after": "60",
+        });
+        res.end(
+          JSON.stringify({ error: "rate_limited", consumer: principal.id }),
+        );
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      let size = 0;
+      let tooLarge = false;
+      req.on("data", (c) => {
+        const buf = c as Buffer;
+        size += buf.length;
+        if (size > MAX_BODY_BYTES) {
+          tooLarge = true;
+          res.writeHead(413, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: "payload_too_large" }));
+          req.destroy();
+          return;
+        }
+        chunks.push(buf);
+      });
+      req.on("end", () => {
+        if (tooLarge) return;
+        let body: unknown = undefined;
+        if (chunks.length) {
+          try {
+            body = JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+          } catch {
+            /* no body */
+          }
+        }
+        // Stateless MCP: a FRESH server+transport per request. Sharing one
+        // stateless transport across requests 500s on the post-initialize
+        // notifications/initialized POST (verified by the nanoclaw integration test).
+        void (async () => {
+          const server = buildServer(name, principal);
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined,
+          });
+          res.on("close", () => {
+            void transport.close();
+            void server.close();
+          });
+          await server.connect(transport);
+          await transport.handleRequest(req, res, body);
+        })();
+      });
     })().catch((err) => {
       // An authenticator that throws (a JWKS fetch failing, an introspection
       // endpoint timing out) must fail CLOSED and must not take the process

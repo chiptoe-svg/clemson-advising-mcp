@@ -55,8 +55,10 @@ function isLabLike(title: string | null, credits: string | null): boolean {
 
 /** Describe the pair direction from which side is the non-credit lab. */
 function relationshipFor(queried: CourseRow, paired: CourseRow): string {
-  if (isLabLike(paired.title, paired.credits)) return "required non-credit lab (coreq)";
-  if (isLabLike(queried.title, queried.credits)) return "lecture this lab accompanies";
+  if (isLabLike(paired.title, paired.credits))
+    return "required non-credit lab (coreq)";
+  if (isLabLike(queried.title, queried.credits))
+    return "lecture this lab accompanies";
   return "corequisite";
 }
 
@@ -93,10 +95,10 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
   }
   try {
     const queried = db
-      .prepare("SELECT code, title, credits, coreq_parsed FROM course WHERE code = ? LIMIT 1")
-      .get(code) as
-      | (CourseRow & { coreq_parsed: string | null })
-      | undefined;
+      .prepare(
+        "SELECT code, title, credits, coreq_parsed FROM course WHERE code = ? LIMIT 1",
+      )
+      .get(code) as (CourseRow & { coreq_parsed: string | null }) | undefined;
     if (!queried) return [];
 
     // Preferred path: the structured coreq_parsed JSON array.
@@ -104,7 +106,8 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
     if (queried.coreq_parsed) {
       try {
         const arr = JSON.parse(queried.coreq_parsed);
-        if (Array.isArray(arr)) codes = arr.filter((x): x is string => typeof x === "string");
+        if (Array.isArray(arr))
+          codes = arr.filter((x): x is string => typeof x === "string");
       } catch {
         /* malformed — treated as no structured coreqs */
       }
@@ -116,9 +119,15 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
       const norm = normCourseCode(raw);
       if (!norm) continue;
       const row = db
-        .prepare("SELECT code, title, credits FROM course WHERE code = ? LIMIT 1")
+        .prepare(
+          "SELECT code, title, credits FROM course WHERE code = ? LIMIT 1",
+        )
         .get(norm) as CourseRow | undefined;
-      const paired: CourseRow = row ?? { code: norm, title: null, credits: null };
+      const paired: CourseRow = row ?? {
+        code: norm,
+        title: null,
+        credits: null,
+      };
       out.push({
         ...paired,
         relationship: relationshipFor(queried, paired),
@@ -130,5 +139,3 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
     db.close();
   }
 }
-
-

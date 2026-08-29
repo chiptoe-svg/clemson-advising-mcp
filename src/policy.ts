@@ -35,7 +35,9 @@ function loadPolicyFile(): ActionPolicy {
   try {
     raw = fs.readFileSync(p, "utf-8");
   } catch (e) {
-    throw new Error(`cannot read the action policy at ${p}: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(
+      `cannot read the action policy at ${p}: ${e instanceof Error ? e.message : String(e)}`,
+    );
   }
   const parsed = YAML.parse(raw) as Partial<ActionPolicy> | null;
   const actions = Array.isArray(parsed?.actions)
@@ -44,7 +46,9 @@ function loadPolicyFile(): ActionPolicy {
       )
     : [];
   if (actions.length === 0) {
-    throw new Error(`the action policy at ${p} declares no actions — every tool would be refused`);
+    throw new Error(
+      `the action policy at ${p} declares no actions — every tool would be refused`,
+    );
   }
   return {
     policy_version: Number(parsed?.policy_version || 0),

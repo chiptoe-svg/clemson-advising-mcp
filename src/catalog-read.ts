@@ -88,9 +88,9 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
 
 /** Mirrors CatalogAccess._year_id: an unknown year is an error, not an empty result. */
 function yearId(db: Db, year: string): number {
-  const row = db.prepare("SELECT id FROM catalog_year WHERE label=?").get(year) as
-    | { id: number }
-    | undefined;
+  const row = db
+    .prepare("SELECT id FROM catalog_year WHERE label=?")
+    .get(year) as { id: number } | undefined;
   if (!row) throw new Error(`Unknown catalog year: ${year}`);
   return row.id;
 }
@@ -106,25 +106,44 @@ function programId(db: Db, cyId: number, name: string, year: string): number {
 /** Every catalog year label, newest first. */
 export function listCatalogYears(db: Db): string[] {
   return (
-    db.prepare("SELECT label FROM catalog_year ORDER BY label DESC").all() as Array<{
+    db
+      .prepare("SELECT label FROM catalog_year ORDER BY label DESC")
+      .all() as Array<{
       label: string;
     }>
   ).map((r) => r.label);
 }
 
 /** The semester-by-semester plan: groups, items, footnotes. */
-export function getProgramPlan(db: Db, year: string, name: string): ProgramPlan {
+export function getProgramPlan(
+  db: Db,
+  year: string,
+  name: string,
+): ProgramPlan {
   const cy = yearId(db, year);
   const prog = db
     .prepare("SELECT * FROM program WHERE catalog_year_id=? AND name=?")
     .get(cy, name) as
-    | { id: number; name: string; total_credits: number | null; description: string | null; source_url: string | null }
+    | {
+        id: number;
+        name: string;
+        total_credits: number | null;
+        description: string | null;
+        source_url: string | null;
+      }
     | undefined;
   if (!prog) throw new Error(`No program '${name}' in ${year}`);
 
   const groupRows = db
-    .prepare("SELECT * FROM requirement_group WHERE program_id=? ORDER BY ordering")
-    .all(prog.id) as Array<{ id: number; label: string; kind: string; credit_total: number | null }>;
+    .prepare(
+      "SELECT * FROM requirement_group WHERE program_id=? ORDER BY ordering",
+    )
+    .all(prog.id) as Array<{
+    id: number;
+    label: string;
+    kind: string;
+    credit_total: number | null;
+  }>;
 
   const itemStmt = db.prepare(
     "SELECT * FROM plan_item WHERE group_id=? ORDER BY ordering",
@@ -183,7 +202,10 @@ function advisorSets(
       "SELECT code, action FROM advisor_course WHERE program=? AND slot_type=? " +
         "AND (catalog_year IS NULL OR catalog_year=?)",
     )
-    .all(program, slotType, catalogYear) as Array<{ code: string; action: string }>;
+    .all(program, slotType, catalogYear) as Array<{
+    code: string;
+    action: string;
+  }>;
   const allow = new Set<string>();
   const deny = new Set<string>();
   for (const r of rows) (r.action === "deny" ? deny : allow).add(r.code);
@@ -207,7 +229,9 @@ export function getRequirementRules(
   const cy = yearId(db, year);
   const pid = programId(db, cy, name, year);
   const rows = db
-    .prepare("SELECT slot_type, rule FROM requirement_rule_effective WHERE program_id=?")
+    .prepare(
+      "SELECT slot_type, rule FROM requirement_rule_effective WHERE program_id=?",
+    )
     .all(pid) as Array<{ slot_type: string; rule: string }>;
 
   return rows.map((r) => {
@@ -311,13 +335,23 @@ export function listProgramOptions(db: Db): {
 export function getCourseEntry(
   db: Db,
   code: string,
-): { code: string; title: string | null; credits: string | null; description: string | null } | null {
+): {
+  code: string;
+  title: string | null;
+  credits: string | null;
+  description: string | null;
+} | null {
   const row = db
     .prepare(
       "SELECT code, title, credits, description FROM course WHERE code = ? LIMIT 1",
     )
     .get(code) as
-    | { code: string; title: string | null; credits: string | null; description: string | null }
+    | {
+        code: string;
+        title: string | null;
+        credits: string | null;
+        description: string | null;
+      }
     | undefined;
   return row ?? null;
 }
@@ -357,10 +391,12 @@ export function knownPrograms(db: Db, year: string): string[] {
 }
 
 /** One course row by code, or null. Mirrors `dict(row) if row else None`. */
-export function getCourse(db: Db, code: string): Record<string, unknown> | null {
+export function getCourse(
+  db: Db,
+  code: string,
+): Record<string, unknown> | null {
   const row = db.prepare("SELECT * FROM course WHERE code=?").get(code) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   return row ?? null;
 }
 
@@ -405,9 +441,18 @@ export function findStaleBogusFlags(db: Db): Array<{
          JOIN catalog_year cy ON cy.id = p.catalog_year_id
         WHERE rr.bogus = 0`,
     )
-    .all() as Array<{ program: string; catalog_year: string; slot_type: string; rule: string }>;
+    .all() as Array<{
+    program: string;
+    catalog_year: string;
+    slot_type: string;
+    rule: string;
+  }>;
 
-  const stale: Array<{ program: string; catalog_year: string; slot_type: string }> = [];
+  const stale: Array<{
+    program: string;
+    catalog_year: string;
+    slot_type: string;
+  }> = [];
   for (const r of rows) {
     const rule = parseJson<Record<string, unknown>>(r.rule, {});
     // Prose-schema rules (minors/certificates) are a different contract the
@@ -419,14 +464,21 @@ export function findStaleBogusFlags(db: Db): Array<{
     // made the first version of this tripwire report 8 false positives that
     // Python's is_bogus_rule returns False for; validated against that oracle
     // before shipping, which is the only reason it is not crying wolf now.
-    if (typeof rule.evaluator === "string" && rule.evaluator.length > 0) continue;
-    const explicit = Array.isArray(rule.explicit_courses) ? rule.explicit_courses : [];
+    if (typeof rule.evaluator === "string" && rule.evaluator.length > 0)
+      continue;
+    const explicit = Array.isArray(rule.explicit_courses)
+      ? rule.explicit_courses
+      : [];
     const wildcards = Array.isArray(rule.wildcards) ? rule.wildcards : [];
     if (explicit.length > 0 || wildcards.length > 0) continue;
     // Nothing explicit and no wildcards: only a curated advisor entry can save it.
     const { allow } = advisorSets(db, r.slot_type, r.catalog_year, r.program);
     if (allow.length > 0) continue;
-    stale.push({ program: r.program, catalog_year: r.catalog_year, slot_type: r.slot_type });
+    stale.push({
+      program: r.program,
+      catalog_year: r.catalog_year,
+      slot_type: r.slot_type,
+    });
   }
   return stale;
 }

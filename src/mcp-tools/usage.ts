@@ -83,7 +83,10 @@ export function recordMcpCall(rec: McpCallRecord): void {
     };
     const dir = analyticsDir();
     mkdirSync(dir, { recursive: true });
-    appendFileSync(path.join(dir, "mcp-calls.jsonl"), JSON.stringify(record) + "\n");
+    appendFileSync(
+      path.join(dir, "mcp-calls.jsonl"),
+      JSON.stringify(record) + "\n",
+    );
   } catch (err) {
     log.warn("mcp usage write failed", { err: String(err) });
   }

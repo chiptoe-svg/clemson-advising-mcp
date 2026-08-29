@@ -117,9 +117,13 @@ function getCatalogYearLabelForProgram(
 // wants ({subject, courseNumber}, both upper-cased to match Banner's
 // subject_course convention). Returns null for anything that doesn't fit the
 // pattern (e.g. a wildcard rule name rather than a real course code).
-function splitCourseCode(code: string): { subject: string; courseNumber: string } | null {
+function splitCourseCode(
+  code: string,
+): { subject: string; courseNumber: string } | null {
   const m = /^\s*([A-Za-z]{2,6})\s*(\d{3,4}[A-Za-z]?)\s*$/.exec(code);
-  return m ? { subject: m[1].toUpperCase(), courseNumber: m[2].toUpperCase() } : null;
+  return m
+    ? { subject: m[1].toUpperCase(), courseNumber: m[2].toUpperCase() }
+    : null;
 }
 
 function nonEmptyStrArr(v: unknown): string[] | undefined {
@@ -137,9 +141,14 @@ function getRequirementRule(
     .prepare(
       "SELECT slot_type, rule FROM requirement_rule_effective WHERE program_id = ? AND slot_type = ? LIMIT 1",
     )
-    .get(programId, slotType) as { slot_type: string; rule: string } | undefined;
+    .get(programId, slotType) as
+    { slot_type: string; rule: string } | undefined;
   if (!row) return null;
-  let parsed: { total_credits?: number; explicit_courses?: string[]; raw_text?: string };
+  let parsed: {
+    total_credits?: number;
+    explicit_courses?: string[];
+    raw_text?: string;
+  };
   try {
     parsed = JSON.parse(row.rule) as typeof parsed;
   } catch {
@@ -239,378 +248,392 @@ export function makeFindRequirementSections(
 ): McpToolDefinition {
   const getReqRules = deps.getGcRequirementRules ?? getGcRequirementRulesLive;
   return {
-  operation: "clemson.find_requirement_sections",
-  category: "core",
-  tool: {
-    name: "find-requirement-sections",
-    description:
-      "Find sections that fill a named degree requirement slot and that the " +
-      "student is eligible to take (prerequisites checked against " +
-      "completed_courses). `prereqEligible` is THREE-VALUED — \"eligible\", " +
-      "\"not_eligible\", or \"undetermined\" — never a boolean. " +
-      "\"undetermined\" means the stated rule cannot be decided from the " +
-      "structured data (it contains OR, a grade minimum, a standing or consent " +
-      "gate, or did not parse); READ `prereqText` and say what the rule " +
-      "actually is rather than reporting the student ineligible. Roughly a " +
-      "third of Clemson courses with prerequisites fall in this class. " +
-      "Requires requirement — the requirement slot " +
-      "name; an unknown name returns the valid slot list — and program, " +
-      "which has no default. Optional: catalog_year (defaults to the " +
-      "program's latest), completed_courses, fits_around_crns, days, " +
-      "no_meeting_before, no_meeting_after, exclude_days, open_seats_only. " +
-      "Term is optional — defaults to the current registration term.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        term: {
-          type: "string",
-          description:
-            "Term code (202608) or text ('Spring 2027'). Defaults to the " +
-            "current registration term.",
+    operation: "clemson.find_requirement_sections",
+    category: "core",
+    tool: {
+      name: "find-requirement-sections",
+      description:
+        "Find sections that fill a named degree requirement slot and that the " +
+        "student is eligible to take (prerequisites checked against " +
+        'completed_courses). `prereqEligible` is THREE-VALUED — "eligible", ' +
+        '"not_eligible", or "undetermined" — never a boolean. ' +
+        '"undetermined" means the stated rule cannot be decided from the ' +
+        "structured data (it contains OR, a grade minimum, a standing or consent " +
+        "gate, or did not parse); READ `prereqText` and say what the rule " +
+        "actually is rather than reporting the student ineligible. Roughly a " +
+        "third of Clemson courses with prerequisites fall in this class. " +
+        "Requires requirement — the requirement slot " +
+        "name; an unknown name returns the valid slot list — and program, " +
+        "which has no default. Optional: catalog_year (defaults to the " +
+        "program's latest), completed_courses, fits_around_crns, days, " +
+        "no_meeting_before, no_meeting_after, exclude_days, open_seats_only. " +
+        "Term is optional — defaults to the current registration term.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          term: {
+            type: "string",
+            description:
+              "Term code (202608) or text ('Spring 2027'). Defaults to the " +
+              "current registration term.",
+          },
+          requirement: {
+            type: "string",
+            description:
+              "Requirement slot to fill, from get-gc-requirement-rules, " +
+              "e.g. 'Specialty Area Requirement'. An unknown value returns " +
+              "the valid slot list for the resolved program/catalog year.",
+          },
+          completed_courses: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              'Course codes the student has completed, e.g. ["GC 1010"] ' +
+              "— used only for prereq gating, no identity or grade data needed.",
+          },
+          fits_around_crns: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Optional CRNs already on the student's schedule. Excludes a " +
+              "section if any of its meetings time-conflicts (same day, " +
+              "overlapping interval) with any meeting of these CRNs.",
+          },
+          days: {
+            type: "string",
+            description:
+              "Optional day pattern using M T W R F S U, e.g. 'MWF' — a " +
+              "section qualifies only if EVERY one of its meeting days is " +
+              "in this set." +
+              UNTIMED_FILTER_NOTE,
+          },
+          no_meeting_before: {
+            type: "string",
+            description:
+              "Optional HHMM string, e.g. '0900'. Excludes a section if ANY " +
+              "of its meetings starts before this time." +
+              UNTIMED_FILTER_NOTE,
+          },
+          no_meeting_after: {
+            type: "string",
+            description:
+              "Optional HHMM string, e.g. '1700'. Excludes a section if ANY " +
+              "of its meetings ends after this time." +
+              UNTIMED_FILTER_NOTE,
+          },
+          exclude_days: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Optional day codes to avoid, e.g. ['F'] (M T W R F S U). " +
+              "Excludes a section if ANY of its meetings falls on one of " +
+              "these days." +
+              UNTIMED_FILTER_NOTE,
+          },
+          open_seats_only: {
+            type: "boolean",
+            description:
+              "Optional. If true, excludes sections with seats_available <= 0.",
+          },
+          program: { type: "string", description: PROGRAM_ARG_DESCRIPTION },
+          catalog_year: {
+            type: "string",
+            description:
+              CATALOG_YEAR_ARG_DESCRIPTION +
+              " Optional here: omit it to use the latest catalog year for the " +
+              "program, or pass an older one for a grandfathered student. The " +
+              "year actually used is echoed back as catalog_year.",
+          },
         },
-        requirement: {
-          type: "string",
-          description:
-            "Requirement slot to fill, from get-gc-requirement-rules, " +
-            "e.g. 'Specialty Area Requirement'. An unknown value returns " +
-            "the valid slot list for the resolved program/catalog year.",
-        },
-        completed_courses: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Course codes the student has completed, e.g. [\"GC 1010\"] " +
-            "— used only for prereq gating, no identity or grade data needed.",
-        },
-        fits_around_crns: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Optional CRNs already on the student's schedule. Excludes a " +
-            "section if any of its meetings time-conflicts (same day, " +
-            "overlapping interval) with any meeting of these CRNs.",
-        },
-        days: {
-          type: "string",
-          description:
-            "Optional day pattern using M T W R F S U, e.g. 'MWF' — a " +
-            "section qualifies only if EVERY one of its meeting days is " +
-            "in this set." + UNTIMED_FILTER_NOTE,
-        },
-        no_meeting_before: {
-          type: "string",
-          description:
-            "Optional HHMM string, e.g. '0900'. Excludes a section if ANY " +
-            "of its meetings starts before this time." + UNTIMED_FILTER_NOTE,
-        },
-        no_meeting_after: {
-          type: "string",
-          description:
-            "Optional HHMM string, e.g. '1700'. Excludes a section if ANY " +
-            "of its meetings ends after this time." + UNTIMED_FILTER_NOTE,
-        },
-        exclude_days: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "Optional day codes to avoid, e.g. ['F'] (M T W R F S U). " +
-            "Excludes a section if ANY of its meetings falls on one of " +
-            "these days." + UNTIMED_FILTER_NOTE,
-        },
-        open_seats_only: {
-          type: "boolean",
-          description:
-            "Optional. If true, excludes sections with seats_available <= 0.",
-        },
-        program: { type: "string", description: PROGRAM_ARG_DESCRIPTION },
-        catalog_year: {
-          type: "string",
-          description:
-            CATALOG_YEAR_ARG_DESCRIPTION +
-            " Optional here: omit it to use the latest catalog year for the " +
-            "program, or pass an older one for a grandfathered student. The " +
-            "year actually used is echoed back as catalog_year.",
-        },
+        // `program` is deliberately NOT in `required`, even though it has no
+        // default: the advisor fills an omitted program from the session's
+        // selection inside execute (advisor-agent.ts's withSessionDefaults),
+        // which runs AFTER the harness validates the model's own arguments —
+        // a schema-required program would reject the call before that fill can
+        // happen. The handler is the enforcement point; the description says so.
+        required: ["requirement"],
+        additionalProperties: false,
       },
-      // `program` is deliberately NOT in `required`, even though it has no
-      // default: the advisor fills an omitted program from the session's
-      // selection inside execute (advisor-agent.ts's withSessionDefaults),
-      // which runs AFTER the harness validates the model's own arguments —
-      // a schema-required program would reject the call before that fill can
-      // happen. The handler is the enforcement point; the description says so.
-      required: ["requirement"],
-      additionalProperties: false,
     },
-  },
-  async handler(args) {
-    try {
-      assertMcpOperation("clemson.find_requirement_sections");
-    } catch (e) {
-      return permissionErr(e);
-    }
-
-    const resolved = resolveTerm(
-      typeof args.term === "string" ? args.term : undefined,
-    );
-    if ("error" in resolved) return err(resolved.error);
-    const term = resolved.term;
-
-    const requirement =
-      typeof args.requirement === "string" ? args.requirement.trim() : "";
-    if (!requirement) {
-      return err(
-        "requirement is required — the requirement slot name (from " +
-          "get-gc-requirement-rules), e.g. 'Specialty Area Requirement'.",
-      );
-    }
-
-    const programName = resolveProgramArg(args);
-    if (!programName) return err(missingProgramMessage());
-
-    const catalogYear = resolveCatalogYearArg(args) ?? undefined;
-
-    const completedCoursesArr = Array.isArray(args.completed_courses)
-      ? (args.completed_courses as unknown[]).filter(
-          (c): c is string => typeof c === "string",
-        )
-      : [];
-
-    const fitsAroundCrns = nonEmptyStrArr(args.fits_around_crns);
-    const days =
-      typeof args.days === "string" && args.days ? args.days : undefined;
-    const excludeDays = nonEmptyStrArr(args.exclude_days);
-    const noMeetingBefore =
-      typeof args.no_meeting_before === "string" && args.no_meeting_before
-        ? args.no_meeting_before
-        : undefined;
-    const noMeetingAfter =
-      typeof args.no_meeting_after === "string" && args.no_meeting_after
-        ? args.no_meeting_after
-        : undefined;
-    const openSeatsOnly = args.open_seats_only === true;
-
-    const appliedConstraints: Record<string, unknown> = {};
-    if (catalogYear) appliedConstraints.catalog_year = catalogYear;
-    if (fitsAroundCrns) appliedConstraints.fits_around_crns = fitsAroundCrns;
-    if (days) appliedConstraints.days = days.toUpperCase();
-    if (excludeDays) appliedConstraints.exclude_days = excludeDays.map((d) => d.toUpperCase());
-    if (noMeetingBefore) appliedConstraints.no_meeting_before = noMeetingBefore;
-    if (noMeetingAfter) appliedConstraints.no_meeting_after = noMeetingAfter;
-    if (openSeatsOnly) appliedConstraints.open_seats_only = true;
-
-    const schedDb = openScheduleDb(term);
-    if (!schedDb)
-      return err(
-        `No Banner snapshot available for term ${term}. Try again after the 05:00 daily refresh.`,
-      );
-
-    try {
-      // ATTACH the catalog DB so we can query it alongside the schedule.
-      schedDb.prepare("ATTACH DATABASE ? AS catalog").run(GC_ADVISOR_DB);
-
-      const programId = catalogYear
-        ? getProgramIdForCatalogYear(schedDb, programName, catalogYear)
-        : getLatestProgramId(schedDb, programName);
-      if (programId === null) {
-        return err(
-          catalogYear
-            ? `Program "${programName}" not found for catalog year "${catalogYear}" in gc_advisor.db. ` +
-                "Check the year and name with get-gc-program-plan, or omit catalog_year for the latest."
-            : `Program "${programName}" not found in gc_advisor.db. ` +
-                "Check the name with get-gc-program-plan.",
-        );
-      }
-
-      // The year the answer is actually built from, echoed on every response
-      // so the caller never has to guess which catalog it got.
-      const resolvedYear =
-        catalogYear ?? getCatalogYearLabelForProgram(schedDb, programId);
-
-      const rule = getRequirementRule(schedDb, programId, requirement);
-      if (!rule) {
-        // Unknown slot — the discriminator redirect: list the valid slot
-        // names inline (from gc_advisor's req-rules bridge) rather than
-        // making the caller round-trip to get-gc-requirement-rules itself.
-        const yearLabel = resolvedYear;
-        let validSlots: string[] = [];
-        try {
-          const rows = (await getReqRules(yearLabel ?? "", programName)) as unknown;
-          if (Array.isArray(rows)) {
-            validSlots = rows
-              .map((r) =>
-                r && typeof r === "object" && typeof (r as { slot_type?: unknown }).slot_type === "string"
-                  ? (r as { slot_type: string }).slot_type
-                  : null,
-              )
-              .filter((s): s is string => s !== null);
-          }
-        } catch {
-          // gc_advisor unreachable — fall through with an empty valid-slot
-          // list rather than failing the whole call with a subprocess error.
-        }
-        return err(
-          `Unknown requirement "${requirement}" for program "${programName}"` +
-            `${yearLabel ? ` (${yearLabel})` : ""}. ` +
-            (validSlots.length > 0
-              ? `Valid requirement slots: ${validSlots.join(", ")}.`
-              : "No requirement slots could be found for this program/catalog year."),
-        );
-      }
-
-      const meta = getScheduleDbMeta(schedDb);
-
-      if (rule.explicit_courses.length === 0) {
-        return okJson({
-          term,
-          term_description: meta.termDescription,
-          program: programName,
-          catalog_year: resolvedYear,
-          requirement,
-          total_credits_required: rule.total_credits,
-          sections: [],
-          applied_constraints: appliedConstraints,
-          data_as_of: meta.fetchedAt,
-          _source: `Clemson University Online Catalog (gc_advisor) + Banner schedule ${meta.fetchedAt}`,
-          note:
-            "This requirement rule has no explicit course list — it may be " +
-            "satisfied by a declared minor or a broad course category. " +
-            "Use get-gc-requirement-rules for the full raw_text.",
-        });
-      }
-
-      // Discriminator enforcement: querySectionsEngine's own bounding filter
-      // is subject+courseNumber (a single course), not a course-code list —
-      // it has no guard for "any of these N explicit courses" — so THIS tool
-      // enforces the requirement's course list itself: one engine call per
-      // explicit course (exact subject_course match), merging the results.
-      // Every scheduling-side filter (fits_around_crns/days/exclude_days/
-      // no_meeting_before/after/open_seats_only) is applied identically on
-      // every call, reusing the engine's SQL + day/time/fit logic verbatim
-      // instead of re-deriving it here.
-      const merged: EngineSection[] = [];
-      const unparseableCourses: string[] = [];
-      const narrowedCourses: string[] = [];
-      for (const code of rule.explicit_courses) {
-        const split = splitCourseCode(code);
-        if (!split) {
-          unparseableCourses.push(code);
-          continue;
-        }
-        const engineResult = querySectionsEngine({
-          term,
-          subject: split.subject,
-          courseNumber: split.courseNumber,
-          days,
-          excludeDays,
-          noMeetingBefore,
-          noMeetingAfter,
-          openSeatsOnly,
-          fitsAroundCrns,
-          max: 500,
-        });
-        if ("error" in engineResult) return err(engineResult.error);
-        if (engineResult.needsNarrowing) {
-          // A single explicit course offering >15 sections in one term is an
-          // edge case the engine's NARROW_THRESHOLD doesn't expect a caller
-          // to hit per-course — note it rather than silently dropping those
-          // sections from the merged result.
-          narrowedCourses.push(code);
-          continue;
-        }
-        merged.push(...engineResult.sections);
-      }
-      merged.sort((a, b) => b.seatsAvailable - a.seatsAvailable);
-
-      const noteParts: string[] = [];
-      if (unparseableCourses.length > 0) {
-        noteParts.push(
-          `${unparseableCourses.length} course code(s) in this requirement's list ` +
-            `could not be parsed and were skipped: ${unparseableCourses.join(", ")}.`,
-        );
-      }
-      if (narrowedCourses.length > 0) {
-        noteParts.push(
-          `${narrowedCourses.length} course(s) offer more sections than can be listed ` +
-            `here and were omitted — narrow with days/exclude_days/no_meeting_before/after: ` +
-            `${narrowedCourses.join(", ")}.`,
-        );
-      }
-
-      if (merged.length === 0) {
-        return okJson({
-          term,
-          term_description: meta.termDescription,
-          program: programName,
-          catalog_year: resolvedYear,
-          requirement,
-          total_credits_required: rule.total_credits,
-          sections: [],
-          applied_constraints: appliedConstraints,
-          data_as_of: meta.fetchedAt,
-          _source: `Clemson University Online Catalog (gc_advisor) + Banner schedule ${meta.fetchedAt}`,
-          note:
-            noteParts.length > 0
-              ? noteParts.join(" ")
-              : "No sections are offered in this term for this requirement's course list.",
-        });
-      }
-
-      // subject_course is spaceless ("GC3010"); catalog.course.code is spaced
-      // ("GC 3010"). Compare space-insensitively and key the map spaceless so
-      // the per-section lookup below (keyed on subjectCourse) hits.
-      const subjectCourses = [...new Set(merged.map((s) => s.subjectCourse))];
-      const scPhs = subjectCourses.map(() => "?").join(",");
-      const courseRows = schedDb
-        .prepare(
-          `SELECT code, prereq_text, prereq_parsed
-           FROM catalog.course WHERE REPLACE(code, ' ', '') IN (${scPhs})`,
-        )
-        .all(...subjectCourses) as CourseRow[];
-      const courseMap = new Map(courseRows.map((c) => [normCode(c.code), c]));
-      const completedSet = new Set(completedCoursesArr.map(normCode));
-
-      const sections = merged.map((s) => {
-        const courseInfo = courseMap.get(normCode(s.subjectCourse));
-        return {
-          ...s,
-          prereqEligible: checkPrereqEligible(
-            courseInfo?.prereq_parsed ?? null,
-            completedSet,
-            courseInfo?.prereq_text ?? null,
-          ),
-          prereqText: courseInfo?.prereq_text ?? null,
-        };
-      });
-
-      const result: Record<string, unknown> = {
-        term,
-        term_description: meta.termDescription,
-        program: programName,
-        catalog_year: resolvedYear,
-        requirement,
-        total_credits_required: rule.total_credits,
-        total_matched: sections.length,
-        sections,
-        applied_constraints: appliedConstraints,
-        data_as_of: meta.fetchedAt,
-        _source: `Clemson University Online Catalog (gc_advisor) + Banner schedule ${meta.fetchedAt}`,
-      };
-      if (noteParts.length > 0) result.note = noteParts.join(" ");
-
-      return okJson(result);
-    } finally {
+    async handler(args) {
       try {
-        schedDb.prepare("DETACH DATABASE catalog").run();
-      } catch {
-        /* ok */
+        assertMcpOperation("clemson.find_requirement_sections");
+      } catch (e) {
+        return permissionErr(e);
       }
-      schedDb.close();
-    }
-  },
+
+      const resolved = resolveTerm(
+        typeof args.term === "string" ? args.term : undefined,
+      );
+      if ("error" in resolved) return err(resolved.error);
+      const term = resolved.term;
+
+      const requirement =
+        typeof args.requirement === "string" ? args.requirement.trim() : "";
+      if (!requirement) {
+        return err(
+          "requirement is required — the requirement slot name (from " +
+            "get-gc-requirement-rules), e.g. 'Specialty Area Requirement'.",
+        );
+      }
+
+      const programName = resolveProgramArg(args);
+      if (!programName) return err(missingProgramMessage());
+
+      const catalogYear = resolveCatalogYearArg(args) ?? undefined;
+
+      const completedCoursesArr = Array.isArray(args.completed_courses)
+        ? (args.completed_courses as unknown[]).filter(
+            (c): c is string => typeof c === "string",
+          )
+        : [];
+
+      const fitsAroundCrns = nonEmptyStrArr(args.fits_around_crns);
+      const days =
+        typeof args.days === "string" && args.days ? args.days : undefined;
+      const excludeDays = nonEmptyStrArr(args.exclude_days);
+      const noMeetingBefore =
+        typeof args.no_meeting_before === "string" && args.no_meeting_before
+          ? args.no_meeting_before
+          : undefined;
+      const noMeetingAfter =
+        typeof args.no_meeting_after === "string" && args.no_meeting_after
+          ? args.no_meeting_after
+          : undefined;
+      const openSeatsOnly = args.open_seats_only === true;
+
+      const appliedConstraints: Record<string, unknown> = {};
+      if (catalogYear) appliedConstraints.catalog_year = catalogYear;
+      if (fitsAroundCrns) appliedConstraints.fits_around_crns = fitsAroundCrns;
+      if (days) appliedConstraints.days = days.toUpperCase();
+      if (excludeDays)
+        appliedConstraints.exclude_days = excludeDays.map((d) =>
+          d.toUpperCase(),
+        );
+      if (noMeetingBefore)
+        appliedConstraints.no_meeting_before = noMeetingBefore;
+      if (noMeetingAfter) appliedConstraints.no_meeting_after = noMeetingAfter;
+      if (openSeatsOnly) appliedConstraints.open_seats_only = true;
+
+      const schedDb = openScheduleDb(term);
+      if (!schedDb)
+        return err(
+          `No Banner snapshot available for term ${term}. Try again after the 05:00 daily refresh.`,
+        );
+
+      try {
+        // ATTACH the catalog DB so we can query it alongside the schedule.
+        schedDb.prepare("ATTACH DATABASE ? AS catalog").run(GC_ADVISOR_DB);
+
+        const programId = catalogYear
+          ? getProgramIdForCatalogYear(schedDb, programName, catalogYear)
+          : getLatestProgramId(schedDb, programName);
+        if (programId === null) {
+          return err(
+            catalogYear
+              ? `Program "${programName}" not found for catalog year "${catalogYear}" in gc_advisor.db. ` +
+                  "Check the year and name with get-gc-program-plan, or omit catalog_year for the latest."
+              : `Program "${programName}" not found in gc_advisor.db. ` +
+                  "Check the name with get-gc-program-plan.",
+          );
+        }
+
+        // The year the answer is actually built from, echoed on every response
+        // so the caller never has to guess which catalog it got.
+        const resolvedYear =
+          catalogYear ?? getCatalogYearLabelForProgram(schedDb, programId);
+
+        const rule = getRequirementRule(schedDb, programId, requirement);
+        if (!rule) {
+          // Unknown slot — the discriminator redirect: list the valid slot
+          // names inline (from gc_advisor's req-rules bridge) rather than
+          // making the caller round-trip to get-gc-requirement-rules itself.
+          const yearLabel = resolvedYear;
+          let validSlots: string[] = [];
+          try {
+            const rows = (await getReqRules(
+              yearLabel ?? "",
+              programName,
+            )) as unknown;
+            if (Array.isArray(rows)) {
+              validSlots = rows
+                .map((r) =>
+                  r &&
+                  typeof r === "object" &&
+                  typeof (r as { slot_type?: unknown }).slot_type === "string"
+                    ? (r as { slot_type: string }).slot_type
+                    : null,
+                )
+                .filter((s): s is string => s !== null);
+            }
+          } catch {
+            // gc_advisor unreachable — fall through with an empty valid-slot
+            // list rather than failing the whole call with a subprocess error.
+          }
+          return err(
+            `Unknown requirement "${requirement}" for program "${programName}"` +
+              `${yearLabel ? ` (${yearLabel})` : ""}. ` +
+              (validSlots.length > 0
+                ? `Valid requirement slots: ${validSlots.join(", ")}.`
+                : "No requirement slots could be found for this program/catalog year."),
+          );
+        }
+
+        const meta = getScheduleDbMeta(schedDb);
+
+        if (rule.explicit_courses.length === 0) {
+          return okJson({
+            term,
+            term_description: meta.termDescription,
+            program: programName,
+            catalog_year: resolvedYear,
+            requirement,
+            total_credits_required: rule.total_credits,
+            sections: [],
+            applied_constraints: appliedConstraints,
+            data_as_of: meta.fetchedAt,
+            _source: `Clemson University Online Catalog (gc_advisor) + Banner schedule ${meta.fetchedAt}`,
+            note:
+              "This requirement rule has no explicit course list — it may be " +
+              "satisfied by a declared minor or a broad course category. " +
+              "Use get-gc-requirement-rules for the full raw_text.",
+          });
+        }
+
+        // Discriminator enforcement: querySectionsEngine's own bounding filter
+        // is subject+courseNumber (a single course), not a course-code list —
+        // it has no guard for "any of these N explicit courses" — so THIS tool
+        // enforces the requirement's course list itself: one engine call per
+        // explicit course (exact subject_course match), merging the results.
+        // Every scheduling-side filter (fits_around_crns/days/exclude_days/
+        // no_meeting_before/after/open_seats_only) is applied identically on
+        // every call, reusing the engine's SQL + day/time/fit logic verbatim
+        // instead of re-deriving it here.
+        const merged: EngineSection[] = [];
+        const unparseableCourses: string[] = [];
+        const narrowedCourses: string[] = [];
+        for (const code of rule.explicit_courses) {
+          const split = splitCourseCode(code);
+          if (!split) {
+            unparseableCourses.push(code);
+            continue;
+          }
+          const engineResult = querySectionsEngine({
+            term,
+            subject: split.subject,
+            courseNumber: split.courseNumber,
+            days,
+            excludeDays,
+            noMeetingBefore,
+            noMeetingAfter,
+            openSeatsOnly,
+            fitsAroundCrns,
+            max: 500,
+          });
+          if ("error" in engineResult) return err(engineResult.error);
+          if (engineResult.needsNarrowing) {
+            // A single explicit course offering >15 sections in one term is an
+            // edge case the engine's NARROW_THRESHOLD doesn't expect a caller
+            // to hit per-course — note it rather than silently dropping those
+            // sections from the merged result.
+            narrowedCourses.push(code);
+            continue;
+          }
+          merged.push(...engineResult.sections);
+        }
+        merged.sort((a, b) => b.seatsAvailable - a.seatsAvailable);
+
+        const noteParts: string[] = [];
+        if (unparseableCourses.length > 0) {
+          noteParts.push(
+            `${unparseableCourses.length} course code(s) in this requirement's list ` +
+              `could not be parsed and were skipped: ${unparseableCourses.join(", ")}.`,
+          );
+        }
+        if (narrowedCourses.length > 0) {
+          noteParts.push(
+            `${narrowedCourses.length} course(s) offer more sections than can be listed ` +
+              `here and were omitted — narrow with days/exclude_days/no_meeting_before/after: ` +
+              `${narrowedCourses.join(", ")}.`,
+          );
+        }
+
+        if (merged.length === 0) {
+          return okJson({
+            term,
+            term_description: meta.termDescription,
+            program: programName,
+            catalog_year: resolvedYear,
+            requirement,
+            total_credits_required: rule.total_credits,
+            sections: [],
+            applied_constraints: appliedConstraints,
+            data_as_of: meta.fetchedAt,
+            _source: `Clemson University Online Catalog (gc_advisor) + Banner schedule ${meta.fetchedAt}`,
+            note:
+              noteParts.length > 0
+                ? noteParts.join(" ")
+                : "No sections are offered in this term for this requirement's course list.",
+          });
+        }
+
+        // subject_course is spaceless ("GC3010"); catalog.course.code is spaced
+        // ("GC 3010"). Compare space-insensitively and key the map spaceless so
+        // the per-section lookup below (keyed on subjectCourse) hits.
+        const subjectCourses = [...new Set(merged.map((s) => s.subjectCourse))];
+        const scPhs = subjectCourses.map(() => "?").join(",");
+        const courseRows = schedDb
+          .prepare(
+            `SELECT code, prereq_text, prereq_parsed
+           FROM catalog.course WHERE REPLACE(code, ' ', '') IN (${scPhs})`,
+          )
+          .all(...subjectCourses) as CourseRow[];
+        const courseMap = new Map(courseRows.map((c) => [normCode(c.code), c]));
+        const completedSet = new Set(completedCoursesArr.map(normCode));
+
+        const sections = merged.map((s) => {
+          const courseInfo = courseMap.get(normCode(s.subjectCourse));
+          return {
+            ...s,
+            prereqEligible: checkPrereqEligible(
+              courseInfo?.prereq_parsed ?? null,
+              completedSet,
+              courseInfo?.prereq_text ?? null,
+            ),
+            prereqText: courseInfo?.prereq_text ?? null,
+          };
+        });
+
+        const result: Record<string, unknown> = {
+          term,
+          term_description: meta.termDescription,
+          program: programName,
+          catalog_year: resolvedYear,
+          requirement,
+          total_credits_required: rule.total_credits,
+          total_matched: sections.length,
+          sections,
+          applied_constraints: appliedConstraints,
+          data_as_of: meta.fetchedAt,
+          _source: `Clemson University Online Catalog (gc_advisor) + Banner schedule ${meta.fetchedAt}`,
+        };
+        if (noteParts.length > 0) result.note = noteParts.join(" ");
+
+        return okJson(result);
+      } finally {
+        try {
+          schedDb.prepare("DETACH DATABASE catalog").run();
+        } catch {
+          /* ok */
+        }
+        schedDb.close();
+      }
+    },
   };
 }
 
-export const findRequirementSections: McpToolDefinition = makeFindRequirementSections();
+export const findRequirementSections: McpToolDefinition =
+  makeFindRequirementSections();
 
 // ---------------------------------------------------------------------------
 // get-program-requirements — surfaces the requirement_rule_effective rows (gc_advisor's bogus-filtered view) in
@@ -720,7 +743,9 @@ export const getProgramRequirements: McpToolDefinition = {
       }
 
       const ruleRows = db
-        .prepare("SELECT slot_type, rule FROM requirement_rule_effective WHERE program_id = ?")
+        .prepare(
+          "SELECT slot_type, rule FROM requirement_rule_effective WHERE program_id = ?",
+        )
         .all(exactRow.id) as { slot_type: string; rule: string }[];
 
       const requirements: Record<string, unknown>[] = [];
@@ -757,7 +782,4 @@ export const getProgramRequirements: McpToolDefinition = {
   },
 };
 
-registerTools([
-  findRequirementSections,
-  getProgramRequirements,
-]);
+registerTools([findRequirementSections, getProgramRequirements]);

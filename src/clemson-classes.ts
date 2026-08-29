@@ -321,7 +321,6 @@ async function runSearch(
   };
 }
 
-
 export async function searchClemsonClasses(
   params: ClemsonSearchParams,
 ): Promise<ClemsonSearchResult | null> {
@@ -613,7 +612,12 @@ export async function refreshClemsonSnapshot(
   // The daily refresh runs unattended; a cold-session miss leaves the term with
   // no .db until tomorrow (forcing tools onto the slow live-scan fallback), so
   // spend more attempts here than an interactive query would.
-  const fetched = await fetchSectionsPaged(resolved.code, undefined, undefined, 8);
+  const fetched = await fetchSectionsPaged(
+    resolved.code,
+    undefined,
+    undefined,
+    8,
+  );
   if (fetched === null) {
     log.warn("clemson refresh failed: snapshot left unchanged", {
       term: resolved.code,
@@ -652,7 +656,9 @@ function isLiveTerm(t: ClemsonTerm): boolean {
   return !/\(view only\)/i.test(t.description);
 }
 
-export function selectRefreshTerms(terms: readonly ClemsonTerm[]): ClemsonTerm[] {
+export function selectRefreshTerms(
+  terms: readonly ClemsonTerm[],
+): ClemsonTerm[] {
   const live = terms.filter(isLiveTerm);
   if (live.length === 0) return []; // degraded getTerms (everything View Only): refresh nothing, as before
   const maxLive = live.reduce((m, t) => Math.max(m, Number(t.code) || 0), 0);

@@ -61,7 +61,9 @@ const findConflictFree: McpToolDefinition = {
       !Array.isArray(candidateCrns) ||
       candidateCrns.length === 0
     )
-      return err("term, fixed_crns, and a non-empty candidate_crns array are required");
+      return err(
+        "term, fixed_crns, and a non-empty candidate_crns array are required",
+      );
 
     const db = openScheduleDb(term);
     if (!db)
@@ -85,8 +87,12 @@ const findConflictFree: McpToolDefinition = {
         const conflicts = allConflicts.filter(
           (c) =>
             (c.crn_a === crn || c.crn_b === crn) &&
-            (c.crn_a !== crn || fixedSet.has(c.crn_b) || candidateCrns.includes(c.crn_b)) &&
-            (c.crn_b !== crn || fixedSet.has(c.crn_a) || candidateCrns.includes(c.crn_a)),
+            (c.crn_a !== crn ||
+              fixedSet.has(c.crn_b) ||
+              candidateCrns.includes(c.crn_b)) &&
+            (c.crn_b !== crn ||
+              fixedSet.has(c.crn_a) ||
+              candidateCrns.includes(c.crn_a)),
         );
         return { crn, conflict_free: conflicts.length === 0, conflicts };
       });
@@ -177,7 +183,6 @@ export const scheduleFreshness: McpToolDefinition = {
   },
 };
 
-
 /**
  * Authoritative section rows by CRN, straight from the term snapshot.
  *
@@ -209,7 +214,7 @@ const sectionsByCrn: McpToolDefinition = {
       "the snapshot actually records for each: subject and course, section " +
       "number, credit hours, and every meeting (day, start/end time, building, " +
       "room). Use it to CONFIRM sections you already have CRNs for — checking a " +
-      "proposed schedule against reality, or answering \"what is CRN 81185\". " +
+      'proposed schedule against reality, or answering "what is CRN 81185". ' +
       "CRNs with no row come back in `not_found`, which is authoritative: the " +
       "snapshot was read and has no such CRN. For catalog prose (description, " +
       "prerequisites, restrictions) use get-course-details instead; for whether " +
@@ -217,7 +222,10 @@ const sectionsByCrn: McpToolDefinition = {
     inputSchema: {
       type: "object" as const,
       properties: {
-        term: { type: "string", description: "Term code, e.g. 202608 (Fall 2026)." },
+        term: {
+          type: "string",
+          description: "Term code, e.g. 202608 (Fall 2026).",
+        },
         crns: {
           type: "array",
           items: { type: "string" },
@@ -237,7 +245,10 @@ const sectionsByCrn: McpToolDefinition = {
             "result: no snapshot means NOTHING was checked, so `not_found` is " +
             "empty rather than listing every CRN as fake.",
         },
-        snapshot_date: { type: ["string", "null"], description: "When the snapshot was ingested." },
+        snapshot_date: {
+          type: ["string", "null"],
+          description: "When the snapshot was ingested.",
+        },
         sections: {
           type: "array",
           items: {
@@ -247,14 +258,22 @@ const sectionsByCrn: McpToolDefinition = {
               subject_course: { type: "string" },
               section: { type: "string" },
               title: { type: "string" },
-              credit_hours: { type: ["number", "null"], description: "Null means the snapshot does not record it — not zero." },
+              credit_hours: {
+                type: ["number", "null"],
+                description:
+                  "Null means the snapshot does not record it — not zero.",
+              },
               meetings: {
                 type: "array",
                 items: {
                   type: "object",
                   properties: {
                     day: { type: "string", description: "M T W R F S U." },
-                    start_min: { type: ["number", "null"], description: "Minutes past midnight; null for an untimed meeting." },
+                    start_min: {
+                      type: ["number", "null"],
+                      description:
+                        "Minutes past midnight; null for an untimed meeting.",
+                    },
                     end_min: { type: ["number", "null"] },
                     building: { type: ["string", "null"] },
                     room: { type: ["string", "null"] },
@@ -286,9 +305,13 @@ const sectionsByCrn: McpToolDefinition = {
     const term = typeof args.term === "string" ? args.term.trim() : "";
     if (!term) return err("term is required, e.g. 202608.");
     const crns = Array.isArray(args.crns)
-      ? args.crns.filter((c): c is string => typeof c === "string").map((c) => c.trim()).filter(Boolean)
+      ? args.crns
+          .filter((c): c is string => typeof c === "string")
+          .map((c) => c.trim())
+          .filter(Boolean)
       : [];
-    if (crns.length === 0) return err("crns is required and must contain at least one CRN.");
+    if (crns.length === 0)
+      return err("crns is required and must contain at least one CRN.");
 
     const db = openScheduleDb(term);
     if (!db) {
@@ -319,7 +342,6 @@ const sectionsByCrn: McpToolDefinition = {
   },
 };
 
-
 /**
  * CRNs for course + section pairs. The companion to get-sections-by-crn, for
  * the case where the caller has no CRN to look up: a Clemson Navigator
@@ -339,7 +361,7 @@ const resolveCrnsTool: McpToolDefinition = {
       "Find the CRN for each course+section pair in a term's snapshot — for " +
       "schedule data that names courses and sections but carries no CRNs (a " +
       "Clemson Navigator export, a student typing their schedule out). Course " +
-      "codes match with or without the space (\"GC 3400\" = \"GC3400\"). " +
+      'codes match with or without the space ("GC 3400" = "GC3400"). ' +
       "Results are aligned BY INDEX with the input. A null means NO SINGLE " +
       "match — either nothing matched or several did; it never guesses between " +
       "candidates. Read-only, no Banner load.",
@@ -349,11 +371,15 @@ const resolveCrnsTool: McpToolDefinition = {
         term: { type: "string", description: "Term code, e.g. 202608." },
         sections: {
           type: "array",
-          description: "Course + section pairs, in the order results should come back.",
+          description:
+            "Course + section pairs, in the order results should come back.",
           items: {
             type: "object",
             properties: {
-              subject_course: { type: "string", description: 'e.g. "GC 3400" or "GC3400".' },
+              subject_course: {
+                type: "string",
+                description: 'e.g. "GC 3400" or "GC3400".',
+              },
               section: { type: "string", description: 'e.g. "001".' },
             },
             required: ["subject_course", "section"],
@@ -368,7 +394,8 @@ const resolveCrnsTool: McpToolDefinition = {
         term: { type: "string" },
         has_snapshot: {
           type: "boolean",
-          description: "False when the term has not been ingested — nothing was resolved.",
+          description:
+            "False when the term has not been ingested — nothing was resolved.",
         },
         crns: {
           type: "array",
@@ -392,11 +419,14 @@ const resolveCrnsTool: McpToolDefinition = {
     const wanted = raw
       .filter((r): r is Record<string, unknown> => !!r && typeof r === "object")
       .map((r) => ({
-        subjectCourse: typeof r.subject_course === "string" ? r.subject_course : "",
+        subjectCourse:
+          typeof r.subject_course === "string" ? r.subject_course : "",
         section: typeof r.section === "string" ? r.section : "",
       }));
     if (wanted.length === 0) {
-      return err("sections is required and must contain at least one {subject_course, section}.");
+      return err(
+        "sections is required and must contain at least one {subject_course, section}.",
+      );
     }
 
     const db = openScheduleDb(term);
@@ -409,12 +439,20 @@ const resolveCrnsTool: McpToolDefinition = {
       });
     }
     try {
-      return okJson({ term, has_snapshot: true, crns: resolveCrns(db, term, wanted) });
+      return okJson({
+        term,
+        has_snapshot: true,
+        crns: resolveCrns(db, term, wanted),
+      });
     } finally {
       db.close();
     }
   },
 };
 
-registerTools([findConflictFree, scheduleFreshness, sectionsByCrn, resolveCrnsTool]);
-
+registerTools([
+  findConflictFree,
+  scheduleFreshness,
+  sectionsByCrn,
+  resolveCrnsTool,
+]);

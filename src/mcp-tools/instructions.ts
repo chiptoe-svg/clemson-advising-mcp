@@ -101,7 +101,9 @@ export function serverInstructions(
   name: string,
   toolNames: readonly string[],
 ): string {
-  const specific = name.includes("catalog") ? CATALOG_GUIDANCE : PUBLIC_GUIDANCE;
+  const specific = name.includes("catalog")
+    ? CATALOG_GUIDANCE
+    : PUBLIC_GUIDANCE;
   return [
     specific,
     "",
@@ -114,10 +116,10 @@ export function serverInstructions(
     "SKILL DOCUMENTS AND STALENESS. `list-skills` / `get-skill-docs` (named",
     "`list-gc-skills` / `get-gc-skill-docs` on the catalog server) carry longer",
     "worked examples. Fetch them ONCE and reuse them — but every tool result",
-    "carries `_meta[\"cuassistant/skillsVersion\"]`, a digest of the skill",
+    'carries `_meta["cuassistant/skillsVersion"]`, a digest of the skill',
     "documents' content. Record it when you fetch the docs; if a later result",
     "shows a different value, your copy is out of date — re-fetch it with the",
-    "tool named in `_meta[\"cuassistant/skillsDocTool\"]`. The version changes",
+    'tool named in `_meta["cuassistant/skillsDocTool"]`. The version changes',
     "only when the documents' CONTENT changes, so it will not churn.",
   ].join("\n");
 }

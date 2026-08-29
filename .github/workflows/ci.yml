@@ -11,8 +11,6 @@ name: ci
 #
 # There is deliberately no Python job: core/'s pytest suite needs the built
 # catalog DB, which is not in git.
-#
-# `npm run format:check` is NOT run here. Formatting is not enforced here yet.
 
 on:
   pull_request:
@@ -38,6 +36,10 @@ jobs:
       - run: npm ci
 
       - run: npm run typecheck
+
+      # Formatting is a gate, not a suggestion — a check nobody runs is worse
+      # than none, because the first thing anyone does is skip it.
+      - run: npm run format:check
 
       # node --test already exits non-zero on any failure. The tee keeps the
       # TAP summary for the reporting step below.

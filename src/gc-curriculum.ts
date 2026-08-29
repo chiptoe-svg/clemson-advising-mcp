@@ -60,7 +60,10 @@ export async function listGcCatalogYears(): Promise<string[]> {
   return withCatalog((db) => listCatalogYears(db));
 }
 
-export async function getGcProgramPlan(year: string, name: string): Promise<unknown> {
+export async function getGcProgramPlan(
+  year: string,
+  name: string,
+): Promise<unknown> {
   try {
     return withCatalog((db) => getProgramPlanRow(db, year, name));
   } catch (e) {
@@ -68,7 +71,10 @@ export async function getGcProgramPlan(year: string, name: string): Promise<unkn
   }
 }
 
-export async function getGcRequirementRules(year: string, name: string): Promise<unknown> {
+export async function getGcRequirementRules(
+  year: string,
+  name: string,
+): Promise<unknown> {
   try {
     return withCatalog((db) => getRequirementRulesRows(db, year, name));
   } catch (e) {

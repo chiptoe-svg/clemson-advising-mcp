@@ -49,7 +49,9 @@ function str(value: unknown): string | null {
 }
 
 /** Canonical `program`, falling back to the deprecated `name` alias. */
-export function resolveProgramArg(args: Record<string, unknown>): string | null {
+export function resolveProgramArg(
+  args: Record<string, unknown>,
+): string | null {
   return str(args.program) ?? str(args.name);
 }
 
@@ -73,7 +75,10 @@ export function missingProgramMessage(extra = ""): string {
   // two deliberately read the same data by different routes.
   let names: string[] = [];
   try {
-    const db = new Database(GC_ADVISOR_DB, { readonly: true, fileMustExist: true });
+    const db = new Database(GC_ADVISOR_DB, {
+      readonly: true,
+      fileMustExist: true,
+    });
     try {
       names = listProgramOptions(db).programs.map((p) => p.name);
     } finally {

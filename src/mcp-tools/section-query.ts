@@ -116,7 +116,10 @@ interface MeetingRow {
 
 /** Case-insensitive substring match against any instructor name — mirrors
  * the `instructors` EXISTS clause above. */
-export function matchesInstructor(instructors: string[], substr: string): boolean {
+export function matchesInstructor(
+  instructors: string[],
+  substr: string,
+): boolean {
   const needle = substr.toLowerCase();
   return instructors.some((name) => name.toLowerCase().includes(needle));
 }
@@ -124,7 +127,10 @@ export function matchesInstructor(instructors: string[], substr: string): boolea
 /** Case-insensitive substring match against any meeting's "building room"
  * (space-joined, missing side blank) — mirrors the `meetings` EXISTS clause
  * above exactly, including the null-coalescing-to-empty-string behavior. */
-export function matchesBuildingRoom(meetings: EngineMeeting[], substr: string): boolean {
+export function matchesBuildingRoom(
+  meetings: EngineMeeting[],
+  substr: string,
+): boolean {
   const needle = substr.toLowerCase();
   return meetings.some((m) =>
     `${m.building ?? ""} ${m.room ?? ""}`.toLowerCase().includes(needle),
@@ -164,9 +170,13 @@ export function matchesDayTimeFilters(
       ? new Set(filters.excludeDays.map((d) => d.toUpperCase()))
       : null;
   const noMeetingBeforeMins =
-    filters.noMeetingBefore !== undefined ? hhmmToMins(filters.noMeetingBefore) : null;
+    filters.noMeetingBefore !== undefined
+      ? hhmmToMins(filters.noMeetingBefore)
+      : null;
   const noMeetingAfterMins =
-    filters.noMeetingAfter !== undefined ? hhmmToMins(filters.noMeetingAfter) : null;
+    filters.noMeetingAfter !== undefined
+      ? hhmmToMins(filters.noMeetingAfter)
+      : null;
 
   const constraintGiven =
     daysWithin !== undefined ||
@@ -176,12 +186,18 @@ export function matchesDayTimeFilters(
   if (!constraintGiven) return true;
   if (meetings.length === 0) return false; // async/online can't satisfy a time/day rule (see UNTIMED_FILTER_NOTE)
 
-  if (daysWithin !== undefined && meetings.some((m) => !daysWithin.includes(m.day)))
+  if (
+    daysWithin !== undefined &&
+    meetings.some((m) => !daysWithin.includes(m.day))
+  )
     return false;
-  if (excludeDaySet && meetings.some((m) => excludeDaySet.has(m.day))) return false;
+  if (excludeDaySet && meetings.some((m) => excludeDaySet.has(m.day)))
+    return false;
   if (
     noMeetingBeforeMins !== null &&
-    meetings.some((m) => (hhmmToMins(m.start) ?? -Infinity) < noMeetingBeforeMins)
+    meetings.some(
+      (m) => (hhmmToMins(m.start) ?? -Infinity) < noMeetingBeforeMins,
+    )
   )
     return false;
   if (
@@ -350,9 +366,16 @@ export function querySectionsEngine(
 
       if (timeDayConstraintGiven && hasMeetings) {
         let violates = false;
-        if (daysWithin !== undefined && mgs.some((m) => !daysWithin.includes(m.day)))
+        if (
+          daysWithin !== undefined &&
+          mgs.some((m) => !daysWithin.includes(m.day))
+        )
           violates = true;
-        if (!violates && excludeDaySet && mgs.some((m) => excludeDaySet.has(m.day)))
+        if (
+          !violates &&
+          excludeDaySet &&
+          mgs.some((m) => excludeDaySet.has(m.day))
+        )
           violates = true;
         if (
           !violates &&
