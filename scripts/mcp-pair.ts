@@ -16,7 +16,7 @@
 //
 // The server reloads its registry on every request, so a mint or revoke takes
 // effect on the NEXT call — no daemon restart needed. (A restart IS needed for
-// tool or policy changes; see src/mcp-server.md.)
+// tool or policy changes; see docs/operations.md §5.)
 
 import {
   generateToken,

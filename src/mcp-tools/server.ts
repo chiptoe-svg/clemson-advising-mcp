@@ -48,7 +48,6 @@ import {
   isMcpOperationExposed,
 } from "./permissions.js";
 import { isAgentBackendAuthorized, type DataClass } from "../policy.js";
-import { auditContext } from "./audit.js";
 import { recordMcpCall } from "./usage.js";
 import { serverInstructions } from "./instructions.js";
 import {
@@ -551,10 +550,7 @@ function buildServer(name: string, principal?: Principal): Server {
       authMethod: principal?.authMethod,
       subject: principal?.subject,
     });
-    const result = await auditContext.run(
-      { consumerId, provider: principal?.provider },
-      () => tool.handler(args ?? {}),
-    );
+    const result = await tool.handler(args ?? {});
     // Stamp the skills version on EVERY result. A client that cached the skill
     // document compares this against the version it holds and re-fetches when
     // they differ — staleness is detected on a channel it is already reading,

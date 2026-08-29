@@ -1,11 +1,7 @@
 // Per-call usage accounting for the MCP HTTP servers — PRIVACY-SAFE BY
-// CONSTRUCTION, and deliberately separate from audit.ts.
-//
-// audit.ts records WRITE INTENTS to state/decisions.jsonl (the IT-reviewable
-// record of actions taken). The public (8766) and catalog (8767) servers expose
-// only read tools, so they produce no audit rows at all — which is why "how much
-// use came from where" was unanswerable before 2026-08-26. This module fills
-// that gap with one append-only line per tools/call.
+// CONSTRUCTION. Both servers expose only read tools, so this ledger is the one
+// record of "how much use came from where": one append-only line per
+// tools/call.
 //
 // What is recorded: timestamp, server name, the authenticated consumer id and
 // its attested provider, and the tool name. NOT the arguments, and NOT the

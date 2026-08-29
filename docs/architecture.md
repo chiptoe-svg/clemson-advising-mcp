@@ -127,9 +127,8 @@ entry points        mcp-public.ts, mcp-catalog.ts
                     mcp-tools/gc-coreqs.ts, program-args.ts, gc-skill-renames.ts
                     gc-curriculum.ts           the Python CLI bridge (execFile, 15 s timeout)
                     catalog-read.ts            direct SQLite reads: programs, course entries
-  cross-cutting     config.ts (all env), log.ts (rotating), state.ts, types.ts
+  cross-cutting     config-mcp.ts (all env), log.ts (rotating)
                     mcp-tools/usage.ts   per-call usage ledger
-                    mcp-tools/audit.ts   write-intent audit rows (unused by these read-only servers)
                     mcp-tools/skills.ts  skill-document tools
 ```
 

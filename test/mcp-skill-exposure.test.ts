@@ -50,15 +50,35 @@ async function fetchDocs(name: string): Promise<CallResult> {
   return (await __skillTools.getSkillDocs.handler({ name })) as CallResult;
 }
 
-test("the on-disk skills include a non-public one (fixture sanity)", async () => {
-  // Guards the bypass tests below against passing vacuously: `how-it-works`
-  // must really exist on disk, or "refused" and "absent" are indistinguishable.
-  setSkillExposure("all");
-  const names = await listNames();
-  for (const s of ["how-it-works", "clemson-schedule-advising"]) {
-    assert.ok(names.includes(s), `expected "${s}" on disk under skills/`);
+// A non-public skill document, written to a temp root for each run. The repo's
+// own skills/ holds only the served documents, so the "refuse by name" tests
+// need a fixture that exists on disk and is NOT allowlisted — otherwise
+// "refused" and "absent" are indistinguishable and the bypass test passes
+// vacuously. The marker text is what the leak check looks for.
+const INTERNAL_SKILL = "internal-notes";
+const INTERNAL_MARKER = "FIXTURE-INTERNAL-MARKER-7f3a";
+const internalRoot = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-internal-skill-"));
+fs.mkdirSync(path.join(internalRoot, INTERNAL_SKILL));
+fs.writeFileSync(
+  path.join(internalRoot, INTERNAL_SKILL, "SKILL.md"),
+  `---\nname: ${INTERNAL_SKILL}\ndescription: not for clients\n---\n\n# Internal\n\n${INTERNAL_MARKER}\n`,
+);
+function withInternalRoot(): void {
+  __setSkillRoots([path.resolve(process.cwd(), "skills"), internalRoot]);
+}
+
+test("the fixture root really contributes a non-public skill (sanity)", async () => {
+  withInternalRoot();
+  try {
+    setSkillExposure("all");
+    const names = await listNames();
+    for (const s of [INTERNAL_SKILL, "clemson-schedule-advising"]) {
+      assert.ok(names.includes(s), `expected "${s}" to be indexed`);
+    }
+  } finally {
+    resetSkillExposure();
+    __resetSkillRoots();
   }
-  resetSkillExposure();
 });
 
 test("public server: list-skills returns only the allowlisted skill", async () => {
@@ -70,18 +90,21 @@ test("public server: list-skills returns only the allowlisted skill", async () =
 test("public server: get-skill-docs refuses a non-allowlisted skill asked for by name", async () => {
   // THE BYPASS. A skill missing from list-skills but fetchable directly is
   // still published — hiding a document from an index while still serving it
-  // by name is not hiding it. `how-it-works` exists on disk but is not in
+  // by name is not hiding it. The fixture skill exists on disk but is not in
   // PUBLIC_SKILLS.
-  resetSkillExposure();
-  const res = await fetchDocs("how-it-works");
-  assert.equal(res.isError, true, `get-skill-docs("how-it-works") must fail on the public server`);
-  const text = res.content[0].text;
-  assert.match(text, /not found/, `expected a not-found refusal, got: ${text}`);
-  // The refusal must not leak the document it is refusing to serve.
-  assert.ok(
-    !/Qwen3\.6|local Whisper|GPT-5\.5/i.test(text),
-    `refusal for "how-it-works" leaked document content: ${text}`,
-  );
+  withInternalRoot();
+  try {
+    resetSkillExposure();
+    const res = await fetchDocs(INTERNAL_SKILL);
+    assert.equal(res.isError, true, `get-skill-docs("${INTERNAL_SKILL}") must fail on the public server`);
+    const text = res.content[0].text;
+    assert.match(text, /not found/, `expected a not-found refusal, got: ${text}`);
+    // The refusal must not leak the document it is refusing to serve.
+    assert.ok(!text.includes(INTERNAL_MARKER), `refusal leaked document content: ${text}`);
+  } finally {
+    resetSkillExposure();
+    __resetSkillRoots();
+  }
 });
 
 test("public server: the allowlisted skill is still fetchable (advisor + nanoclaw depend on it)", async () => {

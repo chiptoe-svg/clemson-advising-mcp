@@ -18,8 +18,6 @@
 import { getPolicyAction } from "../policy.js";
 import type { PolicyAction } from "../policy.js";
 
-export type McpOperationStatus = "active" | "stub-pending-approval";
-
 export interface McpOperationSpec {
   /**
    * The backend that fulfills this operation. "external-http" = a public,
@@ -29,55 +27,38 @@ export interface McpOperationSpec {
   backend: "host-state" | "external-http";
   /** The policy/action-policy.yaml action that gates this operation. */
   policyActionId: string;
-  /**
-   * "active" = wired to a real backend (exposure still depends on the mapped
-   *   policy action being approval=none).
-   * "stub-pending-approval" = guarded; throws McpStubPendingError. No
-   *   operation is a stub today, but the status is retained for future work
-   *   that lands a tool ahead of its consent.
-   */
-  status: McpOperationStatus;
-  /** The Graph permission scope that gates activation, when applicable. */
-  pendingScope?: string;
 }
 
 export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
   // --- Host orchestration (CUassistant-only skill docs, no external call) ---
   "host.list_skills": {
     backend: "host-state",
-    status: "active",
     policyActionId: "host.list_skills",
   },
   "host.get_skill_docs": {
     backend: "host-state",
-    status: "active",
     policyActionId: "host.get_skill_docs",
   },
 
   // --- Clemson public class schedule (Banner Browse Classes — no auth) ---
   "clemson.list_terms": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.list_terms",
   },
   "clemson.search_classes": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.search_classes",
   },
   "clemson.find_alternatives": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.find_alternatives",
   },
   "clemson.check_conflicts": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.check_conflicts",
   },
   "clemson.course_details": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.course_details",
   },
   // Authoritative section rows by CRN from the term snapshot. Added
@@ -87,52 +68,42 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
   // Navigator export). Companion to sections_by_crn; same snapshot, different key.
   "clemson.resolve_crns": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.resolve_crns",
   },
   "clemson.sections_by_crn": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.sections_by_crn",
   },
   "clemson.find_conflict_free_schedule": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.find_conflict_free_schedule",
   },
   "clemson.find_requirement_sections": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.find_requirement_sections",
   },
   "clemson.gc_program_requirements": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.gc_program_requirements",
   },
   "clemson.schedule_freshness": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.schedule_freshness",
   },
   "clemson.gc_catalog_years": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.gc_catalog_years",
   },
   "clemson.gc_program_plan": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.gc_program_plan",
   },
   "clemson.gc_requirement_rules": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.gc_requirement_rules",
   },
   "clemson.gc_find_course_in_program": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.gc_find_course_in_program",
   },
   // The program list and one course's catalog entry. Added 2026-08-28 so the
@@ -140,22 +111,18 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
   // than opening gc_advisor.db across a shared filesystem.
   "clemson.gc_list_programs": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.gc_list_programs",
   },
   "clemson.gc_get_course": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.gc_get_course",
   },
   "clemson.gc_gen_ed": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.gc_gen_ed",
   },
   "clemson.gc_audit_progress": {
     backend: "external-http",
-    status: "active",
     policyActionId: "clemson.gc_audit_progress",
   },
 };
@@ -164,23 +131,6 @@ export class McpPermissionDeniedError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "McpPermissionDeniedError";
-  }
-}
-
-export class McpStubPendingError extends Error {
-  readonly operation: string;
-  readonly pendingScope: string;
-  constructor(operation: string, pendingScope: string) {
-    super(
-      `Operation "${operation}" is a stub pending IT approval of ` +
-        `Graph permission "${pendingScope}". The operation is wired but the ` +
-        `consent has not been granted; the call is refused at the policy ` +
-        `boundary. To activate, grant the permission to the Graph CLI ` +
-        `client and remove the stub guard in the corresponding tool file.`,
-    );
-    this.name = "McpStubPendingError";
-    this.operation = operation;
-    this.pendingScope = pendingScope;
   }
 }
 
@@ -228,8 +178,8 @@ function assertPolicyConstraints(
 }
 
 /**
- * Assert that an MCP operation is in the allow-list. Stubs throw a structured
- * error identifying the missing permission.
+ * Assert that an MCP operation is in the allow-list and its policy action is
+ * exposed (approval: none). Throws McpPermissionDeniedError otherwise.
  *
  * Every tool calls this before any backend exec/fetch.
  */
@@ -258,36 +208,14 @@ export function assertMcpOperation(
     );
   }
   assertPolicyConstraints(operation, policyAction, context);
-  if (spec.status === "stub-pending-approval") {
-    throw new McpStubPendingError(operation, spec.pendingScope ?? "(unknown)");
-  }
   return spec;
 }
 
 export function isMcpOperationExposed(operation: string): boolean {
   const spec = MCP_ALLOWED_OPERATIONS[operation];
-  if (!spec || spec.status !== "active") return false;
+  if (!spec) return false;
   const policyAction = getPolicyAction(spec.policyActionId);
   return policyAction?.approval === "none";
-}
-
-/** Enumerate the allow-list for the IT-reviewable manifest. */
-export function describeMcpOperations(): Array<{
-  operation: string;
-  backend: McpOperationSpec["backend"];
-  status: McpOperationStatus;
-  policyActionId: string;
-  exposed: boolean;
-  pendingScope: string | null;
-}> {
-  return Object.entries(MCP_ALLOWED_OPERATIONS).map(([operation, spec]) => ({
-    operation,
-    backend: spec.backend,
-    status: spec.status,
-    policyActionId: spec.policyActionId,
-    exposed: isMcpOperationExposed(operation),
-    pendingScope: spec.pendingScope ?? null,
-  }));
 }
 
 /**

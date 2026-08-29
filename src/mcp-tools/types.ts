@@ -1,9 +1,6 @@
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 
-import {
-  McpPermissionDeniedError,
-  McpStubPendingError,
-} from "./permissions.js";
+import { McpPermissionDeniedError } from "./permissions.js";
 
 /**
  * Disclosure category — which surfaces a tool is expected to show up on.
@@ -68,39 +65,8 @@ export function err(text: string): CallToolResult {
   };
 }
 
-export function stubError(
-  operation: string,
-  pendingScope: string,
-): CallToolResult {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify(
-          {
-            error: "stub_pending_approval",
-            operation,
-            pending_scope: pendingScope,
-            message:
-              `This operation is implemented but disabled at the policy ` +
-              `boundary until IT grants ${pendingScope} to the Graph CLI ` +
-              `client. Remove the stub guard in the tool file to activate ` +
-              `once the consent is in place.`,
-          },
-          null,
-          2,
-        ),
-      },
-    ],
-    isError: true,
-  };
-}
-
-/** Render a permission/stub error from assertMcpOperation as a tool result. */
+/** Render a permission error from assertMcpOperation as a tool result. */
 export function permissionErr(e: unknown): CallToolResult {
-  if (e instanceof McpStubPendingError) {
-    return stubError(e.operation, e.pendingScope);
-  }
   if (e instanceof McpPermissionDeniedError) {
     return err(e.message);
   }

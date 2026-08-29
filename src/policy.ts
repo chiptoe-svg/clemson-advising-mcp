@@ -15,28 +15,9 @@ export interface PolicyAction {
 }
 
 /**
- * A declared LLM provider the classifier may send mailbox content to. The list
- * holds as many providers as needed.
- *
- * - `scope: "external"` — content leaves the M365 envelope; `basis` must cite
- *   the DPA / institutional agreement (recorded, not proven, here) that covers
- *   it, and `authorized` is the operator's attestation that it does.
- * - `scope: "local"` — on-host inference (a local LLM); content does not leave
- *   the machine, so no data agreement is required.
- */
-export interface EgressClassifier {
-  provider: string;
-  scope: "external" | "local";
-  sends: string[];
-  basis: string;
-  authorized: boolean;
-}
-
-/**
- * A model-backend provider that a consuming agent may attest to. Same shape as
- * EgressClassifier minus `sends` (backends don't declare sent fields), and the
- * same `provider` vocabulary. `authorized` is the operator's attestation
- * (recorded, not proven) that Clemson's agreement covers it.
+ * A model-backend provider that a consuming agent may attest to. `authorized`
+ * is the operator's attestation (recorded, not proven) that Clemson's agreement
+ * covers it.
  */
 /** Data sensitivity classes a backend may be authorized for. */
 export type DataClass = "public" | "student";
@@ -61,7 +42,6 @@ export interface AgentBackend {
 }
 
 export interface DataEgress {
-  classifiers: EgressClassifier[];
   agent_backends: AgentBackend[];
 }
 
@@ -77,17 +57,6 @@ const DEFAULT_POLICY: ActionPolicy = {
   policy_name: "missing_policy",
   actions: [],
 };
-
-/**
- * Whether `provider` is authorized for mailbox-content egress in the given
- * classifier list. FAIL CLOSED: an unknown or unset provider is not authorized.
- */
-export function egressAuthorizedIn(
-  classifiers: EgressClassifier[],
-  provider: string,
-): boolean {
-  return classifiers.find((c) => c.provider === provider)?.authorized === true;
-}
 
 /**
  * Whether `provider` is an authorized agent backend in the given list.
@@ -138,22 +107,6 @@ function loadPolicyFile(): ActionPolicy {
 
 function parseDataEgress(raw: unknown): DataEgress | undefined {
   if (!raw || typeof raw !== "object") return undefined;
-  const classifiersRaw = (raw as { classifiers?: unknown[] }).classifiers;
-  const classifiers = Array.isArray(classifiersRaw)
-    ? classifiersRaw
-        .filter(
-          (c): c is Partial<EgressClassifier> =>
-            Boolean(c) && typeof (c as EgressClassifier).provider === "string",
-        )
-        .map((c) => ({
-          provider: String(c.provider),
-          scope:
-            c.scope === "local" ? ("local" as const) : ("external" as const),
-          sends: Array.isArray(c.sends) ? c.sends.map(String) : [],
-          basis: typeof c.basis === "string" ? c.basis : "",
-          authorized: c.authorized === true,
-        }))
-    : [];
   const backendsRaw = (raw as { agent_backends?: unknown[] }).agent_backends;
   const agent_backends = Array.isArray(backendsRaw)
     ? backendsRaw
@@ -186,8 +139,8 @@ function parseDataEgress(raw: unknown): DataEgress | undefined {
             : {}),
         }))
     : [];
-  if (classifiers.length === 0 && agent_backends.length === 0) return undefined;
-  return { classifiers, agent_backends };
+  if (agent_backends.length === 0) return undefined;
+  return { agent_backends };
 }
 
 const ACTION_POLICY = loadPolicyFile();
@@ -201,19 +154,6 @@ export function getActionPolicy(): ActionPolicy {
 
 export function getPolicyAction(actionId: string): PolicyAction | undefined {
   return ACTION_INDEX.get(actionId);
-}
-
-/** Whether `provider` is authorized for mailbox-content egress per policy. */
-export function isEgressAuthorized(provider: string): boolean {
-  return egressAuthorizedIn(
-    ACTION_POLICY.data_egress?.classifiers ?? [],
-    provider,
-  );
-}
-
-/** The full declared classifier-provider list (for tooling/inspection). */
-export function getEgressClassifiers(): EgressClassifier[] {
-  return ACTION_POLICY.data_egress?.classifiers ?? [];
 }
 
 /** Whether `provider` is an authorized agent backend per policy. Fail closed. */
