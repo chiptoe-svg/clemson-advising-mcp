@@ -219,13 +219,11 @@ is wrong. A `429` means you are being throttled, not broken.
 ### The startup line is the single most informative log
 
 ```
-cuassistant-catalog http on 127.0.0.1:8767 — auth: registry (1 authorized consumer); tools: list-gc-catalog-years, …
+advising-mcp-catalog http on 127.0.0.1:8767 — auth: registry (2 authorized consumers); tools: list-gc-catalog-years, …
 ```
 
 It states the bind address, the auth mode, the consumer count, and **the exact
-tool list**. (The `cuassistant-` prefix is the server's own name, inherited from
-the application these servers were extracted from — see the README's glossary.
-The launchd labels and log files use `advising-mcp`.) If a tool you expect is missing from that line, the process is
+tool list**. If a tool you expect is missing from that line, the process is
 running old code — see "silent staleness" below.
 
 ### Silent staleness — the most common failure

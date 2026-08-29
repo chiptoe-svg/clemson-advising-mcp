@@ -61,6 +61,9 @@ usage**, not to protect data. There is no confidential data here to protect.
    is served.
 3. `src/mcp-tools/server.ts` — transport, authentication, rate limits: one file.
 
+Who owns it, how to reach them, and how it is maintained: `docs/security.md`
+§8.
+
 `docs/operations.md` and `docs/capacity.md` are references you consult while
 doing something, not documents to read front to back.
 
@@ -68,13 +71,14 @@ doing something, not documents to read front to back.
 
 ## Documentation
 
-|                            |                                                                          |
-| -------------------------- | ------------------------------------------------------------------------ |
-| `docs/security.md`         | Threat model, authentication, what leaves the machine, known limitations |
-| `docs/architecture.md`     | How it works, module by module, and how to diagnose it                   |
-| `docs/operations.md`       | Install, configure, serve over TLS, refresh, restart, back up            |
-| `docs/capacity.md`         | Measured throughput, sizing, and what would change it                    |
-| `deploy/Caddyfile.example` | Working reverse-proxy configuration for campus TLS                       |
+|                                       |                                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------- |
+| `docs/security.md`                    | Threat model, authentication, what leaves the machine, known limitations            |
+| `docs/architecture.md`                | How it works, module by module, and how to diagnose it                              |
+| `docs/operations.md`                  | Install, configure, serve over TLS, refresh, restart, back up                       |
+| `docs/capacity.md`                    | Measured throughput, sizing, and what would change it                               |
+| `deploy/Caddyfile.example`            | Working reverse-proxy configuration for campus TLS                                  |
+| `docs/clemson-it-data-api-request.md` | What we read from Clemson systems today, and the supported access we are asking for |
 
 ---
 
@@ -146,6 +150,7 @@ out of, where these servers ran inside the advisor application. `core/` was
 imported fresh, without its former project's lineage. The extraction ran a
 blocking audit over all published history for private files, credentials,
 student identifiers, and personal data — `docs/operations.md` §8 describes what
-it checks and what it caught. Names from that history survive in a few places
-the reviewer will notice: the running servers still identify themselves as
-`cuassistant-public` and `cuassistant-catalog` in their logs and startup lines.
+it checks and what it caught. One name from that history survives on the wire:
+the `cuassistant/` prefix on the `_meta` keys every result carries
+(`cuassistant/skillsVersion`, `cuassistant/category`). Clients key on those
+strings, so they stay until every client is updated together.

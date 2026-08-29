@@ -17,7 +17,7 @@ import Database from "better-sqlite3";
 
 import { catalogFixtureDdl } from "./_catalog-fixture-ddl.ts";
 
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "cuassistant-find-req-sections-"));
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-find-req-sections-"));
 process.env.STATE_DIR = TMP;
 
 const GC_DB_PATH = path.join(TMP, "gc_advisor.db");

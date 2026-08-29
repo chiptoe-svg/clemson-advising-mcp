@@ -16,7 +16,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "cuassistant-core-search-"));
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-core-search-"));
 process.env.STATE_DIR = TMP;
 
 const {

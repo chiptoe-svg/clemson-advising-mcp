@@ -243,7 +243,7 @@ test("both tools are registered and reachable through a real MCP client", async 
   await import("../src/mcp-tools/index-catalog.ts");
   const { __buildServerForTest } = await import("../src/mcp-tools/server.ts");
 
-  const server = __buildServerForTest("cuassistant-catalog");
+  const server = __buildServerForTest("advising-mcp-catalog");
   const [ct, st] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "probe", version: "1" }, {});
   await Promise.all([server.connect(st), client.connect(ct)]);

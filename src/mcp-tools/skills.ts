@@ -116,7 +116,6 @@ export function buildSkillIndex(
 // =========================
 // `skills/` is a single directory holding documents of MIXED trust: the
 // Clemson class-schedule advising guide is public-path material, while
-// `triage` (the email classifier's decision rules) and `add-cuassistant` (a
 // full description of the credentialed 8765 surface — MS365 mail/calendar/
 // tasks, the send approval gate, the install procedure) are private-path.
 // Both skill tools are registered from index-public.ts, which the public

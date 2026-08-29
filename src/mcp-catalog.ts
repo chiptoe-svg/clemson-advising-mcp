@@ -27,8 +27,7 @@ import {
 // The default exposure is the PUBLIC set (clemson-schedule-advising), which is
 // not what this server serves, so it must opt in by name. Anything added to
 // either skill root later is invisible here until someone edits CATALOG_SKILLS
-// on purpose — the inversion that would have prevented `triage` and
-// `add-cuassistant` from reaching the public port by omission.
+// on purpose — an allowlist cannot leak a document by omission.
 setSkillExposure(CATALOG_SKILLS);
 
 // skills.js is loaded by BOTH the public barrel and this one, so both servers
@@ -50,7 +49,7 @@ setSkillExposure(CATALOG_SKILLS);
 applyGcSkillRenames();
 
 startMcpServer({
-  name: "cuassistant-catalog",
+  name: "advising-mcp-catalog",
   transport: MCP_TRANSPORT,
   httpHost: MCP_CATALOG_HTTP_HOST,
   httpPort: MCP_CATALOG_HTTP_PORT,
@@ -62,7 +61,7 @@ startMcpServer({
   },
 }).catch((err) => {
   process.stderr.write(
-    `[cuassistant-catalog] ${err instanceof Error ? err.message : String(err)}\n`,
+    `[advising-mcp-catalog] ${err instanceof Error ? err.message : String(err)}\n`,
   );
   process.exit(1);
 });

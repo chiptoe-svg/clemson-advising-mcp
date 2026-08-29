@@ -16,7 +16,7 @@ const CATALOG_TOOLS = ["get-gc-program-plan", "get-gc-requirement-rules", "find-
 const PUBLIC_TOOLS = ["search-classes", "get-schedule-freshness", "check-conflicts"];
 
 test("catalog instructions warn about the two-store split that caused the PCID miss", () => {
-  const t = serverInstructions("cuassistant-catalog", CATALOG_TOOLS);
+  const t = serverInstructions("advising-mcp-catalog", CATALOG_TOOLS);
   // The failure was: absent from one store read as absent from the degree.
   assert.match(t, /TWO SEPARATE STORES/);
   assert.match(t, /NOT absent from the degree/);
@@ -25,22 +25,22 @@ test("catalog instructions warn about the two-store split that caused the PCID m
 });
 
 test("catalog instructions state the program/year rules", () => {
-  const t = serverInstructions("cuassistant-catalog", CATALOG_TOOLS);
+  const t = serverInstructions("advising-mcp-catalog", CATALOG_TOOLS);
   assert.match(t, /no default program/i);
   assert.match(t, /advisory/i, "non-GC audit verdicts are advisory-only");
   assert.match(t, /catalog year/i);
 });
 
 test("public instructions warn about snapshot staleness and untimed sections", () => {
-  const t = serverInstructions("cuassistant-public", PUBLIC_TOOLS);
+  const t = serverInstructions("advising-mcp-public", PUBLIC_TOOLS);
   assert.match(t, /SNAPSHOT/i);
   assert.match(t, /get-schedule-freshness/);
   assert.match(t, /UNTIMED|no meeting time/i);
 });
 
 test("the two servers get different instructions", () => {
-  const cat = serverInstructions("cuassistant-catalog", CATALOG_TOOLS);
-  const pub = serverInstructions("cuassistant-public", PUBLIC_TOOLS);
+  const cat = serverInstructions("advising-mcp-catalog", CATALOG_TOOLS);
+  const pub = serverInstructions("advising-mcp-public", PUBLIC_TOOLS);
   assert.notEqual(cat, pub);
   assert.doesNotMatch(pub, /TWO SEPARATE STORES/, "catalog-only guidance must not leak");
 });
@@ -56,15 +56,15 @@ test("toolsetVersion changes when the toolset changes, not when order does", () 
 });
 
 test("instructions carry the toolset version so clients can cache and re-read", () => {
-  const t = serverInstructions("cuassistant-catalog", CATALOG_TOOLS);
+  const t = serverInstructions("advising-mcp-catalog", CATALOG_TOOLS);
   assert.match(t, new RegExp(toolsetVersion(CATALOG_TOOLS)));
   assert.match(t, /cache/i);
 });
 
 test("instructions stay small enough to prepend to every session", () => {
   for (const [name, tools] of [
-    ["cuassistant-catalog", CATALOG_TOOLS],
-    ["cuassistant-public", PUBLIC_TOOLS],
+    ["advising-mcp-catalog", CATALOG_TOOLS],
+    ["advising-mcp-public", PUBLIC_TOOLS],
   ] as const) {
     const t = serverInstructions(name, tools);
     // This text is charged to context on every connection. It is guidance, not

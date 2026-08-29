@@ -44,12 +44,17 @@ target rather than the last line before something sensitive. **Read the rest of
 this document with that in mind: the controls exist to bound abuse and to
 attribute usage, not to protect confidential data, because there is none here.**
 
-**What passes through without being stored.** Tool arguments are course codes,
-term codes, CRNs, program names, and lists of completed course codes a caller
-may send to filter by prerequisite eligibility. That last one is the most
-student-shaped input the servers accept. It is used to filter a query and is
-never written down: the usage ledger records no arguments (§6), and the servers
-have no student-record storage of any kind.
+**What passes through without being stored — the FERPA question, answered.**
+Tool arguments are course codes, term codes, CRNs, program names, and lists of
+completed course codes a caller may send to filter by prerequisite eligibility.
+That last one is the most student-shaped input the servers accept, so to be
+exact about it: it arrives with **no identity** — no name, no C-ID, no term of
+enrolment, nothing that ties the list to a person — because the client strips
+identity before it calls, and the servers have no field to receive it. It
+crosses the wire under TLS, is used to filter one query, and is never written
+down: the usage ledger records no arguments (§6), the application log records
+none, and there is no student-record storage of any kind. Nothing here is an
+education record; the servers could not reconstruct one from what they see.
 
 **What is deliberately NOT here:**
 
@@ -288,7 +293,23 @@ authentication library.
 
 ---
 
-## 8. What to look at first, if you are reviewing this
+## 8. Ownership and maintenance
+
+The answers to the five questions every review asks, so they are on the page
+rather than in a meeting.
+
+|                        |                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Owner and operator** | Chip Tonkin, College of Business. Sole maintainer; a backup operator is named in the deployment's own records, not here                                                                                                                                                                                                                                                                               |
+| **Contact**            | ⟨campus email⟩ for anything about this service, including a suspected vulnerability. Expect a reply within one business day; a confirmed security issue is fixed before any other work                                                                                                                                                                                                                |
+| **Where it runs**      | `operations.md` §4b, "The current deployment" — a single campus-connected machine, servers on loopback, TLS at the proxy                                                                                                                                                                                                                                                                              |
+| **Update cadence**     | Node LTS and the three runtime dependencies are checked monthly and on any advisory; `npm audit` runs in CI on every push and gitleaks scans every push and weekly. The catalog rebuild is annual; the schedule refresh is nightly                                                                                                                                                                    |
+| **Data retention**     | Schedule snapshots: overwritten nightly, current terms only. The usage ledger (`state/analytics/mcp-calls.jsonl`) holds tool names and consumer ids, no arguments and no addresses, and is kept indefinitely because it is the only record of use; it grows ~150 bytes per call. Application logs rotate at 10 MB × 5. Consumer registries hold token hashes and are kept until a consumer is revoked |
+| **Decommissioning**    | `bash deploy/install.sh --uninstall` removes the services and leaves the data; deleting `state/` and `.env` removes every credential and every record this service ever held                                                                                                                                                                                                                          |
+
+---
+
+## 9. What to look at first, if you are reviewing this
 
 1. `src/mcp-tools/server.ts` — transport, authentication, expiry, rate limits.
    Everything in §2, §4, and §5 is here.

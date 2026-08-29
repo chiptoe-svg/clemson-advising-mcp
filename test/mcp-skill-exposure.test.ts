@@ -182,7 +182,7 @@ test("a missing second root degrades rather than throwing", async () => {
   // The catalog server's seven data tools do not depend on gc_advisor's skills
   // being checked out. An absent root drops its documents and logs; it must not
   // take the server down or break the roots that ARE readable.
-  const absent = path.join(os.tmpdir(), "cuassistant-no-such-skills-root");
+  const absent = path.join(os.tmpdir(), "advising-mcp-no-such-skills-root");
   fs.rmSync(absent, { recursive: true, force: true });
 
   __setSkillRoots([path.resolve(process.cwd(), "skills"), absent]);
@@ -205,7 +205,7 @@ test("a cross-root name collision fails loudly", async () => {
   // Two independent repos with no shared naming authority. Precedence would let
   // an agent read one skill's documentation while calling the other's tools,
   // with nothing in the transcript to show the substitution.
-  const shadow = fs.mkdtempSync(path.join(os.tmpdir(), "cuassistant-skill-shadow-"));
+  const shadow = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-skill-shadow-"));
   fs.mkdirSync(path.join(shadow, "clemson-schedule-advising"), { recursive: true });
   fs.writeFileSync(
     path.join(shadow, "clemson-schedule-advising", "SKILL.md"),

@@ -387,6 +387,10 @@ change. Restarting the reverse proxy is not required for tool or policy changes.
 
 ---
 
+The `server` field in older ledger rows reads `cuassistant-public` /
+`cuassistant-catalog`; rows written after 2026-08-29 read `advising-mcp-public`
+/ `advising-mcp-catalog`. Same servers, renamed.
+
 ## 6. Health
 
 ```bash

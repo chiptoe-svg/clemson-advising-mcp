@@ -126,6 +126,17 @@ class CookieJar {
  * code). The cost is one TLS handshake per request, negligible for a daily job
  * and worth the reliability on the interactive path too.
  */
+/**
+ * Identify ourselves to Banner. Node's default User-Agent is anonymous, and a
+ * daily sweep of ~20,000 sections from an unidentified client is exactly what a
+ * Banner operator notices and blocks. This names the service and the repo so
+ * the traffic is attributable BEFORE anyone has to ask — and so the request
+ * for a supported feed (docs/clemson-it-data-api-request.md) can point at it.
+ */
+export const BANNER_USER_AGENT =
+  "clemson-advising-mcp/0.1 (College of Business advising; " +
+  "https://github.com/chiptoe-svg/clemson-advising-mcp)";
+
 async function bannerFetch(
   url: string,
   init: RequestInit = {},
@@ -135,6 +146,7 @@ async function bannerFetch(
     headers: {
       ...(init.headers as Record<string, string> | undefined),
       Connection: "close",
+      "User-Agent": BANNER_USER_AGENT,
     },
   });
 }

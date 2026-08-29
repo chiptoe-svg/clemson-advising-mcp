@@ -6,7 +6,7 @@
 // full-section snapshot for each. Past "(View Only)" terms are skipped (they
 // never change). See selectRefreshTerms in src/clemson-classes.ts. Run via
 //   npm run clemson:refresh
-// or the launchd plist in launchd/com.cuassistant.clemson-refresh.plist.
+// or the launchd job deploy/launchd/edu.clemson.advising-mcp.refresh.plist.
 
 import {
   refreshLiveClemsonSnapshots,

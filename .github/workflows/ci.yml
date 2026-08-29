@@ -41,6 +41,11 @@ jobs:
       # than none, because the first thing anyone does is skip it.
       - run: npm run format:check
 
+      # Dependency advisories are a review question with a dated answer; this
+      # keeps the answer current on every push. Runtime deps only — a dev-tool
+      # advisory does not reach a serving host.
+      - run: npm audit --omit=dev --audit-level=high
+
       # node --test already exits non-zero on any failure. The tee keeps the
       # TAP summary for the reporting step below.
       - name: npm test

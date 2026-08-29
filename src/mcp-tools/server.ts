@@ -63,7 +63,7 @@ const MAX_BODY_BYTES = 1_048_576; // 1 MiB
 export const AUTH_TIMEOUT_MS = 10_000;
 
 function log(msg: string): void {
-  process.stderr.write(`[cuassistant-mcp] ${msg}\n`);
+  process.stderr.write(`[advising-mcp] ${msg}\n`);
 }
 
 // --- Who is actually calling ---------------------------------------------

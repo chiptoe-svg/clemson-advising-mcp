@@ -12,7 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "cuassistant-section-query-"));
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-section-query-"));
 process.env.STATE_DIR = TMP;
 
 const { writeScheduleDb } = await import("../src/clemson-schedule-db.ts");

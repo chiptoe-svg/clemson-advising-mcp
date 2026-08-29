@@ -31,7 +31,7 @@ import {
 } from "./config-mcp.js";
 
 startMcpServer({
-  name: "cuassistant-public",
+  name: "advising-mcp-public",
   transport: MCP_TRANSPORT,
   httpHost: MCP_PUBLIC_HTTP_HOST,
   httpPort: MCP_PUBLIC_HTTP_PORT,
@@ -43,7 +43,7 @@ startMcpServer({
   },
 }).catch((err) => {
   process.stderr.write(
-    `[cuassistant-public] ${err instanceof Error ? err.message : String(err)}\n`,
+    `[advising-mcp-public] ${err instanceof Error ? err.message : String(err)}\n`,
   );
   process.exit(1);
 });

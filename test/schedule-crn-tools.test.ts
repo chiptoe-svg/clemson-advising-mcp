@@ -167,7 +167,7 @@ test("both tools are registered and served", async () => {
   await import("../src/mcp-tools/index-public.ts");
   const { __buildServerForTest } = await import("../src/mcp-tools/server.ts");
 
-  const server = __buildServerForTest("cuassistant-public");
+  const server = __buildServerForTest("advising-mcp-public");
   const [ct, st] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "probe", version: "1" }, {});
   await Promise.all([server.connect(st), client.connect(ct)]);

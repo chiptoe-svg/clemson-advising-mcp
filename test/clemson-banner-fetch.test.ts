@@ -10,7 +10,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { listClemsonTerms } from "../src/clemson-classes.js";
+import { BANNER_USER_AGENT, listClemsonTerms } from "../src/clemson-classes.js";
 
 test("Banner requests are sent with Connection: close (no keep-alive reuse)", async () => {
   const orig = globalThis.fetch;
@@ -36,4 +36,24 @@ test("Banner requests are sent with Connection: close (no keep-alive reuse)", as
     "close",
     "Banner fetch must send Connection: close to force a fresh socket per request",
   );
+});
+
+test("Banner requests identify this service in User-Agent (never Node's anonymous default)", async () => {
+  // Daily sweeps from an unidentified client are what a Banner operator blocks.
+  // The traffic must be attributable to us before anyone has to ask.
+  const orig = globalThis.fetch;
+  const seen: Array<Record<string, string>> = [];
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    seen.push({ ...((init?.headers as Record<string, string>) ?? {}) });
+    return new Response("[]", { status: 200 });
+  }) as typeof fetch;
+  try {
+    await listClemsonTerms(1);
+  } finally {
+    globalThis.fetch = orig;
+  }
+  const ua = Object.entries(seen[0]).find(([k]) => k.toLowerCase() === "user-agent")?.[1];
+  assert.equal(ua, BANNER_USER_AGENT);
+  assert.match(String(ua), /clemson-advising-mcp\//, "names the service");
+  assert.match(String(ua), /github\.com\/chiptoe-svg\/clemson-advising-mcp/, "points at the repo");
 });

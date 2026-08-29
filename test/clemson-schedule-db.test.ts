@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "cuassistant-sched-"));
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-sched-"));
 process.env.STATE_DIR = TMP;
 
 const { writeScheduleDb, openScheduleDb, queryScheduleDb, getMeetingsForCrns, findConflicts, scheduleDbPath, isTermCode } =
