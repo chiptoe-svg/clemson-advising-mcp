@@ -17,36 +17,37 @@ in-process Node load generator against the live servers.
 
 > A methodological note that cost real time: an earlier harness spawned `curl`
 > per request and reported far worse numbers. It was measuring process spawn in
-> the *test client*. If you re-measure, keep the generator in-process.
+> the _test client_. If you re-measure, keep the generator in-process.
 
 **Schedule tools** (SQLite-backed, in-process, no subprocess):
 
-| Concurrency | Throughput | p50 | p95 | p99 |
-|---|---|---|---|---|
-| 1 | 333 req/s | 2 ms | 5 ms | 7 ms |
-| 10 | 1,063 req/s | 6 ms | 15 ms | 35 ms |
-| 50 | 1,171 req/s | 34 ms | 58 ms | 136 ms |
+| Concurrency | Throughput  | p50   | p95   | p99    |
+| ----------- | ----------- | ----- | ----- | ------ |
+| 1           | 333 req/s   | 2 ms  | 5 ms  | 7 ms   |
+| 10          | 1,063 req/s | 6 ms  | 15 ms | 35 ms  |
+| 50          | 1,171 req/s | 34 ms | 58 ms | 136 ms |
 
-**Catalog tools, before the SQL-in-Node port** (each call spawned `query.py`):
+**Catalog tools, before the SQL-in-Node port** (each call spawned a Python CLI):
 
-| Concurrency | Throughput | p50 | p95 | p99 |
-|---|---|---|---|---|
-| 1 | 31 req/s | 31 ms | 35 ms | 102 ms |
-| 10 | 216 req/s | 42 ms | 55 ms | 78 ms |
-| 25 | 267 req/s | 79 ms | 143 ms | 153 ms |
+| Concurrency | Throughput | p50   | p95    | p99    |
+| ----------- | ---------- | ----- | ------ | ------ |
+| 1           | 31 req/s   | 31 ms | 35 ms  | 102 ms |
+| 10          | 216 req/s  | 42 ms | 55 ms  | 78 ms  |
+| 25          | 267 req/s  | 79 ms | 143 ms | 153 ms |
 
 **Catalog tools, after the port** (same box, same generator, `get-gc-program-plan`):
 
-| Concurrency | Throughput | p50 | p95 | p99 |
-|---|---|---|---|---|
-| 1 | **429 req/s** (13.8×) | **2 ms** | 3 ms | 5 ms |
-| 10 | 841 req/s | 7 ms | 27 ms | 58 ms |
-| 25 | **968 req/s** (3.6×) | 19 ms | 39 ms | 60 ms |
+| Concurrency | Throughput            | p50      | p95   | p99   |
+| ----------- | --------------------- | -------- | ----- | ----- |
+| 1           | **429 req/s** (13.8×) | **2 ms** | 3 ms  | 5 ms  |
+| 10          | 841 req/s             | 7 ms     | 27 ms | 58 ms |
+| 25          | **968 req/s** (3.6×)  | 19 ms    | 39 ms | 60 ms |
 
 The binding constraint is gone. Catalog reads now perform like schedule reads
 because they are now the same kind of work: an in-process read of a page-cached
-SQLite file. Confirmed by counting `query.py` spawns during sustained traffic —
-zero at baseline, zero under load.
+SQLite file. Confirmed by counting Python spawns during sustained traffic — zero
+at baseline, zero under load. Since 2026-08-28 there is no code path that could
+spawn one: the last tool that did (`audit-gc-progress`) was removed.
 
 **Adding TLS** (2026-08-28, real MCP client through the campus reverse proxy):
 `initialize` completed in 55 ms and a `tools/call` round-trip in 12–19 ms
@@ -73,7 +74,7 @@ constraint is inference capacity, not this service.**
 
 ### The caveat that actually matters
 
-*Agent* traffic is not human traffic. An autonomous agent fires 20–50 calls in a
+_Agent_ traffic is not human traffic. An autonomous agent fires 20–50 calls in a
 burst with no think time. The arithmetic above assumes a human reading between
 calls, and it does not survive contact with a fleet of agents.
 
@@ -134,11 +135,11 @@ not data loss. Buy cheap and keep a spare.
 
 Each of these is a threshold, not a worry:
 
-| Signal | What it changes |
-|---|---|
-| Sustained agent traffic in the ledger, not human traffic | Re-measure; §2's arithmetic no longer applies |
-| Per-student state with concurrent writes (saved plans, advisor notes) | Raises reliability requirements *and* triggers the SQLite-vs-Postgres question. Both arrive together |
-| The dataset outgrows RAM | The page-cache assumption underneath every number here |
+| Signal                                                                | What it changes                                                                                      |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Sustained agent traffic in the ledger, not human traffic              | Re-measure; §2's arithmetic no longer applies                                                        |
+| Per-student state with concurrent writes (saved plans, advisor notes) | Raises reliability requirements _and_ triggers the SQLite-vs-Postgres question. Both arrive together |
+| The dataset outgrows RAM                                              | The page-cache assumption underneath every number here                                               |
 
 None are on the roadmap. All would be visible in the ledger or the data
 directory before they were felt as a problem.

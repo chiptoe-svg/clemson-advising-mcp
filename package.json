@@ -7,7 +7,7 @@
   "author": "Clemson University / Chip Tonkin",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chiptoe-svg/cob-advisor.git"
+    "url": "https://github.com/chiptoe-svg/clemson-advising-mcp.git"
   },
   "type": "module",
   "engines": {

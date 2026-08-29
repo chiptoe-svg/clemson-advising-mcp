@@ -26,9 +26,9 @@ constantly and that are painful to use:
    plan, named requirement slots, General Education rules, prerequisites.
    Published as a web catalog, navigable only by reading it.
 
-Answering an ordinary advising question — *"my student needs a 3-credit
+Answering an ordinary advising question — _"my student needs a 3-credit
 afternoon elective that fits around ENGL 3040 and counts toward their specialty
-area"* — means cross-referencing both by hand, repeatedly, per student.
+area"_ — means cross-referencing both by hand, repeatedly, per student.
 
 These servers expose both bodies as **structured, machine-callable tools over
 MCP (Model Context Protocol)**, so an AI assistant can answer such questions
@@ -44,14 +44,14 @@ returning an empty result the caller might read as "nothing exists".
 
 ## 2. What the two servers are
 
-| | **Public server** | **Catalog server** |
-|---|---|---|
-| Port | 8766 | 8767 |
-| Serves | Clemson class schedule | Degree catalog and curriculum |
-| Data source | Banner snapshots (SQLite, refreshed daily 05:00) | Built catalog DB (SQLite) + Python query/audit CLI |
-| Tools | 11 | 11 |
-| Holds student data | No | No |
-| Holds credentials | No | No |
+|                    | **Public server**                                | **Catalog server**                                 |
+| ------------------ | ------------------------------------------------ | -------------------------------------------------- |
+| Port               | 8766                                             | 8767                                               |
+| Serves             | Clemson class schedule                           | Degree catalog and curriculum                      |
+| Data source        | Banner snapshots (SQLite, refreshed daily 05:00) | Built catalog DB (SQLite) + Python query/audit CLI |
+| Tools              | 11                                               | 11                                                 |
+| Holds student data | No                                               | No                                                 |
+| Holds credentials  | No                                               | No                                                 |
 
 They are deliberately **two servers, not one**. They have different data
 lifecycles (the schedule changes daily during registration; the catalog changes
@@ -69,6 +69,16 @@ restarted, revoked, or taken down without touching the other.
 `get-gc-requirement-rules`, `get-gc-gen-ed`, `get-program-requirements`,
 `find-requirement-sections`, `find-course-in-program`, `list-gc-programs`,
 `get-gc-course`, `list-gc-skills`, `get-gc-skill-docs`
+
+### What else a client receives
+
+Tools are not the whole surface. Every `initialize` returns a text preamble
+(`src/mcp-tools/instructions.ts`), and both servers serve **skill documents** —
+Markdown advising guidance under `skills/` (schedule) and `core/skills/`
+(catalog), fetched with `list-skills` / `get-skill-docs`. Exposure is an
+allowlist per server: one document on 8766, two on 8767, everything else
+refused by name. Every result also carries a skills version in `_meta`, so a
+client that caches those documents can tell when to re-fetch.
 
 ---
 
@@ -107,7 +117,7 @@ A shared stateless transport returns 500 on the post-initialize
 `server.ts`. The cost is a small per-request allocation; the benefit is that no
 request can corrupt another's transport state.
 
-### Module map (34 TypeScript files, the full closure)
+### Module map (31 TypeScript files, the full closure)
 
 ```
 entry points        mcp-public.ts, mcp-catalog.ts
@@ -117,18 +127,25 @@ entry points        mcp-public.ts, mcp-catalog.ts
                     policy.ts                  reads policy/action-policy.yaml; fail-closed
   tool barrels      mcp-tools/index-public.ts  side-effect imports that register public tools
                     mcp-tools/index-catalog.ts  … and catalog tools
-  schedule tools    mcp-tools/clemson-classes.ts, clemson-schedule.ts, section-query.ts
+  schedule tools    mcp-tools/core-search.ts   search-classes, get-course-details,
+                                               check-conflicts, find-alternatives
+                    mcp-tools/clemson-schedule.ts  freshness, conflict-free, CRN lookup
+                    mcp-tools/clemson-classes.ts   list-clemson-terms, result compaction
+                    mcp-tools/section-query.ts     shared section filtering
+                    clemson-classes.ts         the Banner HTTP client and refresh job
                     clemson-schedule-db.ts     snapshot queries, CRN lookup, conflict detection
-                    clemson-classes.ts         Banner shapes
                     clemson-room-capacity.ts, term-resolve.ts, eastern-time.ts
-  catalog tools     mcp-tools/catalog.ts       program plan, rules, gen-ed, audit, find-course
+  catalog tools     mcp-tools/catalog.ts       plan, rules, gen-ed, find-course, programs, course
                     mcp-tools/clemson-advising.ts  requirement sections, program requirements
                     mcp-tools/gc-coreqs.ts, program-args.ts, gc-skill-renames.ts
-                    gc-curriculum.ts           the Python CLI bridge (execFile, 15 s timeout)
-                    catalog-read.ts            direct SQLite reads: programs, course entries
+                    catalog-read.ts            the SQLite reads themselves
+                    gc-curriculum.ts           a thin facade over catalog-read.ts
   cross-cutting     config-mcp.ts (all env), log.ts (rotating)
-                    mcp-tools/usage.ts   per-call usage ledger
-                    mcp-tools/skills.ts  skill-document tools
+                    mcp-tools/types.ts         tool definition, result envelopes
+                    mcp-tools/usage.ts         per-call usage ledger
+                    mcp-tools/skills.ts        skill-document tools
+                    mcp-tools/instructions.ts  the server preamble sent at initialize
+                    mcp-tools/surface-version.ts  the skills version stamped on every result
 ```
 
 Plus **`core/`** — a Python package (the former `gc_advisor` project) that
@@ -138,10 +155,10 @@ public server does not depend on it at all.
 
 ### Data artifacts
 
-| Artifact | Size | Origin | In git? |
-|---|---|---|---|
-| `core/db/gc_advisor.db` | 5.7 MB | built by `core/scripts/rebuild_db.sh` from the published catalog | no |
-| `state/clemson/<term>.db` | ~3 MB × 7 terms = 21 MB | daily Banner refresh, 05:00 | no |
+| Artifact                  | Size                    | Origin                                                           | In git? |
+| ------------------------- | ----------------------- | ---------------------------------------------------------------- | ------- |
+| `core/db/gc_advisor.db`   | ~5.7 MB                 | built by `core/scripts/rebuild_db.sh` from the published catalog | no      |
+| `state/clemson/<term>.db` | ~3 MB × 7 terms = 21 MB | daily Banner refresh, 05:00                                      | no      |
 
 Total working set **~27 MB** — small enough that the OS page cache holds all of
 it after the first read. This matters for the throughput figures in `capacity.md`.
@@ -181,8 +198,8 @@ Check broadly before narrowly. In order:
 
 ```bash
 # 1. Is the process alive and did it start clean?
-launchctl list | grep mcp
-tail -5 ~/Library/Logs/cuassistant.mcp-{public,catalog}.err.log
+launchctl list | grep advising-mcp
+tail -5 ~/Library/Logs/advising-mcp.{public,catalog}.err.log
 
 # 2. Does it answer at all? (401 proves routing + listener are fine)
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8766/    # expect 401
@@ -206,20 +223,22 @@ cuassistant-catalog http on 127.0.0.1:8767 — auth: registry (1 authorized cons
 ```
 
 It states the bind address, the auth mode, the consumer count, and **the exact
-tool list**. If a tool you expect is missing from that line, the process is
+tool list**. (The `cuassistant-` prefix is the server's own name, inherited from
+the application these servers were extracted from — see the README's glossary.
+The launchd labels and log files use `advising-mcp`.) If a tool you expect is missing from that line, the process is
 running old code — see "silent staleness" below.
 
 ### Silent staleness — the most common failure
 
 **The servers load their tool registry and policy ONCE at startup.** Editing
-source or `action-policy.yaml` does *not* affect a running daemon; it keeps
+source or `action-policy.yaml` does _not_ affect a running daemon; it keeps
 serving the old build and the new tool simply never appears in `tools/list`.
 There is no error. Any change to tools, permissions, or policy requires a
 restart, and the restart is not optional:
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.cuassistant.mcp-public-http
-launchctl kickstart -k gui/$(id -u)/com.cuassistant.mcp-catalog-http
+launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.public
+launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.catalog
 ```
 
 Then verify against the startup line. Registry changes (minting/revoking tokens)
@@ -228,28 +247,28 @@ the next call.
 
 ### Symptom → cause table
 
-| Symptom | Likely cause | Check |
-|---|---|---|
-| New tool absent from `tools/list` | daemon not restarted | startup line in `*.err.log` |
-| All requests 401 | token mismatch — wrong server, revoked, or the shared token changed | `npm run mcp:pair -- --server <s> --list` |
-| Server won't start, "no authorized consumers" | no token configured and empty registry — fail-closed working as designed | env token + registry file |
-| Schedule answers are stale/empty | daily refresh failed; snapshot old | `get-schedule-freshness`, snapshot mtime |
-| `totalCount=0` from Banner | keep-alive dropped the stickiness cookie | fixed 2026-08-12 (`Connection: close`); recheck if it returns |
-| Catalog tools fail, schedule tools fine | catalog DB missing or unreadable | `ls -l core/db/gc_advisor.db`; the tools say "unreadable", never "not found" |
-| Answers are wrong but confident | wrong store queried — see below | `find-course-in-program` |
+| Symptom                                       | Likely cause                                                             | Check                                                                        |
+| --------------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| New tool absent from `tools/list`             | daemon not restarted                                                     | startup line in `*.err.log`                                                  |
+| All requests 401                              | token mismatch — wrong server, revoked, or the shared token changed      | `npm run mcp:pair -- --server <s> --list`                                    |
+| Server won't start, "no authorized consumers" | no token configured and empty registry — fail-closed working as designed | env token + registry file                                                    |
+| Schedule answers are stale/empty              | daily refresh failed; snapshot old                                       | `get-schedule-freshness`, snapshot mtime                                     |
+| `totalCount=0` from Banner                    | keep-alive dropped the stickiness cookie                                 | fixed 2026-08-12 (`Connection: close`); recheck if it returns                |
+| Catalog tools fail, schedule tools fine       | catalog DB missing or unreadable                                         | `ls -l core/db/gc_advisor.db`; the tools say "unreadable", never "not found" |
+| Answers are wrong but confident               | wrong store queried — see below                                          | `find-course-in-program`                                                     |
 
 ### The recurring defect: silence read as absence
 
-Five instances in one week, across two codebases. Worth stating as a design rule
-because it keeps arriving in different disguises:
+It keeps arriving in different disguises. Every row below is in this repository;
+the rule was learned partly in the application these servers came from:
 
-| Where | Silence | Reported as |
-|---|---|---|
-| `find-requirement-sections` (PCID) | one of two requirement stores had no row | "no such requirement exists" |
-| `checkPrereqEligible` | a prereq rule that did not parse | "no prerequisite" / "not eligible" |
-| core plan-next | a course absent from the student's plan | "unreachable" |
-| a bare freshness timestamp | never crawled | "unchanged" |
-| `findCoreqs` (latent) | malformed `coreq_parsed`, or an unreadable DB | "no corequisites" |
+| Where                              | Silence                                       | Reported as                            |
+| ---------------------------------- | --------------------------------------------- | -------------------------------------- |
+| `find-requirement-sections` (PCID) | one of two requirement stores had no row      | "no such requirement exists"           |
+| `checkPrereqEligible`              | a prereq rule that did not parse              | "no prerequisite" / "not eligible"     |
+| a bare freshness timestamp         | never crawled                                 | "unchanged"                            |
+| `findCoreqs` (latent)              | malformed `coreq_parsed`, or an unreadable DB | "no corequisites"                      |
+| `get-sections-by-crn` (by design)  | a term with no snapshot                       | would have read as "every CRN is fake" |
 
 The shared root, as the core maintainer put it: **the data layer represents
 presence well and the absence of knowledge not at all.** So every consumer has to
@@ -273,7 +292,7 @@ no answer, because an advisor acts on it.
 A program's obligations live in **two** places: `requirement_rule` (named slots)
 and `plan_item` (the semester plan). On 2026-08-27 an advisor asked "what is the
 PCID requirement for GC students" and got "no such requirement exists" — the
-model had queried only the rules store, received a *successful* response that
+model had queried only the rules store, received a _successful_ response that
 did not mention PCID, and inferred absence. `find-course-in-program` exists to
 make this class of question answerable in one call across both stores, and the
 other two tools' descriptions now state explicitly that a not-found from them
@@ -285,7 +304,7 @@ ground it covered.** New tools should say what they searched.
 
 ### Observability
 
-- `~/Library/Logs/cuassistant.mcp-{public,catalog}.log` — app log, rotates at
+- `~/Library/Logs/advising-mcp.{public,catalog}.log` — app log, rotates at
   10 MB × 5. `.err.log` holds startup/registration lines and crash output.
 - `state/analytics/mcp-calls.jsonl` — per-call usage: who called what, when.
   Answer volume/attribution questions from here, not from logs.

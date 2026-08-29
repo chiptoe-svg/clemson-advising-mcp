@@ -17,7 +17,16 @@ registry (hashes, not tokens) and a usage ledger.
 
 That is the control that does the most work, and it is worth stating before the
 authentication details, because every control below is defence for a low-value
-target rather than the last line before something sensitive.
+target rather than the last line before something sensitive. **Read the rest of
+this document with that in mind: the controls exist to bound abuse and to
+attribute usage, not to protect confidential data, because there is none here.**
+
+**What passes through without being stored.** Tool arguments are course codes,
+term codes, CRNs, program names, and lists of completed course codes a caller
+may send to filter by prerequisite eligibility. That last one is the most
+student-shaped input the servers accept. It is used to filter a query and is
+never written down: the usage ledger records no arguments (§6), and the servers
+have no student-record storage of any kind.
 
 **What is deliberately NOT here:**
 
@@ -123,6 +132,34 @@ its left are whatever the client sent and are treated as evidence of nothing.
 Without the trust check any client could forge an identity into the audit log
 and escape the per-source throttle by rotating a header.
 
+### What leaves this machine
+
+A reviewer's first question about any campus service. There are exactly three
+outbound destinations, all Clemson-operated or Clemson-published, and none of
+them carries anything about a caller.
+
+| Destination                                        | When                                                                                                                                                                            | What is sent                                                                                                                                   | What comes back             |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `regssb.sis.clemson.edu` (Banner "Browse Classes") | Daily at 05:00 for the snapshot refresh; and per request for the three tools that read live (`list-clemson-terms`, `get-course-details`, `search-classes` with `refresh: true`) | A term code and search filters — subject, course number, instructor, days. No caller identity, no token, no cookie beyond Banner's own session | Public section data         |
+| `catalog.clemson.edu`                              | Only during a catalog rebuild, about once a year, on whatever machine runs it                                                                                                   | Page requests                                                                                                                                  | Published catalog pages     |
+| A Clemson-hosted LLM endpoint                      | Only during a catalog rebuild                                                                                                                                                   | The text of published catalog pages, for requirement extraction                                                                                | Structured requirement JSON |
+
+Nothing leaves during ordinary serving except the Banner reads above. The two
+rebuild destinations are not reachable from a serving host at all: no request
+path can trigger a rebuild.
+
+**The refresh job is deliberately gentle with Banner**, because it is someone
+else's production system: one sweep per live term, pages of 500 sections capped
+at 40 pages, 200–400 ms between requests, 1 s between terms, at most three
+attempts per term, `Connection: close` per request, and a partial scan is
+discarded rather than written. It runs once a day.
+
+**A caller can drive Banner reads.** `search-classes` with `refresh: true` and
+`get-course-details` reach Banner on the request path, so an authenticated
+consumer at its 600/min ceiling could put that many requests through to Banner.
+That ceiling is the bound; if Banner's operators want a lower one, it is a
+one-line change (`MCP_CONSUMER_RATE_LIMIT`).
+
 ---
 
 ## 6. Audit
@@ -137,7 +174,10 @@ what a compromised token was used to look up. Given the data is public, the
 privacy side wins.
 
 Refused calls are recorded too, with an `outcome` field, so an unknown-tool
-probe or an out-of-scope attempt leaves a trace rather than vanishing.
+probe or an out-of-scope attempt leaves a trace rather than vanishing. A
+caller-supplied tool name is truncated at 128 characters before it is recorded:
+the unknown-tool path is the one place a caller controls what is written, and an
+append-only file is not a place to let it write freely.
 
 The ledger does **not** record client IP addresses. The information is now
 available (§5) but recording it is a privacy decision that has not been taken;
@@ -146,15 +186,57 @@ investigation, and they rotate.
 
 ---
 
+## 6b. The surface is not only tools
+
+Two other things reach a client, and both are part of what a reviewer should
+consider published:
+
+- **Server instructions** (`src/mcp-tools/instructions.ts`) — a text preamble
+  returned during `initialize`, describing what the server is for.
+- **Skill documents** — Markdown under `skills/` (schedule server) and
+  `core/skills/` (catalog server), served by `list-skills`/`get-skill-docs` and
+  their catalog equivalents. They are advising guidance for a model: which tool
+  to reach for, in what order, and where the data is known to mislead.
+
+Exposure is an **allowlist per server, not a denylist**: the schedule server
+serves exactly one document, the catalog server exactly two, and anything else
+in those directories — including a file added tomorrow — is refused until
+someone opts it in by name. A refusal names the document rather than pretending
+it does not exist, so a client can tell "not exposed to me" from "nothing
+there". `list-skills` returns `{ name, description }` per document; clients
+index on that shape.
+
+These documents contain no credentials and no student data, but they are the
+part of the surface most likely to go stale, because they describe tools rather
+than being generated from them. That is a correctness risk, not a security one:
+a document naming a tool the server no longer serves sends a model at a
+non-existent tool. It happened on 2026-08-28 and is why the tool inventory in
+`architecture.md` and these documents are checked together.
+
+---
+
 ## 7. Known limitations — stated plainly
 
 An honest list matters more here than a clean one.
 
-**7.1 No Host/Origin validation.** `StreamableHTTPServerTransport` performs
-none, so off loopback the bearer token is the only gate. There is no
-DNS-rebinding protection to enable. Any deployment beyond loopback must treat
-token issuance and rotation as the primary control — which is why per-consumer
-tokens, not one shared token, are mandatory in a multi-user deployment.
+**7.1 No Host/Origin validation.** The servers validate neither header, so off
+loopback the bearer token is the only gate.
+
+Be precise about what the SDK offers, because a reviewer will open it. The
+transport in use — `StreamableHTTPServerTransport` from
+`@modelcontextprotocol/sdk/server/streamableHttp.js`, SDK 1.30.0 — has no
+Host/Origin options at all. The SDK's _other_ HTTP transport
+(`webStandardStreamableHttp`, built on Web-standard `Request`/`Response`) does
+expose `allowedHosts`, `allowedOrigins`, and `enableDnsRebindingProtection`.
+Switching transports, or adding a Host allow-list to `createHttpHandler`, is
+possible and has not been done: on a loopback bind with a proxy in front, a
+rebound browser request still needs a bearer token it cannot obtain. It is
+listed here because "there is nothing to enable" would be wrong, and because a
+deployment that ever binds off loopback should do one of the two.
+
+Any deployment beyond loopback must treat token issuance and rotation as the
+primary control — which is why per-consumer tokens, not one shared token, are
+mandatory in a multi-user deployment.
 
 **7.2 A shared environment token still exists.** Alongside the per-consumer
 registry, each server accepts one token from its environment. It is the

@@ -1,122 +1,100 @@
 ---
 name: clemson-schedule-advising
-description: Use when answering schedule, room-availability, conflict-check, or GC degree-advising questions using CUassistant's Clemson tools. Indexes the public Banner + gc_advisor catalog MCP tools by purpose, gives the standard multi-tool workflows, and records the known limitations. Per-tool parameters live in each tool's own schema — this doc is for which tool to use when, and how they chain.
+description: Use when answering Clemson class-schedule, section, conflict-check, or degree-advising questions with the Clemson advising MCP tools. Indexes the schedule and catalog tools by purpose, gives the standard multi-tool workflows, and records the known limitations. Per-tool parameters live in each tool's own schema — this doc is for which tool to use when, and how they chain.
 ---
 
 # Clemson Schedule & Advising
 
-CUassistant exposes two public MCP servers for Clemson data. Neither requires
-credentials.
+Two MCP servers publish Clemson course data. Both are read-only, both serve
+published Clemson data, and **both require a bearer token** — there is no
+anonymous access. Whoever runs your client has issued it one.
 
-| Server | Port | Tool prefix (NanoClaw) |
-|---|---|---|
-| `cuassistant-public` | 8766 | `cuassistant-public__` |
-| `cuassistant-catalog` | 8767 | `cuassistant-catalog__` |
+| Server                 | Port | Serves                                            |
+| ---------------------- | ---- | ------------------------------------------------- |
+| schedule (`8766`)      | 8766 | Banner class schedule: sections, times, seats     |
+| catalog (`8767`)       | 8767 | Degree catalog: plans, requirement rules, gen-ed  |
 
-All data is read-only. All Clemson content must be processed by **OpenAI or a
-local model only** — never routed through Anthropic. This is a hard constraint
-in `policy/action-policy.yaml`.
+A client may be connected to one or both. If a tool below is "not found", your
+client is not connected to that server — not a sign the data does not exist.
 
 **Parameters and return shapes are NOT repeated here.** Every tool arrives with
 its own input schema (names, types, descriptions) — read that for the exact
 arguments; it is always current. This document covers what a schema can't: which
 tool to reach for, the order to call them in, and where the data lies to you.
 
-**Term is optional everywhere.** Every tool below defaults to the current
-registration term when `term` is omitted, and accepts free text ("Spring 2027")
-as well as a Banner code. Do not look up a term code before calling a tool that
-doesn't strictly need one.
+**Term handling differs by tool, and this catches people.** The four search
+tools (`search-classes`, `find-alternatives`, `check-conflicts`,
+`get-course-details`) and `find-requirement-sections` default to the current
+registration term and accept free text ("Spring 2027") as well as a Banner code.
+`get-schedule-freshness`, `get-sections-by-crn`, and `resolve-crns` **require**
+an explicit six-digit term code (`202608`).
 
 ---
 
-## Core tools — always active for the advisor
+## Schedule tools (8766)
 
-| Tool | Server | Use it to… | Watch out for |
-|---|---|---|---|
-| `search-classes` | 8766 | Search the class schedule by subject and/or course number, with instructor / building-room / days / time / open-seats filters | **Must** scope by `subject` or `course_number` — an unscoped search is rejected. Snapshot-backed (nightly ~05:00); pass `refresh:true` only for live seat counts, and only after scoping the search. Page with `offset` when `totalCount` exceeds what was returned. This tool folds in what used to be separate instructor- and room-lookup tools — use `instructor` / `building_room` filters instead of a dedicated call. |
-| `find-alternatives` | 8766 | Sections that fit around a schedule the student is keeping, given `current_crns` | Candidates are checked against every CRN in `current_crns`; it does not also dedupe against itself — pair with `check-conflicts` if you're assembling more than one new section at once. |
-| `check-conflicts` | 8766 | Find time-overlapping pairs in a set of CRNs, or test `candidate_crns` against a fixed set | TBA/online sections (no meeting time) come back in `conflict_free` because there's no time to conflict — that is not a real compatibility guarantee. |
-| `get-course-details` | 8766 | Full detail for one course (`course_code`) or one section (`crn`): description, prereqs, coreqs, credits, restrictions | `course_code` and `crn` are different lookups with different fields — pass `course_code` for catalog facts (also returns lab coreqs), `crn` for a specific offered section. No parsed textbook list — Banner exposes only a bookstore URL. |
-| `find-requirement-sections` | 8767 | **The advising join** — sections that fill a named GC requirement slot AND are offered this term AND are prereq-eligible (`completed_courses`), with the same scheduling filters as the tools above | Requires `requirement` — an unknown slot name returns the valid slot list for the resolved program/catalog year inline, so retry with a name from that list rather than round-tripping through `get-gc-requirement-rules`. Prereq check is AND-logic only (see Known limitations). GC program only. |
-| `show-schedule-options` | host (advisor) | Render a few candidate sections as tabs over the student's current schedule | Two-step flow: call a finder first (`find-requirement-sections` / `find-alternatives` / `search-classes`), then pass its CRNs verbatim as `candidates` — do not re-derive times/rooms in prose instead of the second call. |
-| `propose-schedule` | host (advisor) | Render one verified, printable schedule document | Parameters are the schedule itself — every CRN, course, credit, day/time, and room is checked against the snapshot and the call is refused on a mismatch. Look sections up first. |
-| `load-tools` | host (advisor) | Activate a category of tail tools when one you need is reported "not found" | Categories: `curriculum-extras`, `outcomes`, `wiki`, `meta` (below). One call per category needed. |
+| Tool                          | Use it to…                                                                                                                                | Watch out for                                                                                                                                                                                                                                                                            |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search-classes`              | Search by subject and/or course number, with instructor / building-room / days / time / open-seats filters                                  | **Must** scope by `subject` or `course_number` — an unscoped search is rejected. Snapshot-backed (refreshed ~05:00); pass `refresh: true` only for live seat counts, and only after scoping. Page with `offset` when `totalCount` exceeds what was returned. Instructor and room are filters here, not separate tools. |
+| `get-course-details`          | Full detail for one course (`course_code`) or one section (`crn`): description, prereqs, coreqs, credits, restrictions                      | `course_code` and `crn` are different lookups with different fields. No parsed textbook list — Banner exposes only a bookstore URL.                                                                                                                                                        |
+| `check-conflicts`             | Find time-overlapping pairs in a set of CRNs, or test `candidate_crns` against a fixed set                                                   | TBA/online sections (no meeting time) come back in `conflict_free` because there is no time to conflict — that is not a real compatibility guarantee.                                                                                                                                      |
+| `find-alternatives`           | Sections that fit around a schedule the student is keeping, given `current_crns`                                                            | Candidates are checked against every CRN in `current_crns`; it does not dedupe candidates against each other — pair with `check-conflicts` when assembling more than one new section.                                                                                                       |
+| `find-conflict-free-schedule` | Which candidate CRNs fit around already-fixed CRNs, checked pairwise both ways                                                              | Answers "what combination works", not "what exists".                                                                                                                                                                                                                                      |
+| `get-sections-by-crn`         | Confirm CRNs you already have: authoritative rows and meetings straight from the snapshot                                                   | `not_found` is the load-bearing half — it means the snapshot was read and has no such CRN. `has_snapshot: false` means nothing was checked, and `not_found` is then empty rather than listing every CRN as fake.                                                                            |
+| `resolve-crns`                | Get CRNs for course + section pairs, for schedule data that carries no CRNs                                                                 | Results align **by index** with the input. A null means no single match — none, or several. It never guesses between candidates.                                                                                                                                                           |
+| `get-schedule-freshness`      | How old the snapshot is for a term                                                                                                          | `term` is required. Ask before trusting seat counts.                                                                                                                                                                                                                                      |
+| `list-clemson-terms`          | Banner term codes                                                                                                                           | Rarely needed — the search tools default their own term.                                                                                                                                                                                                                                  |
 
-## Tail tools — behind `load-tools`
+## Catalog tools (8767)
 
-Everything below is registered but inactive until `load-tools` is called with
-the matching category. Outside the advisor (e.g. a direct NanoClaw integration
-with no dynamic tool loading), these are simply always-available MCP tools —
-`load-tools` is an advisor-only gate, not a server-side restriction.
+| Tool                        | Use it to…                                                                                                             | Notes                                                                                                                            |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `list-gc-programs`          | See which programs the catalog covers                                                                                  | Start here when a program name is uncertain; names are the registrar's ("Marketing, BS").                                        |
+| `list-gc-catalog-years`     | Get a valid `catalog_year`                                                                                             | Students are pinned to their matriculation year — never mix years.                                                                |
+| `get-gc-program-plan`       | Full semester-by-semester degree plan                                                                                  | Groups → items (`fixed_course` / `choice` / `slot`) → footnotes. Includes `source_url`; cite it.                                  |
+| `get-gc-requirement-rules`  | Named requirement slots: lab science, specialty area, technical                                                        | The `slot_type` values here are what `find-requirement-sections` expects as `requirement`.                                        |
+| `get-gc-gen-ed`             | Gen-Ed categories with minimum credits and allowed courses                                                             | Apply the `rules` constraint sentences (e.g. Social Sciences "two different fields").                                             |
+| `get-gc-course`             | One course's catalog entry                                                                                             | Catalog prose, not a section. An unreadable catalog is an ERROR here, never `found: false`.                                       |
+| `find-course-in-program`    | Whether a course appears anywhere in a program                                                                         | Searches **both** requirement stores and says so, which is what makes its `found: false` trustworthy.                             |
+| `get-program-requirements`  | Requirement rules for a minor or certificate                                                                           | Partial or misspelled names return candidates.                                                                                    |
+| `find-requirement-sections` | **The advising join** — sections that fill a named requirement slot AND are offered this term AND are prereq-eligible   | An unknown slot name returns the valid slot list inline, so retry from that list. Prereq check is AND-logic only (see below).      |
 
-**`curriculum-extras`** (8767 unless noted)
+Both servers also serve `list-skills` / `get-skill-docs` (catalog:
+`list-gc-skills` / `get-gc-skill-docs`) — that is how you are reading this. The
+catalog server's `gc-advisor` document is the advising playbook: degree-audit
+logic, specialty-area approval, lab co-requisite pairs, transfer credit.
 
-| Tool | Use it to… | Notes |
-|---|---|---|
-| `list-gc-catalog-years` | Get a valid catalog `year` | Students are pinned to their matriculation year — never mix years. |
-| `get-gc-program-plan` | Full semester-by-semester GC degree plan | Groups → items (`fixed_course` / `choice` / `slot`) → footnotes. |
-| `get-gc-requirement-rules` | Lab-science / specialty-area / technical slot rules | The `slot_type` values here are what `find-requirement-sections` expects as `requirement`. |
-| `get-gc-gen-ed` | The six Gen-Ed categories with min credits + allowed courses | Apply the `rules` constraint sentences (e.g. Social Sciences "two different fields"). |
-| `get-program-requirements` | Requirement rules for a **minor or certificate** (not the full GC BS plan) | Partial/misspelled names return candidates. |
-| `find-conflict-free-schedule` | 8766 — which candidate CRNs fit around already-fixed CRNs, checked pairwise both ways | Grouped here because it answers a curriculum-shaped "what combination works" question, not a bare lookup. |
-
-**`outcomes`** — aggregate GC graduate-outcome data (gc_alumni): `about` (call
-first — caveats and data provenance), `top_first_jobs`, `starting_salary`,
-`top_skills`, `where_grads_work`, `common_next_step`.
-
-**`wiki`** — curriculum wiki lookups (gc_curriculum_wiki): `list_wiki`,
-`read_wiki`, `search_wiki`, `coverage_for_target`, `prereq_chain`,
-`search_curriculum`.
-
-**`meta`** — operational lookups: `list-skills`, `get-skill-docs` (advising
-skill index — GC scheduling/tool workflows, requirement rules, how the
-assistant works), `check-system-health` (pings each data source + the
-inference backends), `get-schedule-freshness` (8766 — snapshot age for a term,
-no Banner load; unlike the tools above, `term` is **required**, not defaulted),
-`list-clemson-terms` (8766 — Banner term codes; rarely needed since every
-other tool above defaults its own term).
-
-For deeper GC advising domain rules — degree-audit logic, specialty-area
-approval, lab co-requisite pairs, internships, transfer credit, scheduling
-heuristics — consult the **`gc-advisor`** skill (`list-gc-skills` /
-`get-gc-skill-docs` on 8767, or `list-skills` / `get-skill-docs` from the
-advisor once `meta` is loaded). This document is the tool index + scheduling
-workflows; `gc-advisor` is the advising playbook.
+**Your host may add its own tools** — rendering a schedule, saving a document,
+activating tool categories. Those are not from these servers, are not described
+here, and their absence says nothing about the data.
 
 ---
 
 ## Standard workflows
 
 **Open sections for a subject**
-`search-classes { subject, open_seats_only }` → `get-course-details { crn }`
-for any CRN needing full detail.
+`search-classes { subject, open_seats_only }` → `get-course-details { crn }` for
+any CRN needing full detail.
 
 **Does a proposed schedule conflict?**
 Collect CRNs (`search-classes` / `find-requirement-sections`) →
 `check-conflicts { crns }`.
 
-**Show a student a few section choices side by side**
-`find-alternatives { current_crns, subject/days/… }` (or `search-classes` /
-`find-requirement-sections`) → `show-schedule-options { term, current_crns,
-candidates }` with the finder's CRNs, verbatim.
+**Verify a schedule someone gave you**
+`get-sections-by-crn { term, crns }` — check `not_found` before believing any
+CRN a person or a model produced. If the schedule names courses and sections but
+no CRNs, `resolve-crns` first.
 
 **Find eligible sections for a requirement slot**
 `find-requirement-sections { requirement, completed_courses, …constraints }` —
-an unknown `requirement` name returns the valid slot list inline, so this is
-usually one call, two at most. `check-conflicts` to confirm fit against
-anything already fixed.
-
-**Room or instructor lookup**
-`search-classes { subject or course_number, building_room }` or
-`search-classes { subject or course_number, instructor }` — both are filters
-on the same tool now, not separate lookups.
+an unknown `requirement` returns the valid slot list inline, so this is usually
+one call, two at most. Then `check-conflicts` against anything already fixed.
 
 **Full advising session**
-`load-tools { category: "curriculum-extras" }` → `get-gc-program-plan`
-(identify open slots) → `get-gc-requirement-rules` (explicit courses / slot names for open slots) →
-`find-requirement-sections` per open slot → `check-conflicts` on the candidate
-set → `propose-schedule` on the final proposal. For lab pairs, confirm **both**
-halves have seats and don't conflict.
+`get-gc-program-plan` (identify open slots) → `get-gc-requirement-rules`
+(explicit courses and slot names for those slots) → `find-requirement-sections`
+per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
+**both** halves have seats and do not conflict.
 
 ---
 
@@ -132,18 +110,15 @@ halves have seats and don't conflict.
   guarantee of real compatibility.
 - **Snapshot lag.** The schedule snapshot refreshes ~05:00; seat counts can be
   ~24h old. Fine for "what are the sections?"; for "is there a seat right now?"
-  use `search-classes { refresh: true }` (scoped first) or Banner directly.
-  `find-requirement-sections` and `find-alternatives` do not have a live-refresh
-  option — only `search-classes` does.
-- **Day ordering is MTWRFSU.** Meeting days are always Monday-first: M T W R F
-  S U (S = Saturday, U = Sunday). A MWF class is `"MWF"`, never `"FMW"`.
-- **`find-requirement-sections` is GC-only and needs a snapshot.** The join is
-  between the Banner snapshot and `gc_advisor.db`, so only GC programs/rules are
-  queryable, and a term with no snapshot yet (a newly opened term before ~05:00)
-  errors — retry after the next daily refresh. For non-GC programs, use
-  `search-classes` with course codes from `get-gc-program-plan` or
-  `get-program-requirements`.
-- **No standalone instructor/room tools.** What used to be dedicated
-  instructor- and room-lookup tools are now `instructor` and `building_room`
-  filters on `search-classes` — there is no separate "every section a faculty
-  member teaches" or "busy/free blocks for a room" call.
+  use `search-classes { refresh: true }` (scoped first). `find-requirement-sections`
+  and `find-alternatives` have no live-refresh option — only `search-classes` does.
+- **Day ordering is MTWRFSU.** Meeting days are always Monday-first: M T W R F S
+  U (S = Saturday, U = Sunday). A MWF class is `"MWF"`, never `"FMW"`.
+- **`find-requirement-sections` needs both data sets.** It joins the Banner
+  snapshot to the catalog database, so a term with no snapshot yet (a newly
+  opened term before the daily refresh) errors — retry after the next refresh.
+  For programs whose rules it does not cover, use `search-classes` with course
+  codes from `get-gc-program-plan` or `get-program-requirements`.
+- **No standalone instructor or room tools.** They are `instructor` and
+  `building_room` filters on `search-classes`; there is no "every section a
+  faculty member teaches" or "free blocks for a room" call.

@@ -19,16 +19,18 @@ npm run typecheck
 
 Three data artifacts are not in git and must be provided:
 
-| Artifact                | What it is                                 | Where it comes from                                                 |
-| ----------------------- | ------------------------------------------ | ------------------------------------------------------------------- |
-| `core/db/gc_advisor.db` | Curriculum catalog, ~5.7 MB                | Built by the Python pipeline, or copied from a machine that has one |
-| `state/clemson/*.db`    | Banner class-schedule snapshots, ~21 MB    | The refresh job (§4)                                                |
-| `.env`                  | Per-server bearer tokens and bind settings | Written at deploy time (§2)                                         |
+| Artifact                | What it is                                 | Where it comes from                                                               |
+| ----------------------- | ------------------------------------------ | --------------------------------------------------------------------------------- |
+| `core/db/gc_advisor.db` | Curriculum catalog, ~5.7 MB                | Built here by `core/scripts/rebuild_db.sh`, or copied from a machine that has one |
+| `state/clemson/*.db`    | Banner class-schedule snapshots, ~21 MB    | The refresh job (§4)                                                              |
+| `.env`                  | Per-server bearer tokens and bind settings | Written at deploy time (§2)                                                       |
 
-**The catalog database is built here, from this repository.** The scraper, its
-parsers, and its cached corpus all travel with the code: `core/data/raw` holds
-5,096 scraped catalog pages across nine catalog years plus a content-addressed
-cache of prior LLM extractions. That cache is what makes a rebuild minutes
+**The catalog database is built here, from this repository** — or copied from a
+machine that already built one, which is faster when one exists. Those are the
+only two ways to get it, and both are supported; nothing else in this repository
+should suggest otherwise. The scraper, its parsers, and its cached corpus all
+travel with the code: `core/data/raw` holds 6,057 scraped catalog pages across
+nine catalog years plus 326 content-addressed cached model extractions. That cache is what makes a rebuild minutes
 rather than hours — without it, every minor and certificate page would go back
 through a language model.
 
@@ -91,6 +93,29 @@ MCP_CATALOG_HTTP_PORT=8767
 proxy runs on the same host. Set it only for a proxy on a different address, and
 set it to the **proxy's** address, never to a client range.
 
+### Every variable the servers read
+
+`deploy/env.example` carries the ones a deployment sets. This is the complete
+list, so "what else could be configured here?" has an answer that is not a grep.
+
+| Variable                                             | Default                        | What it does                                                                                            |
+| ---------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `MCP_TRANSPORT`                                      | `stdio`                        | `http` to serve over the network. launchd sets it via `.env`                                            |
+| `MCP_PUBLIC_HTTP_HOST` / `_PORT`                     | `127.0.0.1` / `8766`           | Schedule server bind                                                                                    |
+| `MCP_CATALOG_HTTP_HOST` / `_PORT`                    | `127.0.0.1` / `8767`           | Catalog server bind                                                                                     |
+| `MCP_PUBLIC_AUTH_TOKEN` / `MCP_CATALOG_AUTH_TOKEN`   | unset                          | Optional shared fallback token per server (§2, Tokens)                                                  |
+| `MCP_TRUSTED_PROXIES`                                | loopback                       | Whose `X-Forwarded-For` is believed                                                                     |
+| **Rarely set**                                       |                                |                                                                                                         |
+| `MCP_CONSUMER_RATE_LIMIT`                            | `600`                          | Per-credential requests/minute. Garbage falls back to the default rather than disabling the limit       |
+| `MCP_USAGE_ANALYTICS`                                | on                             | `off` disables the usage ledger. The test suite sets it                                                 |
+| `MCP_ANALYTICS_DIR`                                  | `$STATE_DIR/analytics`         | Where the ledger is written                                                                             |
+| `STATE_DIR`                                          | `./state`                      | Snapshots, registries, ledger                                                                           |
+| `POLICY_DIR`                                         | `./policy`                     | Where `action-policy.yaml` is read from. A bad path now refuses to start rather than serving zero tools |
+| `GC_ADVISOR_DB`                                      | `core/db/gc_advisor.db`        | The catalog database                                                                                    |
+| `GC_ADVISOR_SKILLS`                                  | `core/skills`                  | The catalog server's skill documents                                                                    |
+| `LOG_FILE`, `LOG_LEVEL`, `LOG_MAX_BYTES`, `LOG_KEEP` | see `src/log.ts`               | Application log destination and rotation                                                                |
+| `MCP_LOG_PATTERN`                                    | `advising-mcp.{which}.err.log` | Where `mcp:health` looks for startup lines                                                              |
+
 ### Tokens
 
 ```bash
@@ -104,6 +129,25 @@ The raw token prints **once**. Each server has its own registry, so pair an
 agent that needs both against both. A mint or revoke takes effect on the next
 request — no restart. One token per consumer, always: sharing one is what makes
 the usage ledger meaningless.
+
+**Rotation.** There is no in-place rotation, deliberately — a token is a hash on
+disk and the raw value is unrecoverable, so rotating is revoke-then-mint:
+
+```bash
+npm run mcp:pair -- --server public --revoke <agent>   # effective immediately
+npm run mcp:pair -- --server public --id <agent>       # new token, printed once
+```
+
+Rotating the **shared** token instead means editing `.env` and restarting both
+servers, which is one reason to prefer per-consumer tokens. Back `.env` up
+before editing it; it is not in git and holds the only copy.
+
+**Scopes.** A consumer entry may carry a `scopes` list (`clemson.schedule`,
+`clemson.catalog`, `host`), which narrows both `tools/list` and `tools/call`.
+`mcp:pair` has no flag for it: set it by editing the consumer's entry in
+`state/mcp-consumers-<server>.json` (0600) and it takes effect on the next
+request. Most deployments do not need it — the servers are already split by
+data set.
 
 ---
 
@@ -157,7 +201,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://<host>:8443/nonesuch/          
 #    (Post an initialize with the schedule token to /catalog/ — expect 401.)
 
 # 4. The server now attributes the real caller, not the proxy.
-tail -2 ~/Library/Logs/*.mcp-public.log   # source must be the client, not 127.0.0.1
+tail -2 ~/Library/Logs/advising-mcp.public.log   # source must be the client, not 127.0.0.1
 ```
 
 Step 4 catches a genuinely silent misconfiguration: if `MCP_TRUSTED_PROXIES`
@@ -176,8 +220,18 @@ servers keep answering, confidently, from an old snapshot. See
 npm run clemson:refresh
 ```
 
-Schedule it daily. Every tool that reads schedule data reports a `data as of`
-timestamp, so a client can see staleness — but only a client that looks.
+`deploy/install.sh` installs this as a launchd job at 05:00 daily
+(`edu.clemson.advising-mcp.refresh`). Every tool that reads schedule data
+reports a `data as of` timestamp, so a client can see staleness — but only a
+client that looks.
+
+What it does to Banner, since it is someone else's production system: one sweep
+per live term (currently seven), pages of 500 sections capped at 40 pages,
+200–400 ms between requests, 1 s between terms, at most three attempts per term,
+and `Connection: close` on every request. A scan that does not complete is
+discarded rather than written, and the refresh reports `FAILED` for that term
+rather than reporting success over an unchanged snapshot. See `security.md`,
+"What leaves this machine".
 
 The curriculum catalog changes annually, not daily. Rebuild it when Clemson
 publishes a new catalog year, on a build machine, then copy the `.db` across and
@@ -194,10 +248,10 @@ opens its database, or shells into `core/`.
 ```bash
 git clone <repo> && cd clemson-advising-mcp
 npm ci                                  # NOT a symlinked node_modules — see below
-cp deploy/env.example .env              # then fill it in (s2)
-# copy core/db/gc_advisor.db from the build box (s1)
+cp deploy/env.example .env              # then fill it in (§2)
+# provide core/db/gc_advisor.db: build it (§1) or copy one across (§1)
 npm run clemson:refresh                 # first schedule snapshot
-npm test                                # 0 fail, 0 skipped
+npm run test:gate                       # 0 fail, 0 skipped
 bash deploy/install.sh
 ```
 
@@ -231,6 +285,20 @@ It needs no bearer token — everything it checks is observable without one, and
 a health check that holds a credential is a health check that can leak one.
 Alert on its exit code, and specifically on `schedule:freshness`: the refresh
 job failing is silent, and it is the failure this system actually has.
+
+### The current deployment, as of 2026-08-28
+
+Stated so a reviewer is not guessing. Both servers run under **launchd as a
+per-user GUI agent** (`~/Library/LaunchAgents/edu.clemson.advising-mcp.*`) on a
+macOS machine, bound to loopback, behind a Caddy reverse proxy that terminates
+TLS on `gcworkflow.clemson.edu:8443` and maps two path prefixes to the two
+servers. The certificate is a manually renewed campus InCommon certificate.
+
+Two consequences of a per-user agent worth knowing: it starts at login, not at
+boot, so an unattended reboot leaves the service down until someone logs in; and
+it runs as that user, with that user's file permissions. A machine that will be
+rebooted unattended should use a system daemon (`/Library/LaunchDaemons`) or a
+managed VM instead — `capacity.md` §3 covers the hosting options.
 
 ## 4c. Taking over from a co-located installation
 
@@ -299,16 +367,16 @@ tool list is verified**.
 On macOS/launchd:
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.<label>.mcp-public-http
-launchctl kickstart -k gui/$(id -u)/com.<label>.mcp-catalog-http
+launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.public
+launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.catalog
 ```
 
 Then read the startup line, which is the single most informative log this system
 produces — it names the bind, the consumer count, and every tool being served:
 
 ```bash
-tail -1 ~/Library/Logs/*.mcp-public.err.log
-tail -1 ~/Library/Logs/*.mcp-catalog.err.log
+tail -1 ~/Library/Logs/advising-mcp.public.err.log
+tail -1 ~/Library/Logs/advising-mcp.catalog.err.log
 ```
 
 If the tool you just added is not in that line, the restart did not pick up your
