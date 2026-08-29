@@ -13,7 +13,30 @@ separate section — the limitations we know about and have not fixed.
 published class schedule and the College of Business published curriculum —
 information already on Clemson's public web pages. A full compromise of this
 service yields data that is public by definition, plus the consumer token
-registry (hashes, not tokens) and a usage ledger.
+registry (hashes, not tokens), a usage ledger, and the one reference file
+described below.
+
+**The one input that is not published: room capacities.**
+`data/clemson-room-capacity.json` maps 435 `building|room` keys to a seat count
+(9–600). It came from a **CuSectionOverview export, Fall 2026 (202608), taken by
+hand on 2026-07-21** — a report behind Clemson SSO, not a public page. Banner's
+public feed carries no room capacity at all, which is why it exists.
+
+It is named here rather than left implicit, because "everything in this
+repository is already published" is the claim the rest of this document rests
+on, and this file is the exception. What it contains is seat counts for rooms:
+no names, no identifiers, no enrolment, no schedule — verified before it was
+committed. What it costs an attacker who obtains it is knowledge of how many
+seats are in Daniel 415. It is committed rather than kept in `state/` because
+the nightly refresh rebuilds everything in `state/` and cannot rebuild this: if
+it is lost it needs another manual export from behind SSO.
+
+Two operational notes. No tool currently returns this field to a caller — it is
+computed onto meeting records and dropped before serialisation — so today it
+affects nothing a client sees. And it is a point-in-time snapshot: a renovated
+or re-measured room goes quietly stale, so it is a planning aid and never an
+authority. An unknown room yields `null`, never `0`, because `0` would read as
+"this room seats nobody" rather than "we do not know".
 
 That is the control that does the most work, and it is worth stating before the
 authentication details, because every control below is defence for a low-value
@@ -36,6 +59,7 @@ have no student-record storage of any kind.
 | Student records, grades, DegreeWorks derivatives | Never in this repo; excluded by the extraction audit |
 | LLM API keys, the advisor, the chat UI           | The advisor's own repository                         |
 | Any write path to a Clemson system of record     | Does not exist — every tool is read-only             |
+| Anything else sourced from behind Clemson SSO    | Only the room-capacity file above, and it is named   |
 
 The extraction that produced this repository ran a blocking audit over the full
 published history for exactly these categories. See `operations.md`,

@@ -13,14 +13,14 @@ records, credentials, or any write path into a system of record.
 
 ## At a glance
 
-|                         |                                                                                                       |
-| ----------------------- | ----------------------------------------------------------------------------------------------------- |
-| **What data**           | Clemson's published class schedule and published College of Business curriculum                       |
-| **Where it comes from** | Banner (`regssb.sis.clemson.edu`) daily; the online catalog (`catalog.clemson.edu`) annually          |
-| **Who can reach it**    | Callers holding a bearer token this deployment issued — there is no anonymous access                  |
-| **How**                 | HTTPS to a reverse proxy on campus, which forwards to loopback-only servers                           |
-| **What it never holds** | Student records, grades, DegreeWorks data, mail, LLM keys, any credential but its own consumer tokens |
-| **Where it runs**       | One small machine; see `docs/capacity.md` for why cheap hardware is defensible                        |
+|                         |                                                                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **What data**           | Clemson's published class schedule and published College of Business curriculum, plus one non-published reference file of room seat counts (`docs/security.md` §1) |
+| **Where it comes from** | Banner (`regssb.sis.clemson.edu`) daily; the online catalog (`catalog.clemson.edu`) annually                                                                       |
+| **Who can reach it**    | Callers holding a bearer token this deployment issued — there is no anonymous access                                                                               |
+| **How**                 | HTTPS to a reverse proxy on campus, which forwards to loopback-only servers                                                                                        |
+| **What it never holds** | Student records, grades, DegreeWorks data, mail, LLM keys, any credential but its own consumer tokens                                                              |
+| **Where it runs**       | One small machine; see `docs/capacity.md` for why cheap hardware is defensible                                                                                     |
 
 ---
 
