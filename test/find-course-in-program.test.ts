@@ -2,7 +2,7 @@
 //
 // Regression origin: "what is the PCID requirement for GC students" was
 // answered "no such requirement exists". PCID 3040/3140 is a real one-of choice
-// slot in the GC plan; the advisor had called only get-gc-requirement-rules,
+// slot in the GC plan; the advisor had called only get-requirement-rules,
 // which reads the OTHER store. These tests pin that a course question is now
 // answerable from one call, and — just as important — that a not-found is
 // distinguishable from a wrong-store miss.

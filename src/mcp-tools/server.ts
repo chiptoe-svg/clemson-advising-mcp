@@ -487,8 +487,8 @@ function buildServer(name: string, principal?: Principal): Server {
       _meta: {
         ...(r._meta ?? {}),
         [SKILLS_VERSION_META_KEY]: currentSkillsVersion(),
-        [SKILLS_DOC_TOOL_META_KEY]: toolMap.has("get-gc-skill-docs")
-          ? "get-gc-skill-docs"
+        [SKILLS_DOC_TOOL_META_KEY]: toolMap.has("get-catalog-skill-docs")
+          ? "get-catalog-skill-docs"
           : "get-skill-docs",
       },
     });

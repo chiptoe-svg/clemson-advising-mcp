@@ -280,7 +280,7 @@ export function makeFindRequirementSections(
           requirement: {
             type: "string",
             description:
-              "Requirement slot to fill, from get-gc-requirement-rules, " +
+              "Requirement slot to fill, from get-requirement-rules, " +
               "e.g. 'Specialty Area Requirement'. An unknown value returns " +
               "the valid slot list for the resolved program/catalog year.",
           },
@@ -384,7 +384,7 @@ export function makeFindRequirementSections(
       if (!requirement) {
         return err(
           "requirement is required — the requirement slot name (from " +
-            "get-gc-requirement-rules), e.g. 'Specialty Area Requirement'.",
+            "get-requirement-rules), e.g. 'Specialty Area Requirement'.",
         );
       }
 
@@ -451,9 +451,9 @@ export function makeFindRequirementSections(
           return err(
             catalogYear
               ? `Program "${programName}" not found for catalog year "${catalogYear}" in catalog.db. ` +
-                  "Check the year and name with get-gc-program-plan, or omit catalog_year for the latest."
+                  "Check the year and name with get-program-plan, or omit catalog_year for the latest."
               : `Program "${programName}" not found in catalog.db. ` +
-                  "Check the name with get-gc-program-plan.",
+                  "Check the name with get-program-plan.",
           );
         }
 
@@ -466,7 +466,7 @@ export function makeFindRequirementSections(
         if (!rule) {
           // Unknown slot — the discriminator redirect: list the valid slot
           // names inline (from gc_advisor's req-rules bridge) rather than
-          // making the caller round-trip to get-gc-requirement-rules itself.
+          // making the caller round-trip to get-requirement-rules itself.
           const yearLabel = resolvedYear;
           let validSlots: string[] = [];
           try {
@@ -523,7 +523,7 @@ export function makeFindRequirementSections(
             note:
               "This requirement rule has no explicit course list — it may be " +
               "satisfied by a declared minor or a broad course category. " +
-              "Use get-gc-requirement-rules for the full raw_text.",
+              "Use get-requirement-rules for the full raw_text.",
           });
         }
 
@@ -688,7 +688,7 @@ export const getProgramRequirements: McpToolDefinition = {
       "Use for 'what does the Accounting minor require?'. Partial/misspelled " +
       "names return candidate program names to pick from. Some majors also " +
       "have a full semester-by-semester plan — the response lists which " +
-      "(programs_with_full_plan); use get-gc-program-plan for those. " +
+      "(programs_with_full_plan); use get-program-plan for those. " +
       "Takes program + catalog_year; there is no default program.",
     inputSchema: {
       type: "object" as const,

@@ -1,14 +1,14 @@
 // Regression test for the byte-identical `list-skills`/`get-skill-docs` copies
 // that src/mcp-catalog.ts renames onto the catalog server (8767) as
-// `list-gc-skills`/`get-gc-skill-docs`.
+// `list-catalog-skills`/`get-catalog-skill-docs`.
 //
 // Before this fix, the rename moved the name but kept the text verbatim, so:
 //   1. A model holding both servers' tool lists could not tell the two
 //      corpora apart (8766 = public advising skill; 8767 = GC advisor
 //      skills) — the descriptions read identically.
-//   2. get-gc-skill-docs said "Use list-skills to discover available skill
+//   2. get-catalog-skill-docs said "Use list-skills to discover available skill
 //      names" — the OTHER server's tool, not its own sibling
-//      list-gc-skills.
+//      list-catalog-skills.
 //
 // This test validates the REAL shipped renames, not a hand-copied duplicate
 // of them. src/mcp-catalog.ts is not imported directly: that module calls
@@ -16,11 +16,11 @@
 // which is not safe to trigger from a unit test. Instead this loads the same
 // barrel mcp-catalog.ts loads (index-catalog.ts, which registers list-skills
 // / get-skill-docs under their bare public names) and then calls the REAL
-// applyGcSkillRenames() from gc-skill-renames.ts — the exact function
+// applyCatalogSkillRenames() from catalog-skill-renames.ts — the exact function
 // mcp-catalog.ts calls at module load — so a regression in either the
 // override text or the rename mechanism itself is caught. If someone edits
-// the shipped override text in gc-skill-renames.ts (e.g. reintroduces the
-// get-gc-skill-docs -> "list-skills" pointer bug), this test must fail.
+// the shipped override text in catalog-skill-renames.ts (e.g. reintroduces the
+// get-catalog-skill-docs -> "list-skills" pointer bug), this test must fail.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -32,9 +32,9 @@ import {
 } from "../src/mcp-tools/server.ts";
 import { __skillTools } from "../src/mcp-tools/skills.ts";
 import {
-  GC_SKILL_RENAMES,
-  applyGcSkillRenames,
-} from "../src/mcp-tools/gc-skill-renames.ts";
+  CATALOG_SKILL_RENAMES,
+  applyCatalogSkillRenames,
+} from "../src/mcp-tools/catalog-skill-renames.ts";
 import type { McpToolDefinition } from "../src/mcp-tools/types.ts";
 
 /** Tool.description is optional on the SDK type; every tool here always sets it. */
@@ -47,17 +47,17 @@ function requireDescription(t: McpToolDefinition): string {
 }
 
 function renameFor(to: string) {
-  const rename = GC_SKILL_RENAMES.find((r) => r.to === to);
+  const rename = CATALOG_SKILL_RENAMES.find((r) => r.to === to);
   assert.ok(
     rename,
-    `expected GC_SKILL_RENAMES to contain a rename targeting "${to}"`,
+    `expected CATALOG_SKILL_RENAMES to contain a rename targeting "${to}"`,
   );
   return rename;
 }
 
-// Capture the public server's descriptions BEFORE renaming: applyGcSkillRenames
+// Capture the public server's descriptions BEFORE renaming: applyCatalogSkillRenames
 // mutates the tool objects __skillTools references in place, so reading these
-// after the rename would just return the new (GC) text.
+// after the rename would just return the new (catalog) text.
 const publicListSkillsDescription = requireDescription(__skillTools.listSkills);
 const publicGetSkillDocsDescription = requireDescription(
   __skillTools.getSkillDocs,
@@ -65,50 +65,53 @@ const publicGetSkillDocsDescription = requireDescription(
 
 // The REAL renames, applied exactly as src/mcp-catalog.ts applies them at
 // module load — no hand-copied duplicate of the override text here.
-applyGcSkillRenames();
+applyCatalogSkillRenames();
 
-const GC_PHRASE = /Graphic Communications|GC advisor/;
+// The catalog copies must SAY they are the catalog server's — the gc- prefix
+// (and GC-flavored description text) was dropped 2026-08-31 when every gc-
+// tool name went; the differentiation requirement itself is unchanged.
+const CATALOG_PHRASE = /catalog server|catalog-server/;
 
-test("list-gc-skills is renamed and its description matches GC_SKILL_RENAMES and differs from the public list-skills text", () => {
-  assert.equal(__skillTools.listSkills.tool.name, "list-gc-skills");
+test("list-catalog-skills is renamed and its description matches CATALOG_SKILL_RENAMES and differs from the public list-skills text", () => {
+  assert.equal(__skillTools.listSkills.tool.name, "list-catalog-skills");
   const desc = requireDescription(__skillTools.listSkills);
   assert.equal(
     desc,
-    renameFor("list-gc-skills").description,
-    "the registered description must equal GC_SKILL_RENAMES's description",
+    renameFor("list-catalog-skills").description,
+    "the registered description must equal CATALOG_SKILL_RENAMES's description",
   );
   assert.notEqual(
     desc,
     publicListSkillsDescription,
-    "list-gc-skills must not carry the public server's byte-identical text",
+    "list-catalog-skills must not carry the public server's byte-identical text",
   );
-  assert.match(desc, GC_PHRASE);
+  assert.match(desc, CATALOG_PHRASE);
 });
 
-test("get-gc-skill-docs is renamed and its description matches GC_SKILL_RENAMES and differs from the public get-skill-docs text", () => {
-  assert.equal(__skillTools.getSkillDocs.tool.name, "get-gc-skill-docs");
+test("get-catalog-skill-docs is renamed and its description matches CATALOG_SKILL_RENAMES and differs from the public get-skill-docs text", () => {
+  assert.equal(__skillTools.getSkillDocs.tool.name, "get-catalog-skill-docs");
   const desc = requireDescription(__skillTools.getSkillDocs);
   assert.equal(
     desc,
-    renameFor("get-gc-skill-docs").description,
-    "the registered description must equal GC_SKILL_RENAMES's description",
+    renameFor("get-catalog-skill-docs").description,
+    "the registered description must equal CATALOG_SKILL_RENAMES's description",
   );
   assert.notEqual(
     desc,
     publicGetSkillDocsDescription,
-    "get-gc-skill-docs must not carry the public server's byte-identical text",
+    "get-catalog-skill-docs must not carry the public server's byte-identical text",
   );
-  assert.match(desc, GC_PHRASE);
+  assert.match(desc, CATALOG_PHRASE);
 });
 
-test("get-gc-skill-docs points at its own sibling, not the public server's tool", () => {
+test("get-catalog-skill-docs points at its own sibling, not the public server's tool", () => {
   const desc = requireDescription(__skillTools.getSkillDocs);
-  // "list-gc-skills" contains neither the substring "list-skills" nor
+  // "list-catalog-skills" contains neither the substring "list-skills" nor
   // "get-skill-docs" (the "-gc-" infix breaks both), so a plain .includes
   // check is safe here and cannot pass by accident via the new name.
   assert.ok(
-    desc.includes("list-gc-skills"),
-    `expected a self-consistent pointer to list-gc-skills, got: ${desc}`,
+    desc.includes("list-catalog-skills"),
+    `expected a self-consistent pointer to list-catalog-skills, got: ${desc}`,
   );
   assert.ok(
     !desc.includes("list-skills"),

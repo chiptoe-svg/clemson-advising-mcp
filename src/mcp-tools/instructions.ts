@@ -76,8 +76,8 @@ a wrong answer to a real advisor:
 
 - A PROGRAM'S REQUIREMENTS LIVE IN TWO SEPARATE STORES. The named requirement
   slots (lab science, specialty area, technical, REACH) come from
-  \`get-gc-requirement-rules\`. Everything else — most required courses, and all
-  one-of choice slots — lives in the semester plan from \`get-gc-program-plan\`.
+  \`get-requirement-rules\`. Everything else — most required courses, and all
+  one-of choice slots — lives in the semester plan from \`get-program-plan\`.
   NEITHER tool sees the other's data.
   Therefore: a course absent from one of them is NOT absent from the degree.
   To answer "does this program require X" or "what is the X requirement", call
@@ -122,7 +122,7 @@ export function serverInstructions(
     "that version and re-read when it differs.",
     "",
     "SKILL DOCUMENTS AND STALENESS. `list-skills` / `get-skill-docs` (named",
-    "`list-gc-skills` / `get-gc-skill-docs` on the catalog server) carry longer",
+    "`list-catalog-skills` / `get-catalog-skill-docs` on the catalog server) carry longer",
     "worked examples. Fetch them ONCE and reuse them — but every tool result",
     'carries `_meta["cuassistant/skillsVersion"]`, a digest of the skill',
     "documents' content. Record it when you fetch the docs; if a later result",

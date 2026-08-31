@@ -1,4 +1,4 @@
-// list-gc-programs and get-gc-course (2026-08-28).
+// list-programs and get-course (2026-08-28).
 //
 // These exist so the advisor's Program selector and course hover card can read
 // the catalog over MCP instead of opening catalog.db directly — the coupling
@@ -185,7 +185,7 @@ test("THE TOOL reports an unreadable catalog as an ERROR, not as found:false", a
     await import("./src/mcp-tools/index-catalog.ts");
     const tools = __registeredToolsForTest();
     const out = {};
-    for (const name of ["get-gc-course", "list-gc-programs"]) {
+    for (const name of ["get-course", "list-programs"]) {
       const t = tools.find((x) => x.tool.name === name);
       const res = await t.handler({ course: "GC 4061" });
       out[name] = {
@@ -213,22 +213,22 @@ test("THE TOOL reports an unreadable catalog as an ERROR, not as found:false", a
   >;
 
   assert.equal(
-    out["get-gc-course"]!.isError,
+    out["get-course"]!.isError,
     true,
-    `an unopenable catalog must ERROR, got: ${out["get-gc-course"]!.text}`,
+    `an unopenable catalog must ERROR, got: ${out["get-course"]!.text}`,
   );
   assert.match(
-    out["get-gc-course"]!.text,
+    out["get-course"]!.text,
     /NOT the same as the course not existing/,
     "and must say so, because the caller cannot tell otherwise",
   );
   assert.equal(
-    out["list-gc-programs"]!.isError,
+    out["list-programs"]!.isError,
     true,
-    `an unopenable catalog must ERROR, not return zero programs, got: ${out["list-gc-programs"]!.text}`,
+    `an unopenable catalog must ERROR, not return zero programs, got: ${out["list-programs"]!.text}`,
   );
   assert.match(
-    out["list-gc-programs"]!.text,
+    out["list-programs"]!.text,
     /NOT the same as there being no programs/,
   );
 });
@@ -278,18 +278,18 @@ test("both tools are registered and reachable through a real MCP client", async 
   try {
     const names = (await client.listTools()).tools.map((t) => t.name);
     assert.ok(
-      names.includes("list-gc-programs"),
-      `list-gc-programs missing from ${names.join(", ")}`,
+      names.includes("list-programs"),
+      `list-programs missing from ${names.join(", ")}`,
     );
     assert.ok(
-      names.includes("get-gc-course"),
-      `get-gc-course missing from ${names.join(", ")}`,
+      names.includes("get-course"),
+      `get-course missing from ${names.join(", ")}`,
     );
 
     if (skip) return; // the calls below need the catalog DB
 
     const progs = (await client.callTool({
-      name: "list-gc-programs",
+      name: "list-programs",
       arguments: {},
     })) as {
       isError?: boolean;
@@ -297,7 +297,7 @@ test("both tools are registered and reachable through a real MCP client", async 
     };
     assert.ok(
       !progs.isError,
-      "list-gc-programs must not error with a loaded catalog",
+      "list-programs must not error with a loaded catalog",
     );
     assert.ok(
       Array.isArray(progs.structuredContent?.programs) &&
@@ -306,7 +306,7 @@ test("both tools are registered and reachable through a real MCP client", async 
     );
 
     const miss = (await client.callTool({
-      name: "get-gc-course",
+      name: "get-course",
       arguments: { course: "ZZZZ 9999" },
     })) as {
       isError?: boolean;
@@ -325,7 +325,7 @@ test("both tools are registered and reachable through a real MCP client", async 
     );
 
     const junk = (await client.callTool({
-      name: "get-gc-course",
+      name: "get-course",
       arguments: { course: "not a course" },
     })) as { isError?: boolean };
     assert.ok(junk.isError, "junk input must fail as junk, never as a miss");

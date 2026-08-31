@@ -17,12 +17,12 @@ skill document alongside this one.
 
 | Tool | Use for |
 |---|---|
-| `list-gc-programs` | Which programs the catalog covers — the valid `program` values |
-| `list-gc-catalog-years` | Valid year strings — fallback when `catalog_year` isn't already resolved |
-| `get-gc-program-plan` | Full degree plan for a program + catalog year (groups → items → footnotes) |
-| `get-gc-requirement-rules` | Named requirement slots with explicit courses, advisor additions/denials, wildcards |
-| `get-gc-gen-ed` | 6 gen-ed categories with min credits and allowed course lists |
-| `get-gc-course` | One course's catalog entry (title, credits, description) |
+| `list-programs` | Which programs the catalog covers — the valid `program` values |
+| `list-catalog-years` | Valid year strings — fallback when `catalog_year` isn't already resolved |
+| `get-program-plan` | Full degree plan for a program + catalog year (groups → items → footnotes) |
+| `get-requirement-rules` | Named requirement slots with explicit courses, advisor additions/denials, wildcards |
+| `get-gen-ed` | 6 gen-ed categories with min credits and allowed course lists |
+| `get-course` | One course's catalog entry (title, credits, description) |
 | `get-program-requirements` | What a minor or certificate requires |
 | `get-course-details` | (schedule server) catalog info incl. prereqs/coreqs by `course_code`, or one live section by `crn` |
 
@@ -36,7 +36,7 @@ them.
 
 ## Data shapes
 
-**`get-gc-program-plan`** returns:
+**`get-program-plan`** returns:
 ```
 {
   name, total_credits,          // e.g. "Marketing, BS", 120
@@ -57,7 +57,7 @@ them.
 }
 ```
 
-**`get-gc-requirement-rules`** returns:
+**`get-requirement-rules`** returns:
 ```
 [{
   slot_type,                    // matches slot items in the program plan
@@ -73,7 +73,7 @@ them.
 }]
 ```
 
-**`get-gc-gen-ed`** returns:
+**`get-gen-ed`** returns:
 ```
 [{
   name,                         // e.g. "Natural Sciences with Lab"
@@ -97,7 +97,7 @@ guessed from prose — say so rather than stating it as fact.
 Every answer is pinned to a catalog year.
 1. If the selected year may not be the student's, ask which **catalog year**
    governs their degree (typically the year they entered).
-2. If the valid options are unknown, call `list-gc-catalog-years`.
+2. If the valid options are unknown, call `list-catalog-years`.
 3. "Most recent" means the latest year from that list.
 4. Use one year in **every** subsequent call. Do not mix years.
 
@@ -107,19 +107,19 @@ Every answer is pinned to a catalog year.
 
 When a student shares their completed courses and asks what they still need:
 
-1. Call `get-gc-program-plan` for their program and catalog year.
+1. Call `get-program-plan` for their program and catalog year.
 2. Walk every item in every group:
    - **`fixed_course`**: satisfied if `course_code` is in the completed list.
    - **`choice`**: satisfied if **any** code in `one_of` is in the completed list.
    - **`slot`**: satisfied per the requirement rule for that `slot_type`.
-3. Call `get-gc-requirement-rules` and match rules to slot items by `slot_type`.
+3. Call `get-requirement-rules` and match rules to slot items by `slot_type`.
    **What counts toward a slot is more than `explicit_courses`**: apply
    `explicit_courses` + `advisor_courses` − `advisor_denies` + the rule's
    `wildcards` (which may carry per-family credit caps). Where a rule offers a
    minor path (`satisfy_one_of` includes `approved_minor`), verify the minor
    exists with `get-program-requirements` — do not take the name on trust. Quote
    `raw_text` when the student asks what qualifies.
-4. Check gen-ed separately with `get-gc-gen-ed`: each category needs
+4. Check gen-ed separately with `get-gen-ed`: each category needs
    ≥ `min_credits` from `allowed_courses`, plus any constraint sentences in
    `rules` (e.g. "two different fields").
 5. Tally remaining credits. Report: what's done, what's still needed, and total
@@ -186,7 +186,7 @@ of 29 records. Common, not an edge case.
 
 ## Gen-Ed Questions
 
-1. Call `get-gc-gen-ed` for the student's catalog year.
+1. Call `get-gen-ed` for the student's catalog year.
 2. Present the 6 categories with min credits and, if asked, allowed courses.
 3. Apply constraint sentences from `rules`.
 4. If asked whether a specific course counts, check its code against
@@ -232,7 +232,7 @@ college. Workflow only — nothing for the advisor to data-enter.
 - **Quote don't paraphrase footnotes** — the exact wording governs what
   satisfies a requirement.
 - **Always cite the catalog year** in your answer.
-- **Link the source page.** `get-gc-program-plan` returns `source_url` for any
+- **Link the source page.** `get-program-plan` returns `source_url` for any
   program — including a minor or certificate (empty `groups`, real
   `source_url`). `get-course-details` returns one per course. Cite them.
 
@@ -240,7 +240,7 @@ college. Workflow only — nothing for the advisor to data-enter.
 
 ## Tool-driving
 
-`get-gc-program-plan` / `get-gc-requirement-rules` (find unmet + eligible) →
+`get-program-plan` / `get-requirement-rules` (find unmet + eligible) →
 `find-requirement-sections` (candidate sections) → `check-conflicts` /
 `find-conflict-free-schedule` (fit) → for paired lecture/lab courses, confirm
 both halves via `get-course-details` (`crn`, one per half). The advisor course

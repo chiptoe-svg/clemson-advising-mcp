@@ -36,7 +36,7 @@ export const PROGRAM_ARG_DESCRIPTION =
 
 /** Schema blurb for the canonical `catalog_year` key. */
 export const CATALOG_YEAR_ARG_DESCRIPTION =
-  "Catalog year label, e.g. '2026-2027' (from list-gc-catalog-years).";
+  "Catalog year label, e.g. '2026-2027' (from list-catalog-years).";
 
 export const NAME_ALIAS_DESCRIPTION =
   "Deprecated alias for `program`, accepted for one release. Use `program`.";
@@ -90,7 +90,7 @@ export function missingProgramMessage(extra = ""): string {
   const list =
     names.length > 0
       ? ` Choose one of: ${formatProgramList(names)}.`
-      : " Use list-gc-catalog-years and get-program-requirements to discover valid program names.";
+      : " Use list-catalog-years and get-program-requirements to discover valid program names.";
   return (
     "program is required — this tool has no default program, because " +
     "defaulting it answered questions about the wrong degree." +

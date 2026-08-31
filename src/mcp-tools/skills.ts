@@ -22,15 +22,15 @@ const LOCAL_SKILLS_DIR = path.resolve(process.cwd(), "skills");
 
 // The name of the LIST tool as this process actually advertises it.
 //
-// The catalog server renames list-skills -> list-gc-skills at startup
-// (gc-skill-renames.ts), but these error strings hardcoded the pre-rename name,
+// The catalog server renames list-skills -> list-catalog-skills at startup
+// (catalog-skill-renames.ts), but these error strings hardcoded the pre-rename name,
 // so 8767 told callers to "use list-skills" — a tool that does not exist on
-// that server. Exactly the bug class gc-skill-renames.ts was written to prevent,
+// that server. Exactly the bug class catalog-skill-renames.ts was written to prevent,
 // which it could not catch because it overrides descriptions, not runtime text.
 // Found by adversarial review 2026-08-27.
 let listToolName = "list-skills";
 
-/** Called by applyGcSkillRenames so runtime messages follow the advertised name. */
+/** Called by applyCatalogSkillRenames so runtime messages follow the advertised name. */
 export function setSkillListToolName(name: string): void {
   listToolName = name;
 }

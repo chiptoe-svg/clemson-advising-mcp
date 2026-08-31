@@ -32,7 +32,7 @@ const departmentRules: McpToolDefinition = {
       "column; feed roster banner_name strings to get-teaching-load or " +
       "get-instructor-classes). Provenance is the department, NOT the published " +
       "catalog, which is why this is a separate tool from " +
-      "get-gc-requirement-rules. A known department with nothing recorded " +
+      "get-requirement-rules. A known department with nothing recorded " +
       "says so explicitly. Feed the returned codes to " +
       "find-requirement-sections via extra_courses to include them in a " +
       "section search. Omit `department` to list the known departments.",

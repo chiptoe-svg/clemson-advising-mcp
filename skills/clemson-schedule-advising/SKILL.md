@@ -49,18 +49,18 @@ the accepted forms — it is never reported as a term with no data.
 
 | Tool                        | Use it to…                                                                                                            | Notes                                                                                                                         |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `list-gc-programs`          | See which programs the catalog covers                                                                                 | Start here when a program name is uncertain; names are the registrar's ("Marketing, BS").                                     |
-| `list-gc-catalog-years`     | Get a valid `catalog_year`                                                                                            | Students are pinned to their matriculation year — never mix years.                                                            |
-| `get-gc-program-plan`       | Full semester-by-semester degree plan                                                                                 | Groups → items (`fixed_course` / `choice` / `slot`) → footnotes. Includes `source_url`; cite it.                              |
-| `get-gc-requirement-rules`  | Named requirement slots: lab science, specialty area, technical                                                       | The `slot_type` values here are what `find-requirement-sections` expects as `requirement`.                                    |
-| `get-gc-gen-ed`             | Gen-Ed categories with minimum credits and allowed courses                                                            | Apply the `rules` constraint sentences (e.g. Social Sciences "two different fields").                                         |
-| `get-gc-course`             | One course's catalog entry                                                                                            | Catalog prose, not a section. An unreadable catalog is an ERROR here, never `found: false`.                                   |
+| `list-programs`          | See which programs the catalog covers                                                                                 | Start here when a program name is uncertain; names are the registrar's ("Marketing, BS").                                     |
+| `list-catalog-years`     | Get a valid `catalog_year`                                                                                            | Students are pinned to their matriculation year — never mix years.                                                            |
+| `get-program-plan`       | Full semester-by-semester degree plan                                                                                 | Groups → items (`fixed_course` / `choice` / `slot`) → footnotes. Includes `source_url`; cite it.                              |
+| `get-requirement-rules`  | Named requirement slots: lab science, specialty area, technical                                                       | The `slot_type` values here are what `find-requirement-sections` expects as `requirement`.                                    |
+| `get-gen-ed`             | Gen-Ed categories with minimum credits and allowed courses                                                            | Apply the `rules` constraint sentences (e.g. Social Sciences "two different fields").                                         |
+| `get-course`             | One course's catalog entry                                                                                            | Catalog prose, not a section. An unreadable catalog is an ERROR here, never `found: false`.                                   |
 | `find-course-in-program`    | Whether a course appears anywhere in a program                                                                        | Searches **both** requirement stores and says so, which is what makes its `found: false` trustworthy.                         |
 | `get-program-requirements`  | Requirement rules for a minor or certificate                                                                          | Partial or misspelled names return candidates.                                                                                |
 | `find-requirement-sections` | **The advising join** — sections that fill a named requirement slot AND are offered this term AND are prereq-eligible | An unknown slot name returns the valid slot list inline, so retry from that list. Prereq check is AND-logic only (see below). |
 
 Both servers also serve `list-skills` / `get-skill-docs` (catalog:
-`list-gc-skills` / `get-gc-skill-docs`) — that is how you are reading this. The
+`list-catalog-skills` / `get-catalog-skill-docs`) — that is how you are reading this. The
 catalog server's `gc-advisor` document is the advising playbook: degree-audit
 logic, specialty-area approval, lab co-requisite pairs, transfer credit.
 
@@ -91,7 +91,7 @@ an unknown `requirement` returns the valid slot list inline, so this is usually
 one call, two at most. Then `check-conflicts` against anything already fixed.
 
 **Full advising session**
-`get-gc-program-plan` (identify open slots) → `get-gc-requirement-rules`
+`get-program-plan` (identify open slots) → `get-requirement-rules`
 (explicit courses and slot names for those slots) → `find-requirement-sections`
 per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
 **both** halves have seats and do not conflict.
@@ -118,7 +118,7 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
   snapshot to the catalog database, so a term with no snapshot yet (a newly
   opened term before the daily refresh) errors — retry after the next refresh.
   For programs whose rules it does not cover, use `search-classes` with course
-  codes from `get-gc-program-plan` or `get-program-requirements`.
+  codes from `get-program-plan` or `get-program-requirements`.
 - **No standalone instructor or room tools.** They are `instructor` and
   `building_room` filters on `search-classes`; there is no "every section a
   faculty member teaches" or "free blocks for a room" call.

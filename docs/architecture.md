@@ -66,11 +66,11 @@ restarted, revoked, or taken down without touching the other.
 `get-instructor-classes`, `get-teaching-load`, `list-skills`,
 `get-skill-docs`
 
-**Catalog (8767)** — `list-gc-catalog-years`, `get-gc-program-plan`,
-`get-gc-requirement-rules`, `get-gc-gen-ed`, `get-program-requirements`,
-`find-requirement-sections`, `find-course-in-program`, `list-gc-programs`,
-`get-gc-course`, `get-department-rules`, `get-department-doc`,
-`list-gc-skills`, `get-gc-skill-docs`
+**Catalog (8767)** — `list-catalog-years`, `get-program-plan`,
+`get-requirement-rules`, `get-gen-ed`, `get-program-requirements`,
+`find-requirement-sections`, `find-course-in-program`, `list-programs`,
+`get-course`, `get-department-rules`, `get-department-doc`,
+`list-catalog-skills`, `get-catalog-skill-docs`
 
 ### The departmental layer
 
@@ -153,7 +153,7 @@ entry points        mcp-schedule.ts, mcp-catalog.ts
                     clemson-room-capacity.ts, term-resolve.ts, eastern-time.ts
   catalog tools     mcp-tools/catalog.ts       plan, rules, gen-ed, find-course, programs, course
                     mcp-tools/clemson-advising.ts  requirement sections, program requirements
-                    mcp-tools/gc-coreqs.ts, program-args.ts, gc-skill-renames.ts
+                    mcp-tools/gc-coreqs.ts, program-args.ts, catalog-skill-renames.ts
                     catalog-read.ts            the SQLite reads themselves
                     gc-curriculum.ts           a thin facade over catalog-read.ts
   cross-cutting     config-mcp.ts (all env), log.ts (rotating)
@@ -235,7 +235,7 @@ is wrong. A `429` means you are being throttled, not broken.
 ### The startup line is the single most informative log
 
 ```
-advising-mcp-catalog http on 127.0.0.1:8767 — auth: registry (2 authorized consumers); tools: list-gc-catalog-years, …
+advising-mcp-catalog http on 127.0.0.1:8767 — auth: registry (2 authorized consumers); tools: list-catalog-years, …
 ```
 
 It states the bind address, the auth mode, the consumer count, and **the exact

@@ -23,7 +23,7 @@ The Specialty Area is 15 credits satisfied **one of two ways** (from the rule's
 2. Complete **15 credits** that count. What counts, concretely for GC:
    - The explicit course list in the rule, plus the advisor standard list
      (`advisor_courses`), minus `advisor_denies` — read live from
-     `get-gc-requirement-rules`.
+     `get-requirement-rules`.
    - Wildcard families: any **CHE, ECE, ENGR, IE, ME, or MSE** course; **CPSC
      2000-level or higher**; **GC 37XX**.
    - Max **4 credits** of BIOL, CH, or PHYS.

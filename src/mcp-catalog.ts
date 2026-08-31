@@ -15,7 +15,7 @@ import "./mcp-tools/index-catalog.js";
 import { loadConsumers, recordSeen } from "./mcp-tools/consumers.js";
 import { CATALOG_SKILLS, setSkillExposure } from "./mcp-tools/skills.js";
 import { startMcpServer } from "./mcp-tools/server.js";
-import { applyGcSkillRenames } from "./mcp-tools/gc-skill-renames.js";
+import { applyCatalogSkillRenames } from "./mcp-tools/catalog-skill-renames.js";
 import {
   MCP_TRANSPORT,
   MCP_CATALOG_HTTP_HOST,
@@ -43,10 +43,10 @@ setSkillExposure(CATALOG_SKILLS);
 // The renamed copies also get GC-specific descriptions: skills.ts's original
 // text is byte-identical between the two servers and self-refers to the public
 // server's tool names, which is wrong on 8767 (a model here can't tell the two
-// corpora apart, and get-gc-skill-docs pointed at "list-skills" — the OTHER
+// corpora apart, and get-catalog-skill-docs pointed at "list-skills" — the OTHER
 // server's tool). The renames and their override text live in
-// gc-skill-renames.ts, which is side-effect-free and importable from tests.
-applyGcSkillRenames();
+// catalog-skill-renames.ts, which is side-effect-free and importable from tests.
+applyCatalogSkillRenames();
 
 startMcpServer({
   name: "advising-mcp-catalog",

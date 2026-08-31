@@ -118,7 +118,7 @@ anything is sent to a caller.
 
 - A text preamble at `initialize`, describing the server.
 - Skill documents — advising guidance for a model, served by `list-skills` /
-  `get-skill-docs` (schedule) and `list-gc-skills` / `get-gc-skill-docs`
+  `get-skill-docs` (schedule) and `list-catalog-skills` / `get-catalog-skill-docs`
   (catalog). One document on the schedule server, two on the catalog server;
   anything else on disk is refused by name.
 - A skills version in every result's `_meta`, so a client that caches those
@@ -235,30 +235,30 @@ one by name. This server serves exactly one: `clemson-schedule-advising`.
 ### Catalog server — `advising-mcp-catalog`, port 8767
 
 Program names are the registrar's, exactly as the catalog spells them
-(`"Marketing, BS"`). There is no default program; `list-gc-programs` gives the
+(`"Marketing, BS"`). There is no default program; `list-programs` gives the
 valid names. `catalog_year` is a label like `2026-2027`; students are pinned to
 their matriculation year.
 
-#### `list-gc-programs`
+#### `list-programs`
 
 Every program this catalog can advise on, with the catalog years each exists
 in. Majors with a semester-by-semester plan, plus Pre-Business. Minors and
 certificates are not listed here — look those up by name with
 `get-program-requirements`.
 
-#### `list-gc-catalog-years`
+#### `list-catalog-years`
 
 The valid catalog-year labels. Only for discovering one when none is known.
 
-#### `get-gc-program-plan`
+#### `get-program-plan`
 
 The full semester-by-semester degree plan for a program in a catalog year:
 required courses, one-of choice sets, requirement slots, per-term and total
 credits, footnotes, and the catalog page it came from. This is the bulk of the
 degree but not all of it — the named requirement slots carry their own rules in
-`get-gc-requirement-rules`.
+`get-requirement-rules`.
 
-#### `get-gc-requirement-rules`
+#### `get-requirement-rules`
 
 The named requirement slots for a program and year — lab science, specialty
 area, technical requirement, REACH — with explicit course codes, credits, and
@@ -266,7 +266,7 @@ the footnote text they come from. Only part of a program's obligations: a
 course absent here is **not** absent from the degree. Does not include General
 Education.
 
-#### `get-gc-gen-ed`
+#### `get-gen-ed`
 
 Clemson's General Education requirements for a catalog year: six categories
 (Communication, Mathematics, Natural Sciences with Lab, Arts and Humanities,
@@ -283,7 +283,7 @@ meaningful; a not-found from either of the two tools above alone is not
 evidence of absence. This tool exists because an advisor once asked what the
 PCID requirement was and was told, wrongly, that there wasn't one.
 
-#### `get-gc-course`
+#### `get-course`
 
 One course's catalog entry — title, credits, description — by code. The
 catalog entry, not a class section; for meeting times or seats use the
@@ -314,7 +314,7 @@ A department's **recorded decisions** about requirement slots — faculty-approv
 additions and denials, e.g. GC's specialty-area standard list. Departmental
 provenance, stated in `_source` on every response: this is what departments
 decided, not what the registrar published, which is why it is a separate tool
-from `get-gc-requirement-rules`. Gated by the `clemson.department` scope, so a
+from `get-requirement-rules`. Gated by the `clemson.department` scope, so a
 consumer without that grant (a student-facing agent) never sees the tool at
 all. A known department with nothing recorded says so explicitly. Feeds
 `find-requirement-sections` via its `extra_courses` parameter.
@@ -325,7 +325,7 @@ A department's advising-policy **document** (internships, approval workflows,
 scheduling lore) — same departmental provenance and the same scope gate. Thin
 documents say they are thin.
 
-#### `list-gc-skills` · `get-gc-skill-docs`
+#### `list-catalog-skills` · `get-catalog-skill-docs`
 
 List and fetch this server's shared skill documents — three of them:
 `advising-method` (the neutral method), `gc-curriculum-lookup` (catalog usage),

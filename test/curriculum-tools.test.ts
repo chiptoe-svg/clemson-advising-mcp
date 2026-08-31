@@ -43,9 +43,9 @@ test("programPlan handler requires a program, then a catalog year", async () => 
 });
 
 test("tool definitions carry the expected names and operations", () => {
-  assert.equal(catalogYears.tool.name, "list-gc-catalog-years");
+  assert.equal(catalogYears.tool.name, "list-catalog-years");
   assert.equal(catalogYears.operation, "clemson.gc_catalog_years");
-  assert.equal(programPlan.tool.name, "get-gc-program-plan");
+  assert.equal(programPlan.tool.name, "get-program-plan");
   assert.equal(programPlan.operation, "clemson.gc_program_plan");
   // `required` is deliberately empty: a client may fill an omitted program /
   // catalog_year from its own session AFTER its harness validates the model's
@@ -54,7 +54,7 @@ test("tool definitions carry the expected names and operations", () => {
 });
 
 test(
-  "get-gc-requirement-rules echoes the program it was given and refuses to invent one",
+  "get-requirement-rules echoes the program it was given and refuses to invent one",
   { skip: SKIP_NO_CORE_DB },
   async () => {
     const a = await requirementRules.handler({
@@ -128,7 +128,7 @@ test("every catalog tool takes program/catalog_year and closes its schema", () =
 // General Education does not vary by program, but what comes back must still
 // be what was ASKED, not a constant.
 test(
-  "get-gc-gen-ed echoes the program it was given and the resolved catalog year",
+  "get-gen-ed echoes the program it was given and the resolved catalog year",
   { skip: SKIP_NO_CORE_DB },
   async () => {
     const withProgram = await genEd.handler({
@@ -152,7 +152,7 @@ test(
   },
 );
 
-test("get-gc-gen-ed requires a catalog year", async () => {
+test("get-gen-ed requires a catalog year", async () => {
   const res = await genEd.handler({});
   assert.equal(res.isError, true);
   assert.match(
@@ -163,13 +163,13 @@ test("get-gc-gen-ed requires a catalog year", async () => {
 
 // --- list-shaped results use `items`, not index keys (review, 2026-08-27) ----
 //
-// get-gc-requirement-rules and get-gc-gen-ed once spread an ARRAY into an
+// get-requirement-rules and get-gen-ed once spread an ARRAY into an
 // object literal, producing {"0":{…},"1":{…},"program":…}. Harmful once okJson
 // began promoting the payload to typed structuredContent, because a model is
 // then handed that shape AS structure. List-shaped results belong under `items`.
 
 test(
-  "get-gc-requirement-rules returns its list under `items`, not index keys",
+  "get-requirement-rules returns its list under `items`, not index keys",
   { skip: SKIP_NO_CORE_DB },
   async () => {
     const r = await requirementRules.handler({
@@ -195,7 +195,7 @@ test(
 );
 
 test(
-  "get-gc-gen-ed returns its list under `items`, not index keys",
+  "get-gen-ed returns its list under `items`, not index keys",
   { skip: SKIP_NO_CORE_DB },
   async () => {
     const r = await genEd.handler({ catalog_year: "2025-2026" });

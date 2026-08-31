@@ -16,8 +16,8 @@ import {
 } from "../src/mcp-tools/instructions.ts";
 
 const CATALOG_TOOLS = [
-  "get-gc-program-plan",
-  "get-gc-requirement-rules",
+  "get-program-plan",
+  "get-requirement-rules",
   "find-course-in-program",
 ];
 const PUBLIC_TOOLS = [

@@ -34,11 +34,11 @@ export const catalogYears: McpToolDefinition = {
   operation: "clemson.gc_catalog_years",
   category: "curriculum-extras",
   tool: {
-    name: "list-gc-catalog-years",
+    name: "list-catalog-years",
     description:
       "Do NOT call this if a catalog year, term, or the student's plan is " +
       "already given; call the operation directly. Only for discovering a " +
-      "valid GC catalog year when none is known. Read-only, no login.",
+      "valid catalog year when none is known. Read-only, no login.",
     inputSchema: {
       type: "object" as const,
       properties: {},
@@ -69,18 +69,18 @@ export const programPlan: McpToolDefinition = {
   operation: "clemson.gc_program_plan",
   category: "curriculum-extras",
   tool: {
-    name: "get-gc-program-plan",
+    name: "get-program-plan",
     description:
       "Get the full semester-by-semester degree plan for a Clemson program " +
       "in a given catalog year: required courses, choice sets (one-of), " +
       "requirement slots, per-term and total credits, and footnotes. " +
       "This is the bulk of the degree, but NOT all of it — the named " +
       "requirement slots (lab science, specialty area, technical, REACH) " +
-      "carry their own rules in get-gc-requirement-rules. To check whether " +
+      "carry their own rules in get-requirement-rules. To check whether " +
       "one specific course or subject is required, prefer " +
       "find-course-in-program, which searches both. " +
       "Read-only, no login. Takes program + catalog_year; get a valid year " +
-      "from list-gc-catalog-years. There is no default program.",
+      "from list-catalog-years. There is no default program.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -104,8 +104,7 @@ export const programPlan: McpToolDefinition = {
     const program = resolveProgramArg(args);
     if (!program) return err(missingProgramMessage());
     const year = resolveCatalogYearArg(args);
-    if (!year)
-      return err("catalog_year is required (see list-gc-catalog-years)");
+    if (!year) return err("catalog_year is required (see list-catalog-years)");
     try {
       const plan = await getGcProgramPlan(year, program);
       return okJson({
@@ -126,7 +125,7 @@ export const requirementRules: McpToolDefinition = {
   operation: "clemson.gc_requirement_rules",
   category: "curriculum-extras",
   tool: {
-    name: "get-gc-requirement-rules",
+    name: "get-requirement-rules",
     description:
       "Get the NAMED requirement slots for a degree program in a given " +
       "catalog year: lab science, specialty area (minor or 15-credit course " +
@@ -134,10 +133,10 @@ export const requirementRules: McpToolDefinition = {
       "total credits, and raw footnote text. Read-only, no login. " +
       "IMPORTANT — this is only PART of a program's obligations: most " +
       "required courses live in the semester-by-semester plan " +
-      "(get-gc-program-plan), not here. A course absent from this response " +
+      "(get-program-plan), not here. A course absent from this response " +
       "is NOT absent from the degree; to answer whether a program requires " +
       "a given course or subject, use find-course-in-program, which searches " +
-      "both stores. Does not include General Education (use get-gc-gen-ed). " +
+      "both stores. Does not include General Education (use get-gen-ed). " +
       "Takes program + catalog_year; there is no default program.",
     inputSchema: {
       type: "object" as const,
@@ -161,8 +160,7 @@ export const requirementRules: McpToolDefinition = {
     const program = resolveProgramArg(args);
     if (!program) return err(missingProgramMessage());
     const year = resolveCatalogYearArg(args);
-    if (!year)
-      return err("catalog_year is required (see list-gc-catalog-years)");
+    if (!year) return err("catalog_year is required (see list-catalog-years)");
     try {
       const rules = await getGcRequirementRules(year, program);
       // `rules` is an ARRAY. Spreading it produced index-keyed properties —
@@ -189,14 +187,14 @@ export const genEd: McpToolDefinition = {
   operation: "clemson.gc_gen_ed",
   category: "curriculum-extras",
   tool: {
-    name: "get-gc-gen-ed",
+    name: "get-gen-ed",
     description:
       "Get Clemson's General Education requirements for a given catalog year: " +
       "6 categories (Communication, Mathematics, Natural Sciences with Lab, " +
       "Arts and Humanities, Social Sciences, Global Challenges) with minimum " +
       "credits, allowed course lists, constraint rules, and student learning outcomes. " +
       "Read-only, no login. For major-specific requirements (lab science, " +
-      "specialty area, technical) use get-gc-requirement-rules instead. " +
+      "specialty area, technical) use get-requirement-rules instead. " +
       "General Education is university-wide: `program` is accepted and echoed " +
       "back, but the answer does not vary by program.",
     inputSchema: {
@@ -225,11 +223,10 @@ export const genEd: McpToolDefinition = {
       return permissionErr(e);
     }
     const year = resolveCatalogYearArg(args);
-    if (!year)
-      return err("catalog_year is required (see list-gc-catalog-years)");
+    if (!year) return err("catalog_year is required (see list-catalog-years)");
     try {
       const cats = await getGcGenEd(year);
-      // Same array-spread bug as get-gc-requirement-rules; see the note there.
+      // Same array-spread bug as get-requirement-rules; see the note there.
       return okJson({
         items: cats as unknown[],
         program: resolveProgramArg(args),
@@ -249,8 +246,8 @@ export const genEd: McpToolDefinition = {
  * requirement for GC students" and the advisor answered that no such
  * requirement exists. It was wrong. The catalog splits a program's obligations
  * across TWO stores — `requirement_rule` (the named narrative slots, served by
- * get-gc-requirement-rules) and `plan_item` (the semester-by-semester plan,
- * served by get-gc-program-plan) — and PCID lives only in the second, as a
+ * get-requirement-rules) and `plan_item` (the semester-by-semester plan,
+ * served by get-program-plan) — and PCID lives only in the second, as a
  * one-of choice. The model called the rules tool, got a successful response
  * that simply did not contain PCID, and inferred absence from one partial
  * source. Nothing signalled the miss, and the turn recorded outcome=complete.
@@ -273,7 +270,7 @@ export const findCourseInProgram: McpToolDefinition = {
       'subject prefix (e.g. "what is the PCID requirement", "do GC ' +
       'students take STAT 3090"): it is the only tool that covers both ' +
       "stores, so a not-found here is meaningful, whereas a not-found in " +
-      "get-gc-requirement-rules or get-gc-program-plan alone is NOT — each " +
+      "get-requirement-rules or get-program-plan alone is NOT — each " +
       'sees only half the program. Accepts a full code ("PCID 3040") or a ' +
       'bare subject ("PCID", which matches every course with that prefix). ' +
       "Read-only, no login. Takes program + optional catalog_year (defaults " +
@@ -426,7 +423,7 @@ export const findCourseInProgram: McpToolDefinition = {
         )?.label;
       if (!year)
         return err(
-          `No catalog years found for "${program}" (see list-gc-catalog-years).`,
+          `No catalog years found for "${program}" (see list-catalog-years).`,
         );
 
       // Match a full code exactly, or any course under a bare subject prefix.
@@ -537,7 +534,7 @@ export const listPrograms: McpToolDefinition = {
   operation: "clemson.gc_list_programs",
   category: "curriculum-extras",
   tool: {
-    name: "list-gc-programs",
+    name: "list-programs",
     description:
       "List every program this catalog can advise on, with the catalog years " +
       "each one exists in. Use it to discover valid values for the `program` " +
@@ -633,7 +630,7 @@ export const getCourse: McpToolDefinition = {
   operation: "clemson.gc_get_course",
   category: "curriculum-extras",
   tool: {
-    name: "get-gc-course",
+    name: "get-course",
     description:
       "Look up ONE course's catalog entry — title, credits, and catalog " +
       'description — by its exact code ("GC 4061", case- and ' +

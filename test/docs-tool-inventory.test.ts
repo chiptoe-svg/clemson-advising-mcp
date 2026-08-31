@@ -68,9 +68,9 @@ test("docs/overview.md and index.html document exactly the schedule server's too
 
 test("docs/overview.md documents exactly the tools the catalog server serves", async () => {
   await import("../src/mcp-tools/index-catalog.ts");
-  const { applyGcSkillRenames } =
-    await import("../src/mcp-tools/gc-skill-renames.ts");
-  applyGcSkillRenames();
+  const { applyCatalogSkillRenames } =
+    await import("../src/mcp-tools/catalog-skill-renames.ts");
+  applyCatalogSkillRenames();
   const live = (await served("advising-mcp-catalog")).filter(
     (n) => !PUBLIC_ONLY.has(n),
   );

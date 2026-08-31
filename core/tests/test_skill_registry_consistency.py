@@ -63,7 +63,7 @@ NON_TOOL_REFS = {
     "program-plan",  # scripts/query.py subcommand (gc-curriculum-lookup drives the CLI, not MCP)
     # Skill names, not tools: the 2026-08-31 split has documents cross-reference
     # each other by name ("the method is `advising-method`") — fetched via
-    # get-gc-skill-docs, so they are data for that tool, not tools themselves.
+    # get-catalog-skill-docs, so they are data for that tool, not tools themselves.
     "advising-method",
     "pre-business-advising",
     "gc-advisor",

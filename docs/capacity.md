@@ -35,7 +35,7 @@ in-process Node load generator against the live servers.
 | 10          | 216 req/s  | 42 ms | 55 ms  | 78 ms  |
 | 25          | 267 req/s  | 79 ms | 143 ms | 153 ms |
 
-**Catalog tools, after the port** (same box, same generator, `get-gc-program-plan`):
+**Catalog tools, after the port** (same box, same generator, `get-program-plan`):
 
 | Concurrency | Throughput            | p50      | p95   | p99   |
 | ----------- | --------------------- | -------- | ----- | ----- |

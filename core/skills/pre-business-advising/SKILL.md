@@ -7,7 +7,7 @@ description: Advising the shared Pre-Business freshman year — the common first
 
 Pre-Business is the shared freshman year for the five business majors
 (Accounting, Economics, Financial Management, Management, Marketing). It is a
-real program in the catalog: call `get-gc-program-plan` with
+real program in the catalog: call `get-program-plan` with
 `program: "Pre-Business"` for the student's catalog year. Casual inquiry — no
 DegreeWorks or audit needed. The generic method lives in `advising-method`.
 

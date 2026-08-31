@@ -59,7 +59,7 @@ def test_department_policy_is_not_in_the_method_doc():
 
 
 def test_every_served_skill_is_self_contained():
-    # get-gc-skill-docs serves only SKILL.md; a referenced companion file is a
+    # get-catalog-skill-docs serves only SKILL.md; a referenced companion file is a
     # dangling pointer for every fetching client (learned 2026-08-31).
     for d in list(SKILLS.iterdir()) + list(DEPARTMENTS.iterdir()):
         if not (d / "SKILL.md").exists():
