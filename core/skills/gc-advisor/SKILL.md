@@ -273,22 +273,59 @@ too when a student is eligible for them.
 
 ## Specialty-area approval
 
-See `includes/specialty-approval.md`. In short: catalog + advisor standard list
-auto-OK; other courses need a strong argument → faculty vote; precedented ones get
-added to the standard list via `scripts/manage_advisor_list.py add`; a completed
-minor counts. **GC 3600** counts toward a Brand Comm minor **and** (Specialty **OR**
-GC Technical) — never both; global challenges and minor courses are the only
-double-dip exceptions (the audit engine consumes each course once — apply these by
-hand).
+- **Auto-OK:** any course in the catalog list **or** the advisor standard list
+  (`advisor_courses` on the Specialty rule), plus the wildcard rules
+  (ENGR/CHE/ECE/IE/ME/MSE any; CPSC 2000+; GC 37XX; ≤4 cr BIOL/CH/PHYS).
+- **Other courses:** the student must make a **strong argument** that it
+  contributes to their career → **faculty vote**.
+- **Obvious / precedented** additions get added to the operator's standard list
+  (an operator task, not an agent tool) so future students get them
+  automatically. Changes are served to advising agents immediately — the
+  standard list rides on `get-gc-requirement-rules` as `advisor_courses` /
+  `advisor_denies`, so read it live rather than remembering it.
+- **Completed minor:** declaring and completing any minor allowed by the major
+  satisfies the whole specialty area (a completed minor's courses count).
+- **GC 3600 double-dip:** counts toward a Brand Comm minor **and** (Specialty
+  **OR** GC Technical), never both. The audit engine consumes each course once;
+  apply this allocation by hand. Global-challenges and minor courses are the
+  only double-dip exceptions.
 
 ## Substitutions
 
 Filed by the **student** through iRoar; auto-routes advisor → dept chair → college.
 Workflow only — nothing for the advisor to data-enter.
 
-## Transfer Credit & Internships
+## Transfer Credit
 
-See `includes/transfer-and-substitutions.md` and `includes/internships.md`.
+- Send official transcripts to **esstranscripts@clemson.edu** and complete the
+  **transfer-exemption-waiver** PDF
+  (https://www.clemson.edu/registrar/documents/transfer-exemption-waiver.pdf).
+- Only **6 hours of the last 43** hours before graduation may be transferred.
+- Only **1000- and 2000-level** courses can transfer.
+- Confirm course acceptance via the registrar's transfer-equivalency site before
+  the student enrolls elsewhere.
+
+## Internship Sequencing
+
+**Requirements**
+
+- Paid **and** full-time.
+- Only **one** may be remote/hybrid (and that is discouraged).
+- Must be in the **summer**.
+- **GC 4060 or GC 4400 before the 2nd** internship.
+- **1st internship:** register **GC 3500 + COOP 1010**.
+- **2nd internship:** register **GC 4500 + COOP 2010**.
+  (Source lists both course pairs under "first"; the confirmed reading is
+  1st = GC 3500 + COOP 1010, 2nd = GC 4500 + COOP 2010.)
+- **Finish the 2nd internship before GC 4440 / 4480 / 4800.**
+- Non-standard internships (not done before) need advisor approval; if not
+  obvious, a **faculty vote**.
+
+**Advice**
+
+- Find a job with a **mentor**; don't be the only one with the skill.
+- Take a **challenging** role that broadens the skillset; out of the comfort zone.
+- Intern Employer Day job fairs: **October and March** (40–50 companies).
 
 ## Tool-driving
 

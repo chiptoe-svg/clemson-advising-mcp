@@ -11,7 +11,18 @@ def test_frontmatter_and_advising_sections_present():
                    "GC 4060", "Specialty-area approval", "CourseLineup"]:
         assert anchor in text, f"missing advising section: {anchor}"
 
-def test_includes_exist():
-    inc = SKILL.parent / "includes"
-    for f in ["internships.md", "transfer-and-substitutions.md", "specialty-approval.md"]:
-        assert (inc / f).exists()
+def test_skill_is_self_contained():
+    """The doc is served over MCP by get-gc-skill-docs, which reads ONLY
+    SKILL.md — a companion file it references is a dangling pointer for every
+    fetching client. The former includes/ were inlined 2026-08-31 for exactly
+    that reason; this pins both halves: no references out, content in."""
+    text = SKILL.read_text()
+    assert "includes/" not in text, "SKILL.md references files a fetching client cannot get"
+    assert not (SKILL.parent / "includes").exists(), "unservable companion files reappeared"
+    for anchor in [
+        "transfer-exemption-waiver",       # transfer rules, formerly an include
+        "GC 3500 + COOP 1010",             # internship sequencing, formerly an include
+        "Intern Employer Day",
+        "GC 3600 double-dip",              # specialty approval, formerly an include
+    ]:
+        assert anchor in text, f"inlined content lost: {anchor}"
