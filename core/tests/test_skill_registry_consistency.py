@@ -61,6 +61,18 @@ def test_service_layout_present():
 # Each entry needs a justification; an unexplained entry defeats the test.
 NON_TOOL_REFS = {
     "program-plan",  # scripts/query.py subcommand (gc-curriculum-lookup drives the CLI, not MCP)
+    # Skill names, not tools: the 2026-08-31 split has documents cross-reference
+    # each other by name ("the method is `advising-method`") — fetched via
+    # get-gc-skill-docs, so they are data for that tool, not tools themselves.
+    "advising-method",
+    "pre-business-advising",
+    "gc-advisor",
+    "gc-curriculum-lookup",
+    "accounting-advising",
+    "economics-advising",
+    "financial-management-advising",
+    "management-advising",
+    "marketing-advising",
 }
 
 NAME_RE = re.compile(r'^\s*name: "([a-z][a-z0-9-]*)"', re.M)

@@ -288,8 +288,13 @@ both the catalog and the term snapshot.
 
 #### `list-gc-skills` · `get-gc-skill-docs`
 
-List and fetch this server's skill documents. It serves exactly two:
-`gc-advisor` (the advising playbook) and `gc-curriculum-lookup`.
+List and fetch this server's skill documents. It serves nine: the
+department-neutral `advising-method`, `gc-curriculum-lookup`, and one policy
+document per department (`gc-advisor`, `accounting-advising`,
+`economics-advising`, `financial-management-advising`, `management-advising`,
+`marketing-advising`, plus `pre-business-advising` for the shared freshman
+year). Department documents are thin until the department records policy — and
+say so explicitly, rather than letting an empty file read as "no rules exist".
 
 ---
 

@@ -152,11 +152,14 @@ test("the exposure default is the restrictive set, not 'all'", async () => {
 // Catalog server (8767): the GC skills, read from gc_advisor's root.
 // ---------------------------------------------------------------------------
 
-test("catalog server: list-skills returns exactly the two GC skills", async () => {
-  // What src/mcp-catalog.ts does at startup.
+test("catalog server: list-skills returns exactly the allowlisted catalog skills", async () => {
+  // What src/mcp-catalog.ts does at startup. Nine documents since the
+  // 2026-08-31 split: the neutral method, catalog usage, and one policy
+  // document per department.
   setSkillExposure(CATALOG_SKILLS);
   const names = await listNames();
-  assert.deepEqual(names, ["gc-advisor", "gc-curriculum-lookup"]);
+  assert.deepEqual([...names].sort(), [...CATALOG_SKILLS].sort());
+  assert.equal(names.length, 9);
   resetSkillExposure();
 });
 

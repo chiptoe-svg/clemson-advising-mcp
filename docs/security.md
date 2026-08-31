@@ -228,7 +228,8 @@ consider published:
   to reach for, in what order, and where the data is known to mislead.
 
 Exposure is an **allowlist per server, not a denylist**: the schedule server
-serves exactly one document, the catalog server exactly two, and anything else
+serves exactly one document, the catalog server nine (the advising method,
+catalog usage, and one policy document per department), and anything else
 in those directories — including a file added tomorrow — is refused until
 someone opts it in by name. A refusal names the document rather than pretending
 it does not exist, so a client can tell "not exposed to me" from "nothing

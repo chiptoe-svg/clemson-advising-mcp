@@ -76,7 +76,7 @@ Tools are not the whole surface. Every `initialize` returns a text preamble
 (`src/mcp-tools/instructions.ts`), and both servers serve **skill documents** —
 Markdown advising guidance under `skills/` (schedule) and `core/skills/`
 (catalog), fetched with `list-skills` / `get-skill-docs`. Exposure is an
-allowlist per server: one document on 8766, two on 8767, everything else
+allowlist per server: one document on 8766, nine on 8767, everything else
 refused by name. Every result also carries a skills version in `_meta`, so a
 client that caches those documents can tell when to re-fetch.
 

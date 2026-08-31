@@ -137,13 +137,22 @@ export function buildSkillIndex(
 export const SCHEDULE_SKILLS: readonly string[] = ["clemson-schedule-advising"];
 
 /**
- * Skills the catalog server (8767) may serve. These document the seven GC
- * curriculum tools that server exposes; both live in gc_advisor's skills root
- * and neither requires credentials.
+ * Skills the catalog server (8767) may serve, in three tiers: the
+ * department-neutral advising method and catalog usage; one policy document
+ * per department (thin until a department records policy — thin is stated in
+ * the document, never implied by absence); and the shared Pre-Business year.
+ * All live in core/skills and none requires credentials.
  */
 export const CATALOG_SKILLS: readonly string[] = [
-  "gc-advisor",
+  "advising-method",
   "gc-curriculum-lookup",
+  "gc-advisor",
+  "accounting-advising",
+  "economics-advising",
+  "financial-management-advising",
+  "management-advising",
+  "marketing-advising",
+  "pre-business-advising",
 ];
 
 type SkillExposure = "all" | ReadonlySet<string>;
