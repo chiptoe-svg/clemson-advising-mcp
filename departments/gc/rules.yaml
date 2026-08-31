@@ -21,3 +21,27 @@ slots:
       - { code: "MKT 4290", note: "Public & Non-profit Marketing — advisor list (Brand Comm)" }
       - { code: "PKSC 3689", note: "Packaging and Society — advisor list (Packaging)" }
     deny: []
+
+# The GC faculty roster — Chip's list (2026-08-31), the department's own
+# statement of membership. The schedule snapshot has NO department or college
+# column, so this roster is the only honest source for "GC faculty": the
+# subject proxy over-counts (21 distinct people teach GC sections in 202608;
+# 6 of them are not GC faculty). banner_name is the exact instructor string
+# Banner publishes on sections — the join key for the schedule server's
+# get-teaching-load and get-instructor-classes.
+faculty:
+  - { name: "Chip Tonkin", banner_name: "Chip Tonkin" }
+  - { name: "Charles Weiss", banner_name: "Charles Tabor Weiss" }
+  - { name: "Eric Weisenmiller", banner_name: "Eric M. Weisenmiller" }
+  - { name: "Erica Walker", banner_name: "Erica Black Walker" }
+  - { name: "Kern Cox", banner_name: "Kern T Cox" }
+  - { name: "Daryl Stevens", banner_name: "Daryl Stevens" }
+  - { name: "Carl Blue", banner_name: "Carl Nelson Blue" }
+  - { name: "Amanda Bridges", banner_name: "Amanda Wells Bridges" }
+  - { name: "Danita Swaney", banner_name: "Danita Swaney" }
+  - { name: "Gerry Derksen", banner_name: "Gerry Wade Derksen" }
+  - { name: "Bobby Congdon", banner_name: "Bobby Congdon" }
+  - { name: "Carla Marchione", banner_name: "Carla Marchione" }
+  - { name: "Katie Hildebrand", banner_name: "Katie Hildebrand" }
+  - { name: "Jackie Herr", banner_name: "Jackie Herr" }
+  - { name: "Lori Pindar", banner_name: "Lori Marlise Pindar" }

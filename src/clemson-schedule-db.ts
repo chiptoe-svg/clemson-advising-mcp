@@ -714,3 +714,56 @@ export function findConflicts(meetings: MeetingInterval[]): ConflictPair[] {
   }
   return conflicts;
 }
+
+/**
+ * One row per (instructor, section, meeting) for teaching-load math, with the
+ * meeting LEFT-joined so a section with no meeting rows still appears (its
+ * start/end come back null). Filters: subject prefix (e.g. "GC" matches
+ * GC1010 but not a hypothetical GCX999), and/or one instructor by exact email
+ * or exact Banner name. Aggregation happens in the tool layer, where credit
+ * hours are counted once per section however many meetings it has.
+ */
+export interface TeachingLoadRow {
+  name: string;
+  email: string | null;
+  crn: string;
+  subject_course: string;
+  section: string;
+  title: string;
+  credit_hours: number | null;
+  start_min: number | null;
+  end_min: number | null;
+}
+
+export function teachingLoadRows(
+  db: Database.Database,
+  term: string,
+  subject: string | null,
+  email: string | null,
+  name: string | null,
+): TeachingLoadRow[] {
+  const conds = ["i.term = ?"];
+  const params: unknown[] = [term];
+  if (subject) {
+    conds.push("s.subject_course GLOB ?");
+    params.push(subject.toUpperCase() + "[0-9]*");
+  }
+  if (email) {
+    conds.push("LOWER(i.email) = LOWER(?)");
+    params.push(email);
+  } else if (name) {
+    conds.push("i.name = ?");
+    params.push(name);
+  }
+  return db
+    .prepare(
+      `SELECT i.name, i.email, s.crn, s.subject_course, s.section, s.title,
+              s.credit_hours, m.start_min, m.end_min
+         FROM instructors i
+         JOIN sections s ON s.crn = i.crn AND s.term = i.term
+         LEFT JOIN meetings m ON m.crn = i.crn AND m.term = i.term
+        WHERE ${conds.join(" AND ")}
+        ORDER BY i.name, s.crn`,
+    )
+    .all(...params) as TeachingLoadRow[];
+}

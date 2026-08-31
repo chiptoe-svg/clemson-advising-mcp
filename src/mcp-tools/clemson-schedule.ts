@@ -9,6 +9,8 @@ import {
   resolveCrns,
   matchInstructors,
   findInstructorMeetings,
+  teachingLoadRows,
+  type TeachingLoadRow,
   findConflicts,
   type ConflictPair,
 } from "../clemson-schedule-db.js";
@@ -736,8 +738,257 @@ const instructorClasses: McpToolDefinition = {
   },
 };
 
+function round1(x: number): number {
+  return Math.round(x * 10) / 10;
+}
+
+interface LoadSectionAgg {
+  crn: string;
+  subject_course: string;
+  section: string;
+  title: string;
+  credit_hours: number | null;
+  minutes: number;
+  timed: boolean;
+}
+
+/**
+ * Load rows -> per-person aggregates. Credit hours count once per SECTION no
+ * matter how many meeting rows it has; contact minutes sum only timed rows;
+ * a section with no timed meetings lands in untimed_sections instead of
+ * silently contributing zero to a total that claims to describe it.
+ */
+function aggregateLoad(rows: TeachingLoadRow[]) {
+  const people = new Map<
+    string,
+    { name: string; email: string | null; byCrn: Map<string, LoadSectionAgg> }
+  >();
+  for (const r of rows) {
+    const key = `${r.name}|${r.email ?? ""}`;
+    let p = people.get(key);
+    if (!p) {
+      p = { name: r.name, email: r.email, byCrn: new Map() };
+      people.set(key, p);
+    }
+    let s = p.byCrn.get(r.crn);
+    if (!s) {
+      s = {
+        crn: r.crn,
+        subject_course: r.subject_course,
+        section: r.section,
+        title: r.title,
+        credit_hours: r.credit_hours,
+        minutes: 0,
+        timed: false,
+      };
+      p.byCrn.set(r.crn, s);
+    }
+    if (r.start_min !== null && r.end_min !== null) {
+      s.minutes += r.end_min - r.start_min;
+      s.timed = true;
+    }
+  }
+  return [...people.values()].map((p) => {
+    const aggs = [...p.byCrn.values()];
+    const untimed = aggs.filter((s) => !s.timed);
+    const totalMinutes = aggs.reduce((a, s) => a + s.minutes, 0);
+    return {
+      name: p.name,
+      email: p.email,
+      sections_count: aggs.length,
+      contact_hours_weekly: round1(totalMinutes / 60),
+      credit_hours: round1(aggs.reduce((a, s) => a + (s.credit_hours ?? 0), 0)),
+      untimed_sections: {
+        count: untimed.length,
+        crns: untimed.map((s) => s.crn),
+      },
+      sections: aggs.map((s) => ({
+        crn: s.crn,
+        subject_course: s.subject_course,
+        section: s.section,
+        title: s.title,
+        credit_hours: s.credit_hours,
+        weekly_contact_hours: round1(s.minutes / 60),
+        timed: s.timed,
+      })),
+    };
+  });
+}
+
+/**
+ * get-teaching-load: "how many contact hours do GC faculty have?" as one
+ * deterministic call instead of meeting arithmetic across dozens of rows
+ * in-model. Two load measures, both served and never conflated: weekly
+ * contact hours (timed meeting durations) and credit hours (per section).
+ * Untimed sections are reported SEPARATELY — folding them into a total would
+ * be the silence-as-absence defect wearing a new face.
+ */
+const teachingLoad: McpToolDefinition = {
+  operation: "clemson.teaching_load",
+  category: "scheduling",
+  tool: {
+    name: "get-teaching-load",
+    description:
+      "Weekly teaching load per instructor, computed server-side from the " +
+      'term snapshot — the primitive behind "how many contact hours does ' +
+      'each GC faculty member have this semester?". Select by subject ' +
+      "(e.g. 'GC': every instructor on that subject's sections, load counted " +
+      "over those sections only) and/or by instructors ('Name <email>', a " +
+      "bare email, or a name; emails match exactly, names by substring, and " +
+      "an ambiguous name returns candidates instead of guessing). Two " +
+      "measures, kept separate: contact_hours_weekly sums timed meeting " +
+      "durations; credit_hours sums section credit hours. Sections with NO " +
+      "timed meetings are NEVER folded into contact hours — they come back " +
+      "in untimed_sections, so a total cannot silently hide an " +
+      "online/arranged section. Co-taught sections attribute fully to each " +
+      "listed instructor. Snapshot-backed, read-only, no Banner load.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        term: {
+          type: "string",
+          description:
+            'Term: a code (202608) or a name ("Fall 2026"). Defaults to the current registration term.',
+        },
+        subject: {
+          type: "string",
+          description:
+            "Subject code, e.g. 'GC'. Selects every instructor teaching " +
+            "that subject's sections; load is then counted over those " +
+            "sections only (the response's scope field says so).",
+        },
+        instructors: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            'People to include: "Name <email>", a bare email, or a name. ' +
+            "Combine with subject to scope their load to that subject.",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  async handler(args) {
+    try {
+      assertMcpOperation("clemson.teaching_load");
+    } catch (e) {
+      return permissionErr(e);
+    }
+    const parsedTerm = parseTermCode(
+      typeof args.term === "string" ? args.term : undefined,
+    );
+    if ("error" in parsedTerm) return err(parsedTerm.error);
+    const { term } = parsedTerm;
+
+    const subject =
+      typeof args.subject === "string"
+        ? args.subject.trim().toUpperCase()
+        : null;
+    if (args.subject !== undefined && !/^[A-Z]{1,6}$/.test(subject ?? ""))
+      return err("subject must be 1-6 letters, e.g. 'GC'.");
+    const rawList = Array.isArray(args.instructors)
+      ? (args.instructors as unknown[]).filter(
+          (x): x is string => typeof x === "string" && x.trim() !== "",
+        )
+      : [];
+    if (!subject && rawList.length === 0)
+      return err("Give a subject (e.g. 'GC'), a list of instructors, or both.");
+
+    const db = openScheduleDb(term);
+    if (!db) {
+      // Nothing was computed; a zero here would be a lie.
+      return okJson({
+        term,
+        has_snapshot: false,
+        instructors: [],
+        _note: `No snapshot for term ${term}, so no load could be computed.`,
+      });
+    }
+    try {
+      const meta = getScheduleDbMeta(db);
+      let entries: unknown[];
+      if (rawList.length === 0) {
+        const all = aggregateLoad(
+          teachingLoadRows(db, term, subject, null, null),
+        );
+        all.sort(
+          (a, b) =>
+            b.contact_hours_weekly - a.contact_hours_weekly ||
+            a.name.localeCompare(b.name),
+        );
+        entries = all;
+      } else {
+        entries = rawList.map((raw) => {
+          const m = /<([^>]+@[^>]+)>/.exec(raw);
+          const query = (m ? m[1] : raw).trim();
+          const matches = matchInstructors(db, term, query);
+          if (matches.length === 0) {
+            return {
+              query: raw,
+              status: "not_teaching" as const,
+              note:
+                "No sections in this term's snapshot for this instructor — " +
+                "only published teaching is visible here, so this is not a " +
+                "statement about their workload elsewhere.",
+            };
+          }
+          if (matches.length > 1) {
+            return {
+              query: raw,
+              status: "ambiguous" as const,
+              candidates: matches,
+              note: "Multiple instructors match — re-query with an exact email.",
+            };
+          }
+          const who = matches[0];
+          const [load] = aggregateLoad(
+            teachingLoadRows(db, term, subject, who.email, who.name),
+          );
+          if (!load) {
+            // Reachable only with a subject filter: they teach this term,
+            // just nothing under that subject.
+            return {
+              query: raw,
+              matched: who,
+              status: "teaching" as const,
+              sections_count: 0,
+              contact_hours_weekly: 0,
+              credit_hours: 0,
+              untimed_sections: { count: 0, crns: [] },
+              sections: [],
+              note: `Teaches this term, but no ${subject} sections — the subject scope excludes their other teaching.`,
+            };
+          }
+          return {
+            query: raw,
+            matched: who,
+            status: "teaching" as const,
+            ...load,
+          };
+        });
+      }
+      return okJson({
+        term,
+        has_snapshot: true,
+        data_as_of: meta.fetchedAt,
+        ...(subject ? { subject } : {}),
+        scope: subject
+          ? `${subject} sections only — teaching outside ${subject} is NOT counted here`
+          : "every section each matched instructor teaches this term",
+        attribution:
+          "Co-taught sections attribute fully to EACH listed instructor, so totals across people can exceed the section count.",
+        instructors: entries,
+        _source: `Banner schedule snapshot ${meta.fetchedAt} — teaching data only`,
+      });
+    } finally {
+      db.close();
+    }
+  },
+};
+
 export const __schedTools = {
   instructorClasses,
+  teachingLoad,
   findConflictFree,
   scheduleFreshness,
   sectionsByCrn,
@@ -750,4 +1001,5 @@ registerTools([
   sectionsByCrn,
   resolveCrnsTool,
   instructorClasses,
+  teachingLoad,
 ]);

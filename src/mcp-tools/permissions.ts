@@ -75,6 +75,12 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.instructor_classes",
   },
+  // Teaching-load rollup (weekly contact hours + credit hours), aggregated
+  // server-side from the same published instructor/section fields.
+  "clemson.teaching_load": {
+    backend: "external-http",
+    policyActionId: "clemson.teaching_load",
+  },
   "clemson.sections_by_crn": {
     backend: "external-http",
     policyActionId: "clemson.sections_by_crn",
@@ -266,6 +272,7 @@ const CLEMSON_SCHEDULE_OPS = [
   "clemson.sections_by_crn",
   "clemson.resolve_crns",
   "clemson.instructor_classes",
+  "clemson.teaching_load",
   "clemson.schedule_freshness",
 ];
 
@@ -299,6 +306,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.sections_by_crn",
     "clemson.resolve_crns",
     "clemson.instructor_classes",
+    "clemson.teaching_load",
     "clemson.gc_catalog_years",
     "clemson.gc_program_plan",
     "clemson.gc_requirement_rules",

@@ -92,4 +92,5 @@ const PUBLIC_ONLY = new Set([
   "get-sections-by-crn",
   "resolve-crns",
   "get-instructor-classes",
+  "get-teaching-load",
 ]);

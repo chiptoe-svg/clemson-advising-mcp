@@ -84,6 +84,26 @@ test("get-department-rules serves GC's recorded decisions with departmental prov
   }
 });
 
+test("get-department-rules serves the GC faculty roster with Banner join keys", async () => {
+  // The snapshot has no department column; this roster is the only honest
+  // source for "GC faculty", and banner_name is the exact string the schedule
+  // server's instructor tools match.
+  const res = await __deptTools.departmentRules.handler({ department: "gc" });
+  const b = body(res as never);
+  const faculty = b.faculty as {
+    name: string;
+    banner_name?: string;
+    note?: string;
+  }[];
+  assert.equal(faculty.length, 15);
+  const pindar = faculty.find((f) => f.name === "Lori Pindar");
+  assert.equal(pindar?.banner_name, "Lori Marlise Pindar");
+  // Chip's roster wrote "Dersken"; he asked for spelling corrections, so the
+  // entry carries Banner's spelling with no residual flag.
+  const derksen = faculty.find((f) => f.name === "Gerry Derksen");
+  assert.equal(derksen?.banner_name, "Gerry Wade Derksen");
+});
+
 test("a known department with nothing recorded says so — never an empty answer", async () => {
   const res = await __deptTools.departmentRules.handler({
     department: "marketing",

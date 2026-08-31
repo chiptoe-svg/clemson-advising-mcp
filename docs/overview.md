@@ -205,6 +205,17 @@ guessing a person. Statuses are explicit: `teaching`/`not_teaching` unfiltered,
 **not** the same as free. Instructor names and emails are Banner's published
 section fields. Snapshot.
 
+#### `get-teaching-load`
+
+Weekly teaching load per instructor, computed server-side — the deterministic
+answer to "how many contact hours does each GC faculty member have?". Select by
+subject (every instructor on that subject's sections, counted over those
+sections only) and/or by instructor. Two measures, never conflated:
+`contact_hours_weekly` (timed meeting durations summed) and `credit_hours`
+(section credit hours, once per section). Sections with no timed meetings are
+reported in `untimed_sections`, **never** folded into the totals; co-taught
+sections attribute fully to each listed instructor. Snapshot.
+
 #### `get-schedule-freshness`
 
 When the snapshot for a term was last ingested — the `data as of` behind every

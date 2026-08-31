@@ -22,6 +22,18 @@ export interface DepartmentRuleCourse {
   note?: string;
 }
 
+/**
+ * A roster member as the department records them. `banner_name` is the exact
+ * instructor string Banner publishes on sections — the join key for the
+ * schedule server's instructor tools — recorded whenever it differs from (or
+ * simply pins) the roster spelling.
+ */
+export interface DepartmentFacultyMember {
+  name: string;
+  banner_name?: string;
+  note?: string;
+}
+
 export interface DepartmentSlot {
   slot_type: string;
   allow: DepartmentRuleCourse[];
@@ -32,6 +44,7 @@ export interface DepartmentRules {
   id: string;
   department: string | null;
   programs: string[];
+  faculty: DepartmentFacultyMember[];
   slots: DepartmentSlot[];
 }
 
@@ -72,6 +85,24 @@ function coerceCourses(raw: unknown): DepartmentRuleCourse[] {
     }));
 }
 
+function coerceFaculty(raw: unknown): DepartmentFacultyMember[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (f): f is Record<string, unknown> =>
+        !!f &&
+        typeof f === "object" &&
+        typeof (f as { name?: unknown }).name === "string",
+    )
+    .map((f) => ({
+      name: String(f.name),
+      ...(typeof f.banner_name === "string"
+        ? { banner_name: f.banner_name }
+        : {}),
+      ...(typeof f.note === "string" ? { note: f.note } : {}),
+    }));
+}
+
 /**
  * A department's recorded decisions, or null when the department id itself is
  * unknown. A KNOWN department with nothing recorded returns empty slots — and
@@ -99,6 +130,7 @@ export function getDepartmentRules(id: string): DepartmentRules | null {
     department:
       typeof parsed.department === "string" ? parsed.department : null,
     programs: Array.isArray(parsed.programs) ? parsed.programs.map(String) : [],
+    faculty: coerceFaculty(parsed.faculty),
     slots: slotsRaw
       .filter(
         (s): s is Record<string, unknown> =>

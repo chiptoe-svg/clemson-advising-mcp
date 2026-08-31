@@ -27,7 +27,10 @@ const departmentRules: McpToolDefinition = {
     description:
       "A department's RECORDED DECISIONS about requirement slots: " +
       "faculty-approved course additions (and denials) for slots like the " +
-      "Specialty Area — provenance is the department, NOT the published " +
+      "Specialty Area — plus the department's own faculty ROSTER, the honest " +
+      "source for membership (the schedule snapshot has no department " +
+      "column; feed roster banner_name strings to get-teaching-load or " +
+      "get-instructor-classes). Provenance is the department, NOT the published " +
       "catalog, which is why this is a separate tool from " +
       "get-gc-requirement-rules. A known department with nothing recorded " +
       "says so explicitly. Feed the returned codes to " +
@@ -72,6 +75,7 @@ const departmentRules: McpToolDefinition = {
       department: rules.id,
       department_name: rules.department,
       programs: rules.programs,
+      faculty: rules.faculty,
       slots: rules.slots,
       ...(rules.slots.length === 0
         ? {
