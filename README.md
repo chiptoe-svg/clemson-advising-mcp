@@ -120,7 +120,8 @@ reverse proxy that terminates TLS.
 src/mcp-schedule.ts, src/mcp-catalog.ts   the two entry points
 src/mcp-tools/                          transport, auth, policy check, the tools
 src/policy.ts, policy/                  the action allow-list every tool is checked against
-skills/, core/skills/                   documents served to clients by the skill tools
+skills/, core/skills/                   shared documents served by the skill tools
+departments/                            departmental decisions: per-department rules + policy docs (scoped tools)
 scripts/                                refresh, token pairing, health check
 core/                                   the catalog builder — see core/README.md
 test/                                   the suite

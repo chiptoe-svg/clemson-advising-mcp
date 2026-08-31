@@ -129,6 +129,13 @@ export const MCP_CATALOG_AUTH_TOKEN = process.env.MCP_CATALOG_AUTH_TOKEN || "";
 // drive the catalog tools. The Python under core/ BUILDS the database; the
 // serving path reads CATALOG_DB in-process and never spawns an interpreter.
 const CORE_DIR = path.join(REPO_ROOT, "core");
+
+// --- Departmental layer ------------------------------------------------------
+// Decisions recorded by departments (departments/<id>/rules.yaml + SKILL.md).
+// Deliberately outside core/: the catalog pipeline never reads or writes it,
+// and the files themselves are the store — served per request, no build step.
+export const DEPARTMENTS_DIR =
+  process.env.DEPARTMENTS_DIR || path.join(REPO_ROOT, "departments");
 export const CATALOG_DB =
   process.env.CATALOG_DB ||
   process.env.CATALOG_DB || // pre-2026-08-30 name, still accepted

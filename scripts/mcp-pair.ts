@@ -25,6 +25,7 @@ import {
   saveConsumers,
   type Consumer,
 } from "../src/mcp-tools/consumers.js";
+import { isValidScopeToken } from "../src/mcp-tools/permissions.js";
 
 type Server = "schedule" | "catalog";
 
@@ -89,6 +90,23 @@ if (revokeId) {
 const id = flag("id");
 if (!id) fail("--id <agent> is required");
 
+// Optional scopes: comma-separated, validated against the scope vocabulary.
+// No --scopes = full access to every exposed tool (the advisor's shape);
+// scoped = the consumer sees ONLY those tools in tools/list. Example:
+//   --scopes clemson.schedule,clemson.catalog   (student-facing: no
+//   departmental layer, which needs clemson.department explicitly)
+const scopesRaw = flag("scopes");
+const scopes = scopesRaw
+  ? scopesRaw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+  : undefined;
+if (scopes) {
+  const unknown = scopes.filter((s) => !isValidScopeToken(s));
+  if (unknown.length > 0) fail(`unknown scope(s): ${unknown.join(", ")}`);
+}
+
 if (consumers.some((c) => c.id === id)) {
   fail(
     `consumer '${id}' already exists on ${registry} — revoke it first to rotate`,
@@ -100,12 +118,13 @@ const entry: Consumer = {
   id,
   token_hash: hashToken(token),
   created_at: new Date().toISOString(),
+  ...(scopes ? { scopes } : {}),
   ...(flag("note") ? { note: flag("note") } : {}),
 };
 saveConsumers([...consumers, entry], registry);
 
 process.stdout.write(
-  `paired '${id}' on ${registry}\n\n` +
+  `paired '${id}' on ${registry}${scopes ? ` (scopes: ${scopes.join(", ")})` : ""}\n\n` +
     `  Authorization: Bearer ${token}\n\n` +
     `This token is shown ONCE and is not recoverable. It works only on the ` +
     `${registry} server and takes effect on the next request.\n`,

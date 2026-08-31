@@ -286,15 +286,30 @@ requirement name returns the valid slot list. `completed_courses` is the one
 student-shaped input: course codes only, used for gating, never stored. Reads
 both the catalog and the term snapshot.
 
+#### `get-department-rules`
+
+A department's **recorded decisions** about requirement slots — faculty-approved
+additions and denials, e.g. GC's specialty-area standard list. Departmental
+provenance, stated in `_source` on every response: this is what departments
+decided, not what the registrar published, which is why it is a separate tool
+from `get-gc-requirement-rules`. Gated by the `clemson.department` scope, so a
+consumer without that grant (a student-facing agent) never sees the tool at
+all. A known department with nothing recorded says so explicitly. Feeds
+`find-requirement-sections` via its `extra_courses` parameter.
+
+#### `get-department-doc`
+
+A department's advising-policy **document** (internships, approval workflows,
+scheduling lore) — same departmental provenance and the same scope gate. Thin
+documents say they are thin.
+
 #### `list-gc-skills` · `get-gc-skill-docs`
 
-List and fetch this server's skill documents. It serves nine: the
-department-neutral `advising-method`, `gc-curriculum-lookup`, and one policy
-document per department (`gc-advisor`, `accounting-advising`,
-`economics-advising`, `financial-management-advising`, `management-advising`,
-`marketing-advising`, plus `pre-business-advising` for the shared freshman
-year). Department documents are thin until the department records policy — and
-say so explicitly, rather than letting an empty file read as "no rules exist".
+List and fetch this server's shared skill documents — three of them:
+`advising-method` (the neutral method), `gc-curriculum-lookup` (catalog usage),
+and `pre-business-advising` (the shared freshman year). Department policy
+documents are deliberately NOT here: they live in the departmental layer and
+are served by `get-department-doc` under the `clemson.department` scope.
 
 ---
 

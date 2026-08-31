@@ -1,0 +1,23 @@
+# Departmental decisions for Graphic Communications — recorded by the
+# department, NOT published catalog data. Served only to consumers holding the
+# clemson.department scope, as get-department-rules("gc").
+#
+# This file IS the store: edits serve on the next request, no build step.
+# Provenance: faculty votes and the advisor standard list. The extraction
+# CORRECTIONS that make served catalog data match the published pages stay in
+# core/packs — they are fidelity, not policy.
+department: Graphic Communications
+programs:
+  - "Graphic Communications, BS"
+slots:
+  - slot_type: "Specialty Area Requirement"
+    allow:
+      - { code: "COMM 3220", note: "Communication Design — advisor list (Brand Comm)" }
+      - { code: "COMM 3550", note: "Intro to Public Relations — advisor list (Brand Comm)" }
+      - { code: "COMM 4260", note: "Social Media & Sport Comm — advisor list (Brand Comm)" }
+      - { code: "GC 3610", note: "Client Relations Management — advisor list (Brand Comm); re-diff 2026-07-23" }
+      - { code: "MKT 4200", note: "Professional Selling — advisor list (Sales & Marketing)" }
+      - { code: "MKT 4210", note: "Technical Selling — advisor list (Sales & Marketing)" }
+      - { code: "MKT 4290", note: "Public & Non-profit Marketing — advisor list (Brand Comm)" }
+      - { code: "PKSC 3689", note: "Packaging and Society — advisor list (Packaging)" }
+    deny: []

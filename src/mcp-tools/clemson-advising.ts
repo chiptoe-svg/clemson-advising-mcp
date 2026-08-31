@@ -284,6 +284,17 @@ export function makeFindRequirementSections(
               "e.g. 'Specialty Area Requirement'. An unknown value returns " +
               "the valid slot list for the resolved program/catalog year.",
           },
+          extra_courses: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Optional additional course codes to treat as satisfying the " +
+              "requirement, beyond the published catalog's list — e.g. a " +
+              "department's recorded additions from get-department-rules. " +
+              "The published rule stays untouched; this parameter is how a " +
+              "departmental overlay reaches the section search without the " +
+              "catalog server owning it.",
+          },
           completed_courses: {
             type: "array",
             items: { type: "string" },
@@ -382,6 +393,12 @@ export function makeFindRequirementSections(
 
       const catalogYear = resolveCatalogYearArg(args) ?? undefined;
 
+      const extraCourses = Array.isArray(args.extra_courses)
+        ? (args.extra_courses as unknown[]).filter(
+            (c): c is string => typeof c === "string",
+          )
+        : [];
+
       const completedCoursesArr = Array.isArray(args.completed_courses)
         ? (args.completed_courses as unknown[]).filter(
             (c): c is string => typeof c === "string",
@@ -414,6 +431,8 @@ export function makeFindRequirementSections(
         appliedConstraints.no_meeting_before = noMeetingBefore;
       if (noMeetingAfter) appliedConstraints.no_meeting_after = noMeetingAfter;
       if (openSeatsOnly) appliedConstraints.open_seats_only = true;
+      if (extraCourses.length > 0)
+        appliedConstraints.extra_courses = extraCourses;
 
       const schedDb = openScheduleDb(term);
       if (!schedDb)
@@ -480,6 +499,14 @@ export function makeFindRequirementSections(
         }
 
         const meta = getScheduleDbMeta(schedDb);
+
+        // The caller may widen the candidate set (a departmental overlay);
+        // the published rule itself is never modified.
+        if (extraCourses.length > 0) {
+          const seen = new Set(rule.explicit_courses);
+          for (const c of extraCourses)
+            if (!seen.has(c)) rule.explicit_courses.push(c);
+        }
 
         if (rule.explicit_courses.length === 0) {
           return okJson({

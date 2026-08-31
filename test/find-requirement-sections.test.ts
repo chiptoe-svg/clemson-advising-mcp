@@ -780,6 +780,37 @@ test("unknown catalog_year returns a clear error", async () => {
   assert.match(errText(res), /not found for catalog year/);
 });
 
+test("extra_courses widens the candidate set without touching the published rule", async () => {
+  // The departmental overlay's path into the section search (2026-08-31): the
+  // caller fetches a department's recorded additions (get-department-rules)
+  // and passes the codes here. The published rule itself is never modified —
+  // that separation is what keeps the catalog server a faithful mirror.
+  // MATH 1060 has sections in the fixture snapshot but is NOT in the slot's
+  // explicit_courses.
+  // Sections serialize subject_course SPACELESS ("MATH1060") — assert on that
+  // form, or both checks pass/fail vacuously.
+  const without = await call({ ...BASE_ARGS, catalog_year: "2024-2025" });
+  assert.ok(
+    !JSON.stringify(without.sections).includes("MATH1060"),
+    "control: MATH 1060 must not appear without the overlay",
+  );
+
+  const withExtra = await call({
+    ...BASE_ARGS,
+    catalog_year: "2024-2025",
+    extra_courses: ["MATH 1060"],
+  });
+  assert.ok(
+    JSON.stringify(withExtra.sections).includes("MATH1060"),
+    "the overlay course's sections must appear",
+  );
+  assert.deepEqual(
+    (withExtra.applied_constraints as Record<string, unknown>).extra_courses,
+    ["MATH 1060"],
+    "the applied overlay is echoed, so the caller can see it took effect",
+  );
+});
+
 test("unknown program returns a clear error", async () => {
   const res = await findRequirementSections.handler({
     ...BASE_ARGS,

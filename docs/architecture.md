@@ -49,7 +49,7 @@ returning an empty result the caller might read as "nothing exists".
 | Port               | 8766                                             | 8767                                               |
 | Serves             | Clemson class schedule                           | Degree catalog and curriculum                      |
 | Data source        | Banner snapshots (SQLite, refreshed daily 05:00) | Built catalog DB (SQLite) + Python query/audit CLI |
-| Tools              | 11                                               | 11                                                 |
+| Tools              | 11                                               | 13                                                 |
 | Holds student data | No                                               | No                                                 |
 | Holds credentials  | No                                               | No                                                 |
 
@@ -68,7 +68,22 @@ restarted, revoked, or taken down without touching the other.
 **Catalog (8767)** — `list-gc-catalog-years`, `get-gc-program-plan`,
 `get-gc-requirement-rules`, `get-gc-gen-ed`, `get-program-requirements`,
 `find-requirement-sections`, `find-course-in-program`, `list-gc-programs`,
-`get-gc-course`, `list-gc-skills`, `get-gc-skill-docs`
+`get-gc-course`, `get-department-rules`, `get-department-doc`,
+`list-gc-skills`, `get-gc-skill-docs`
+
+### The departmental layer
+
+Two of the catalog server's tools serve a different provenance: decisions
+**recorded by departments** (faculty-approved course lists, department policy
+documents) rather than the published catalog. They live in their own store
+(`departments/<id>/`), are marked departmental in every `_source`, and are
+gated by the `clemson.department` scope — a consumer whose token lacks that
+scope never sees the tools in `tools/list`. The published-catalog tools never
+read this layer; a caller that wants the overlay applied to a section search
+passes the department's codes to `find-requirement-sections` via
+`extra_courses`. That one-way separation keeps the catalog server a faithful
+mirror of the published catalog, and would let the layer move to a
+department-run service later by re-pointing consumers.
 
 ### What else a client receives
 

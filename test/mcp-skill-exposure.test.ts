@@ -153,13 +153,15 @@ test("the exposure default is the restrictive set, not 'all'", async () => {
 // ---------------------------------------------------------------------------
 
 test("catalog server: list-skills returns exactly the allowlisted catalog skills", async () => {
-  // What src/mcp-catalog.ts does at startup. Nine documents since the
-  // 2026-08-31 split: the neutral method, catalog usage, and one policy
-  // document per department.
+  // What src/mcp-catalog.ts does at startup. THREE shared documents: the
+  // neutral method, catalog usage, Pre-Business. Department policy documents
+  // are deliberately absent — they moved to the departmental layer
+  // (get-department-doc, clemson.department scope) so a consumer without the
+  // scope never sees them.
   setSkillExposure(CATALOG_SKILLS);
   const names = await listNames();
   assert.deepEqual([...names].sort(), [...CATALOG_SKILLS].sort());
-  assert.equal(names.length, 9);
+  assert.equal(names.length, 3);
   resetSkillExposure();
 });
 

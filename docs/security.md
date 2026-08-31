@@ -16,6 +16,16 @@ service yields data that is public by definition, plus the consumer token
 registry (hashes, not tokens), a usage ledger, and the one reference file
 described below.
 
+**The second provenance: departmental decisions.** Two catalog-server tools
+(`get-department-rules`, `get-department-doc`) serve content **recorded by
+departments** — faculty-approved course lists and department advising policy —
+from `departments/<id>/` in the repository. It is not published registrar data
+and is labelled as departmental in every response. Access is gated by the
+`clemson.department` scope on the consumer's token, so a student-facing
+consumer scoped to the schedule and catalog never sees these tools exist. The
+published-catalog tools never read this layer. Contents are course codes and
+advising prose; nothing about any student.
+
 **The one input that is not published: room capacities.**
 `data/clemson-room-capacity.json` maps 435 `building|room` keys to a seat count
 (9–600). It came from a **CuSectionOverview export, Fall 2026 (202608), taken by
@@ -228,8 +238,9 @@ consider published:
   to reach for, in what order, and where the data is known to mislead.
 
 Exposure is an **allowlist per server, not a denylist**: the schedule server
-serves exactly one document, the catalog server nine (the advising method,
-catalog usage, and one policy document per department), and anything else
+serves exactly one document, the catalog server three shared ones (the advising
+method, catalog usage, Pre-Business) plus per-department policy documents
+behind a scoped tool (§1, "the second provenance"), and anything else
 in those directories — including a file added tomorrow — is refused until
 someone opts it in by name. A refusal names the document rather than pretending
 it does not exist, so a client can tell "not exposed to me" from "nothing

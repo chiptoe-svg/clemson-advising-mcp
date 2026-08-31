@@ -771,14 +771,35 @@
             </p>
           </div>
           <div class="tool">
+            <div class="tname" data-tool="get-department-rules">
+              get-department-rules
+            </div>
+            <p>
+              A department's recorded slot decisions — faculty-approved
+              additions and denials. Departmental provenance, stated on every
+              response; gated by a scope, so consumers without the grant never
+              see it. Feeds the section search via
+              <code>extra_courses</code>.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-department-doc">
+              get-department-doc
+            </div>
+            <p>
+              A department's advising-policy document, same provenance and scope
+              gate. Thin documents say they are thin.
+            </p>
+          </div>
+          <div class="tool">
             <div class="tname" data-tool="list-gc-skills">
               list-gc-skills <span class="tag">with get-gc-skill-docs</span>
             </div>
             <p>
-              List and fetch this server's guidance documents: the
-              department-neutral advising method, catalog usage, and one policy
-              document per department — thin until a department records policy,
-              and each says so explicitly.
+              List and fetch this server's three shared guidance documents: the
+              department-neutral advising method, catalog usage, and the
+              Pre-Business year. Department policy lives behind
+              get-department-doc.
             </p>
           </div>
           <div class="tool">

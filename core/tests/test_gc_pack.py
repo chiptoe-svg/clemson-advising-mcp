@@ -29,7 +29,15 @@ def test_technical_wildcard_matches_the_retired_constant():
                    "allow_except": ["GC 3720"]}]
 
 
-def test_all_seven_curated_advisor_courses_are_present():
-    codes = {c["code"] for c in load_pack(PACK).advisor_courses}
-    assert codes == {"MKT 4200", "MKT 4210", "MKT 4290", "COMM 3220",
-                     "COMM 3550", "COMM 4260", "PKSC 3689"}
+def test_departmental_courses_moved_out_of_the_pack():
+    # 2026-08-31: faculty-curated specialty courses are DEPARTMENTAL decisions,
+    # not catalog corrections, and moved to departments/gc/rules.yaml (served
+    # by get-department-rules under the clemson.department scope). The pack —
+    # which feeds catalog.db — must no longer carry them, or the "catalog data
+    # is the published catalog" claim regresses.
+    assert load_pack(PACK).advisor_courses == []
+    dept = (Path(__file__).parent.parent.parent / "departments" / "gc" /
+            "rules.yaml").read_text()
+    for code in ["MKT 4200", "MKT 4210", "MKT 4290", "COMM 3220",
+                 "COMM 3550", "COMM 4260", "PKSC 3689", "GC 3610"]:
+        assert code in dept, f"departmental store lost {code}"

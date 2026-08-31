@@ -2,24 +2,30 @@ import re
 from pathlib import Path
 
 SKILLS = Path(__file__).parent.parent / "skills"
+DEPARTMENTS = Path(__file__).parent.parent.parent / "departments"
 
 # Which anchors must live in which served document. This is the split contract
 # (2026-08-31): method is department-neutral, gc-advisor is GC policy only.
+# Department documents moved to the departmental layer (departments/<id>/)
+# on 2026-08-31; the catalog skill root keeps only the shared tier.
+DEPT_ANCHORS = {
+    "gc": [
+        "Specialty-area approval", "GC 3600 double-dip", "Lab co-requisite",
+        "GC 4060", "GC 3500 + COOP 1010", "Intern Employer Day", "CourseLineup",
+    ],
+    "accounting": ["No department advising policy has been recorded"],
+    "economics": ["No department advising policy has been recorded"],
+    "financial-management": ["No department advising policy has been recorded"],
+    "management": ["No department advising policy has been recorded"],
+    "marketing": ["No department advising policy has been recorded"],
+}
+
 ANCHORS = {
     "advising-method": [
         "Degree Audit", "counts once", "Prerequisite Check", "Transfer Credit",
         "transfer-exemption-waiver", "DegreeWorks",
     ],
-    "gc-advisor": [
-        "Specialty-area approval", "GC 3600 double-dip", "Lab co-requisite",
-        "GC 4060", "GC 3500 + COOP 1010", "Intern Employer Day", "CourseLineup",
-    ],
     "pre-business-advising": ["Pre-Business", "ECON 2110"],
-    "accounting-advising": ["No department advising policy has been recorded"],
-    "economics-advising": ["No department advising policy has been recorded"],
-    "financial-management-advising": ["No department advising policy has been recorded"],
-    "management-advising": ["No department advising policy has been recorded"],
-    "marketing-advising": ["No department advising policy has been recorded"],
 }
 
 
@@ -36,6 +42,14 @@ def test_every_skill_has_frontmatter_and_its_anchors():
             assert anchor in text, f"{name}: missing anchor {anchor!r}"
 
 
+def test_department_documents_and_rules_exist_per_department():
+    for dept, anchors in DEPT_ANCHORS.items():
+        text = (DEPARTMENTS / dept / "SKILL.md").read_text()
+        for anchor in anchors:
+            assert anchor in text, f"{dept}: missing anchor {anchor!r}"
+        assert (DEPARTMENTS / dept / "rules.yaml").exists(), f"{dept}: no rules.yaml"
+
+
 def test_department_policy_is_not_in_the_method_doc():
     # The split's point: a Marketing agent fetching the method must not receive
     # GC's internship rules as if they were its own.
@@ -47,7 +61,7 @@ def test_department_policy_is_not_in_the_method_doc():
 def test_every_served_skill_is_self_contained():
     # get-gc-skill-docs serves only SKILL.md; a referenced companion file is a
     # dangling pointer for every fetching client (learned 2026-08-31).
-    for d in SKILLS.iterdir():
+    for d in list(SKILLS.iterdir()) + list(DEPARTMENTS.iterdir()):
         if not (d / "SKILL.md").exists():
             continue
         text = (d / "SKILL.md").read_text()

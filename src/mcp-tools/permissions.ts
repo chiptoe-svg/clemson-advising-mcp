@@ -82,6 +82,18 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.find_requirement_sections",
   },
+  // --- Departmental layer (scope: clemson.department) ----------------------
+  // Decisions recorded by departments, not published catalog data. Kept out
+  // of clemson.catalog ON PURPOSE: a catalog-scoped consumer (student-facing)
+  // must not even see these in tools/list.
+  "clemson.department_rules": {
+    backend: "host-state",
+    policyActionId: "clemson.department_rules",
+  },
+  "clemson.department_docs": {
+    backend: "host-state",
+    policyActionId: "clemson.department_docs",
+  },
   "clemson.gc_program_requirements": {
     backend: "external-http",
     policyActionId: "clemson.gc_program_requirements",
@@ -267,6 +279,10 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
   host: ["host.list_skills", "host.get_skill_docs"],
   "clemson.schedule": CLEMSON_SCHEDULE_OPS,
   "clemson.catalog": CLEMSON_CATALOG_OPS,
+  // The departmental layer needs an explicit grant. Not part of
+  // clemson.catalog (student-facing tokens carry that) nor of the legacy
+  // broad `clemson` scope — only this token or an unscoped consumer sees it.
+  "clemson.department": ["clemson.department_rules", "clemson.department_docs"],
   clemson: [
     "clemson.list_terms",
     "clemson.search_classes",

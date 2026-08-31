@@ -145,12 +145,25 @@ Rotating the **shared** token instead means editing `.env` and restarting both
 servers, which is one reason to prefer per-consumer tokens. Back `.env` up
 before editing it; it is not in git and holds the only copy.
 
-**Scopes.** A consumer entry may carry a `scopes` list (`clemson.schedule`,
-`clemson.catalog`, `host`), which narrows both `tools/list` and `tools/call`.
-`mcp:pair` has no flag for it: set it by editing the consumer's entry in
-`state/mcp-consumers-<server>.json` (0600) and it takes effect on the next
-request. Most deployments do not need it — the servers are already split by
-data set.
+**Scopes.** A consumer may be minted with a `scopes` list, which narrows both
+`tools/list` and `tools/call` — a scoped consumer does not see tools outside
+its grant at all:
+
+```bash
+# student-facing: official schedule + published catalog, nothing departmental
+npm run mcp:pair -- --server catalog --id student-agent --scopes clemson.catalog
+# advisor-facing: everything, including the departmental layer
+npm run mcp:pair -- --server catalog --id advisor-agent   # unscoped = full
+```
+
+Vocabulary: `clemson.schedule`, `clemson.catalog`, `clemson.department`,
+`host`, and the legacy broad `clemson` (which deliberately does NOT include
+the departmental layer). No `--scopes` = full access.
+
+**Departmental decisions** live in `departments/<id>/` — `rules.yaml` for slot
+decisions, `SKILL.md` for policy prose. The files are the store: an edit
+serves on the next request, no build step and no restart. Onboarding a
+department = filling in its files.
 
 ---
 
