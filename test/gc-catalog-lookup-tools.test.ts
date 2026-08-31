@@ -1,7 +1,7 @@
 // list-gc-programs and get-gc-course (2026-08-28).
 //
 // These exist so the advisor's Program selector and course hover card can read
-// the catalog over MCP instead of opening gc_advisor.db directly — the coupling
+// the catalog over MCP instead of opening catalog.db directly — the coupling
 // that stops working the moment the servers move to their own machine.
 //
 // The behaviour under test that is NOT obvious: an unreadable catalog must be

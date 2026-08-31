@@ -1,9 +1,9 @@
 // test/_catalog-fixture-ddl.ts
 //
-// The hand-written gc_advisor.db fixture schema, in ONE place.
+// The hand-written catalog.db fixture schema, in ONE place.
 //
 // Two test files build a hermetic catalog DB rather than reading the live
-// core/db/gc_advisor.db, so they do not drift when that project's DATA changes.
+// core/db/catalog.db, so they do not drift when that project's DATA changes.
 // The cost is that they can drift from its SCHEMA instead — silently, because a
 // fixture that is merely out of date still answers every query the test asks.
 // test/fixture-schema-drift.test.ts pins these DDLs against

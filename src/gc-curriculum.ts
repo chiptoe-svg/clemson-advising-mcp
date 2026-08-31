@@ -1,5 +1,5 @@
 // GC curriculum data layer — in-process reads over the built catalog database
-// (core/db/gc_advisor.db) through catalog-read.ts. Read-only; public catalog
+// (core/db/catalog.db) through catalog-read.ts. Read-only; public catalog
 // data. Nothing here spawns a process: the Python under core/ BUILDS the
 // database and serves as the oracle for test/catalog-read-differential.test.ts,
 // but never runs on a request path.

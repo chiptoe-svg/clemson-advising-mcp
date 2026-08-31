@@ -13,7 +13,7 @@ asserts every tool name referenced in this repo's skill docs is actually
 served. Also asserts every MCP operation id has a policy entry — the surface
 the 2026-08-25 final review found unguarded.
 
-Live layer (integration marker): if MCP_PUBLIC_AUTH_TOKEN and
+Live layer (integration marker): if MCP_SCHEDULE_AUTH_TOKEN and
 MCP_CATALOG_AUTH_TOKEN are set (the servers use DIFFERENT bearer tokens —
 8766 public, 8767 catalog; a single shared token can never probe both, which
 is why this test had never passed before 2026-08-25), probes the running
@@ -145,17 +145,17 @@ def test_every_mcp_operation_id_has_a_policy_entry():
 @pytest.mark.integration
 def test_static_model_matches_live_servers():
     """Probes the running servers; needs node and BOTH per-port tokens —
-    8766 authenticates with MCP_PUBLIC_AUTH_TOKEN, 8767 with
+    8766 authenticates with MCP_SCHEDULE_AUTH_TOKEN, 8767 with
     MCP_CATALOG_AUTH_TOKEN. (The original single-MCP_AUTH_TOKEN version could
     never pass: one server always rejected the other's token. Found live by
     the cuassistant session during the Phase 1 merge, 2026-08-25;
     red-proofed against the running servers before this fix.)"""
-    tokens = {8766: os.environ.get("MCP_PUBLIC_AUTH_TOKEN"),
+    tokens = {8766: os.environ.get("MCP_SCHEDULE_AUTH_TOKEN") or os.environ.get("MCP_PUBLIC_AUTH_TOKEN"),
               8767: os.environ.get("MCP_CATALOG_AUTH_TOKEN")}
     missing = [str(p) for p, tok in tokens.items() if not tok]
     if missing:
         pytest.skip(f"per-port token(s) not set for {', '.join(missing)} "
-                    "(MCP_PUBLIC_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN)")
+                    "(MCP_SCHEDULE_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN)")
     live: set[str] = set()
     for port, token in tokens.items():
         out = subprocess.run(

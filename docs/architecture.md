@@ -125,7 +125,7 @@ entry points        mcp-schedule.ts, mcp-catalog.ts
                     mcp-tools/consumers.ts     per-agent token registry (sha256; per-server file)
                     mcp-tools/permissions.ts   operation → policy action; scope expansion
                     policy.ts                  reads policy/action-policy.yaml; fail-closed
-  tool barrels      mcp-tools/index-public.ts  side-effect imports that register public tools
+  tool barrels      mcp-tools/index-schedule.ts  side-effect imports that register schedule tools
                     mcp-tools/index-catalog.ts  … and catalog tools
   schedule tools    mcp-tools/core-search.ts   search-classes, get-course-details,
                                                check-conflicts, find-alternatives

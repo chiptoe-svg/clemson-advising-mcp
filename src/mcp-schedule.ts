@@ -5,7 +5,7 @@
 //
 // AUTH: MCP_SCHEDULE_AUTH_TOKEN, distinct from the catalog server's key and from
 // anything on 8765, PLUS this server's own consumer registry
-// (state/mcp-consumers-public.json, minted with `npm run mcp:pair -- --server
+// (state/mcp-consumers-schedule.json, minted with `npm run mcp:pair -- --server
 // public --id <agent>`). 8765's registry (the unnamed default path) is still
 // never consulted, and the catalog server's registry is a different file, so a
 // token minted here works only here and revoking it touches only this server.

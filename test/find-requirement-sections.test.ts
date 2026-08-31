@@ -2,9 +2,9 @@
 //
 // find-requirement-sections (Task 6 of the local-model-tool-surface plan) —
 // the reshape of the former find-eligible-sections: requirement -> offered-
-// sections join (gc_advisor.db) with section-side filtering routed through
+// sections join (catalog.db) with section-side filtering routed through
 // the shared querySectionsEngine (src/mcp-tools/section-query.ts), one call
-// per explicit course code. Builds a hermetic fixture gc_advisor.db (same
+// per explicit course code. Builds a hermetic fixture catalog.db (same
 // schema as test/clemson-advising.test.ts) plus a fixture Banner schedule
 // snapshot DB via writeScheduleDb (same pattern as test/core-search.test.ts)
 // under a temp STATE_DIR. See .superpowers/sdd/task-6-brief.md.
@@ -22,7 +22,7 @@ const TMP = fs.mkdtempSync(
 );
 process.env.STATE_DIR = TMP;
 
-const GC_DB_PATH = path.join(TMP, "gc_advisor.db");
+const GC_DB_PATH = path.join(TMP, "catalog.db");
 process.env.CATALOG_DB = GC_DB_PATH;
 
 // Current date in this environment is 2026-08-14 -> defaultTerm resolves to

@@ -8,7 +8,7 @@
 // removed outright (replaced by find-alternatives on 8766); the live-seat-
 // refresh overlay (overlayLiveSeats/MAX_REFRESH_SUBJECTS) was dead code —
 // never wired into a handler — and was deleted along with its tests. Uses a small
-// hermetic fixture gc_advisor.db (mirrors the real schema — catalog_year,
+// hermetic fixture catalog.db (mirrors the real schema — catalog_year,
 // program, requirement_rule, course) rather than the live project DB, so this
 // test doesn't drift when that project's data changes; the schedule DB is
 // built the same way test/clemson-schedule-db.test.ts does.
@@ -24,7 +24,7 @@ import { catalogFixtureDdl } from "./_catalog-fixture-ddl.ts";
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-advising-"));
 process.env.STATE_DIR = TMP;
 
-const GC_DB_PATH = path.join(TMP, "gc_advisor.db");
+const GC_DB_PATH = path.join(TMP, "catalog.db");
 process.env.CATALOG_DB = GC_DB_PATH;
 
 const TERM = "202608";
@@ -435,7 +435,7 @@ writeScheduleDb(SNAP);
 
 // ---------------------------------------------------------------------------
 // get-program-requirements — reads requirement_rule rows for minors/
-// certificates (and the GC BS) directly from the gc_advisor.db fixture, with
+// certificates (and the GC BS) directly from the catalog.db fixture, with
 // no schedule DB / ATTACH involved.
 // ---------------------------------------------------------------------------
 

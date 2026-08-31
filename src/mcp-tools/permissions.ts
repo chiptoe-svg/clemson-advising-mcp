@@ -108,7 +108,7 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
   },
   // The program list and one course's catalog entry. Added 2026-08-28 so the
   // advisor's Program selector and course hover card read them over MCP rather
-  // than opening gc_advisor.db across a shared filesystem.
+  // than opening catalog.db across a shared filesystem.
   "clemson.gc_list_programs": {
     backend: "external-http",
     policyActionId: "clemson.gc_list_programs",
