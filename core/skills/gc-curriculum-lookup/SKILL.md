@@ -1,6 +1,6 @@
 ---
 name: gc-curriculum-lookup
-description: Use when answering questions about the Clemson Graphic Communications BS curriculum — course requirements, the semester-by-semester degree plan, credit totals, gen-ed options, footnote rules, or what a requirement slot allows — for a specific catalog year. The authoritative, catalog-year-pinned data source other GC advising skills build on.
+description: Catalog usage — how to look up any College of Business program's plan, courses, and requirement data with the catalog tools, pinned to a catalog year. Usage only: the advising method is the advising-method skill, and department policy lives in each department's own skill (e.g. gc-advisor).
 ---
 
 # GC Curriculum Lookup
