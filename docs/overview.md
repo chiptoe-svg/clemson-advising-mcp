@@ -194,15 +194,15 @@ the space. Results align **by index** with the input; a `null` means no single
 match — none, or several — and the tool never guesses between candidates.
 Snapshot.
 
-#### `check-instructor-conflicts`
+#### `get-instructor-classes`
 
-Which of a list of instructors **teach** during a time window — "who has a
-teaching conflict Friday 11–12?" as one deterministic call. Entries may be
-emails, names, or `Name <email>`. Per person the status is three-state: `busy`
-(with the meetings), `free` (they teach this term, nothing overlaps), or
-`not_teaching` (no sections in this term's snapshot — **not** the same as
-free). An ambiguous name returns candidates rather than guessing a person.
-Teaching conflicts only; instructor names and emails are Banner's published
+Everything each listed instructor **teaches** in a term — sections with all
+meetings — plus, with an optional day/time-window filter, the deterministic
+answer to "who has a teaching conflict Friday 11–12?". Entries may be emails,
+names, or `Name <email>`; an ambiguous name returns candidates rather than
+guessing a person. Statuses are explicit: `teaching`/`not_teaching` unfiltered,
+`busy`/`free` filtered — and `not_teaching` (no sections in the snapshot) is
+**not** the same as free. Instructor names and emails are Banner's published
 section fields. Snapshot.
 
 #### `get-schedule-freshness`

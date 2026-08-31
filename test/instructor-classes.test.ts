@@ -1,4 +1,4 @@
-// check-instructor-conflicts: "which of these faculty teach Friday 11-12?"
+// get-instructor-classes: "which of these faculty teach Friday 11-12?"
 // as one deterministic call. The property under test throughout: absence is
 // three-state — someone the snapshot has never heard of must never read as
 // "free", and an ambiguous name must never silently become one person.
@@ -93,7 +93,7 @@ writeScheduleDb({
 __setTermClockForTest(() => new Date("2026-09-15T12:00:00Z"));
 
 async function check(args: Record<string, unknown>) {
-  const res = await __schedTools.instructorConflicts.handler({
+  const res = await __schedTools.instructorClasses.handler({
     days: "F",
     window_start: "1100",
     window_end: "1200",
@@ -173,8 +173,60 @@ test("a term with no snapshot claims nothing about anyone", async () => {
   assert.deepEqual(b.instructors, []);
 });
 
+test('the primitive: "what does this person teach?" — no filter, full list', async () => {
+  const b = await check({
+    instructors: ["Chip Tonkin III <tonkin@clemson.edu>"],
+    days: undefined,
+    window_start: undefined,
+    window_end: undefined,
+  });
+  const row = (b.instructors as Row[])[0] as Row & {
+    sections: { subject_course: string; crn: string; meetings: unknown[] }[];
+  };
+  assert.equal(row.status, "teaching");
+  assert.equal(row.sections[0].subject_course, "GC1010");
+  assert.equal(
+    row.sections[0].meetings.length,
+    3,
+    "MWF grouped under one section",
+  );
+  assert.equal(b.busy, undefined, "no filter, no busy verdict");
+});
+
+test('"I want Tonkin\'s GC 4800" shape: the full list is searchable for a course', async () => {
+  const b = await check({
+    instructors: ["Ouyang"],
+    days: undefined,
+    window_start: undefined,
+    window_end: undefined,
+  });
+  const row = (b.instructors as Row[])[0] as Row & {
+    sections: { subject_course: string; crn: string }[];
+  };
+  const hit = row.sections.find((s) => s.subject_course === "MATH1060");
+  assert.ok(hit, "the course is findable in the person's list");
+  assert.equal(hit!.crn, "70002");
+});
+
+test("filtered calls also carry the full section list, not just conflicts", async () => {
+  const b = await check({ instructors: ["tonkin@clemson.edu"] });
+  const row = (b.instructors as Row[])[0] as Row & { sections: unknown[] };
+  assert.equal(row.status, "busy");
+  assert.ok(row.sections.length >= 1);
+});
+
+test("a window without days is an error", async () => {
+  const res = await __schedTools.instructorClasses.handler({
+    instructors: ["tonkin@clemson.edu"],
+    window_start: "1100",
+    window_end: "1200",
+  });
+  assert.equal(res.isError, true);
+  assert.match((res.content[0] as { text: string }).text, /days/);
+});
+
 test("half a window is an error, not a guess", async () => {
-  const res = await __schedTools.instructorConflicts.handler({
+  const res = await __schedTools.instructorClasses.handler({
     instructors: ["tonkin@clemson.edu"],
     days: "F",
     window_start: "1100",

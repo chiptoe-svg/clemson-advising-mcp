@@ -91,5 +91,5 @@ const PUBLIC_ONLY = new Set([
   "get-schedule-freshness",
   "get-sections-by-crn",
   "resolve-crns",
-  "check-instructor-conflicts",
+  "get-instructor-classes",
 ]);

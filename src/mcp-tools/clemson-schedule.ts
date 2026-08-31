@@ -506,22 +506,24 @@ function hhmmToMin(v: unknown): number | null {
  * for them this term — which says nothing about other commitments; an
  * ambiguous name returns the candidates rather than guessing a person.
  */
-const instructorConflicts: McpToolDefinition = {
-  operation: "clemson.instructor_conflicts",
+const instructorClasses: McpToolDefinition = {
+  operation: "clemson.instructor_classes",
   category: "scheduling",
   tool: {
-    name: "check-instructor-conflicts",
+    name: "get-instructor-classes",
     description:
-      "Which of the given instructors TEACH during a time window — the " +
-      'deterministic answer to "who has a teaching conflict Friday 11-12?". ' +
-      "Each entry may be an email, a name, or 'Name <email>' (emails match " +
-      "exactly; names match by substring, and an ambiguous name returns the " +
-      "candidates instead of guessing). Per person the status is THREE-STATE: " +
-      "'busy' (with the conflicting meetings), 'free' (they teach this term, " +
-      "nothing overlaps), or 'not_teaching' (no sections in this term's " +
-      "snapshot — NOT the same as free; says nothing about other " +
-      "commitments). Teaching conflicts only, from the daily Banner " +
-      "snapshot. Read-only, no Banner load.",
+      "Everything each given instructor TEACHES in a term — the primitive " +
+      'behind "what does Chip Tonkin teach?", "I want Tonkin\'s GC 4800", ' +
+      'and, with the optional day/window filter, "who has a teaching ' +
+      'conflict Friday 11-12?". Each entry may be an email, a name, or ' +
+      "'Name <email>' (emails match exactly; names match by substring, and " +
+      "an ambiguous name returns the candidates instead of guessing). Every " +
+      "matched person gets their full section list with meetings. Statuses " +
+      "are explicit: 'teaching' / 'not_teaching' without a filter; 'busy' " +
+      "(with the overlapping meetings) / 'free' with one. 'not_teaching' " +
+      "means no sections in this term's snapshot — NOT the same as free, and " +
+      "it says nothing about non-teaching commitments. Snapshot-backed, " +
+      "read-only, no Banner load.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -540,7 +542,9 @@ const instructorConflicts: McpToolDefinition = {
         days: {
           type: "string",
           description:
-            "Day pattern using M T W R F S U, e.g. 'F' or 'MWF'. Required.",
+            "Optional day pattern using M T W R F S U, e.g. 'F'. With it, " +
+            "each person is also classified busy/free against the day(s) " +
+            "(and window, if given). Omit it to just list what they teach.",
         },
         window_start: {
           type: "string",
@@ -552,13 +556,13 @@ const instructorConflicts: McpToolDefinition = {
           description: "HHMM, e.g. '1200'.",
         },
       },
-      required: ["instructors", "days"],
+      required: ["instructors"],
       additionalProperties: false,
     },
   },
   async handler(args) {
     try {
-      assertMcpOperation("clemson.instructor_conflicts");
+      assertMcpOperation("clemson.instructor_classes");
     } catch (e) {
       return permissionErr(e);
     }
@@ -581,8 +585,13 @@ const instructorConflicts: McpToolDefinition = {
     const daysRaw =
       typeof args.days === "string" ? args.days.toUpperCase() : "";
     const days = [...daysRaw].filter((d) => "MTWRFSU".includes(d));
-    if (days.length === 0)
-      return err("days is required — a pattern of M T W R F S U, e.g. 'F'.");
+    const filtering = args.days !== undefined;
+    if (filtering && days.length === 0)
+      return err("days must be a pattern of M T W R F S U, e.g. 'F'.");
+    if (!filtering && args.window_start !== undefined)
+      return err(
+        "a window needs days too — pass days with window_start/window_end.",
+      );
 
     const winStart = hhmmToMin(args.window_start);
     const winEnd = hhmmToMin(args.window_end);
@@ -630,6 +639,58 @@ const instructorConflicts: McpToolDefinition = {
           };
         }
         const who = matches[0];
+        // The primitive: everything they teach, grouped by section.
+        const allMeetings = findInstructorMeetings(
+          db,
+          term,
+          who.email,
+          who.name,
+          ["M", "T", "W", "R", "F", "S", "U"],
+          null,
+          null,
+        );
+        const byCrn = new Map<
+          string,
+          {
+            crn: string;
+            subject_course: string;
+            section: string;
+            title: string;
+            meetings: {
+              day: string;
+              start_min: number | null;
+              end_min: number | null;
+              building: string | null;
+              room: string | null;
+            }[];
+          }
+        >();
+        for (const m2 of allMeetings) {
+          const e = byCrn.get(m2.crn) ?? {
+            crn: m2.crn,
+            subject_course: m2.subject_course,
+            section: m2.section,
+            title: m2.title,
+            meetings: [],
+          };
+          e.meetings.push({
+            day: m2.day,
+            start_min: m2.start_min,
+            end_min: m2.end_min,
+            building: m2.building,
+            room: m2.room,
+          });
+          byCrn.set(m2.crn, e);
+        }
+        const sections = [...byCrn.values()];
+        if (!filtering) {
+          return {
+            query: raw,
+            matched: who,
+            status: "teaching" as const,
+            sections,
+          };
+        }
         const conflicts = findInstructorMeetings(
           db,
           term,
@@ -643,6 +704,7 @@ const instructorConflicts: McpToolDefinition = {
           query: raw,
           matched: who,
           status: conflicts.length > 0 ? ("busy" as const) : ("free" as const),
+          sections,
           conflicts,
         };
       });
@@ -650,17 +712,23 @@ const instructorConflicts: McpToolDefinition = {
         term,
         has_snapshot: true,
         data_as_of: meta.fetchedAt,
-        days: days.join(""),
-        ...(winStart !== null && winEnd !== null
-          ? { window: { start_min: winStart, end_min: winEnd } }
+        ...(filtering
+          ? {
+              days: days.join(""),
+              ...(winStart !== null && winEnd !== null
+                ? { window: { start_min: winStart, end_min: winEnd } }
+                : {}),
+              busy: results
+                .filter((r) => r.status === "busy")
+                .map((r) =>
+                  "matched" in r
+                    ? (r.matched as { name: string }).name
+                    : r.query,
+                ),
+            }
           : {}),
-        busy: results
-          .filter((r) => r.status === "busy")
-          .map((r) =>
-            "matched" in r ? (r.matched as { name: string }).name : r.query,
-          ),
         instructors: results,
-        _source: `Banner schedule snapshot ${meta.fetchedAt} — teaching conflicts only`,
+        _source: `Banner schedule snapshot ${meta.fetchedAt} — teaching data only`,
       });
     } finally {
       db.close();
@@ -669,7 +737,7 @@ const instructorConflicts: McpToolDefinition = {
 };
 
 export const __schedTools = {
-  instructorConflicts,
+  instructorClasses,
   findConflictFree,
   scheduleFreshness,
   sectionsByCrn,
@@ -681,5 +749,5 @@ registerTools([
   scheduleFreshness,
   sectionsByCrn,
   resolveCrnsTool,
-  instructorConflicts,
+  instructorClasses,
 ]);

@@ -156,7 +156,7 @@ actions:
   # Teaching-conflict check for a list of instructors, from the local Banner
   # snapshot. Names and emails queried are the PUBLISHED instructor fields of
   # public sections; nothing about a person beyond their published teaching.
-  - id: clemson.instructor_conflicts
+  - id: clemson.instructor_classes
     surface: external_read
     risk: low
     reversibility: read_only

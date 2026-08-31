@@ -57,6 +57,14 @@ What agents get wrong here:
   from your filter. Say so.
 - TERMS ARE EXPLICIT. Resolve the term with \`list-clemson-terms\` rather than
   assuming the current one; "fall" is ambiguous in August.
+- A CRN SOMEONE GAVE YOU IS A CLAIM, NOT A FACT. Verify CRNs with
+  \`get-sections-by-crn\` before repeating them: its \`not_found\` is
+  authoritative (the snapshot was read), which is exactly what catches a
+  fabricated or mistyped CRN.
+- "NOT TEACHING" IS NOT "FREE". \`get-instructor-classes\` answers what people
+  teach (and, with a day/window filter, who has a teaching conflict). A person
+  with no sections this term is reported \`not_teaching\` — the snapshot sees
+  only teaching, so never present that as availability.
 `.trim();
 
 const CATALOG_GUIDANCE = `

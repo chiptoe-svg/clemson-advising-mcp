@@ -33,7 +33,9 @@ test("clemson public tools are exposed", () => {
 
 test("removed operations are no longer in the allow-list", () => {
   assert.equal(isMcpOperationExposed("clemson.section_details"), false);
-  assert.equal(isMcpOperationExposed("clemson.instructor_classes"), false);
+  // clemson.instructor_classes returned DELIBERATELY on 2026-08-31 as
+  // get-instructor-classes (snapshot-backed primitive) — not the retired
+  // live-Banner tool this tombstone once guarded against resurrecting.
   assert.equal(isMcpOperationExposed("clemson.room_availability"), false);
   assert.equal(
     isMcpOperationExposed("clemson.check_schedule_conflicts"),

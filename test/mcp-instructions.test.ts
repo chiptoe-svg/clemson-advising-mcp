@@ -49,6 +49,17 @@ test("public instructions warn about snapshot staleness and untimed sections", (
   assert.match(t, /UNTIMED|no meeting time/i);
 });
 
+test("public instructions carry the two verification traps (reachable but undiscoverable, 2026-08-31)", () => {
+  // A tool a model never hears about may as well not exist: the preamble must
+  // name the CRN check and the not-teaching/free distinction, both observed
+  // model failure modes.
+  const t = serverInstructions("advising-mcp-schedule", PUBLIC_TOOLS);
+  assert.match(t, /get-sections-by-crn/);
+  assert.match(t, /not_found.*authoritative|authoritative/i);
+  assert.match(t, /get-instructor-classes/);
+  assert.match(t, /NOT TEACHING.*NOT.*FREE|not_teaching/i);
+});
+
 test("the two servers get different instructions", () => {
   const cat = serverInstructions("advising-mcp-catalog", CATALOG_TOOLS);
   const pub = serverInstructions("advising-mcp-schedule", PUBLIC_TOOLS);
