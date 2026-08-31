@@ -132,9 +132,6 @@ Both servers require a bearer token, are read-only, and filter every listing
 and every call by the caller's scope. "Snapshot" means the term's SQLite file;
 "live" means a request to Banner at call time.
 
-Tokens are issued per named caller after human review — request one via the
-repository's "MCP access request" issue template.
-
 ### Schedule server — `advising-mcp-schedule`, port 8766
 
 Every tool that takes a `term` accepts a code (`202608`) or a name
