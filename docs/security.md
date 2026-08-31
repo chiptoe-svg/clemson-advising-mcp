@@ -91,6 +91,13 @@ surface and no read-only public mode.
   `npm run mcp:pair`. The raw token is printed once and never stored — only a
   sha256 hash goes to disk, compared in constant time. Losing a token means
   minting a new one, which is the intended failure mode.
+- **Issuance is human-approved.** Requests arrive through a public form
+  (`.github/ISSUE_TEMPLATE/access-request.yml`); a person reviews each one and
+  mints scoped tokens with `npm run mcp:grant`. There is no self-service
+  registration endpoint — deliberately, so the servers keep zero
+  unauthenticated surface and every token maps to a reviewed, named
+  requester. Grants default to the narrow per-server scopes; the
+  departmental layer needs an explicit `--scopes` decision.
 - **Separate registries per server.** The schedule server and the catalog server
   each read their own registry file. A token minted for one is rejected by the
   other, and revoking one has no effect on the other. This is verified over TLS

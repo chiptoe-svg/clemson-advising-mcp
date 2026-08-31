@@ -84,6 +84,22 @@ doing something, not documents to read front to back.
 
 ---
 
+## Getting access
+
+Everything served is public Clemson data; tokens exist for attribution and
+abuse control, so issuance is lightweight but **human-approved** — there is no
+self-service endpoint, deliberately (the servers keep zero unauthenticated
+surface).
+
+1. Open an [access request](../../issues/new?template=access-request.yml)
+   (name, Clemson username, which server(s), intended use).
+2. The operator reviews it and runs
+   `npm run mcp:grant -- --user <username> --servers schedule,catalog`,
+   which mints per-server scoped tokens and prints a ready-to-send delivery
+   block (URLs, headers, client config).
+3. Tokens take effect on the next request, are shown once, never stored
+   (sha256 only), and are revoked with one command.
+
 ## Quick start
 
 ```bash
@@ -91,7 +107,7 @@ npm ci
 npm run typecheck
 npm test
 
-npm run mcp:pair -- --server public --id my-agent
+npm run mcp:pair -- --server schedule --id my-agent
 MCP_TRANSPORT=http npm run mcp:schedule:http
 ```
 

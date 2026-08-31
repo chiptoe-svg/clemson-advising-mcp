@@ -1,0 +1,63 @@
+name: MCP access request
+description: Request a bearer token for the schedule and/or catalog MCP server.
+title: "Access request: <your Clemson username>"
+labels: ["access-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Requests are **reviewed by a person** — approval is not automatic.
+        Everything these servers serve is public Clemson data; tokens exist for
+        attribution and abuse control, so we need to know who is calling.
+
+        **Note: issues are public.** Give your Clemson *username* only, not
+        your full email address, and don't put anything private in this form.
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      placeholder: e.g. Jane Smith
+    validations:
+      required: true
+  - type: input
+    id: username
+    attributes:
+      label: Clemson username
+      description: The part before @clemson.edu. Approval is confirmed against this address — do not paste the full address here.
+      placeholder: e.g. jsmith
+    validations:
+      required: true
+  - type: input
+    id: role
+    attributes:
+      label: Role and department
+      placeholder: e.g. Advisor, College of Business
+    validations:
+      required: true
+  - type: checkboxes
+    id: servers
+    attributes:
+      label: Which server(s)?
+      description: Each server has its own token. Ask only for what you'll use.
+      options:
+        - label: "Schedule (class sections, meeting times, seats, instructors)"
+        - label: "Catalog (degree plans, requirement rules, gen-ed, courses)"
+    validations:
+      required: true
+  - type: textarea
+    id: use
+    attributes:
+      label: What will you use it for?
+      description: One or two sentences. Which client will call it (Claude Desktop, Claude Code, a custom agent)?
+      placeholder: e.g. Claude Desktop, to answer scheduling questions for my advisees.
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Understanding
+      options:
+        - label: "The token is personal to me / my application; I won't share it, and I'll report it if it leaks (a new one is minted in seconds)."
+          required: true
+        - label: "The servers are read-only, serve published data only, and rate-limit callers; my usage is logged under my consumer id."
+          required: true
