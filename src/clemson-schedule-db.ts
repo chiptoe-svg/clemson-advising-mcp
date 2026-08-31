@@ -338,6 +338,91 @@ export function resolveCrns(
   });
 }
 
+/** One instructor identity as the snapshot records it. */
+export interface InstructorIdentity {
+  name: string;
+  email: string | null;
+}
+
+/** A meeting an instructor teaches, with its section identity. */
+export interface InstructorMeeting {
+  crn: string;
+  subject_course: string;
+  section: string;
+  title: string;
+  day: string;
+  start_min: number | null;
+  end_min: number | null;
+  building: string | null;
+  room: string | null;
+}
+
+/**
+ * Distinct instructor identities matching a query — by exact email
+ * (case-insensitive) when the query contains "@", by case-insensitive name
+ * substring otherwise. Returns ALL matches so the caller can distinguish
+ * "one person" from "ambiguous name" instead of silently picking one.
+ */
+export function matchInstructors(
+  db: Database.Database,
+  term: string,
+  query: string,
+): InstructorIdentity[] {
+  const q = query.trim();
+  const rows = q.includes("@")
+    ? db
+        .prepare(
+          `SELECT DISTINCT name, email FROM instructors
+            WHERE term = ? AND LOWER(email) = LOWER(?)`,
+        )
+        .all(term, q)
+    : db
+        .prepare(
+          `SELECT DISTINCT name, email FROM instructors
+            WHERE term = ? AND LOWER(name) LIKE '%' || LOWER(?) || '%'`,
+        )
+        .all(term, q);
+  return rows as InstructorIdentity[];
+}
+
+/**
+ * Every meeting an instructor teaches in a term that falls on one of `days`
+ * and (when a window is given) overlaps [windowStart, windowEnd) minutes.
+ * A meeting with no recorded time cannot overlap a window and is excluded —
+ * same convention as check-conflicts.
+ */
+export function findInstructorMeetings(
+  db: Database.Database,
+  term: string,
+  email: string | null,
+  name: string,
+  days: readonly string[],
+  windowStart: number | null,
+  windowEnd: number | null,
+): InstructorMeeting[] {
+  const dayPhs = days.map(() => "?").join(",");
+  const who = email ? "LOWER(i.email) = LOWER(?)" : "i.name = ?";
+  const rows = db
+    .prepare(
+      `SELECT s.crn, s.subject_course, s.section, s.title,
+              m.day, m.start_min, m.end_min, m.building, m.room
+         FROM instructors i
+         JOIN meetings m ON m.crn = i.crn AND m.term = i.term
+         JOIN sections s ON s.crn = i.crn AND s.term = i.term
+        WHERE i.term = ? AND ${who} AND m.day IN (${dayPhs})
+        ORDER BY m.start_min, s.crn`,
+    )
+    .all(term, email ?? name, ...days) as InstructorMeeting[];
+  if (windowStart === null || windowEnd === null) return rows;
+  return rows.filter(
+    (m) =>
+      m.start_min !== null &&
+      m.end_min !== null &&
+      m.start_min < windowEnd &&
+      m.end_min > windowStart,
+  );
+}
+
 export function getScheduleDbMeta(db: Database.Database): ScheduleDbMeta {
   const rows = db.prepare("SELECT key, value FROM meta").all() as Array<{
     key: string;

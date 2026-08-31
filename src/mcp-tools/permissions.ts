@@ -70,6 +70,11 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.resolve_crns",
   },
+  // Teaching-conflict check across a list of instructors — snapshot-only.
+  "clemson.instructor_conflicts": {
+    backend: "external-http",
+    policyActionId: "clemson.instructor_conflicts",
+  },
   "clemson.sections_by_crn": {
     backend: "external-http",
     policyActionId: "clemson.sections_by_crn",
@@ -260,6 +265,7 @@ const CLEMSON_SCHEDULE_OPS = [
   "clemson.find_conflict_free_schedule",
   "clemson.sections_by_crn",
   "clemson.resolve_crns",
+  "clemson.instructor_conflicts",
   "clemson.schedule_freshness",
 ];
 
@@ -292,6 +298,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.find_conflict_free_schedule",
     "clemson.sections_by_crn",
     "clemson.resolve_crns",
+    "clemson.instructor_conflicts",
     "clemson.gc_catalog_years",
     "clemson.gc_program_plan",
     "clemson.gc_requirement_rules",

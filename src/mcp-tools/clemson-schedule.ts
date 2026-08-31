@@ -7,6 +7,8 @@ import {
   getMeetingsForCrns,
   getSectionsByCrn,
   resolveCrns,
+  matchInstructors,
+  findInstructorMeetings,
   findConflicts,
   type ConflictPair,
 } from "../clemson-schedule-db.js";
@@ -484,7 +486,190 @@ const resolveCrnsTool: McpToolDefinition = {
 
 /** Test-only handle on the tool definitions, so a test can drive a handler
  *  without standing up a server. */
+/** "HHMM" -> minutes past midnight, or null when unparseable. */
+function hhmmToMin(v: unknown): number | null {
+  if (typeof v !== "string" || !/^\d{4}$/.test(v)) return null;
+  const h = Number(v.slice(0, 2));
+  const m = Number(v.slice(2, 4));
+  return h > 23 || m > 59 ? null : h * 60 + m;
+}
+
+/**
+ * Who on a list has a TEACHING conflict in a time window — "which of these
+ * faculty teach Friday 11-12?" as one deterministic call instead of a guessed
+ * search per person (search-classes requires a subject scope, so it cannot
+ * answer "everything this person teaches" at all).
+ *
+ * THREE-STATE PER PERSON, because the failure this exists to avoid is a model
+ * reading silence as availability: "free" means the snapshot has their
+ * sections and none overlap; "not_teaching" means the snapshot has NO sections
+ * for them this term — which says nothing about other commitments; an
+ * ambiguous name returns the candidates rather than guessing a person.
+ */
+const instructorConflicts: McpToolDefinition = {
+  operation: "clemson.instructor_conflicts",
+  category: "scheduling",
+  tool: {
+    name: "check-instructor-conflicts",
+    description:
+      "Which of the given instructors TEACH during a time window — the " +
+      'deterministic answer to "who has a teaching conflict Friday 11-12?". ' +
+      "Each entry may be an email, a name, or 'Name <email>' (emails match " +
+      "exactly; names match by substring, and an ambiguous name returns the " +
+      "candidates instead of guessing). Per person the status is THREE-STATE: " +
+      "'busy' (with the conflicting meetings), 'free' (they teach this term, " +
+      "nothing overlaps), or 'not_teaching' (no sections in this term's " +
+      "snapshot — NOT the same as free; says nothing about other " +
+      "commitments). Teaching conflicts only, from the daily Banner " +
+      "snapshot. Read-only, no Banner load.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        term: {
+          type: "string",
+          description:
+            'Term: a code (202608) or a name ("Fall 2026"). Defaults to the current registration term.',
+        },
+        instructors: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            'People to check: "Name <email>", a bare email, or a name. ' +
+            "Semicolon-separated pastes should be split into entries first.",
+        },
+        days: {
+          type: "string",
+          description:
+            "Day pattern using M T W R F S U, e.g. 'F' or 'MWF'. Required.",
+        },
+        window_start: {
+          type: "string",
+          description:
+            "HHMM, e.g. '1100'. Omit both bounds to check the whole day(s).",
+        },
+        window_end: {
+          type: "string",
+          description: "HHMM, e.g. '1200'.",
+        },
+      },
+      required: ["instructors", "days"],
+      additionalProperties: false,
+    },
+  },
+  async handler(args) {
+    try {
+      assertMcpOperation("clemson.instructor_conflicts");
+    } catch (e) {
+      return permissionErr(e);
+    }
+    const parsedTerm = parseTermCode(
+      typeof args.term === "string" ? args.term : undefined,
+    );
+    if ("error" in parsedTerm) return err(parsedTerm.error);
+    const { term } = parsedTerm;
+
+    const rawList = Array.isArray(args.instructors)
+      ? (args.instructors as unknown[]).filter(
+          (x): x is string => typeof x === "string" && x.trim() !== "",
+        )
+      : [];
+    if (rawList.length === 0)
+      return err(
+        "instructors is required and must contain at least one entry.",
+      );
+
+    const daysRaw =
+      typeof args.days === "string" ? args.days.toUpperCase() : "";
+    const days = [...daysRaw].filter((d) => "MTWRFSU".includes(d));
+    if (days.length === 0)
+      return err("days is required — a pattern of M T W R F S U, e.g. 'F'.");
+
+    const winStart = hhmmToMin(args.window_start);
+    const winEnd = hhmmToMin(args.window_end);
+    if ((args.window_start !== undefined) !== (args.window_end !== undefined))
+      return err("window_start and window_end must be given together (HHMM).");
+    if (
+      args.window_start !== undefined &&
+      (winStart === null || winEnd === null)
+    )
+      return err("window_start/window_end must be HHMM, e.g. '1100'.");
+
+    const db = openScheduleDb(term);
+    if (!db) {
+      // Nothing was checked; claiming anyone free would be the exact failure
+      // this tool exists to prevent.
+      return okJson({
+        term,
+        has_snapshot: false,
+        instructors: [],
+        _note: `No snapshot for term ${term}, so no instructor could be checked.`,
+      });
+    }
+    try {
+      const meta = getScheduleDbMeta(db);
+      const results = rawList.map((raw) => {
+        // "Name <email>" -> prefer the email; else the raw string decides.
+        const m = /<([^>]+@[^>]+)>/.exec(raw);
+        const query = (m ? m[1] : raw).trim();
+        const matches = matchInstructors(db, term, query);
+        if (matches.length === 0) {
+          return {
+            query: raw,
+            status: "not_teaching" as const,
+            note:
+              "No sections in this term's snapshot for this instructor — " +
+              "NOT the same as free; other commitments are invisible here.",
+          };
+        }
+        if (matches.length > 1) {
+          return {
+            query: raw,
+            status: "ambiguous" as const,
+            candidates: matches,
+            note: "Multiple instructors match — re-query with an exact email.",
+          };
+        }
+        const who = matches[0];
+        const conflicts = findInstructorMeetings(
+          db,
+          term,
+          who.email,
+          who.name,
+          days,
+          winStart,
+          winEnd,
+        );
+        return {
+          query: raw,
+          matched: who,
+          status: conflicts.length > 0 ? ("busy" as const) : ("free" as const),
+          conflicts,
+        };
+      });
+      return okJson({
+        term,
+        has_snapshot: true,
+        data_as_of: meta.fetchedAt,
+        days: days.join(""),
+        ...(winStart !== null && winEnd !== null
+          ? { window: { start_min: winStart, end_min: winEnd } }
+          : {}),
+        busy: results
+          .filter((r) => r.status === "busy")
+          .map((r) =>
+            "matched" in r ? (r.matched as { name: string }).name : r.query,
+          ),
+        instructors: results,
+        _source: `Banner schedule snapshot ${meta.fetchedAt} — teaching conflicts only`,
+      });
+    } finally {
+      db.close();
+    }
+  },
+};
+
 export const __schedTools = {
+  instructorConflicts,
   findConflictFree,
   scheduleFreshness,
   sectionsByCrn,
@@ -496,4 +681,5 @@ registerTools([
   scheduleFreshness,
   sectionsByCrn,
   resolveCrnsTool,
+  instructorConflicts,
 ]);
