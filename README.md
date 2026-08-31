@@ -71,15 +71,16 @@ doing something, not documents to read front to back.
 
 ## Documentation
 
-|                                       |                                                                                     |
-| ------------------------------------- | ----------------------------------------------------------------------------------- |
-| `docs/security.md`                    | Threat model, authentication, what leaves the machine, known limitations            |
-| `docs/overview.md`                    | The data from source to answer, and every tool described                            |
-| `docs/architecture.md`                | How it works, module by module, and how to diagnose it                              |
-| `docs/operations.md`                  | Install, configure, serve over TLS, refresh, restart, back up                       |
-| `docs/capacity.md`                    | Measured throughput, sizing, and what would change it                               |
-| `deploy/Caddyfile.example`            | Working reverse-proxy configuration for campus TLS                                  |
-| `docs/clemson-it-data-api-request.md` | What we read from Clemson systems today, and the supported access we are asking for |
+|                                                                                                   |                                                                                                       |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `docs/security.md`                                                                                | Threat model, authentication, what leaves the machine, known limitations                              |
+| `docs/overview.md`                                                                                | The data from source to answer, and every tool described                                              |
+| [chiptoe-svg.github.io/clemson-advising-mcp](https://chiptoe-svg.github.io/clemson-advising-mcp/) | The same overview as a web page — what the servers provide, where the data comes from, and every tool |
+| `docs/architecture.md`                                                                            | How it works, module by module, and how to diagnose it                                                |
+| `docs/operations.md`                                                                              | Install, configure, serve over TLS, refresh, restart, back up                                         |
+| `docs/capacity.md`                                                                                | Measured throughput, sizing, and what would change it                                                 |
+| `deploy/Caddyfile.example`                                                                        | Working reverse-proxy configuration for campus TLS                                                    |
+| `docs/clemson-it-data-api-request.md`                                                             | What we read from Clemson systems today, and the supported access we are asking for                   |
 
 ---
 
