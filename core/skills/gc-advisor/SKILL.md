@@ -109,12 +109,23 @@ When a student shares their completed courses and asks what they still need:
    - **`slot`**: satisfied based on the requirement rule for that `slot_type` (see below).
 3. Call `get-gc-requirement-rules` and match each rule to the corresponding slot items by `slot_type`.
    - **Lab Science slot**: satisfied if the student completed any course in `explicit_courses`.
-   - **Specialty Area slot**: satisfied if the student (a) declared and completed an approved minor, or (b) completed ≥ 15 credits from `explicit_courses`. The `raw_text` has the full list including any-BIOL/CH/PHYS and language-sequence options — quote it when the student asks for examples.
-   - **Technical Requirement slot**: satisfied if the student completed courses from `explicit_courses` totalling ≥ `total_credits` (6 cr).
+   - **Specialty Area slot**: satisfied if the student (a) declared and completed a minor the catalog recognises (verify the minor exists with `get-program-requirements` — do not take the name on trust), or (b) completed ≥ 15 credits that count. **What counts is more than `explicit_courses`**: the rule also carries `advisor_courses` (faculty-approved additions), `advisor_denies` (subtractions), and wildcard families (ENGR/CHE/ECE/IE/ME/MSE any level; CPSC 2000+; GC 37XX; BIOL/CH/PHYS **capped at 4 credits total**). The `raw_text` has the full prose — quote it when the student asks for examples.
+   - **Technical Requirement slot**: satisfied if the student completed courses that count (same `explicit_courses` + `advisor_courses` − `advisor_denies` reading) totalling ≥ `total_credits` (6 cr).
 4. Check gen-ed separately with `get-gc-gen-ed`:
    - For each category, the student must have ≥ `min_credits` from `allowed_courses`.
    - Apply any constraint sentences in `rules` (e.g. "two different fields" for Social Sciences).
 5. Tally remaining credits. Report: what's done ✓, what's still needed, and total credits remaining toward 120.
+
+Three counting rules the walk above gets wrong if applied naively — the retired
+server-side audit engine enforced all three, so a hand walk must too:
+
+- **Each course counts once across the whole audit.** A course that satisfied a
+  plan item must not also fill a Specialty or Technical slot. The only
+  double-dip exceptions are global-challenges courses and minor courses (see
+  Specialty-area approval below).
+- **A retaken course counts once**, at its highest credit value — never summed.
+- **Credit caps apply within wildcard families** (the 4-credit science cap
+  above), not just at the slot total.
 
 ---
 
