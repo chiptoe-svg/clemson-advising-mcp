@@ -2,7 +2,7 @@ import argparse, json
 from pathlib import Path
 from gc_advisor.db.access import CatalogAccess
 
-DEFAULT_DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DEFAULT_DB = Path(__file__).parent.parent / "db" / "catalog.db"
 
 def main():
     ap = argparse.ArgumentParser(description="GC curriculum query (JSON out)")

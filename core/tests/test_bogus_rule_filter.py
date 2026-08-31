@@ -33,7 +33,7 @@ import pytest
 from gc_advisor.audit.rule_semantics import is_bogus_rule
 
 ROOT = Path(__file__).parent.parent
-DB = ROOT / "db" / "gc_advisor.db"
+DB = ROOT / "db" / "catalog.db"
 
 CATS = [
     {"name": "Natural Sciences with Lab", "allowed_courses": ["CH 1010", "BIOL 1030"]},

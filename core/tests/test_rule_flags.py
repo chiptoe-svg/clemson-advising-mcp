@@ -15,7 +15,7 @@ import pytest
 from gc_advisor.db.connection import init_db, get_connection
 from gc_advisor.db.access import refresh_bogus_flags
 
-DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DB = Path(__file__).parent.parent / "db" / "catalog.db"
 
 
 def _seed(tmp_path):

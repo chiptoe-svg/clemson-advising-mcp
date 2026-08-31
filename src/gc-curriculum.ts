@@ -3,7 +3,7 @@
 // data. Nothing here spawns a process: the Python under core/ BUILDS the
 // database and serves as the oracle for test/catalog-read-differential.test.ts,
 // but never runs on a request path.
-import { GC_ADVISOR_DB } from "./config-mcp.js";
+import { CATALOG_DB } from "./config-mcp.js";
 import {
   getCourse as getCourseRow,
   getGenEd as getGenEdRows,
@@ -29,7 +29,7 @@ export class GcCatalogError extends Error {
 }
 
 function withCatalog<T>(fn: (db: ReturnType<typeof openCatalog>) => T): T {
-  const db = openCatalog(GC_ADVISOR_DB);
+  const db = openCatalog(CATALOG_DB);
   try {
     return fn(db);
   } finally {

@@ -5,7 +5,7 @@ from gc_advisor.audit.models import PassedCourse, Progress
 from gc_advisor.audit.engine import run_audit
 from gc_advisor.db.connection import init_db, get_connection
 
-DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DB = Path(__file__).parent.parent / "db" / "catalog.db"
 pytestmark = pytest.mark.skipif(not DB.exists(), reason="catalog DB not present")
 
 

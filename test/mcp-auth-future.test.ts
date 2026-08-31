@@ -47,13 +47,19 @@ function fakeReq(headers: Record<string, string> = {}) {
 }
 
 function captureRes() {
-  const captured = { status: 0, headers: {} as Record<string, string>, body: "" };
+  const captured = {
+    status: 0,
+    headers: {} as Record<string, string>,
+    body: "",
+  };
   const res = {
     writeHead: (code: number, headers?: Record<string, string>) => {
       captured.status = code;
       Object.assign(captured.headers, headers ?? {});
     },
-    end: (b?: string) => { captured.body = b ?? ""; },
+    end: (b?: string) => {
+      captured.body = b ?? "";
+    },
     on: () => {},
     headersSent: false,
   };
@@ -114,7 +120,11 @@ test("the authenticator receives the REAL request context, not just the header",
   const ctx = seen as unknown as Record<string, unknown>;
   assert.equal(ctx.authHeader, "Bearer z");
   assert.equal(ctx.method, "PATCH", "the REQUEST's method, not a default");
-  assert.equal(ctx.url, "/some/resource?x=1", "the REQUEST's url, not a default");
+  assert.equal(
+    ctx.url,
+    "/some/resource?x=1",
+    "the REQUEST's url, not a default",
+  );
   assert.equal(ctx.source, "10.9.8.7", "the REQUEST's peer, not a default");
   assert.equal(
     (ctx.headers as Record<string, string>)["x-probe"],
@@ -132,7 +142,11 @@ test("Principal separates the agent (clientId) from a future end user (subject)"
   const auth = resolveCredentialedAuth({ load: () => consumers });
   const p = (await auth(authContext("Bearer tok"))) as Principal;
   assert.equal(p.clientId, "agent-7", "a registry token identifies software");
-  assert.equal(p.subject, undefined, "and NOT a person — that absence is the honest signal");
+  assert.equal(
+    p.subject,
+    undefined,
+    "and NOT a person — that absence is the honest signal",
+  );
   assert.equal(p.authMethod, "registry-token");
 });
 
@@ -145,18 +159,31 @@ test("openAuthenticator reports its own method rather than masquerading", async 
 
 test("an expired principal is refused centrally, not per-scheme", async () => {
   const expired: Authenticator = async () => ({
-    id: "stale", scopes: new Set<string>(), authMethod: "oauth", expiresAt: 1,
+    id: "stale",
+    scopes: new Set<string>(),
+    authMethod: "oauth",
+    expiresAt: 1,
   });
   const out = await run(expired, { authorization: "Bearer whatever" });
-  assert.equal(out.status, 401, "a past expiresAt must be rejected by the handler");
+  assert.equal(
+    out.status,
+    401,
+    "a past expiresAt must be rejected by the handler",
+  );
 });
 
 test("a principal with no expiry (registry token) still passes", async () => {
   const forever: Authenticator = async () => ({
-    id: "ok", scopes: new Set<string>(), authMethod: "registry-token",
+    id: "ok",
+    scopes: new Set<string>(),
+    authMethod: "registry-token",
   });
   const out = await run(forever, { authorization: "Bearer whatever" });
-  assert.notEqual(out.status, 401, "absent expiresAt means non-expiring, not expired");
+  assert.notEqual(
+    out.status,
+    401,
+    "absent expiresAt means non-expiring, not expired",
+  );
 });
 
 // --- chaining ---------------------------------------------------------------
@@ -164,7 +191,12 @@ test("a principal with no expiry (registry token) still passes", async () => {
 test("chainAuthenticators lets two schemes run side by side during a migration", async () => {
   const oauth: Authenticator = async (ctx) =>
     ctx.authHeader === "Bearer jwt"
-      ? { id: "person", scopes: new Set<string>(), authMethod: "oauth", subject: "cu123" }
+      ? {
+          id: "person",
+          scopes: new Set<string>(),
+          authMethod: "oauth",
+          subject: "cu123",
+        }
       : null;
   const registry: Authenticator = async (ctx) =>
     ctx.authHeader === "Bearer legacy"
@@ -173,17 +205,31 @@ test("chainAuthenticators lets two schemes run side by side during a migration",
   const chained = chainAuthenticators([oauth, registry]);
 
   assert.equal((await chained(authContext("Bearer jwt")))?.authMethod, "oauth");
-  assert.equal((await chained(authContext("Bearer legacy")))?.authMethod, "registry-token");
+  assert.equal(
+    (await chained(authContext("Bearer legacy")))?.authMethod,
+    "registry-token",
+  );
   assert.equal(await chained(authContext("Bearer neither")), null);
 });
 
 test("chainAuthenticators is first-wins and short-circuits", async () => {
   let secondCalled = false;
-  const first: Authenticator = async () => ({ id: "a", scopes: new Set<string>(), authMethod: "oauth" });
-  const second: Authenticator = async () => { secondCalled = true; return null; };
+  const first: Authenticator = async () => ({
+    id: "a",
+    scopes: new Set<string>(),
+    authMethod: "oauth",
+  });
+  const second: Authenticator = async () => {
+    secondCalled = true;
+    return null;
+  };
   const p = await chainAuthenticators([first, second])(authContext("x"));
   assert.equal(p?.id, "a");
-  assert.equal(secondCalled, false, "a later authenticator must not run after a match");
+  assert.equal(
+    secondCalled,
+    false,
+    "a later authenticator must not run after a match",
+  );
 });
 
 // --- failure and challenge --------------------------------------------------
@@ -212,7 +258,10 @@ test("a NON-FINITE expiresAt is refused, not accepted", async () => {
   // The original test pinned only `expiresAt: 1` and absent.
   for (const bad of [NaN, Infinity, -Infinity]) {
     const auth: Authenticator = async () => ({
-      id: "x", scopes: new Set<string>(), authMethod: "oauth", expiresAt: bad,
+      id: "x",
+      scopes: new Set<string>(),
+      authMethod: "oauth",
+      expiresAt: bad,
     });
     const out = await run(auth, { authorization: "Bearer whatever" });
     assert.equal(out.status, 401, `expiresAt=${String(bad)} must be refused`);
@@ -221,15 +270,21 @@ test("a NON-FINITE expiresAt is refused, not accepted", async () => {
 
 test("a non-numeric expiresAt is refused", async () => {
   const auth: Authenticator = async () =>
-    ({ id: "x", scopes: new Set<string>(), authMethod: "oauth",
-       expiresAt: "later" } as unknown as Principal);
+    ({
+      id: "x",
+      scopes: new Set<string>(),
+      authMethod: "oauth",
+      expiresAt: "later",
+    }) as unknown as Principal;
   const out = await run(auth, { authorization: "Bearer whatever" });
   assert.equal(out.status, 401);
 });
 
 test("a far-future expiresAt still passes (the check is not just 'reject if set')", async () => {
   const auth: Authenticator = async () => ({
-    id: "ok", scopes: new Set<string>(), authMethod: "oauth",
+    id: "ok",
+    scopes: new Set<string>(),
+    authMethod: "oauth",
     expiresAt: Date.now() + 3_600_000,
   });
   const out = await run(auth, { authorization: "Bearer whatever" });
@@ -242,7 +297,10 @@ test("a HUNG authenticator denies rather than holding the request open forever",
   // neither headersTimeout nor requestTimeout applies, because both measure
   // request RECEIPT, which has already completed.
   const { AUTH_TIMEOUT_MS } = await import("../src/mcp-tools/server.ts");
-  assert.ok(AUTH_TIMEOUT_MS > 0 && AUTH_TIMEOUT_MS <= 30_000, "timeout must be bounded and sane");
+  assert.ok(
+    AUTH_TIMEOUT_MS > 0 && AUTH_TIMEOUT_MS <= 30_000,
+    "timeout must be bounded and sane",
+  );
 
   const hung: Authenticator = () => new Promise<null>(() => {});
   const started = Date.now();
@@ -256,7 +314,10 @@ test("a HUNG authenticator denies rather than holding the request open forever",
       res as unknown as Parameters<typeof handler>[1],
     );
     const poll = setInterval(() => {
-      if (captured.status !== 0) { clearInterval(poll); resolve(captured); }
+      if (captured.status !== 0) {
+        clearInterval(poll);
+        resolve(captured);
+      }
     }, 50);
   });
   assert.equal(out.status, 401, "a hung authenticator must fail CLOSED");

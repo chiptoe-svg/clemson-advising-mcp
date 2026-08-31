@@ -11,7 +11,7 @@ from gc_advisor.ingest.packs import load_pack
 from registrar_rules import subject_ranges
 
 PACK = Path(__file__).parent.parent / "packs" / "accounting"
-DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DB = Path(__file__).parent.parent / "db" / "catalog.db"
 
 # Parsed from the committed 2023-24 registrar rule line, which carries the 6
 # subjects shared by every catalog year. 2026-27 adds MKT, which the

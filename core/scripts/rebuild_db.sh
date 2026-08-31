@@ -1,5 +1,5 @@
 #!/bin/bash
-# Rebuild core/db/gc_advisor.db from scratch — the operator's one-command path.
+# Rebuild core/db/catalog.db from scratch — the operator's one-command path.
 #
 # WHAT THIS IS: a full re-ingest of the college-wide catalog. Program pages are
 # re-rendered from the LIVE Clemson catalog (network required); the two
@@ -16,7 +16,7 @@
 # where the database is written.
 #
 # USAGE:
-#   scripts/rebuild_db.sh                # rebuild the real DB (core/db/gc_advisor.db)
+#   scripts/rebuild_db.sh                # rebuild the real DB (core/db/catalog.db)
 #   GC_INGEST_DB=/tmp/x.db scripts/rebuild_db.sh   # scratch build (acceptance runs)
 #
 # GC_INGEST_DB is deliberately NOT GC_ADVISOR_DB: the service config reads the
@@ -26,7 +26,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY=.venv/bin/python
-DB="${GC_INGEST_DB:-db/gc_advisor.db}"
+DB="${GC_INGEST_DB:-db/catalog.db}"
 export GC_INGEST_DB="$DB"
 export PYTHONPATH=src
 
@@ -94,4 +94,4 @@ echo "Counts drift legitimately when Clemson edits the catalog — compare again
 echo "the reference and investigate deltas; do not expect byte-identity."
 echo
 echo "Acceptance: run the suite against this DB:"
-echo "  GC_INGEST_DB=$DB $PY -m pytest tests -q -m 'not integration'   # tests read db/gc_advisor.db — for a scratch DB, swap it into place or symlink"
+echo "  GC_INGEST_DB=$DB $PY -m pytest tests -q -m 'not integration'   # tests read db/catalog.db — for a scratch DB, swap it into place or symlink"

@@ -25,7 +25,11 @@ test("Banner requests are sent with Connection: close (no keep-alive reuse)", as
     globalThis.fetch = orig;
   }
 
-  assert.equal(seen.length, 1, "listClemsonTerms should issue exactly one request");
+  assert.equal(
+    seen.length,
+    1,
+    "listClemsonTerms should issue exactly one request",
+  );
   // Case-insensitive: the header name may be normalized by the runtime.
   const headers = seen[0];
   const connValue = Object.entries(headers).find(
@@ -52,8 +56,14 @@ test("Banner requests identify this service in User-Agent (never Node's anonymou
   } finally {
     globalThis.fetch = orig;
   }
-  const ua = Object.entries(seen[0]).find(([k]) => k.toLowerCase() === "user-agent")?.[1];
+  const ua = Object.entries(seen[0]).find(
+    ([k]) => k.toLowerCase() === "user-agent",
+  )?.[1];
   assert.equal(ua, BANNER_USER_AGENT);
   assert.match(String(ua), /clemson-advising-mcp\//, "names the service");
-  assert.match(String(ua), /github\.com\/chiptoe-svg\/clemson-advising-mcp/, "points at the repo");
+  assert.match(
+    String(ua),
+    /github\.com\/chiptoe-svg\/clemson-advising-mcp/,
+    "points at the repo",
+  );
 });

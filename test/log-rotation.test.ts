@@ -6,7 +6,10 @@ import path from "node:path";
 import { log, __configureLogForTest, __resetLogForTest } from "../src/log.ts";
 
 function tmpFile(): string {
-  return path.join(fs.mkdtempSync(path.join(os.tmpdir(), "log-rot-")), "app.log");
+  return path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "log-rot-")),
+    "app.log",
+  );
 }
 
 test("unset LOG_FILE writes to the stderr sink only", () => {
@@ -37,7 +40,10 @@ test("a rotation shifts .1 to .2 and never loses the newest lines", () => {
   log.info("y".repeat(150)); // forces rotation on the NEXT write
   log.info("after-rotation");
   __resetLogForTest();
-  const all = [file, file + ".1", file + ".2"].filter(fs.existsSync).map((f) => fs.readFileSync(f, "utf8")).join("");
+  const all = [file, file + ".1", file + ".2"]
+    .filter(fs.existsSync)
+    .map((f) => fs.readFileSync(f, "utf8"))
+    .join("");
   assert.match(all, /first-batch/);
   assert.match(all, /after-rotation/);
 });

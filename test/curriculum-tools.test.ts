@@ -15,21 +15,31 @@ import { SKIP_NO_CORE_DB, requireCoreArtifacts } from "./_artifacts.ts";
 
 requireCoreArtifacts();
 
-test("listGcCatalogYears against the real catalog DB", { skip: SKIP_NO_CORE_DB }, async () => {
-  const years = await listGcCatalogYears();
-  assert.ok(Array.isArray(years) && years.length > 0);
-  assert.ok(years.every((y) => /^\d{4}-\d{4}$/.test(y)));
-});
+test(
+  "listGcCatalogYears against the real catalog DB",
+  { skip: SKIP_NO_CORE_DB },
+  async () => {
+    const years = await listGcCatalogYears();
+    assert.ok(Array.isArray(years) && years.length > 0);
+    assert.ok(years.every((y) => /^\d{4}-\d{4}$/.test(y)));
+  },
+);
 
 // The program check comes first — a missing program was the bug (a Marketing
 // question answered with the GC plan), a missing year was not.
 test("programPlan handler requires a program, then a catalog year", async () => {
   const noProgram = await programPlan.handler({});
   assert.equal(noProgram.isError, true);
-  assert.match((noProgram.content[0] as { text: string }).text, /program is required/);
+  assert.match(
+    (noProgram.content[0] as { text: string }).text,
+    /program is required/,
+  );
   const noYear = await programPlan.handler({ program: "Marketing, BS" });
   assert.equal(noYear.isError, true);
-  assert.match((noYear.content[0] as { text: string }).text, /catalog_year is required/);
+  assert.match(
+    (noYear.content[0] as { text: string }).text,
+    /catalog_year is required/,
+  );
 });
 
 test("tool definitions carry the expected names and operations", () => {
@@ -43,25 +53,50 @@ test("tool definitions carry the expected names and operations", () => {
   assert.equal(programPlan.tool.inputSchema.required, undefined);
 });
 
-test("get-gc-requirement-rules echoes the program it was given and refuses to invent one", { skip: SKIP_NO_CORE_DB }, async () => {
-  const a = await requirementRules.handler({ catalog_year: "2026-2027", program: "Marketing, BS" });
-  assert.equal(a.isError, undefined, (a.content[0] as { text: string }).text);
-  assert.equal((a.structuredContent as { program: string }).program, "Marketing, BS");
-  // The deprecated `year` alias still resolves, for one release.
-  const b = await requirementRules.handler({ year: "2026-2027", program: "Economics, BS" });
-  assert.equal(b.isError, undefined, (b.content[0] as { text: string }).text);
-  assert.equal((b.structuredContent as { catalog_year: string }).catalog_year, "2026-2027");
-  const noProgram = await requirementRules.handler({ catalog_year: "2026-2027" });
-  assert.equal(noProgram.isError, true);
-  assert.match((noProgram.content[0] as { text: string }).text, /program is required/);
-});
+test(
+  "get-gc-requirement-rules echoes the program it was given and refuses to invent one",
+  { skip: SKIP_NO_CORE_DB },
+  async () => {
+    const a = await requirementRules.handler({
+      catalog_year: "2026-2027",
+      program: "Marketing, BS",
+    });
+    assert.equal(a.isError, undefined, (a.content[0] as { text: string }).text);
+    assert.equal(
+      (a.structuredContent as { program: string }).program,
+      "Marketing, BS",
+    );
+    // The deprecated `year` alias still resolves, for one release.
+    const b = await requirementRules.handler({
+      year: "2026-2027",
+      program: "Economics, BS",
+    });
+    assert.equal(b.isError, undefined, (b.content[0] as { text: string }).text);
+    assert.equal(
+      (b.structuredContent as { catalog_year: string }).catalog_year,
+      "2026-2027",
+    );
+    const noProgram = await requirementRules.handler({
+      catalog_year: "2026-2027",
+    });
+    assert.equal(noProgram.isError, true);
+    assert.match(
+      (noProgram.content[0] as { text: string }).text,
+      /program is required/,
+    );
+  },
+);
 
 test("catalog tool descriptions no longer single out Graphic Communications", () => {
   for (const t of [requirementRules, programPlan]) {
-    assert.ok(!/Graphic Communications/.test(t.tool.description ?? ""), `${t.tool.name} description`);
+    assert.ok(
+      !/Graphic Communications/.test(t.tool.description ?? ""),
+      `${t.tool.name} description`,
+    );
   }
   assert.ok(
-    (requirementRules.tool.inputSchema.properties as Record<string, unknown>).program,
+    (requirementRules.tool.inputSchema.properties as Record<string, unknown>)
+      .program,
     "program param declared",
   );
 });
@@ -73,7 +108,10 @@ test("every catalog tool takes program/catalog_year and closes its schema", () =
       additionalProperties?: boolean;
     };
     assert.ok(schema.properties?.program, `${t.tool.name} declares program`);
-    assert.ok(schema.properties?.catalog_year, `${t.tool.name} declares catalog_year`);
+    assert.ok(
+      schema.properties?.catalog_year,
+      `${t.tool.name} declares catalog_year`,
+    );
     assert.equal(
       schema.additionalProperties,
       false,
@@ -81,31 +119,46 @@ test("every catalog tool takes program/catalog_year and closes its schema", () =
     );
   }
   assert.equal(
-    (catalogYears.tool.inputSchema as { additionalProperties?: boolean }).additionalProperties,
+    (catalogYears.tool.inputSchema as { additionalProperties?: boolean })
+      .additionalProperties,
     false,
   );
 });
 
 // General Education does not vary by program, but what comes back must still
 // be what was ASKED, not a constant.
-test("get-gc-gen-ed echoes the program it was given and the resolved catalog year", { skip: SKIP_NO_CORE_DB }, async () => {
-  const withProgram = await genEd.handler({ program: "Marketing, BS", catalog_year: "2025-2026" });
-  const a = JSON.parse((withProgram.content[0] as { text: string }).text) as Record<string, unknown>;
-  assert.equal(a.program, "Marketing, BS");
-  assert.equal(a.catalog_year, "2025-2026");
+test(
+  "get-gc-gen-ed echoes the program it was given and the resolved catalog year",
+  { skip: SKIP_NO_CORE_DB },
+  async () => {
+    const withProgram = await genEd.handler({
+      program: "Marketing, BS",
+      catalog_year: "2025-2026",
+    });
+    const a = JSON.parse(
+      (withProgram.content[0] as { text: string }).text,
+    ) as Record<string, unknown>;
+    assert.equal(a.program, "Marketing, BS");
+    assert.equal(a.catalog_year, "2025-2026");
 
-  // The deprecated `year` alias resolves, and an omitted program echoes null
-  // rather than inventing one.
-  const aliasOnly = await genEd.handler({ year: "2026-2027" });
-  const b = JSON.parse((aliasOnly.content[0] as { text: string }).text) as Record<string, unknown>;
-  assert.equal(b.program, null);
-  assert.equal(b.catalog_year, "2026-2027");
-});
+    // The deprecated `year` alias resolves, and an omitted program echoes null
+    // rather than inventing one.
+    const aliasOnly = await genEd.handler({ year: "2026-2027" });
+    const b = JSON.parse(
+      (aliasOnly.content[0] as { text: string }).text,
+    ) as Record<string, unknown>;
+    assert.equal(b.program, null);
+    assert.equal(b.catalog_year, "2026-2027");
+  },
+);
 
 test("get-gc-gen-ed requires a catalog year", async () => {
   const res = await genEd.handler({});
   assert.equal(res.isError, true);
-  assert.match((res.content[0] as { text: string }).text, /catalog_year is required/);
+  assert.match(
+    (res.content[0] as { text: string }).text,
+    /catalog_year is required/,
+  );
 });
 
 // --- list-shaped results use `items`, not index keys (review, 2026-08-27) ----
@@ -115,39 +168,63 @@ test("get-gc-gen-ed requires a catalog year", async () => {
 // began promoting the payload to typed structuredContent, because a model is
 // then handed that shape AS structure. List-shaped results belong under `items`.
 
-test("get-gc-requirement-rules returns its list under `items`, not index keys", { skip: SKIP_NO_CORE_DB }, async () => {
-  const r = await requirementRules.handler({
-    program: "Graphic Communications, BS",
-    catalog_year: "2025-2026",
-  });
-  const sc = r.structuredContent as Record<string, unknown>;
-  assert.ok(Array.isArray(sc.items), "the rule list must be an array under `items`");
-  assert.ok((sc.items as unknown[]).length > 0);
-  for (const k of Object.keys(sc)) {
-    assert.ok(!/^\d+$/.test(k), `index-keyed property "${k}" leaked into the result`);
-  }
-  // The echoed identifiers must survive the reshape.
-  assert.equal(sc.program, "Graphic Communications, BS");
-  assert.equal(sc.catalog_year, "2025-2026");
-});
+test(
+  "get-gc-requirement-rules returns its list under `items`, not index keys",
+  { skip: SKIP_NO_CORE_DB },
+  async () => {
+    const r = await requirementRules.handler({
+      program: "Graphic Communications, BS",
+      catalog_year: "2025-2026",
+    });
+    const sc = r.structuredContent as Record<string, unknown>;
+    assert.ok(
+      Array.isArray(sc.items),
+      "the rule list must be an array under `items`",
+    );
+    assert.ok((sc.items as unknown[]).length > 0);
+    for (const k of Object.keys(sc)) {
+      assert.ok(
+        !/^\d+$/.test(k),
+        `index-keyed property "${k}" leaked into the result`,
+      );
+    }
+    // The echoed identifiers must survive the reshape.
+    assert.equal(sc.program, "Graphic Communications, BS");
+    assert.equal(sc.catalog_year, "2025-2026");
+  },
+);
 
-test("get-gc-gen-ed returns its list under `items`, not index keys", { skip: SKIP_NO_CORE_DB }, async () => {
-  const r = await genEd.handler({ catalog_year: "2025-2026" });
-  const sc = r.structuredContent as Record<string, unknown>;
-  assert.ok(Array.isArray(sc.items), "the category list must be an array under `items`");
-  assert.ok((sc.items as unknown[]).length > 0);
-  for (const k of Object.keys(sc)) {
-    assert.ok(!/^\d+$/.test(k), `index-keyed property "${k}" leaked into the result`);
-  }
-});
+test(
+  "get-gc-gen-ed returns its list under `items`, not index keys",
+  { skip: SKIP_NO_CORE_DB },
+  async () => {
+    const r = await genEd.handler({ catalog_year: "2025-2026" });
+    const sc = r.structuredContent as Record<string, unknown>;
+    assert.ok(
+      Array.isArray(sc.items),
+      "the category list must be an array under `items`",
+    );
+    assert.ok((sc.items as unknown[]).length > 0);
+    for (const k of Object.keys(sc)) {
+      assert.ok(
+        !/^\d+$/.test(k),
+        `index-keyed property "${k}" leaked into the result`,
+      );
+    }
+  },
+);
 
-test("the text block and structuredContent agree for list-shaped results", { skip: SKIP_NO_CORE_DB }, async () => {
-  // okJson emits both; a reshape that fixed one and not the other would hand
-  // two different answers to two kinds of client.
-  const r = await requirementRules.handler({
-    program: "Graphic Communications, BS",
-    catalog_year: "2025-2026",
-  });
-  const text = JSON.parse((r.content as Array<{ text: string }>)[0]!.text);
-  assert.deepEqual(text, r.structuredContent);
-});
+test(
+  "the text block and structuredContent agree for list-shaped results",
+  { skip: SKIP_NO_CORE_DB },
+  async () => {
+    // okJson emits both; a reshape that fixed one and not the other would hand
+    // two different answers to two kinds of client.
+    const r = await requirementRules.handler({
+      program: "Graphic Communications, BS",
+      catalog_year: "2025-2026",
+    });
+    const text = JSON.parse((r.content as Array<{ text: string }>)[0]!.text);
+    assert.deepEqual(text, r.structuredContent);
+  },
+);

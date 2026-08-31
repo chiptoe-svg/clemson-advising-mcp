@@ -22,7 +22,7 @@ from registrar_rules import excluded_courses, subject_ranges
 REGISTRAR = "economics-major-requirement"
 
 PACK = Path(__file__).parent.parent / "packs" / "economics"
-DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DB = Path(__file__).parent.parent / "db" / "catalog.db"
 
 
 def test_economics_pack_covers_both_degrees():

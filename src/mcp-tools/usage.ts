@@ -32,7 +32,7 @@ function analyticsDir(): string {
 export const MAX_TOOL_NAME_RECORDED = 128;
 
 export interface McpCallRecord {
-  /** The server that served the call, e.g. "advising-mcp-public". */
+  /** The server that served the call, e.g. "advising-mcp-schedule". */
   server: string;
   /** Authenticated consumer id — the audit identity ("env-token" before pairing). */
   consumerId: string;

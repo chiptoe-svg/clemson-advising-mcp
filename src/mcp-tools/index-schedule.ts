@@ -1,6 +1,6 @@
-// src/mcp-tools/index-public.ts
+// src/mcp-tools/index-schedule.ts
 // Public Clemson class-schedule barrel — no credentials. Imported by the
-// Tool barrel for the schedule server (src/mcp-public.ts): importing this
+// Tool barrel for the schedule server (src/mcp-schedule.ts): importing this
 // registers every schedule tool.
 import "./clemson-classes.js";
 import "./clemson-schedule.js";

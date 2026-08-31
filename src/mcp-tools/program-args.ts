@@ -25,7 +25,7 @@
 
 import Database from "better-sqlite3";
 
-import { GC_ADVISOR_DB } from "../config-mcp.js";
+import { CATALOG_DB } from "../config-mcp.js";
 import { formatProgramList, listProgramOptions } from "../catalog-read.js";
 
 /** Schema blurb for the canonical `program` key. */
@@ -75,7 +75,7 @@ export function missingProgramMessage(extra = ""): string {
   // two deliberately read the same data by different routes.
   let names: string[] = [];
   try {
-    const db = new Database(GC_ADVISOR_DB, {
+    const db = new Database(CATALOG_DB, {
       readonly: true,
       fileMustExist: true,
     });

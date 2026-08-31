@@ -95,7 +95,7 @@ a wrong answer to a real advisor:
 
 /**
  * The instructions document for one server. `name` is the server name passed to
- * buildServer ("advising-mcp-public" / "advising-mcp-catalog").
+ * buildServer ("advising-mcp-schedule" / "advising-mcp-catalog").
  */
 export function serverInstructions(
   name: string,

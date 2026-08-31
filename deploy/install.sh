@@ -14,7 +14,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd -P)"
 AGENTS="$HOME/Library/LaunchAgents"
-LABELS=(edu.clemson.advising-mcp.public edu.clemson.advising-mcp.catalog edu.clemson.advising-mcp.refresh)
+LABELS=(edu.clemson.advising-mcp.schedule edu.clemson.advising-mcp.catalog edu.clemson.advising-mcp.refresh)
 MODE="${1:-install}"
 case "$MODE" in
   install|--check|--uninstall) ;;
@@ -66,7 +66,7 @@ if [ -f "$REPO/.env" ]; then
   # Loopback is the whole transport story (docs/security.md §5); a hand-edited
   # .env that binds elsewhere would put an MCP server with no Host/Origin check
   # on a campus-reachable interface. Existence alone proves nothing.
-  for v in MCP_PUBLIC_HTTP_HOST MCP_CATALOG_HTTP_HOST; do
+  for v in MCP_SCHEDULE_HTTP_HOST MCP_CATALOG_HTTP_HOST; do
     h="$(grep -E "^$v=" "$REPO/.env" | tail -1 | cut -d= -f2- | tr -d '[:space:]')"
     case "${h:-127.0.0.1}" in
       127.0.0.1|::1|localhost) ok "$v is loopback" ;;
@@ -84,10 +84,10 @@ fi
 # endpoint — docs/operations.md §1) or copied from a machine that has one. A
 # missing DB does not crash the catalog server; its tools report the catalog
 # as unreadable, so check for the file rather than for a running process.
-if [ -f "$REPO/core/db/gc_advisor.db" ]; then
-  ok "catalog DB present ($(du -h "$REPO/core/db/gc_advisor.db" | cut -f1))"
+if [ -f "$REPO/core/db/catalog.db" ]; then
+  ok "catalog DB present ($(du -h "$REPO/core/db/catalog.db" | cut -f1))"
 else
-  bad "core/db/gc_advisor.db missing — copy it from the build box (docs/operations.md)"
+  bad "core/db/catalog.db missing — copy it from the build box (docs/operations.md)"
 fi
 
 SNAPS="$(ls "$REPO"/state/clemson/*.db 2>/dev/null | wc -l | tr -d ' ')"
@@ -111,7 +111,7 @@ for p in 8766 8767; do
     # match, launchctl takes SIGPIPE, and under pipefail the pipeline is 141 —
     # so a RUNNING install of this very service read as "something else" and
     # a re-install refused. Ask launchd about the specific labels instead.
-    if launchctl print "gui/$(id -u)/edu.clemson.advising-mcp.public" >/dev/null 2>&1 \
+    if launchctl print "gui/$(id -u)/edu.clemson.advising-mcp.schedule" >/dev/null 2>&1 \
       || launchctl print "gui/$(id -u)/edu.clemson.advising-mcp.catalog" >/dev/null 2>&1; then
       warn "port $p in use (likely this service — it will be restarted)"
     else
@@ -156,7 +156,7 @@ done
 # thing itself.
 echo "==> verifying (giving the servers a moment to bind)"
 sleep 4
-for pair in "8766:public" "8767:catalog"; do
+for pair in "8766:schedule" "8767:catalog"; do
   port="${pair%%:*}"; which="${pair##*:}"
   code="$(curl -s -o /dev/null -w '%{http_code}' -m 5 -X POST "http://127.0.0.1:$port/" 2>/dev/null)"
   case "$code" in
@@ -178,7 +178,7 @@ if [ "$FAILED" = 0 ]; then
 ==> installed.
 
 Remaining, in order — none of these are automated on purpose:
-  1. Pair each consumer:  npm run mcp:pair -- --server public  --id <agent>
+  1. Pair each consumer:  npm run mcp:pair -- --server schedule  --id <agent>
                           npm run mcp:pair -- --server catalog --id <agent>
   2. Put the reverse proxy in front:  deploy/Caddyfile.example
   3. Verify over TLS with a REAL MCP client — a curl 200 proves routing and

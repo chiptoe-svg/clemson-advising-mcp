@@ -10,10 +10,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { serverInstructions, toolsetVersion } from "../src/mcp-tools/instructions.ts";
+import {
+  serverInstructions,
+  toolsetVersion,
+} from "../src/mcp-tools/instructions.ts";
 
-const CATALOG_TOOLS = ["get-gc-program-plan", "get-gc-requirement-rules", "find-course-in-program"];
-const PUBLIC_TOOLS = ["search-classes", "get-schedule-freshness", "check-conflicts"];
+const CATALOG_TOOLS = [
+  "get-gc-program-plan",
+  "get-gc-requirement-rules",
+  "find-course-in-program",
+];
+const PUBLIC_TOOLS = [
+  "search-classes",
+  "get-schedule-freshness",
+  "check-conflicts",
+];
 
 test("catalog instructions warn about the two-store split that caused the PCID miss", () => {
   const t = serverInstructions("advising-mcp-catalog", CATALOG_TOOLS);
@@ -32,7 +43,7 @@ test("catalog instructions state the program/year rules", () => {
 });
 
 test("public instructions warn about snapshot staleness and untimed sections", () => {
-  const t = serverInstructions("advising-mcp-public", PUBLIC_TOOLS);
+  const t = serverInstructions("advising-mcp-schedule", PUBLIC_TOOLS);
   assert.match(t, /SNAPSHOT/i);
   assert.match(t, /get-schedule-freshness/);
   assert.match(t, /UNTIMED|no meeting time/i);
@@ -40,9 +51,13 @@ test("public instructions warn about snapshot staleness and untimed sections", (
 
 test("the two servers get different instructions", () => {
   const cat = serverInstructions("advising-mcp-catalog", CATALOG_TOOLS);
-  const pub = serverInstructions("advising-mcp-public", PUBLIC_TOOLS);
+  const pub = serverInstructions("advising-mcp-schedule", PUBLIC_TOOLS);
   assert.notEqual(cat, pub);
-  assert.doesNotMatch(pub, /TWO SEPARATE STORES/, "catalog-only guidance must not leak");
+  assert.doesNotMatch(
+    pub,
+    /TWO SEPARATE STORES/,
+    "catalog-only guidance must not leak",
+  );
 });
 
 test("toolsetVersion changes when the toolset changes, not when order does", () => {
@@ -64,13 +79,16 @@ test("instructions carry the toolset version so clients can cache and re-read", 
 test("instructions stay small enough to prepend to every session", () => {
   for (const [name, tools] of [
     ["advising-mcp-catalog", CATALOG_TOOLS],
-    ["advising-mcp-public", PUBLIC_TOOLS],
+    ["advising-mcp-schedule", PUBLIC_TOOLS],
   ] as const) {
     const t = serverInstructions(name, tools);
     // This text is charged to context on every connection. It is guidance, not
     // documentation — if it grows past a few thousand characters it has become
     // the latter and belongs in the skill documents instead.
-    assert.ok(t.length < 4000, `${name} instructions are ${t.length} chars — too long`);
+    assert.ok(
+      t.length < 4000,
+      `${name} instructions are ${t.length} chars — too long`,
+    );
     assert.ok(t.length > 200, `${name} instructions look empty`);
   }
 });

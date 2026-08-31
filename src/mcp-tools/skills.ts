@@ -118,7 +118,7 @@ export function buildSkillIndex(
 // Clemson class-schedule advising guide is public-path material, while
 // full description of the credentialed 8765 surface — MS365 mail/calendar/
 // tasks, the send approval gate, the install procedure) are private-path.
-// Both skill tools are registered from index-public.ts, which the public
+// Both skill tools are registered from index-schedule.ts, which the public
 // server (8766) and the credentialed server (8765) BOTH load, so without a
 // gate every skill is served on the campus-reachable port.
 //
@@ -134,7 +134,7 @@ export function buildSkillIndex(
 // the full set explicitly.
 
 /** Skills the public server (8766) may serve. Add a name here to publish it. */
-export const PUBLIC_SKILLS: readonly string[] = ["clemson-schedule-advising"];
+export const SCHEDULE_SKILLS: readonly string[] = ["clemson-schedule-advising"];
 
 /**
  * Skills the catalog server (8767) may serve. These document the seven GC
@@ -148,7 +148,7 @@ export const CATALOG_SKILLS: readonly string[] = [
 
 type SkillExposure = "all" | ReadonlySet<string>;
 
-let exposure: SkillExposure = new Set(PUBLIC_SKILLS);
+let exposure: SkillExposure = new Set(SCHEDULE_SKILLS);
 
 /**
  * Set which skills this process serves. Called by the credentialed entry point
@@ -160,7 +160,7 @@ export function setSkillExposure(next: "all" | readonly string[]): void {
 
 /** Restore the fail-closed default (public allowlist). For tests. */
 export function resetSkillExposure(): void {
-  exposure = new Set(PUBLIC_SKILLS);
+  exposure = new Set(SCHEDULE_SKILLS);
 }
 
 /** Whether `name` may be listed or fetched on this server. */

@@ -81,7 +81,7 @@ def test_merged_cell_emits_both_requirements():
 
 from pathlib import Path  # noqa: E402
 
-DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DB = Path(__file__).parent.parent / "db" / "catalog.db"
 
 
 @pytest.mark.skipif(not DB.exists(), reason="catalog DB not present")

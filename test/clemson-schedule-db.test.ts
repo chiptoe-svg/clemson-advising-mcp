@@ -8,8 +8,15 @@ import path from "node:path";
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-sched-"));
 process.env.STATE_DIR = TMP;
 
-const { writeScheduleDb, openScheduleDb, queryScheduleDb, getMeetingsForCrns, findConflicts, scheduleDbPath, isTermCode } =
-  await import("../src/clemson-schedule-db.ts");
+const {
+  writeScheduleDb,
+  openScheduleDb,
+  queryScheduleDb,
+  getMeetingsForCrns,
+  findConflicts,
+  scheduleDbPath,
+  isTermCode,
+} = await import("../src/clemson-schedule-db.ts");
 import type { ClemsonTermSnapshot } from "../src/clemson-classes.ts";
 
 const SNAP: ClemsonTermSnapshot = {
@@ -38,10 +45,25 @@ const SNAP: ClemsonTermSnapshot = {
       waitCount: 0,
       waitCapacity: 5,
       open: true,
-      instructors: [{ name: "Rivera, Sam", email: "instructor@example.invalid", primary: true }],
+      instructors: [
+        {
+          name: "Rivera, Sam",
+          email: "instructor@example.invalid",
+          primary: true,
+        },
+      ],
       meetings: [
-        { days: "MWF", beginTime: "1115", endTime: "1205",
-          building: "Jordan Hall", room: "G33", roomCapacity: null, startDate: null, endDate: null, type: "Lecture" },
+        {
+          days: "MWF",
+          beginTime: "1115",
+          endTime: "1205",
+          building: "Jordan Hall",
+          room: "G33",
+          roomCapacity: null,
+          startDate: null,
+          endDate: null,
+          type: "Lecture",
+        },
       ],
     },
     {
@@ -63,8 +85,17 @@ const SNAP: ClemsonTermSnapshot = {
       open: true,
       instructors: [],
       meetings: [
-        { days: "TR", beginTime: "1100", endTime: "1215",
-          building: "Jordan Hall", room: "203", roomCapacity: null, startDate: null, endDate: null, type: "Lecture" },
+        {
+          days: "TR",
+          beginTime: "1100",
+          endTime: "1215",
+          building: "Jordan Hall",
+          room: "203",
+          roomCapacity: null,
+          startDate: null,
+          endDate: null,
+          type: "Lecture",
+        },
       ],
     },
   ],
@@ -102,7 +133,11 @@ test("queryScheduleDb filters by subject and courseNumber", () => {
     const r1 = queryScheduleDb(db, { term: "202608", subject: "GC" });
     assert.equal(r1.totalCount, 2);
     // subject + courseNumber narrows to one
-    const r2 = queryScheduleDb(db, { term: "202608", subject: "GC", courseNumber: "3010" });
+    const r2 = queryScheduleDb(db, {
+      term: "202608",
+      subject: "GC",
+      courseNumber: "3010",
+    });
     assert.equal(r2.totalCount, 1);
     assert.equal(r2.sections[0].crn, "80001");
   } finally {
@@ -113,7 +148,11 @@ test("queryScheduleDb filters by subject and courseNumber", () => {
 test("queryScheduleDb reconstructs meetings with MTWRFSU-ordered days string", () => {
   const db = openScheduleDb("202608")!;
   try {
-    const result = queryScheduleDb(db, { term: "202608", subject: "GC", courseNumber: "3010" });
+    const result = queryScheduleDb(db, {
+      term: "202608",
+      subject: "GC",
+      courseNumber: "3010",
+    });
     const sec = result.sections[0];
     assert.equal(sec.meetings.length, 1);
     // MWF stored as 3 per-day rows; reconstructed in MTWRFSU order → "MWF"
@@ -131,9 +170,9 @@ test("getMeetingsForCrns returns per-day intervals", () => {
     const meetings = getMeetingsForCrns(db, "202608", ["80001"]);
     // MWF → 3 rows
     assert.equal(meetings.length, 3);
-    assert.ok(meetings.every(m => m.crn === "80001"));
+    assert.ok(meetings.every((m) => m.crn === "80001"));
     assert.equal(meetings[0].startMin, 11 * 60 + 15); // 675
-    assert.equal(meetings[0].endMin,   12 * 60 + 5);  // 725
+    assert.equal(meetings[0].endMin, 12 * 60 + 5); // 725
   } finally {
     db.close();
   }
@@ -153,20 +192,37 @@ test("findConflicts detects no conflict on different days", () => {
 
 test("findConflicts detects same-day overlap", () => {
   const conflicts = findConflicts([
-    { crn: "AAA", day: "M", startMin: 600, endMin: 700, building: null, room: null },
-    { crn: "BBB", day: "M", startMin: 650, endMin: 750, building: null, room: null },
+    {
+      crn: "AAA",
+      day: "M",
+      startMin: 600,
+      endMin: 700,
+      building: null,
+      room: null,
+    },
+    {
+      crn: "BBB",
+      day: "M",
+      startMin: 650,
+      endMin: 750,
+      building: null,
+      room: null,
+    },
   ]);
   assert.equal(conflicts.length, 1);
   assert.equal(conflicts[0].crn_a, "AAA");
   assert.equal(conflicts[0].crn_b, "BBB");
   assert.equal(conflicts[0].day, "M");
   assert.equal(conflicts[0].overlap_start, "1050"); // 650 min = 10h50m
-  assert.equal(conflicts[0].overlap_end,   "1140"); // 700 min = 11h40m
+  assert.equal(conflicts[0].overlap_end, "1140"); // 700 min = 11h40m
 });
 
 test("writeScheduleDb is atomic — .tmp is gone after write", () => {
   const tmp = path.join(TMP, "clemson", "202608.db.tmp");
-  assert.ok(!fs.existsSync(tmp), ".tmp file should not exist after successful write");
+  assert.ok(
+    !fs.existsSync(tmp),
+    ".tmp file should not exist after successful write",
+  );
 });
 
 test("a term that is not a term code never becomes a path component", () => {
@@ -175,10 +231,20 @@ test("a term that is not a term code never becomes a path component", () => {
   // sections schema, so not an exposure — but a path is not a place for
   // caller input.
   assert.equal(isTermCode("202608"), true);
-  for (const bad of ["../../core/db/gc_advisor", "2026-08", "", "202608/x", "Fall 2026"]) {
+  for (const bad of [
+    "../../core/db/gc_advisor",
+    "2026-08",
+    "",
+    "202608/x",
+    "Fall 2026",
+  ]) {
     assert.equal(isTermCode(bad), false, bad);
     assert.throws(() => scheduleDbPath(bad), /not a term code/);
-    assert.equal(openScheduleDb(bad), null, `${bad} must read as "no snapshot"`);
+    assert.equal(
+      openScheduleDb(bad),
+      null,
+      `${bad} must read as "no snapshot"`,
+    );
   }
 });
 

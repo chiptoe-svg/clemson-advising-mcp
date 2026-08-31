@@ -12,13 +12,19 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-section-query-"));
+const TMP = fs.mkdtempSync(
+  path.join(os.tmpdir(), "advising-mcp-section-query-"),
+);
 process.env.STATE_DIR = TMP;
 
 const { writeScheduleDb } = await import("../src/clemson-schedule-db.ts");
-const { querySectionsEngine } = await import("../src/mcp-tools/section-query.ts");
+const { querySectionsEngine } =
+  await import("../src/mcp-tools/section-query.ts");
 import type { ClemsonTermSnapshot } from "../src/clemson-classes.ts";
-import type { EngineResult, EngineSection } from "../src/mcp-tools/section-query.ts";
+import type {
+  EngineResult,
+  EngineSection,
+} from "../src/mcp-tools/section-query.ts";
 
 const TERM = "202608";
 const NARROW_TERM = "202609"; // separate term, dedicated to the needs_narrowing case
@@ -217,7 +223,26 @@ writeScheduleDb(SNAP);
 // verified. Designed to have counts: GC(6), MATH(5), CPSC(4), ENGL(3).
 // ---------------------------------------------------------------------------
 
-const NARROW_SUBJECTS = ["GC", "GC", "GC", "GC", "GC", "GC", "MATH", "MATH", "MATH", "MATH", "MATH", "CPSC", "CPSC", "CPSC", "CPSC", "ENGL", "ENGL", "ENGL"];
+const NARROW_SUBJECTS = [
+  "GC",
+  "GC",
+  "GC",
+  "GC",
+  "GC",
+  "GC",
+  "MATH",
+  "MATH",
+  "MATH",
+  "MATH",
+  "MATH",
+  "CPSC",
+  "CPSC",
+  "CPSC",
+  "CPSC",
+  "ENGL",
+  "ENGL",
+  "ENGL",
+];
 const NARROW_SNAP: ClemsonTermSnapshot = {
   term: NARROW_TERM,
   termDescription: "Spring 2027",
@@ -250,20 +275,125 @@ writeScheduleDb(NARROW_SNAP);
 
 const CAP_TEST_TERM = "202610";
 const CAP_SUBJECTS = [
-  "GC", "GC", "GC", "GC", "GC", // 5
-  "CPSC", "CPSC", "CPSC", "CPSC", // 4
-  "MATH", "MATH", "MATH", // 3
-  "ENGL", "ENGL", // 2
-  "HIST", "HIST", "HIST", "HIST", "HIST", "HIST", // 6
-  "PHYS", "PHYS", "PHYS", "PHYS", "PHYS", "PHYS", "PHYS", // 7
-  "CHEM", "CHEM", "CHEM", "CHEM", "CHEM", "CHEM", "CHEM", "CHEM", // 8
-  "BIO", "BIO", "BIO", "BIO", "BIO", "BIO", "BIO", "BIO", "BIO", // 9
-  "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", "PSY", // 10
-  "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", "SOC", // 11
-  "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", "ECON", // 12
-  "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", "POLI", // 13
-  "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", "ART", // 14
-  "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", "MUS", // 15
+  "GC",
+  "GC",
+  "GC",
+  "GC",
+  "GC", // 5
+  "CPSC",
+  "CPSC",
+  "CPSC",
+  "CPSC", // 4
+  "MATH",
+  "MATH",
+  "MATH", // 3
+  "ENGL",
+  "ENGL", // 2
+  "HIST",
+  "HIST",
+  "HIST",
+  "HIST",
+  "HIST",
+  "HIST", // 6
+  "PHYS",
+  "PHYS",
+  "PHYS",
+  "PHYS",
+  "PHYS",
+  "PHYS",
+  "PHYS", // 7
+  "CHEM",
+  "CHEM",
+  "CHEM",
+  "CHEM",
+  "CHEM",
+  "CHEM",
+  "CHEM",
+  "CHEM", // 8
+  "BIO",
+  "BIO",
+  "BIO",
+  "BIO",
+  "BIO",
+  "BIO",
+  "BIO",
+  "BIO",
+  "BIO", // 9
+  "PSY",
+  "PSY",
+  "PSY",
+  "PSY",
+  "PSY",
+  "PSY",
+  "PSY",
+  "PSY",
+  "PSY",
+  "PSY", // 10
+  "SOC",
+  "SOC",
+  "SOC",
+  "SOC",
+  "SOC",
+  "SOC",
+  "SOC",
+  "SOC",
+  "SOC",
+  "SOC",
+  "SOC", // 11
+  "ECON",
+  "ECON",
+  "ECON",
+  "ECON",
+  "ECON",
+  "ECON",
+  "ECON",
+  "ECON",
+  "ECON",
+  "ECON",
+  "ECON",
+  "ECON", // 12
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI",
+  "POLI", // 13
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART",
+  "ART", // 14
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS",
+  "MUS", // 15
 ];
 const CAP_SNAP: ClemsonTermSnapshot = {
   term: CAP_TEST_TERM,
@@ -343,7 +473,9 @@ test("openSeatsOnly excludes the closed section", () => {
 });
 
 test("credits filter matches within 0.01 and excludes other credit values", () => {
-  const result = ok(querySectionsEngine({ term: TERM, subject: "GC", credits: 4 }));
+  const result = ok(
+    querySectionsEngine({ term: TERM, subject: "GC", credits: 4 }),
+  );
   assert.deepEqual(crns(result.sections), ["20004"]);
 });
 
@@ -427,7 +559,9 @@ test("combined filters: subject + openSeatsOnly + credits narrows to the matchin
   assert.ok(!result.sections.some((s) => s.crn === "20003"));
   assert.ok(!result.sections.some((s) => s.crn === "20004"));
   assert.ok(result.sections.some((s) => s.crn === "20001"));
-  assert.ok(result.sections.every((s) => s.creditHours === 3 && s.seatsAvailable > 0));
+  assert.ok(
+    result.sections.every((s) => s.creditHours === 3 && s.seatsAvailable > 0),
+  );
 });
 
 test("EngineSection carries crn/subjectCourse/title/creditHours/enrollment/maxEnrollment/seatsAvailable/instructors/meetings", () => {
@@ -462,7 +596,8 @@ test("needsNarrowing envelope: >15 matches returns top page + total + bySubject"
   assert.equal(result.sections.length, 12);
   for (let i = 1; i < result.sections.length; i++) {
     assert.ok(
-      result.sections[i - 1].seatsAvailable >= result.sections[i].seatsAvailable,
+      result.sections[i - 1].seatsAvailable >=
+        result.sections[i].seatsAvailable,
       `top page not sorted most-open-first at index ${i}`,
     );
   }
@@ -497,7 +632,10 @@ test("needsNarrowing bySubject capped to top 12 subjects by count descending", (
   // Verify ordered by count descending
   const counts = Object.values(result.needsNarrowing?.bySubject || {});
   for (let i = 1; i < counts.length; i++) {
-    assert.ok(counts[i - 1] >= counts[i], `Count order violation: ${counts[i - 1]} < ${counts[i]}`);
+    assert.ok(
+      counts[i - 1] >= counts[i],
+      `Count order violation: ${counts[i - 1]} < ${counts[i]}`,
+    );
   }
   // Verify top subject is MUS (15 sections)
   assert.equal(subjectKeys[0], "MUS");
@@ -508,7 +646,9 @@ test("needsNarrowing bySubject capped to top 12 subjects by count descending", (
 });
 
 test("enrollment/maxEnrollment reflect the section's own values, not a shared default", () => {
-  const result = ok(querySectionsEngine({ term: TERM, subject: "GC", courseNumber: "1030" }));
+  const result = ok(
+    querySectionsEngine({ term: TERM, subject: "GC", courseNumber: "1030" }),
+  );
   const s = result.sections.find((x) => x.crn === "20003");
   assert.ok(s);
   // 20003 ("Closed Section") overrides enrollment:20, maxEnrollment:20 — distinct

@@ -12,7 +12,7 @@ from pathlib import Path
 from gc_advisor.db.connection import get_connection
 from gc_advisor.ingest.packs import load_pack, apply_pack
 
-DEFAULT_DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DEFAULT_DB = Path(__file__).parent.parent / "db" / "catalog.db"
 
 
 def main():

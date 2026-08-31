@@ -25,7 +25,7 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-advising-"));
 process.env.STATE_DIR = TMP;
 
 const GC_DB_PATH = path.join(TMP, "gc_advisor.db");
-process.env.GC_ADVISOR_DB = GC_DB_PATH;
+process.env.CATALOG_DB = GC_DB_PATH;
 
 const TERM = "202608";
 const PROGRAM = "Graphic Communications, BS";
@@ -48,9 +48,15 @@ function buildGcAdvisorFixture(): void {
     ),
   );
 
-  db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(1, "2024-2025", 100);
-  db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(2, "2025-2026", 101);
-  db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(3, "2026-2027", 102);
+  db.prepare(
+    "INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)",
+  ).run(1, "2024-2025", 100);
+  db.prepare(
+    "INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)",
+  ).run(2, "2025-2026", 101);
+  db.prepare(
+    "INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)",
+  ).run(3, "2026-2027", 102);
 
   db.prepare(
     "INSERT INTO program (id, catalog_year_id, poid, name, kind) VALUES (?, ?, ?, ?, 'major')",
@@ -182,10 +188,10 @@ function buildGcAdvisorFixture(): void {
 buildGcAdvisorFixture();
 
 const { writeScheduleDb } = await import("../src/clemson-schedule-db.ts");
-const { getProgramRequirements } = await import(
-  "../src/mcp-tools/clemson-advising.ts"
-);
-const { scheduleFreshness } = await import("../src/mcp-tools/clemson-schedule.ts");
+const { getProgramRequirements } =
+  await import("../src/mcp-tools/clemson-advising.ts");
+const { scheduleFreshness } =
+  await import("../src/mcp-tools/clemson-schedule.ts");
 import type { ClemsonTermSnapshot } from "../src/clemson-classes.ts";
 
 function meeting(days: string, beginTime: string, endTime: string) {
@@ -210,86 +216,216 @@ const SNAP: ClemsonTermSnapshot = {
   sections: [
     // GC3010-001: Friday meeting — excluded by exclude_days:["F"].
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90001", subjectCourse: "GC3010",
-      section: "001", title: "Studio A", campus: "Main", scheduleType: "Lecture",
-      instructionalMethod: null, creditHours: 3, enrollment: 10, maxEnrollment: 20,
-      seatsAvailable: 10, waitCount: 0, waitCapacity: 0, open: true, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90001",
+      subjectCourse: "GC3010",
+      section: "001",
+      title: "Studio A",
+      campus: "Main",
+      scheduleType: "Lecture",
+      instructionalMethod: null,
+      creditHours: 3,
+      enrollment: 10,
+      maxEnrollment: 20,
+      seatsAvailable: 10,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: true,
+      instructors: [],
       meetings: [meeting("F", "1000", "1050")],
     },
     // GC3010-002: pre-9:00 Monday meeting — excluded by no_meeting_before:"0900".
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90002", subjectCourse: "GC3010",
-      section: "002", title: "Studio B", campus: "Main", scheduleType: "Lecture",
-      instructionalMethod: null, creditHours: 3, enrollment: 10, maxEnrollment: 20,
-      seatsAvailable: 10, waitCount: 0, waitCapacity: 0, open: true, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90002",
+      subjectCourse: "GC3010",
+      section: "002",
+      title: "Studio B",
+      campus: "Main",
+      scheduleType: "Lecture",
+      instructionalMethod: null,
+      creditHours: 3,
+      enrollment: 10,
+      maxEnrollment: 20,
+      seatsAvailable: 10,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: true,
+      instructors: [],
       meetings: [meeting("M", "0800", "0850")],
     },
     // GC3020-001: 9:00+ Monday meeting — kept under no_meeting_before:"0900".
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90003", subjectCourse: "GC3020",
-      section: "001", title: "Print Systems", campus: "Main", scheduleType: "Lecture",
-      instructionalMethod: null, creditHours: 3, enrollment: 10, maxEnrollment: 20,
-      seatsAvailable: 10, waitCount: 0, waitCapacity: 0, open: true, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90003",
+      subjectCourse: "GC3020",
+      section: "001",
+      title: "Print Systems",
+      campus: "Main",
+      scheduleType: "Lecture",
+      instructionalMethod: null,
+      creditHours: 3,
+      enrollment: 10,
+      maxEnrollment: 20,
+      seatsAvailable: 10,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: true,
+      instructors: [],
       meetings: [meeting("M", "0900", "0950")],
     },
     // GC3020-002: conflicts with the student's current CRN 90010 (10:30-11:30
     // overlaps 10:00-11:00) — excluded by avoid_conflict_with:["90010"].
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90004", subjectCourse: "GC3020",
-      section: "002", title: "Print Systems Lab", campus: "Main", scheduleType: "Lecture",
-      instructionalMethod: null, creditHours: 3, enrollment: 10, maxEnrollment: 20,
-      seatsAvailable: 10, waitCount: 0, waitCapacity: 0, open: true, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90004",
+      subjectCourse: "GC3020",
+      section: "002",
+      title: "Print Systems Lab",
+      campus: "Main",
+      scheduleType: "Lecture",
+      instructionalMethod: null,
+      creditHours: 3,
+      enrollment: 10,
+      maxEnrollment: 20,
+      seatsAvailable: 10,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: true,
+      instructors: [],
       meetings: [meeting("M", "1000", "1100")],
     },
     // GC3030-001: back-to-back (11:00-12:00) with current CRN 90011
     // (12:00-13:00) — adjacent boundary, must NOT be excluded.
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90005", subjectCourse: "GC3030",
-      section: "001", title: "Color Theory", campus: "Main", scheduleType: "Lecture",
-      instructionalMethod: null, creditHours: 3, enrollment: 10, maxEnrollment: 20,
-      seatsAvailable: 10, waitCount: 0, waitCapacity: 0, open: true, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90005",
+      subjectCourse: "GC3030",
+      section: "001",
+      title: "Color Theory",
+      campus: "Main",
+      scheduleType: "Lecture",
+      instructionalMethod: null,
+      creditHours: 3,
+      enrollment: 10,
+      maxEnrollment: 20,
+      seatsAvailable: 10,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: true,
+      instructors: [],
       meetings: [meeting("M", "1100", "1200")],
     },
     // GC3030-002: full — excluded by open_only:true.
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90006", subjectCourse: "GC3030",
-      section: "002", title: "Color Theory Lab", campus: "Main", scheduleType: "Lecture",
-      instructionalMethod: null, creditHours: 3, enrollment: 20, maxEnrollment: 20,
-      seatsAvailable: 0, waitCount: 0, waitCapacity: 0, open: false, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90006",
+      subjectCourse: "GC3030",
+      section: "002",
+      title: "Color Theory Lab",
+      campus: "Main",
+      scheduleType: "Lecture",
+      instructionalMethod: null,
+      creditHours: 3,
+      enrollment: 20,
+      maxEnrollment: 20,
+      seatsAvailable: 0,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: false,
+      instructors: [],
       meetings: [meeting("T", "1300", "1350")],
     },
     // GC3040-001: zero-meeting async section (no meetings array entries).
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90007", subjectCourse: "GC3040",
-      section: "001", title: "Async Elective", campus: "Main", scheduleType: "Online",
-      instructionalMethod: "DE", creditHours: 3, enrollment: 5, maxEnrollment: 20,
-      seatsAvailable: 15, waitCount: 0, waitCapacity: 0, open: true, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90007",
+      subjectCourse: "GC3040",
+      section: "001",
+      title: "Async Elective",
+      campus: "Main",
+      scheduleType: "Online",
+      instructionalMethod: "DE",
+      creditHours: 3,
+      enrollment: 5,
+      maxEnrollment: 20,
+      seatsAvailable: 15,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: true,
+      instructors: [],
       meetings: [],
     },
     // Not in any explicit_courses list — represents the student's own current
     // schedule (avoid_conflict_with input), not a candidate section.
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90010", subjectCourse: "MATH1060",
-      section: "001", title: "Trig", campus: "Main", scheduleType: "Lecture",
-      instructionalMethod: null, creditHours: 3, enrollment: 10, maxEnrollment: 20,
-      seatsAvailable: 5, waitCount: 0, waitCapacity: 0, open: true, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90010",
+      subjectCourse: "MATH1060",
+      section: "001",
+      title: "Trig",
+      campus: "Main",
+      scheduleType: "Lecture",
+      instructionalMethod: null,
+      creditHours: 3,
+      enrollment: 10,
+      maxEnrollment: 20,
+      seatsAvailable: 5,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: true,
+      instructors: [],
       meetings: [meeting("M", "1030", "1130")],
     },
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90011", subjectCourse: "MATH1080",
-      section: "001", title: "Calc", campus: "Main", scheduleType: "Lecture",
-      instructionalMethod: null, creditHours: 3, enrollment: 10, maxEnrollment: 20,
-      seatsAvailable: 5, waitCount: 0, waitCapacity: 0, open: true, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90011",
+      subjectCourse: "MATH1080",
+      section: "001",
+      title: "Calc",
+      campus: "Main",
+      scheduleType: "Lecture",
+      instructionalMethod: null,
+      creditHours: 3,
+      enrollment: 10,
+      maxEnrollment: 20,
+      seatsAvailable: 5,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: true,
+      instructors: [],
       meetings: [meeting("M", "1200", "1300")],
     },
     // ENGL1010-001: MWF 12:20-13:10, 3 credits, open seats — target match for
     // find-sections-by-schedule's credits+days_within+starts_at test. Not in
     // any explicit_courses list, so it's invisible to find-eligible-sections.
     {
-      term: TERM, termDescription: "Fall 2026", crn: "90020", subjectCourse: "ENGL1010",
-      section: "001", title: "Composition", campus: "Main", scheduleType: "Lecture",
-      instructionalMethod: null, creditHours: 3, enrollment: 10, maxEnrollment: 20,
-      seatsAvailable: 10, waitCount: 0, waitCapacity: 0, open: true, instructors: [],
+      term: TERM,
+      termDescription: "Fall 2026",
+      crn: "90020",
+      subjectCourse: "ENGL1010",
+      section: "001",
+      title: "Composition",
+      campus: "Main",
+      scheduleType: "Lecture",
+      instructionalMethod: null,
+      creditHours: 3,
+      enrollment: 10,
+      maxEnrollment: 20,
+      seatsAvailable: 10,
+      waitCount: 0,
+      waitCapacity: 0,
+      open: true,
+      instructors: [],
       meetings: [meeting("MWF", "1220", "1310")],
     },
   ],
@@ -332,7 +468,11 @@ test("get-program-requirements: exact name returns the parsed rule", async () =>
   const rule = body!.requirements![0];
   assert.equal(rule.slot_type, "program_requirement");
   assert.equal(rule.total_credits, 18);
-  assert.deepEqual(rule.required_courses, ["ACCT 2010", "ACCT 3110", "ACCT 3120"]);
+  assert.deepEqual(rule.required_courses, [
+    "ACCT 2010",
+    "ACCT 3110",
+    "ACCT 3120",
+  ]);
 });
 
 test("get-program-requirements: exact name is case-insensitive", async () => {
@@ -351,9 +491,14 @@ test("get-program-requirements: partial name matching >1 program returns candida
 });
 
 test("get-program-requirements: name matching nothing returns a clear error", async () => {
-  const { res } = await callRequirements({ name: "Underwater Basket Weaving Minor" });
+  const { res } = await callRequirements({
+    name: "Underwater Basket Weaving Minor",
+  });
   assert.equal(res.isError, true);
-  assert.match((res.content[0] as { text: string }).text, /No Clemson program matches/);
+  assert.match(
+    (res.content[0] as { text: string }).text,
+    /No Clemson program matches/,
+  );
 });
 
 // Phase B4: the canonical keys are program / catalog_year; name / year stay
@@ -399,11 +544,18 @@ test("get-program-requirements declares program/catalog_year and closes its sche
 });
 
 test("get-program-requirements hides rules gc_advisor flagged bogus", async () => {
-  const { body } = await callRequirements({ name: ACCOUNTING_MINOR, year: "2026-2027" });
+  const { body } = await callRequirements({
+    name: ACCOUNTING_MINOR,
+    year: "2026-2027",
+  });
   assert.ok(body);
   assert.ok(body!.requirements);
   const slots = body!.requirements!.map((r) => r.slot_type);
-  assert.deepEqual(slots, ["program_requirement"], `bogus rule leaked: ${slots.join(", ")}`);
+  assert.deepEqual(
+    slots,
+    ["program_requirement"],
+    `bogus rule leaked: ${slots.join(", ")}`,
+  );
 });
 
 test("get-program-requirements lists which programs have a full plan, derived from plan_item", async () => {
@@ -421,7 +573,11 @@ test("get-program-requirements lists which programs have a full plan, derived fr
     "Marketing, BS",
   ]);
   assert.ok(!("note" in body));
-  assert.ok(!/only Graphic Communications/.test(getProgramRequirements.tool.description ?? ""));
+  assert.ok(
+    !/only Graphic Communications/.test(
+      getProgramRequirements.tool.description ?? "",
+    ),
+  );
 });
 
 // get-schedule-freshness: reports the snapshot's data_as_of + age with no
@@ -429,7 +585,10 @@ test("get-program-requirements lists which programs have a full plan, derived fr
 async function freshness(args: Record<string, unknown>) {
   const res = await scheduleFreshness.handler(args);
   assert.notEqual(res.isError, true, (res.content[0] as { text: string }).text);
-  return JSON.parse((res.content[0] as { text: string }).text) as Record<string, unknown>;
+  return JSON.parse((res.content[0] as { text: string }).text) as Record<
+    string,
+    unknown
+  >;
 }
 
 test("get-schedule-freshness reports data_as_of and age for an ingested term", async () => {
@@ -459,7 +618,11 @@ test("get-schedule-freshness defaults its term like every other schedule tool", 
   // the same way the search tools do.
   const out = await freshness({});
   assert.equal(typeof out.term, "string");
-  assert.match(String(out.term), /^\d{6}$/, "an omitted term resolves to a code");
+  assert.match(
+    String(out.term),
+    /^\d{6}$/,
+    "an omitted term resolves to a code",
+  );
 });
 
 test("get-schedule-freshness refuses a term it cannot parse", async () => {

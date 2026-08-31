@@ -2,7 +2,7 @@
 // Catalog + schedule join tool for GC advising.
 //
 // find-requirement-sections opens the per-term schedule DB, ATTACHes
-// gc_advisor.db, resolves the named requirement slot to its explicit course
+// catalog.db, resolves the named requirement slot to its explicit course
 // list in SQL, then routes each course's section-side filtering (fits_around_
 // crns/days/exclude_days/no_meeting_before/after/open_seats_only) through the
 // shared querySectionsEngine (src/mcp-tools/section-query.ts) — one call per
@@ -14,7 +14,7 @@
 // .superpowers/sdd/task-6-brief.md.
 import Database from "better-sqlite3";
 
-import { GC_ADVISOR_DB } from "../config-mcp.js";
+import { CATALOG_DB } from "../config-mcp.js";
 import { openScheduleDb, getScheduleDbMeta } from "../clemson-schedule-db.js";
 import { querySectionsEngine, type EngineSection } from "./section-query.js";
 import { resolveTerm } from "../term-resolve.js";
@@ -423,7 +423,7 @@ export function makeFindRequirementSections(
 
       try {
         // ATTACH the catalog DB so we can query it alongside the schedule.
-        schedDb.prepare("ATTACH DATABASE ? AS catalog").run(GC_ADVISOR_DB);
+        schedDb.prepare("ATTACH DATABASE ? AS catalog").run(CATALOG_DB);
 
         const programId = catalogYear
           ? getProgramIdForCatalogYear(schedDb, programName, catalogYear)
@@ -431,9 +431,9 @@ export function makeFindRequirementSections(
         if (programId === null) {
           return err(
             catalogYear
-              ? `Program "${programName}" not found for catalog year "${catalogYear}" in gc_advisor.db. ` +
+              ? `Program "${programName}" not found for catalog year "${catalogYear}" in catalog.db. ` +
                   "Check the year and name with get-gc-program-plan, or omit catalog_year for the latest."
-              : `Program "${programName}" not found in gc_advisor.db. ` +
+              : `Program "${programName}" not found in catalog.db. ` +
                   "Check the name with get-gc-program-plan.",
           );
         }
@@ -637,7 +637,7 @@ export const findRequirementSections: McpToolDefinition =
 
 // ---------------------------------------------------------------------------
 // get-program-requirements — surfaces the requirement_rule_effective rows (gc_advisor's bogus-filtered view) in
-// gc_advisor.db for any program (minor, certificate, or the GC BS), by name.
+// catalog.db for any program (minor, certificate, or the GC BS), by name.
 // Unlike find-requirement-sections this does NOT open a Banner schedule
 // snapshot — it's a pure read of the catalog DB, so the GC program-loaded
 // restriction that gates that tool doesn't apply here: any of the 133
@@ -705,10 +705,10 @@ export const getProgramRequirements: McpToolDefinition = {
 
     let db: Database.Database;
     try {
-      db = new Database(GC_ADVISOR_DB, { readonly: true });
+      db = new Database(CATALOG_DB, { readonly: true });
     } catch {
       return err(
-        `Could not open the Clemson catalog database (gc_advisor.db). It may not be loaded yet.`,
+        `Could not open the Clemson catalog database (catalog.db). It may not be loaded yet.`,
       );
     }
 

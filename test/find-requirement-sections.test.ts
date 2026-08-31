@@ -17,11 +17,13 @@ import Database from "better-sqlite3";
 
 import { catalogFixtureDdl } from "./_catalog-fixture-ddl.ts";
 
-const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-find-req-sections-"));
+const TMP = fs.mkdtempSync(
+  path.join(os.tmpdir(), "advising-mcp-find-req-sections-"),
+);
 process.env.STATE_DIR = TMP;
 
 const GC_DB_PATH = path.join(TMP, "gc_advisor.db");
-process.env.GC_ADVISOR_DB = GC_DB_PATH;
+process.env.CATALOG_DB = GC_DB_PATH;
 
 // Current date in this environment is 2026-08-14 -> defaultTerm resolves to
 // Fall 2026 (202608, month 8 is in the May-Nov Fall window) — the fixture
@@ -51,8 +53,12 @@ function buildGcAdvisorFixture(): void {
     ),
   );
 
-  db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(1, "2024-2025", 100);
-  db.prepare("INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)").run(2, "2025-2026", 101);
+  db.prepare(
+    "INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)",
+  ).run(1, "2024-2025", 100);
+  db.prepare(
+    "INSERT INTO catalog_year (id, label, catoid) VALUES (?, ?, ?)",
+  ).run(2, "2025-2026", 101);
 
   db.prepare(
     "INSERT INTO program (id, catalog_year_id, poid, name, kind) VALUES (?, ?, ?, ?, 'major')",
@@ -166,7 +172,13 @@ function buildGcAdvisorFixture(): void {
     "INSERT INTO course (code, subject, number, prereq_text, prereq_parsed) VALUES (?, ?, ?, ?, ?)",
   );
   insertCourse.run("GC 3010", "GC", "3010", null, null); // no prereq
-  insertCourse.run("GC 3020", "GC", "3020", "GC 3010", JSON.stringify(["GC 3010"])); // requires GC 3010
+  insertCourse.run(
+    "GC 3020",
+    "GC",
+    "3020",
+    "GC 3010",
+    JSON.stringify(["GC 3010"]),
+  ); // requires GC 3010
   insertCourse.run("GC 3030", "GC", "3030", null, null);
   insertCourse.run("GC 3040", "GC", "3040", null, null);
   insertCourse.run("GC 3050", "GC", "3050", null, null); // no prereq — narrowedCourses fixture
@@ -183,7 +195,13 @@ function buildGcAdvisorFixture(): void {
   // Prereq text that did not parse at all — 820 such courses live. The flat
   // list is empty, so the OLD code read them as prereq-FREE: the opposite
   // error, admitting students who cannot enrol.
-  insertCourse.run("GC 3080", "GC", "3080", "Junior standing and consent of instructor", null);
+  insertCourse.run(
+    "GC 3080",
+    "GC",
+    "3080",
+    "Junior standing and consent of instructor",
+    null,
+  );
   // Two parsed prerequisites — the ALL-of fixture (T5).
   insertCourse.run(
     "GC 3060",
@@ -198,11 +216,11 @@ function buildGcAdvisorFixture(): void {
 buildGcAdvisorFixture();
 
 const { writeScheduleDb } = await import("../src/clemson-schedule-db.ts");
-const { makeFindRequirementSections, findRequirementSections } = await import(
-  "../src/mcp-tools/clemson-advising.ts"
-);
+const { makeFindRequirementSections, findRequirementSections } =
+  await import("../src/mcp-tools/clemson-advising.ts");
 const { toolsForScope } = await import("../src/mcp-tools/server.ts");
-const { allExposedOperations } = await import("../src/mcp-tools/permissions.ts");
+const { allExposedOperations } =
+  await import("../src/mcp-tools/permissions.ts");
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ClemsonTermSnapshot } from "../src/clemson-classes.ts";
 
@@ -254,30 +272,113 @@ const SNAP: ClemsonTermSnapshot = {
   sectionCount: 0,
   sections: [
     // GC3010-90001: Friday meeting — excluded by exclude_days:["F"].
-    section({ crn: "90001", subjectCourse: "GC3010", section: "001", title: "Studio A", meetings: [meeting("F", "1000", "1050")] }),
+    section({
+      crn: "90001",
+      subjectCourse: "GC3010",
+      section: "001",
+      title: "Studio A",
+      meetings: [meeting("F", "1000", "1050")],
+    }),
     // GC3010-90002: pre-9:00 Monday meeting — excluded by no_meeting_before:"0900".
-    section({ crn: "90002", subjectCourse: "GC3010", section: "002", title: "Studio B", meetings: [meeting("M", "0800", "0850")] }),
+    section({
+      crn: "90002",
+      subjectCourse: "GC3010",
+      section: "002",
+      title: "Studio B",
+      meetings: [meeting("M", "0800", "0850")],
+    }),
     // GC3020-90003: 9:00+ Monday meeting — kept under no_meeting_before:"0900".
-    section({ crn: "90003", subjectCourse: "GC3020", section: "001", title: "Print Systems", meetings: [meeting("M", "0900", "0950")] }),
+    section({
+      crn: "90003",
+      subjectCourse: "GC3020",
+      section: "001",
+      title: "Print Systems",
+      meetings: [meeting("M", "0900", "0950")],
+    }),
     // GC3020-90004: conflicts with anchor CRN 90010 (10:30-11:30 overlaps 10:00-11:00)
     // — excluded by fits_around_crns:["90010"].
-    section({ crn: "90004", subjectCourse: "GC3020", section: "002", title: "Print Systems Lab", meetings: [meeting("M", "1000", "1100")] }),
+    section({
+      crn: "90004",
+      subjectCourse: "GC3020",
+      section: "002",
+      title: "Print Systems Lab",
+      meetings: [meeting("M", "1000", "1100")],
+    }),
     // GC3030-90005: back-to-back (11:00-12:00) with anchor CRN 90011 (12:00-13:00)
     // — adjacent boundary, must NOT be excluded by fits_around_crns.
-    section({ crn: "90005", subjectCourse: "GC3030", section: "001", title: "Color Theory", meetings: [meeting("M", "1100", "1200")] }),
+    section({
+      crn: "90005",
+      subjectCourse: "GC3030",
+      section: "001",
+      title: "Color Theory",
+      meetings: [meeting("M", "1100", "1200")],
+    }),
     // GC3030-90006: full — excluded by open_seats_only:true.
-    section({ crn: "90006", subjectCourse: "GC3030", section: "002", title: "Color Theory Lab", enrollment: 20, seatsAvailable: 0, open: false, meetings: [meeting("T", "1300", "1350")] }),
+    section({
+      crn: "90006",
+      subjectCourse: "GC3030",
+      section: "002",
+      title: "Color Theory Lab",
+      enrollment: 20,
+      seatsAvailable: 0,
+      open: false,
+      meetings: [meeting("T", "1300", "1350")],
+    }),
     // GC3040-90007: zero-meeting async section.
-    section({ crn: "90007", subjectCourse: "GC3040", section: "001", title: "Async Elective", scheduleType: "Online", instructionalMethod: "DE", enrollment: 5, seatsAvailable: 15, meetings: [] }),
+    section({
+      crn: "90007",
+      subjectCourse: "GC3040",
+      section: "001",
+      title: "Async Elective",
+      scheduleType: "Online",
+      instructionalMethod: "DE",
+      enrollment: 5,
+      seatsAvailable: 15,
+      meetings: [],
+    }),
     // Anchor sections (student's current schedule) — not in any explicit_courses list.
-    section({ crn: "90010", subjectCourse: "MATH1060", section: "001", title: "Trig", enrollment: 10, seatsAvailable: 5, meetings: [meeting("M", "1030", "1130")] }),
-    section({ crn: "90011", subjectCourse: "MATH1080", section: "001", title: "Calc", enrollment: 10, seatsAvailable: 5, meetings: [meeting("M", "1200", "1300")] }),
+    section({
+      crn: "90010",
+      subjectCourse: "MATH1060",
+      section: "001",
+      title: "Trig",
+      enrollment: 10,
+      seatsAvailable: 5,
+      meetings: [meeting("M", "1030", "1130")],
+    }),
+    section({
+      crn: "90011",
+      subjectCourse: "MATH1080",
+      section: "001",
+      title: "Calc",
+      enrollment: 10,
+      seatsAvailable: 5,
+      meetings: [meeting("M", "1200", "1300")],
+    }),
     // GC3060-90020: the only section of "Two Prereq Requirement"'s only
     // course. Not referenced by SLOT, so it cannot affect any test above.
-    section({ crn: "90020", subjectCourse: "GC3060", section: "001", title: "Capstone Prep", meetings: [meeting("W", "1400", "1450")] }),
+    section({
+      crn: "90020",
+      subjectCourse: "GC3060",
+      section: "001",
+      title: "Capstone Prep",
+      meetings: [meeting("W", "1400", "1450")],
+    }),
     // GC3070-90021: OR-prereq fixture. GC3080-90022: prereq text that did not parse.
-    section({ crn: "90021", subjectCourse: "GC3070", section: "001", title: "Or Prereq Course", meetings: [meeting("W", "1500", "1550")] }),
-    section({ crn: "90022", subjectCourse: "GC3080", section: "001", title: "Unparsed Prereq Course", meetings: [meeting("W", "1600", "1650")] }),
+    section({
+      crn: "90021",
+      subjectCourse: "GC3070",
+      section: "001",
+      title: "Or Prereq Course",
+      meetings: [meeting("W", "1500", "1550")],
+    }),
+    section({
+      crn: "90022",
+      subjectCourse: "GC3080",
+      section: "001",
+      title: "Unparsed Prereq Course",
+      meetings: [meeting("W", "1600", "1650")],
+    }),
     // GC3050: 16 sections (> querySectionsEngine's NARROW_THRESHOLD of 15) —
     // "Narrow Test Requirement"'s only explicit course, dedicated to the
     // narrowedCourses note test. Not referenced by SLOT, so it can't affect
@@ -335,8 +436,8 @@ const BASE_ARGS = {
 const EXPECTED_DESCRIPTION =
   "Find sections that fill a named degree requirement slot and that the" +
   " student is eligible to take (prerequisites checked against complete" +
-  "d_courses). `prereqEligible` is THREE-VALUED — \"eligible\", \"not_elig" +
-  "ible\", or \"undetermined\" — never a boolean. \"undetermined\" means the" +
+  'd_courses). `prereqEligible` is THREE-VALUED — "eligible", "not_elig' +
+  'ible", or "undetermined" — never a boolean. "undetermined" means the' +
   " stated rule cannot be decided from the structured data (it contains" +
   " OR, a grade minimum, a standing or consent gate, or did not parse);" +
   " READ `prereqText` and say what the rule actually is rather than rep" +
@@ -351,7 +452,9 @@ const EXPECTED_DESCRIPTION =
 test("registered with the exact kebab-case name and the verbatim brief description", () => {
   assert.equal(findRequirementSections.tool.name, "find-requirement-sections");
   assert.equal(findRequirementSections.tool.description, EXPECTED_DESCRIPTION);
-  assert.deepEqual(findRequirementSections.tool.inputSchema.required, ["requirement"]);
+  assert.deepEqual(findRequirementSections.tool.inputSchema.required, [
+    "requirement",
+  ]);
 });
 
 test("passes policy and appears in the exposed tool list", () => {
@@ -417,7 +520,11 @@ test("the deprecated `name` alias still resolves the program for one release", a
 test("every response echoes the resolved program and catalog_year", async () => {
   const latest = await call(BASE_ARGS);
   assert.equal(latest.program, PROGRAM);
-  assert.equal(latest.catalog_year, "2025-2026", "defaulted to the program's latest");
+  assert.equal(
+    latest.catalog_year,
+    "2025-2026",
+    "defaulted to the program's latest",
+  );
   const older = await call({ ...BASE_ARGS, catalog_year: "2024-2025" });
   assert.equal(older.program, PROGRAM);
   assert.equal(older.catalog_year, "2024-2025");
@@ -425,8 +532,11 @@ test("every response echoes the resolved program and catalog_year", async () => 
 
 test("the inputSchema is closed — a wrong key is a visible error, not a silent default", () => {
   assert.equal(
-    (findRequirementSections.tool.inputSchema as { additionalProperties?: boolean })
-      .additionalProperties,
+    (
+      findRequirementSections.tool.inputSchema as {
+        additionalProperties?: boolean;
+      }
+    ).additionalProperties,
     false,
   );
 });
@@ -469,12 +579,23 @@ test("no term given resolves to the current registration term and finds the fixt
   const out = await call({ ...BASE_ARGS });
   assert.equal(out.term, TERM);
   const crns = out.sections.map((s: any) => s.crn).sort();
-  assert.deepEqual(crns, ["90001", "90002", "90003", "90004", "90005", "90006", "90007"]);
+  assert.deepEqual(crns, [
+    "90001",
+    "90002",
+    "90003",
+    "90004",
+    "90005",
+    "90006",
+    "90007",
+  ]);
   assert.equal(out.total_credits_required, 12); // latest catalog year (2025-2026)
 });
 
 test("an unrecognized term returns the TermError redirect verbatim", async () => {
-  const res = await findRequirementSections.handler({ ...BASE_ARGS, term: "not a term" });
+  const res = await findRequirementSections.handler({
+    ...BASE_ARGS,
+    term: "not a term",
+  });
   assert.match(errText(res), /Unrecognized term/);
 });
 
@@ -500,15 +621,18 @@ test("sections carry the EngineSection fields plus prereqEligible/prereqText", a
   assert.equal(s.prereqEligible, "eligible"); // GC 3010 has no prereq
 });
 
-test("prereqEligible is \"not_eligible\" when a PURE-CONJUNCTION prereq is unmet", async () => {
+test('prereqEligible is "not_eligible" when a PURE-CONJUNCTION prereq is unmet', async () => {
   const out = await call({ ...BASE_ARGS, completed_courses: [] });
   const s = out.sections.find((x: any) => x.crn === "90003"); // GC3020, requires GC 3010
   assert.equal(s.prereqEligible, "not_eligible");
   assert.equal(s.prereqText, "GC 3010");
 });
 
-test("prereqEligible is \"eligible\" once the prereq is in completed_courses", async () => {
-  const out = await call({ ...BASE_ARGS, completed_courses: ["GC 1010", "GC 3010"] });
+test('prereqEligible is "eligible" once the prereq is in completed_courses', async () => {
+  const out = await call({
+    ...BASE_ARGS,
+    completed_courses: ["GC 1010", "GC 3010"],
+  });
   const s = out.sections.find((x: any) => x.crn === "90003"); // GC3020, requires GC 3010
   assert.equal(s.prereqEligible, "eligible");
 });
@@ -531,7 +655,7 @@ async function twoPrereqSection(completed: string[]): Promise<any> {
   return s;
 }
 
-test("prereqEligible is \"not_eligible\" when only ONE of a two-course prereq is completed", async () => {
+test('prereqEligible is "not_eligible" when only ONE of a two-course prereq is completed', async () => {
   const first = await twoPrereqSection(["GC 3010"]);
   assert.equal(
     first.prereqEligible,
@@ -545,11 +669,15 @@ test("prereqEligible is \"not_eligible\" when only ONE of a two-course prereq is
     "the other half alone is not eligibility either",
   );
   const neither = await twoPrereqSection([]);
-  assert.equal(neither.prereqEligible, "not_eligible", "neither prereq completed");
+  assert.equal(
+    neither.prereqEligible,
+    "not_eligible",
+    "neither prereq completed",
+  );
   assert.equal(neither.prereqText, "GC 3010 and GC 3020");
 });
 
-test("prereqEligible is \"eligible\" only when BOTH courses of a two-course prereq are completed", async () => {
+test('prereqEligible is "eligible" only when BOTH courses of a two-course prereq are completed', async () => {
   const s = await twoPrereqSection(["GC 3010", "GC 3020", "GC 1010"]);
   assert.equal(s.prereqEligible, "eligible");
 });
@@ -561,13 +689,19 @@ test("prereqEligible is \"eligible\" only when BOTH courses of a two-course prer
 test("fits_around_crns excludes a section that overlaps a current-schedule CRN", async () => {
   const out = await call({ ...BASE_ARGS, fits_around_crns: ["90010"] });
   const crns = out.sections.map((s: any) => s.crn);
-  assert.ok(!crns.includes("90004"), "90004 (10:00-11:00) overlaps current 90010 (10:30-11:30)");
+  assert.ok(
+    !crns.includes("90004"),
+    "90004 (10:00-11:00) overlaps current 90010 (10:30-11:30)",
+  );
 });
 
 test("fits_around_crns keeps a section that is only adjacent (touching boundary) to a current-schedule CRN", async () => {
   const out = await call({ ...BASE_ARGS, fits_around_crns: ["90011"] });
   const crns = out.sections.map((s: any) => s.crn);
-  assert.ok(crns.includes("90005"), "90005 (11:00-12:00) is adjacent to current 90011 (12:00-13:00), not a conflict");
+  assert.ok(
+    crns.includes("90005"),
+    "90005 (11:00-12:00) is adjacent to current 90011 (12:00-13:00), not a conflict",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -598,17 +732,28 @@ test("open_seats_only excludes a seats_available<=0 section", async () => {
 test("a time/day constraint excludes the zero-meeting async section (no separate envelope — engine semantics)", async () => {
   const out = await call({ ...BASE_ARGS, no_meeting_before: "0900" });
   const crns = out.sections.map((s: any) => s.crn);
-  assert.ok(!crns.includes("90007"), "async section can't satisfy a time/day rule and is excluded");
+  assert.ok(
+    !crns.includes("90007"),
+    "async section can't satisfy a time/day rule and is excluded",
+  );
 });
 
 test("with NO time/day constraint the async section is included normally", async () => {
   const out = await call({ ...BASE_ARGS, open_seats_only: true });
   const crns = out.sections.map((s: any) => s.crn);
-  assert.ok(crns.includes("90007"), "async section belongs in sections when no time/day constraint is given");
+  assert.ok(
+    crns.includes("90007"),
+    "async section belongs in sections when no time/day constraint is given",
+  );
 });
 
 test("applied_constraints echoes back exactly what was passed (normalized uppercase)", async () => {
-  const out = await call({ ...BASE_ARGS, exclude_days: ["f"], open_seats_only: true, fits_around_crns: ["90010"] });
+  const out = await call({
+    ...BASE_ARGS,
+    exclude_days: ["f"],
+    open_seats_only: true,
+    fits_around_crns: ["90010"],
+  });
   assert.deepEqual(out.applied_constraints.exclude_days, ["F"]);
   assert.equal(out.applied_constraints.open_seats_only, true);
   assert.deepEqual(out.applied_constraints.fits_around_crns, ["90010"]);
@@ -628,13 +773,19 @@ test("catalog_year selects the older program/rule instead of latest", async () =
 });
 
 test("unknown catalog_year returns a clear error", async () => {
-  const res = await findRequirementSections.handler({ ...BASE_ARGS, catalog_year: "1999-2000" });
+  const res = await findRequirementSections.handler({
+    ...BASE_ARGS,
+    catalog_year: "1999-2000",
+  });
   assert.match(errText(res), /not found for catalog year/);
 });
 
 test("unknown program returns a clear error", async () => {
-  const res = await findRequirementSections.handler({ ...BASE_ARGS, program: "Underwater Basket Weaving, BS" });
-  assert.match(errText(res), /not found in gc_advisor\.db/);
+  const res = await findRequirementSections.handler({
+    ...BASE_ARGS,
+    program: "Underwater Basket Weaving, BS",
+  });
+  assert.match(errText(res), /not found in catalog\.db/);
 });
 
 // ---------------------------------------------------------------------------
@@ -652,7 +803,11 @@ test("total_matched reflects the merged section count", async () => {
 // ---------------------------------------------------------------------------
 
 test("a course offering more sections than NARROW_THRESHOLD is omitted and noted, not silently dropped", async () => {
-  const out = await call({ requirement: "Narrow Test Requirement", completed_courses: [], program: PROGRAM });
+  const out = await call({
+    requirement: "Narrow Test Requirement",
+    completed_courses: [],
+    program: PROGRAM,
+  });
   // GC 3050 is the requirement's only explicit course, and it needs_narrowing
   // (16 sections > NARROW_THRESHOLD) — so merged ends up empty rather than
   // silently dropping those 16 sections with no explanation.
@@ -687,7 +842,11 @@ test("an OR prereq with one option satisfied is NOT reported ineligible", async 
     'an OR rule must never report "not_eligible" from a flat list — this is the MKT 3010 defect',
   );
   assert.equal(s.prereqEligible, "undetermined");
-  assert.equal(s.prereqText, "GC 3010 or GC 3020", "the real rule must reach the caller");
+  assert.equal(
+    s.prereqText,
+    "GC 3010 or GC 3020",
+    "the real rule must reach the caller",
+  );
 });
 
 test("an OR prereq with ALL options satisfied is eligible (a fortiori)", async () => {

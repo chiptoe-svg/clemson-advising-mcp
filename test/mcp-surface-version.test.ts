@@ -45,7 +45,11 @@ test("version CHANGES when a skill document's content changes", () => {
   const before = skillsVersion([root]);
   fs.writeFileSync(f, "# one, revised\n");
   const after = skillsVersion([root]);
-  assert.notEqual(before, after, "an edited skill doc must invalidate client caches");
+  assert.notEqual(
+    before,
+    after,
+    "an edited skill doc must invalidate client caches",
+  );
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -60,7 +64,11 @@ test("version does NOT change when a file is touched but not edited", () => {
   const before = skillsVersion([root]);
   const later = new Date(Date.now() + 60_000);
   fs.utimesSync(f, later, later);
-  assert.equal(skillsVersion([root]), before, "touching without editing must not churn");
+  assert.equal(
+    skillsVersion([root]),
+    before,
+    "touching without editing must not churn",
+  );
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -73,7 +81,11 @@ test("version covers nested includes, not just top-level SKILL.md", () => {
   __resetSkillsVersionCache();
   const before = skillsVersion([root]);
   fs.writeFileSync(inc, "# b\n");
-  assert.notEqual(skillsVersion([root]), before, "an edited include must count");
+  assert.notEqual(
+    skillsVersion([root]),
+    before,
+    "an edited include must count",
+  );
   fs.rmSync(root, { recursive: true, force: true });
 });
 

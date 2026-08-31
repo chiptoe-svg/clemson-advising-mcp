@@ -19,12 +19,8 @@ import path from "node:path";
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-core-search-"));
 process.env.STATE_DIR = TMP;
 
-const {
-  writeScheduleDb,
-  openScheduleDb,
-  getMeetingsForCrns,
-  findConflicts,
-} = await import("../src/clemson-schedule-db.ts");
+const { writeScheduleDb, openScheduleDb, getMeetingsForCrns, findConflicts } =
+  await import("../src/clemson-schedule-db.ts");
 const {
   searchClasses,
   findAlternatives,
@@ -34,7 +30,8 @@ const {
   makeSearchClasses,
 } = await import("../src/mcp-tools/core-search.ts");
 const { toolsForScope } = await import("../src/mcp-tools/server.ts");
-const { allExposedOperations } = await import("../src/mcp-tools/permissions.ts");
+const { allExposedOperations } =
+  await import("../src/mcp-tools/permissions.ts");
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type {
   ClemsonTermSnapshot,
@@ -198,13 +195,19 @@ test("search-classes: description names the discriminator and both siblings", ()
   assert.match(desc, /subject and\/or course number/);
   assert.match(desc, /check-conflicts/);
   assert.match(desc, /find-alternatives/);
-  assert.match(desc, /top sections by open seats plus a needsNarrowing summary/);
+  assert.match(
+    desc,
+    /top sections by open seats plus a needsNarrowing summary/,
+  );
 });
 
 test("find-alternatives: description names current_crns as required", () => {
   const desc = findAlternatives.tool.description ?? "";
   assert.match(desc, /Requires current_crns/);
-  assert.match(desc, /top sections by open seats plus a needsNarrowing summary/);
+  assert.match(
+    desc,
+    /top sections by open seats plus a needsNarrowing summary/,
+  );
   assert.match(desc, /show a few, don't ask first/);
 });
 
@@ -226,7 +229,10 @@ test("get-course-details: description routes course_code vs crn and points at se
 // ---------------------------------------------------------------------------
 
 test("search-classes: 'Spring 2027' resolves to the 202701 fixture and returns its sections", async () => {
-  const res = await searchClasses.handler({ term: "Spring 2027", subject: "GC" });
+  const res = await searchClasses.handler({
+    term: "Spring 2027",
+    subject: "GC",
+  });
   const body = json(res);
   assert.ok(crns(body.sections).includes("30001"));
   assert.equal(
@@ -450,7 +456,10 @@ test("search-classes: refresh:true post-filters live results by no_meeting_after
 });
 
 test("search-classes: an unrecognized term returns the TermError redirect verbatim", async () => {
-  const res = await searchClasses.handler({ term: "not a term", subject: "GC" });
+  const res = await searchClasses.handler({
+    term: "not a term",
+    subject: "GC",
+  });
   assert.match(errText(res), /Unrecognized term/);
 });
 
@@ -485,7 +494,9 @@ test("find-alternatives: missing current_crns returns the redirect error", async
 
 test("check-conflicts: verdict matches a direct findConflicts computation", async () => {
   const db = openScheduleDb(TERM)!;
-  const expected = findConflicts(getMeetingsForCrns(db, TERM, ["30010", "30011"]));
+  const expected = findConflicts(
+    getMeetingsForCrns(db, TERM, ["30010", "30011"]),
+  );
   db.close();
 
   const res = await checkConflicts.handler({
@@ -551,7 +562,10 @@ test("get-course-details: course_code routes to the GC catalog lookup, not the B
       return null;
     },
   });
-  const res = await tool.handler({ term: "Spring 2027", course_code: "GC 3010" });
+  const res = await tool.handler({
+    term: "Spring 2027",
+    course_code: "GC 3010",
+  });
   const body = json(res);
   assert.deepEqual(courseCalls, ["GC 3010"]);
   assert.deepEqual(crnCalls, []);
@@ -600,7 +614,10 @@ test("get-course-details: missing course_code AND crn returns the redirect error
 test("get-course-details: course_code with a coreq pair returns the coreqs array", async () => {
   const coreqCalls: string[] = [];
   const tool = makeGetCourseDetails({
-    getGcCourse: async (code: string) => ({ code, title: "Package and Specialty Printing" }),
+    getGcCourse: async (code: string) => ({
+      code,
+      title: "Package and Specialty Printing",
+    }),
     findCoreqs: (code: string) => {
       coreqCalls.push(code);
       return [
@@ -631,7 +648,10 @@ test("get-course-details: course_code with a coreq pair returns the coreqs array
 
 test("get-course-details: course_code with no coreq omits the coreqs field", async () => {
   const tool = makeGetCourseDetails({
-    getGcCourse: async (code: string) => ({ code, title: "Some Standalone Course" }),
+    getGcCourse: async (code: string) => ({
+      code,
+      title: "Some Standalone Course",
+    }),
     findCoreqs: () => [],
   });
   const res = await tool.handler({ course_code: "GC 3010" });

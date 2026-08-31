@@ -37,7 +37,7 @@ export interface Consumer {
 /**
  * Registry file for one server. Each HTTP server keeps its OWN registry so a
  * token minted for one is not accepted by another — preserving the per-server
- * key isolation the env tokens have always had (see src/mcp-public.ts's AUTH
+ * key isolation the env tokens have always had (see src/mcp-schedule.ts's AUTH
  * note). The unnamed default is the original path, kept for token-portal.ts.
  */
 const REGISTRY_PATH = (registry?: string): string =>

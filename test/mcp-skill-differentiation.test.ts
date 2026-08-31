@@ -26,7 +26,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import "../src/mcp-tools/index-catalog.ts";
-import { registerTools, renameRegisteredTool } from "../src/mcp-tools/server.ts";
+import {
+  registerTools,
+  renameRegisteredTool,
+} from "../src/mcp-tools/server.ts";
 import { __skillTools } from "../src/mcp-tools/skills.ts";
 import {
   GC_SKILL_RENAMES,
@@ -36,13 +39,19 @@ import type { McpToolDefinition } from "../src/mcp-tools/types.ts";
 
 /** Tool.description is optional on the SDK type; every tool here always sets it. */
 function requireDescription(t: McpToolDefinition): string {
-  assert.ok(typeof t.tool.description === "string", `expected "${t.tool.name}" to have a description`);
+  assert.ok(
+    typeof t.tool.description === "string",
+    `expected "${t.tool.name}" to have a description`,
+  );
   return t.tool.description as string;
 }
 
 function renameFor(to: string) {
   const rename = GC_SKILL_RENAMES.find((r) => r.to === to);
-  assert.ok(rename, `expected GC_SKILL_RENAMES to contain a rename targeting "${to}"`);
+  assert.ok(
+    rename,
+    `expected GC_SKILL_RENAMES to contain a rename targeting "${to}"`,
+  );
   return rename;
 }
 
@@ -50,7 +59,9 @@ function renameFor(to: string) {
 // mutates the tool objects __skillTools references in place, so reading these
 // after the rename would just return the new (GC) text.
 const publicListSkillsDescription = requireDescription(__skillTools.listSkills);
-const publicGetSkillDocsDescription = requireDescription(__skillTools.getSkillDocs);
+const publicGetSkillDocsDescription = requireDescription(
+  __skillTools.getSkillDocs,
+);
 
 // The REAL renames, applied exactly as src/mcp-catalog.ts applies them at
 // module load — no hand-copied duplicate of the override text here.

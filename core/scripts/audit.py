@@ -3,7 +3,7 @@ from pathlib import Path
 from gc_advisor.audit.models import Progress
 from gc_advisor.audit.engine import run_audit
 
-DEFAULT_DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DEFAULT_DB = Path(__file__).parent.parent / "db" / "catalog.db"
 
 def main():
     ap = argparse.ArgumentParser(description="Audit gc-progress-v1 JSON (stdin or --progress file) -> audit JSON")

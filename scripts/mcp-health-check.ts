@@ -23,9 +23,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  MCP_PUBLIC_HTTP_PORT,
+  MCP_SCHEDULE_HTTP_PORT,
   MCP_CATALOG_HTTP_PORT,
-  GC_ADVISOR_DB,
+  CATALOG_DB,
 } from "../src/config-mcp.js";
 
 const json = process.argv.includes("--json");
@@ -39,11 +39,12 @@ const SNAPSHOT_DIR = path.resolve("state/clemson");
  */
 const SNAPSHOT_EXTS = [".db", ".json.gz"];
 /**
- * Where the startup line lives. `{which}` is "public" or "catalog". A pattern
+ * Where the startup line lives. `{which}` is "schedule" or "catalog". A pattern
  * rather than a prefix because log naming is a deployment choice, and a prefix
  * cannot express every shape someone has already chosen.
  */
-const LOG_PATTERN = process.env.MCP_LOG_PATTERN || "advising-mcp.{which}.err.log";
+const LOG_PATTERN =
+  process.env.MCP_LOG_PATTERN || "advising-mcp.{which}.err.log";
 /** A daily refresh plus a full day of slack. Beyond this, someone should look. */
 const STALE_HOURS = 36;
 
@@ -63,12 +64,20 @@ async function probe(which: string, port: number): Promise<void> {
     });
     code = res.status;
   } catch (e) {
-    add(`${which}:listening`, "down", `no answer on ${port} (${(e as Error).message})`);
+    add(
+      `${which}:listening`,
+      "down",
+      `no answer on ${port} (${(e as Error).message})`,
+    );
     return;
   }
   if (code === 401) add(`${which}:listening`, "ok", `401 on ${port}`);
   else if (code === 200)
-    add(`${which}:listening`, "down", `200 UNAUTHENTICATED on ${port} — serving open`);
+    add(
+      `${which}:listening`,
+      "down",
+      `200 UNAUTHENTICATED on ${port} — serving open`,
+    );
   else add(`${which}:listening`, "down", `${code} on ${port}, expected 401`);
 
   // The tool list lives only in the startup line.
@@ -97,34 +106,50 @@ function checkFreshness(): void {
       if (m > newest) newest = m;
     }
   } catch {
-    add("schedule:freshness", "down", `no snapshot directory at ${SNAPSHOT_DIR}`);
+    add(
+      "schedule:freshness",
+      "down",
+      `no snapshot directory at ${SNAPSHOT_DIR}`,
+    );
     return;
   }
   if (newest === 0) {
-    add("schedule:freshness", "down", "no snapshots — run: npm run clemson:refresh");
+    add(
+      "schedule:freshness",
+      "down",
+      "no snapshots — run: npm run clemson:refresh",
+    );
     return;
   }
   const hours = (Date.now() - newest) / 3_600_000;
   const age = `${hours.toFixed(1)}h old`;
   if (hours > STALE_HOURS)
-    add("schedule:freshness", "warn", `${age} — the daily refresh is not running`);
+    add(
+      "schedule:freshness",
+      "warn",
+      `${age} — the daily refresh is not running`,
+    );
   else add("schedule:freshness", "ok", age);
 }
 
 function checkCatalogDb(): void {
   try {
-    const s = fs.statSync(GC_ADVISOR_DB);
+    const s = fs.statSync(CATALOG_DB);
     // Present but empty is the interesting case: the catalog server answers
     // with nothing rather than failing, which reads as "no such program".
     if (s.size < 1_000_000)
-      add("catalog:db", "warn", `${GC_ADVISOR_DB} is only ${s.size} bytes — truncated?`);
+      add(
+        "catalog:db",
+        "warn",
+        `${CATALOG_DB} is only ${s.size} bytes — truncated?`,
+      );
     else add("catalog:db", "ok", `${(s.size / 1e6).toFixed(1)} MB`);
   } catch {
-    add("catalog:db", "down", `missing: ${GC_ADVISOR_DB}`);
+    add("catalog:db", "down", `missing: ${CATALOG_DB}`);
   }
 }
 
-await probe("public", MCP_PUBLIC_HTTP_PORT);
+await probe("schedule", MCP_SCHEDULE_HTTP_PORT);
 await probe("catalog", MCP_CATALOG_HTTP_PORT);
 checkFreshness();
 checkCatalogDb();
@@ -139,7 +164,8 @@ if (json) {
   console.log(JSON.stringify({ status: worst, checks }, null, 2));
 } else {
   for (const c of checks) {
-    const mark = c.status === "ok" ? "ok  " : c.status === "warn" ? "WARN" : "DOWN";
+    const mark =
+      c.status === "ok" ? "ok  " : c.status === "warn" ? "WARN" : "DOWN";
     console.log(`  ${mark}  ${c.name.padEnd(22)} ${c.detail}`);
   }
   console.log(`\n${worst.toUpperCase()}`);

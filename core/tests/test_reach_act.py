@@ -36,7 +36,7 @@ import pytest
 from registrar_rules import course_options
 
 ROOT = Path(__file__).parent.parent
-DB = ROOT / "db" / "gc_advisor.db"
+DB = ROOT / "db" / "catalog.db"
 
 pytestmark = pytest.mark.skipif(not DB.exists(), reason="catalog DB not present")
 

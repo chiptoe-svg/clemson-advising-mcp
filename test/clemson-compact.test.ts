@@ -25,7 +25,13 @@ function section(over: Partial<ClemsonSection> = {}): ClemsonSection {
     waitCount: 0,
     waitCapacity: 0,
     open: true,
-    instructors: [{ name: "Ada Lovelace", email: "instructor@example.invalid", primary: true }],
+    instructors: [
+      {
+        name: "Ada Lovelace",
+        email: "instructor@example.invalid",
+        primary: true,
+      },
+    ],
     meetings: [
       {
         days: "MWF",

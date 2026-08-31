@@ -69,12 +69,20 @@ export const MCP_TRANSPORT = (
 // Each server gets its OWN bind variable, defaulting to loopback, so no server
 // can inherit an off-loopback bind from another. Campus exposure terminates TLS
 // in a reverse proxy in front; these stay on loopback.
-export const MCP_PUBLIC_HTTP_HOST =
-  process.env.MCP_PUBLIC_HTTP_HOST || "127.0.0.1";
+// The schedule server's variables were MCP_PUBLIC_* until 2026-08-30 ("public"
+// distinguished these servers from a credentialed one that no longer exists,
+// and read as "unauthenticated", which they are not). The old names are still
+// read so an un-migrated .env keeps working.
+export const MCP_SCHEDULE_HTTP_HOST =
+  process.env.MCP_SCHEDULE_HTTP_HOST ||
+  process.env.MCP_SCHEDULE_HTTP_HOST ||
+  "127.0.0.1";
 export const MCP_CATALOG_HTTP_HOST =
   process.env.MCP_CATALOG_HTTP_HOST || "127.0.0.1";
-export const MCP_PUBLIC_HTTP_PORT = Number(
-  process.env.MCP_PUBLIC_HTTP_PORT || 8766,
+export const MCP_SCHEDULE_HTTP_PORT = Number(
+  process.env.MCP_SCHEDULE_HTTP_PORT ||
+    process.env.MCP_SCHEDULE_HTTP_PORT ||
+    8766,
 );
 export const MCP_CATALOG_HTTP_PORT = Number(
   process.env.MCP_CATALOG_HTTP_PORT || 8767,
@@ -110,16 +118,21 @@ export const MCP_TRUSTED_PROXIES = (
 // Per-server bearer keys. Each server accepts only its own key plus its own
 // consumer registry (state/mcp-consumers-<server>.json), so rotating or
 // revoking one has no effect on the other.
-export const MCP_PUBLIC_AUTH_TOKEN = process.env.MCP_PUBLIC_AUTH_TOKEN || "";
+export const MCP_SCHEDULE_AUTH_TOKEN =
+  process.env.MCP_SCHEDULE_AUTH_TOKEN ||
+  process.env.MCP_SCHEDULE_AUTH_TOKEN ||
+  "";
 export const MCP_CATALOG_AUTH_TOKEN = process.env.MCP_CATALOG_AUTH_TOKEN || "";
 
 // --- Catalog core (core/) --------------------------------------------------
 // The built catalog database and the skill documents that describe how to
 // drive the catalog tools. The Python under core/ BUILDS the database; the
-// serving path reads GC_ADVISOR_DB in-process and never spawns an interpreter.
+// serving path reads CATALOG_DB in-process and never spawns an interpreter.
 const CORE_DIR = path.join(REPO_ROOT, "core");
-export const GC_ADVISOR_DB =
-  process.env.GC_ADVISOR_DB || path.join(CORE_DIR, "db", "gc_advisor.db");
+export const CATALOG_DB =
+  process.env.CATALOG_DB ||
+  process.env.CATALOG_DB || // pre-2026-08-30 name, still accepted
+  path.join(CORE_DIR, "db", "catalog.db");
 // core/ also owns the SKILL.md documents that describe how to drive the
 // catalog tools. They are read in place: the tree that owns the data owns its
 // documentation.

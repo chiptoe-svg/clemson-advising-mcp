@@ -1,202 +1,831 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Clemson Advising MCP Servers</title>
-<meta name="description" content="Two read-only MCP servers that give an AI advising assistant deterministic access to Clemson's published class schedule and College of Business curriculum.">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Public+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400&display=swap">
-<style>
-  :root{
-    --bg:#FAF9F7; --surface:#FFFFFF; --ink:#26221E; --muted:#6B645C; --rule:#E2DED8; --rule-soft:#EDEAE5;
-    --accent:#C25400; --accent-ink:#9C4400; --accent-soft:#FBEADD;
-    --sched:#3D5A80; --sched-soft:#E4EAF2; --cat:#6B4E92; --cat-soft:#EDE7F4;
-    --code-bg:#F1EEE9;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:#1B1916; --surface:#242019; --ink:#EAE6E0; --muted:#A39B90; --rule:#3A352E; --rule-soft:#2E2A24;
-      --accent:#F08A3C; --accent-ink:#F08A3C; --accent-soft:#3A2A1B;
-      --sched:#8FB0D9; --sched-soft:#232C38; --cat:#B79DDC; --cat-soft:#2C2436;
-      --code-bg:#2C2823;
-    }
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Public Sans",-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.6}
-  .wrap{max-width:76ch;margin:0 auto;padding:0 24px 96px}
-  h1,h2,h3{font-family:"Source Serif 4",Georgia,serif;font-weight:600;text-wrap:balance;margin:0}
-  h1{font-size:2.5rem;line-height:1.12;letter-spacing:-.01em}
-  h2{font-size:1.6rem;margin-top:72px;padding-top:22px;border-top:1px solid var(--rule)}
-  h3{font-size:1.15rem;margin-top:34px}
-  p{margin:14px 0;max-width:68ch}
-  a{color:var(--accent-ink)}
-  code{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:.85em;background:var(--code-bg);padding:1px 5px;border-radius:3px}
-  header{padding:64px 0 8px}
-  .eyebrow{font-size:.76rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-ink);font-weight:600;margin-bottom:14px}
-  .lede{font-size:1.16rem;max-width:60ch;margin-top:18px}
-  .links{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
-  .links a{display:inline-block;border:1px solid var(--rule);border-radius:6px;padding:7px 14px;text-decoration:none;color:var(--ink);font-size:.92rem;background:var(--surface)}
-  .links a.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  @media (prefers-color-scheme: dark){ .links a.primary{color:#1B1916} }
-  /* server cards */
-  .servers{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:26px}
-  @media (max-width:680px){.servers{grid-template-columns:1fr}}
-  .server{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:20px 22px;border-top:3px solid var(--sched)}
-  .server.cat{border-top-color:var(--cat)}
-  .server .name{font-family:"IBM Plex Mono",monospace;font-size:.82rem;color:var(--muted)}
-  .server h3{margin-top:4px}
-  .server p{font-size:.95rem;margin:10px 0 0}
-  /* facts table */
-  table{border-collapse:collapse;width:100%;font-size:.94rem;margin-top:16px}
-  th{text-align:left;font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--rule)}
-  td{padding:9px 10px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
-  .tblwrap{overflow-x:auto}
-  /* pipeline */
-  .pipe{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:0;align-items:stretch;margin:22px 0 6px;font-size:.9rem}
-  @media (max-width:680px){.pipe{grid-template-columns:1fr;gap:4px}.pipe .arrow{transform:rotate(90deg);justify-self:center;padding:2px 0}}
-  .stage{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px}
-  .stage .k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:6px}
-  .stage strong{display:block;margin-bottom:4px}
-  .stage span{color:var(--muted);font-size:.86rem}
-  .arrow{align-self:center;color:var(--muted);padding:0 10px;font-size:1.2rem}
-  .pipe.sched .stage{border-top:3px solid var(--sched)} .pipe.cat .stage{border-top:3px solid var(--cat)}
-  /* tools */
-  .toolgrid{margin-top:10px}
-  .tool{padding:16px 0;border-top:1px solid var(--rule-soft);display:grid;grid-template-columns:230px 1fr;gap:8px 22px}
-  @media (max-width:680px){.tool{grid-template-columns:1fr;gap:4px}}
-  .tool:first-of-type{border-top:0}
-  .tool .tname{font-family:"IBM Plex Mono",monospace;font-size:.88rem;font-weight:600;word-break:break-word}
-  .tool .tname .tag{display:block;font-family:"Public Sans",sans-serif;font-weight:600;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;margin-top:6px;color:var(--muted)}
-  .tool p{margin:0;font-size:.95rem}
-  .band{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:2px 8px;border-radius:3px;margin-left:8px;vertical-align:middle}
-  .band.sched{color:var(--sched);background:var(--sched-soft)} .band.cat{color:var(--cat);background:var(--cat-soft)}
-  .callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:0 6px 6px 0;margin:22px 0}
-  .callout p{margin:6px 0;font-size:.95rem}
-  footer{margin-top:80px;padding-top:20px;border-top:1px solid var(--rule);color:var(--muted);font-size:.88rem}
-  footer a{color:var(--muted)}
-</style>
-</head>
-<body>
-<div class="wrap">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clemson Advising MCP Servers</title>
+    <meta
+      name="description"
+      content="Two read-only MCP servers that give an AI advising assistant deterministic access to Clemson's published class schedule and College of Business curriculum."
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Public+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400&display=swap"
+    />
+    <style>
+      :root {
+        --bg: #faf9f7;
+        --surface: #ffffff;
+        --ink: #26221e;
+        --muted: #6b645c;
+        --rule: #e2ded8;
+        --rule-soft: #edeae5;
+        --accent: #c25400;
+        --accent-ink: #9c4400;
+        --accent-soft: #fbeadd;
+        --sched: #3d5a80;
+        --sched-soft: #e4eaf2;
+        --cat: #6b4e92;
+        --cat-soft: #ede7f4;
+        --code-bg: #f1eee9;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1b1916;
+          --surface: #242019;
+          --ink: #eae6e0;
+          --muted: #a39b90;
+          --rule: #3a352e;
+          --rule-soft: #2e2a24;
+          --accent: #f08a3c;
+          --accent-ink: #f08a3c;
+          --accent-soft: #3a2a1b;
+          --sched: #8fb0d9;
+          --sched-soft: #232c38;
+          --cat: #b79ddc;
+          --cat-soft: #2c2436;
+          --code-bg: #2c2823;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          "Public Sans",
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+      }
+      .wrap {
+        max-width: 76ch;
+        margin: 0 auto;
+        padding: 0 24px 96px;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-weight: 600;
+        text-wrap: balance;
+        margin: 0;
+      }
+      h1 {
+        font-size: 2.5rem;
+        line-height: 1.12;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font-size: 1.6rem;
+        margin-top: 72px;
+        padding-top: 22px;
+        border-top: 1px solid var(--rule);
+      }
+      h3 {
+        font-size: 1.15rem;
+        margin-top: 34px;
+      }
+      p {
+        margin: 14px 0;
+        max-width: 68ch;
+      }
+      a {
+        color: var(--accent-ink);
+      }
+      code {
+        font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+        font-size: 0.85em;
+        background: var(--code-bg);
+        padding: 1px 5px;
+        border-radius: 3px;
+      }
+      header {
+        padding: 64px 0 8px;
+      }
+      .eyebrow {
+        font-size: 0.76rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent-ink);
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+      .lede {
+        font-size: 1.16rem;
+        max-width: 60ch;
+        margin-top: 18px;
+      }
+      .links {
+        margin-top: 22px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .links a {
+        display: inline-block;
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        padding: 7px 14px;
+        text-decoration: none;
+        color: var(--ink);
+        font-size: 0.92rem;
+        background: var(--surface);
+      }
+      .links a.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      @media (prefers-color-scheme: dark) {
+        .links a.primary {
+          color: #1b1916;
+        }
+      }
+      /* server cards */
+      .servers {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 26px;
+      }
+      @media (max-width: 680px) {
+        .servers {
+          grid-template-columns: 1fr;
+        }
+      }
+      .server {
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: 8px;
+        padding: 20px 22px;
+        border-top: 3px solid var(--sched);
+      }
+      .server.cat {
+        border-top-color: var(--cat);
+      }
+      .server .name {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .server h3 {
+        margin-top: 4px;
+      }
+      .server p {
+        font-size: 0.95rem;
+        margin: 10px 0 0;
+      }
+      /* facts table */
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.94rem;
+        margin-top: 16px;
+      }
+      th {
+        text-align: left;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 600;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--rule);
+      }
+      td {
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--rule-soft);
+        vertical-align: top;
+      }
+      .tblwrap {
+        overflow-x: auto;
+      }
+      /* pipeline */
+      .pipe {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr auto 1fr;
+        gap: 0;
+        align-items: stretch;
+        margin: 22px 0 6px;
+        font-size: 0.9rem;
+      }
+      @media (max-width: 680px) {
+        .pipe {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+        .pipe .arrow {
+          transform: rotate(90deg);
+          justify-self: center;
+          padding: 2px 0;
+        }
+      }
+      .stage {
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: 8px;
+        padding: 14px 16px;
+      }
+      .stage .k {
+        font-size: 0.72rem;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .stage strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .stage span {
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+      .arrow {
+        align-self: center;
+        color: var(--muted);
+        padding: 0 10px;
+        font-size: 1.2rem;
+      }
+      .pipe.sched .stage {
+        border-top: 3px solid var(--sched);
+      }
+      .pipe.cat .stage {
+        border-top: 3px solid var(--cat);
+      }
+      /* tools */
+      .toolgrid {
+        margin-top: 10px;
+      }
+      .tool {
+        padding: 16px 0;
+        border-top: 1px solid var(--rule-soft);
+        display: grid;
+        grid-template-columns: 230px 1fr;
+        gap: 8px 22px;
+      }
+      @media (max-width: 680px) {
+        .tool {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+      }
+      .tool:first-of-type {
+        border-top: 0;
+      }
+      .tool .tname {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 0.88rem;
+        font-weight: 600;
+        word-break: break-word;
+      }
+      .tool .tname .tag {
+        display: block;
+        font-family: "Public Sans", sans-serif;
+        font-weight: 600;
+        font-size: 0.68rem;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        margin-top: 6px;
+        color: var(--muted);
+      }
+      .tool p {
+        margin: 0;
+        font-size: 0.95rem;
+      }
+      .band {
+        display: inline-block;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 3px;
+        margin-left: 8px;
+        vertical-align: middle;
+      }
+      .band.sched {
+        color: var(--sched);
+        background: var(--sched-soft);
+      }
+      .band.cat {
+        color: var(--cat);
+        background: var(--cat-soft);
+      }
+      .callout {
+        border-left: 3px solid var(--accent);
+        background: var(--accent-soft);
+        padding: 14px 18px;
+        border-radius: 0 6px 6px 0;
+        margin: 22px 0;
+      }
+      .callout p {
+        margin: 6px 0;
+        font-size: 0.95rem;
+      }
+      footer {
+        margin-top: 80px;
+        padding-top: 20px;
+        border-top: 1px solid var(--rule);
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      footer a {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="eyebrow">Clemson University · College of Business</div>
+        <h1>Clemson Advising MCP Servers</h1>
+        <p class="lede">
+          Two read-only
+          <a href="https://modelcontextprotocol.io"
+            >Model&nbsp;Context&nbsp;Protocol</a
+          >
+          servers that give an AI advising assistant deterministic access to
+          Clemson's published data — the live class schedule and the College of
+          Business curriculum — so an answer about a section, a requirement, or
+          a conflict is a lookup, never a guess.
+        </p>
+        <div class="links">
+          <a
+            class="primary"
+            href="https://github.com/chiptoe-svg/clemson-advising-mcp"
+            >Repository</a
+          >
+          <a
+            href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/security.md"
+            >Security model</a
+          >
+          <a
+            href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/overview.md"
+            >Full overview</a
+          >
+        </div>
+      </header>
 
-<header>
-  <div class="eyebrow">Clemson University · College of Business</div>
-  <h1>Clemson Advising MCP Servers</h1>
-  <p class="lede">Two read-only <a href="https://modelcontextprotocol.io">Model&nbsp;Context&nbsp;Protocol</a> servers that give an AI advising assistant deterministic access to Clemson's published course data — so an answer about a section, a requirement, or a conflict is a lookup, never a guess.</p>
-  <div class="links">
-    <a class="primary" href="https://github.com/chiptoe-svg/clemson-advising-mcp">Repository</a>
-    <a href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/security.md">Security model</a>
-    <a href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/overview.md">Full overview</a>
-  </div>
-</header>
+      <section>
+        <h2 id="what">What the servers provide</h2>
+        <p>
+          An advisor asking
+          <em>“can this student take BUS&nbsp;3120 next spring?”</em> needs the
+          catalog requirement, the prerequisite chain, and whether a section
+          exists at a time that fits. A language model asked that without tools
+          produces a fluent, plausible, and frequently wrong answer. These
+          servers make each of those facts a deterministic lookup instead.
+        </p>
+        <div class="servers">
+          <div class="server">
+            <div class="name">advising-mcp-schedule · port 8766</div>
+            <h3>Schedule server</h3>
+            <p>
+              The Banner class schedule: section search, meeting times, rooms,
+              seats, conflict checking, alternatives that fit an existing
+              schedule, and authoritative CRN verification. Eleven tools.
+            </p>
+          </div>
+          <div class="server cat">
+            <div class="name">advising-mcp-catalog · port 8767</div>
+            <h3>Catalog server</h3>
+            <p>
+              The College of Business curriculum: semester-by-semester degree
+              plans, named requirement rules, General&nbsp;Education, course
+              entries, minors and certificates, and the join between a
+              requirement slot and the sections that fill it. Eleven tools.
+            </p>
+          </div>
+        </div>
+        <p style="margin-top: 20px">
+          Both serve <strong>published</strong> Clemson data, hold no student
+          records and no credentials beyond their own consumer tokens, and have
+          no write path into any Clemson system. Every caller needs a bearer
+          token; the servers sit on loopback behind a campus reverse proxy that
+          terminates TLS.
+        </p>
+      </section>
 
-<section>
-  <h2 id="what">What the servers provide</h2>
-  <p>An advisor asking <em>“can this student take BUS&nbsp;3120 next spring?”</em> needs the catalog requirement, the prerequisite chain, and whether a section exists at a time that fits. A language model asked that without tools produces a fluent, plausible, and frequently wrong answer. These servers make each of those facts a deterministic lookup instead.</p>
-  <div class="servers">
-    <div class="server">
-      <div class="name">advising-mcp-public · port 8766</div>
-      <h3>Schedule server</h3>
-      <p>The Banner class schedule: section search, meeting times, rooms, seats, conflict checking, alternatives that fit an existing schedule, and authoritative CRN verification. Eleven tools.</p>
+      <section>
+        <h2 id="sources">Where the information comes from</h2>
+        <div class="tblwrap">
+          <table>
+            <tr>
+              <th>Source</th>
+              <th>What</th>
+              <th>How often</th>
+            </tr>
+            <tr>
+              <td><code>regssb.sis.clemson.edu</code></td>
+              <td>
+                Banner's public “Browse Classes” JSON endpoints — the same calls
+                the search page makes. No login, no student data.
+              </td>
+              <td>
+                One paced sweep per live term, daily at 05:00; three tools can
+                also read live for current seat counts
+              </td>
+            </tr>
+            <tr>
+              <td><code>catalog.clemson.edu</code></td>
+              <td>
+                The published online catalog (Acalog): program pages, course
+                pages, General&nbsp;Education, footnotes.
+              </td>
+              <td>
+                About once a year, when a new catalog year is published — never
+                from the serving host
+              </td>
+            </tr>
+            <tr>
+              <td>CuSectionOverview report</td>
+              <td>
+                Room seat counts for 435 rooms — the one input that is not on a
+                public page, exported by hand and
+                <a
+                  href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/security.md"
+                  >named in the security document</a
+                >.
+              </td>
+              <td>Once; not currently returned to any caller</td>
+            </tr>
+          </table>
+        </div>
+        <p>
+          The daily Banner sweep is deliberately gentle with someone else's
+          production system: pages of 500 sections capped at 40, 200–400&nbsp;ms
+          between requests, one second between terms, at most three attempts per
+          term, and a <code>User-Agent</code> naming this service and repository
+          so the traffic is attributable. A sweep that does not complete is
+          discarded rather than written.
+        </p>
+      </section>
+
+      <section>
+        <h2 id="architecture">How it is ingested and served</h2>
+        <p>
+          Two independent pipelines feed two independent servers. Neither
+          pipeline runs on a request — collection and serving never share a
+          process.
+        </p>
+
+        <h3>The class schedule, nightly</h3>
+        <div class="pipe sched">
+          <div class="stage">
+            <div class="k">Collect</div>
+            <strong>Refresh job, 05:00</strong
+            ><span
+              >Asks Banner for its term list, sweeps every live term — currently
+              seven, ~21,000 sections in under three minutes.</span
+            >
+          </div>
+          <div class="arrow">→</div>
+          <div class="stage">
+            <div class="k">Rest</div>
+            <strong>One SQLite file per term</strong
+            ><span
+              >Sections, meetings, instructors, and a “data as of” stamp.
+              Written atomically — a reader never sees a partial snapshot.</span
+            >
+          </div>
+          <div class="arrow">→</div>
+          <div class="stage">
+            <div class="k">Serve</div>
+            <strong>Schedule server</strong
+            ><span
+              >Opens the term's file read-only per request. Every answer carries
+              the snapshot's timestamp.</span
+            >
+          </div>
+        </div>
+
+        <h3>The curriculum catalog, annually</h3>
+        <div class="pipe cat">
+          <div class="stage">
+            <div class="k">Collect</div>
+            <strong>Catalog rebuild</strong
+            ><span
+              >A headless browser renders each program page (the catalog is a
+              JavaScript application); parsers extract plans and rules; a
+              language model extracts the prose requirements of minors and
+              certificates, cached by page content.</span
+            >
+          </div>
+          <div class="arrow">→</div>
+          <div class="stage">
+            <div class="k">Rest</div>
+            <strong><code>catalog.db</code></strong
+            ><span
+              >Programs, semester plans, requirement rules, 4,085 courses,
+              General&nbsp;Education, footnotes — with the source page recorded
+              for every row.</span
+            >
+          </div>
+          <div class="arrow">→</div>
+          <div class="stage">
+            <div class="k">Serve</div>
+            <strong>Catalog server</strong
+            ><span
+              >Reads the database in-process. No request ever runs Python; the
+              pipeline that builds the database is checked against the serving
+              code by a differential test.</span
+            >
+          </div>
+        </div>
+
+        <div class="callout">
+          <p>
+            <strong
+              >The design rule the codebase is organised around: silence must
+              never read as absence.</strong
+            >
+            A lookup that found nothing because it did not look says so.
+            Prerequisite eligibility is three-valued (<em
+              >eligible / not eligible / undetermined</em
+            >); a CRN check distinguishes “the snapshot has no such CRN” from
+            “there is no snapshot”; an unreadable catalog is an error, never an
+            empty answer.
+          </p>
+        </div>
+
+        <p>
+          A request travels: HTTPS to the campus reverse proxy → loopback HTTP
+          to the server → bearer-token authentication against a per-server
+          registry of hashed tokens → a scope check → the tool's handler, which
+          is a read-only SQLite query (or, for three schedule tools, a live
+          Banner read). One usage-ledger line per call records who called which
+          tool — never the arguments, never the results.
+        </p>
+      </section>
+
+      <section>
+        <h2 id="tools">The tools</h2>
+        <p>
+          Twenty-two in all, eleven per server. The repository's test suite
+          compares this list against what the running servers actually serve, so
+          it cannot silently drift.
+        </p>
+
+        <h3 id="schedule-tools">
+          Schedule server <span class="band sched">port 8766</span>
+        </h3>
+        <p>
+          Every tool taking a <code>term</code> accepts a code
+          (<code>202608</code>) or a name (<code>"Fall 2026"</code>) and
+          defaults to the current registration term.
+        </p>
+        <div class="toolgrid">
+          <div class="tool">
+            <div class="tname" data-tool="search-classes">search-classes</div>
+            <p>
+              Search sections by subject and/or course number, with instructor,
+              building/room, days, time-of-day, and open-seats filters.
+              Snapshot-backed; <code>refresh:&nbsp;true</code> forces a live
+              Banner read for up-to-the-minute seats.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-course-details">
+              get-course-details
+            </div>
+            <p>
+              Details for one course (description, prerequisites, corequisites,
+              restrictions, credits) or one section by CRN. Reads Banner live.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="check-conflicts">check-conflicts</div>
+            <p>
+              Which CRNs in a set clash in time, pair by pair; optionally tests
+              candidate CRNs against a fixed set. Sections with no meeting time
+              cannot conflict and are reported as such.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="find-alternatives">
+              find-alternatives
+            </div>
+            <p>
+              Sections that fit around the CRNs a student is keeping, with
+              subject, credits, days, time, and seats filters.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="find-conflict-free-schedule">
+              find-conflict-free-schedule
+            </div>
+            <p>
+              Given committed CRNs and candidate CRNs, which candidates can be
+              added with no conflicts — each checked against every fixed CRN and
+              every other candidate.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-sections-by-crn">
+              get-sections-by-crn
+            </div>
+            <p>
+              What the snapshot records for given CRNs — course, section,
+              credits, every meeting. CRNs with no row come back in
+              <code>not_found</code>, which is authoritative; a term with no
+              snapshot claims nothing.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="resolve-crns">resolve-crns</div>
+            <p>
+              The CRN for each course + section pair, for schedule data that
+              carries none. Results align by index; a null means no
+              <em>single</em> match — it never guesses.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-schedule-freshness">
+              get-schedule-freshness
+            </div>
+            <p>
+              When a term's snapshot was last ingested — the “data as of” behind
+              every seat count. No Banner load.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="list-clemson-terms">
+              list-clemson-terms
+            </div>
+            <p>
+              Banner's term codes and names, for when no term is known. Live.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="list-skills">
+              list-skills <span class="tag">with get-skill-docs</span>
+            </div>
+            <p>
+              List and fetch the advising guidance documents this server serves
+              to a model — one document, describing which tool to reach for and
+              where the data can mislead.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-skill-docs">get-skill-docs</div>
+            <p>Fetch one skill document in full, by name.</p>
+          </div>
+        </div>
+
+        <h3 id="catalog-tools">
+          Catalog server <span class="band cat">port 8767</span>
+        </h3>
+        <p>
+          Program names are the registrar's, exactly as the catalog spells them
+          (<code>"Marketing, BS"</code>); students are pinned to their
+          matriculation catalog year.
+        </p>
+        <div class="toolgrid">
+          <div class="tool">
+            <div class="tname" data-tool="list-gc-programs">
+              list-gc-programs
+            </div>
+            <p>
+              Every program the catalog can advise on, with the catalog years
+              each exists in — the valid values for every other tool's
+              <code>program</code> argument.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="list-gc-catalog-years">
+              list-gc-catalog-years
+            </div>
+            <p>The valid catalog-year labels.</p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-gc-program-plan">
+              get-gc-program-plan
+            </div>
+            <p>
+              The full semester-by-semester degree plan: required courses,
+              one-of choices, requirement slots, credits, footnotes, and the
+              catalog page it came from.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-gc-requirement-rules">
+              get-gc-requirement-rules
+            </div>
+            <p>
+              The named requirement slots — lab science, specialty area,
+              technical, REACH — with explicit courses and credits. Only part of
+              a degree: a course absent here is not absent from the program.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-gc-gen-ed">get-gc-gen-ed</div>
+            <p>
+              Clemson's General Education requirements for a catalog year: six
+              categories with minimum credits, allowed courses, and constraint
+              rules. University-wide.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="find-course-in-program">
+              find-course-in-program
+            </div>
+            <p>
+              Every place a course or subject appears in one program — searching
+              <em>both</em> the semester plan and the requirement rules, which
+              is what makes its “not found” meaningful.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-gc-course">get-gc-course</div>
+            <p>
+              One course's catalog entry — title, credits, description. An
+              unreadable catalog is an error, never “not found”.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-program-requirements">
+              get-program-requirements
+            </div>
+            <p>
+              What a minor or certificate requires. Partial or misspelled names
+              return candidates to choose from.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="find-requirement-sections">
+              find-requirement-sections
+            </div>
+            <p>
+              The advising join: sections offered this term that fill a named
+              requirement slot <em>and</em> that the student is eligible for.
+              Eligibility is three-valued — <em>undetermined</em> tells the
+              caller to read the actual prerequisite text rather than report the
+              student ineligible.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="list-gc-skills">
+              list-gc-skills <span class="tag">with get-gc-skill-docs</span>
+            </div>
+            <p>
+              List and fetch this server's two advising guidance documents: the
+              advising playbook and the curriculum-lookup guide.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-gc-skill-docs">
+              get-gc-skill-docs
+            </div>
+            <p>Fetch one of those documents in full, by name.</p>
+          </div>
+        </div>
+
+        <p style="margin-top: 26px">
+          <strong>Deliberately not tools:</strong> anything that writes (there
+          is no write path to any Clemson system), a degree audit over MCP, and
+          anything that takes a student's identity — no tool has a field for
+          one.
+        </p>
+      </section>
+
+      <footer>
+        <p>
+          Owned and operated by Chip Tonkin, Clemson University College of
+          Business. Full documentation in the repository:
+          <a
+            href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/security.md"
+            >security model</a
+          >
+          ·
+          <a
+            href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/overview.md"
+            >overview</a
+          >
+          ·
+          <a
+            href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/architecture.md"
+            >architecture</a
+          >
+          ·
+          <a
+            href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/operations.md"
+            >operations</a
+          >
+          ·
+          <a
+            href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/clemson-it-data-api-request.md"
+            >the request to Clemson&nbsp;IT</a
+          >. Report a concern via the repository's issues or GitHub's private
+          vulnerability reporting.
+        </p>
+      </footer>
     </div>
-    <div class="server cat">
-      <div class="name">advising-mcp-catalog · port 8767</div>
-      <h3>Catalog server</h3>
-      <p>The College of Business curriculum: semester-by-semester degree plans, named requirement rules, General&nbsp;Education, course entries, minors and certificates, and the join between a requirement slot and the sections that fill it. Eleven tools.</p>
-    </div>
-  </div>
-  <p style="margin-top:20px">Both serve <strong>published</strong> Clemson data, hold no student records and no credentials beyond their own consumer tokens, and have no write path into any Clemson system. Every caller needs a bearer token; the servers sit on loopback behind a campus reverse proxy that terminates TLS.</p>
-</section>
-
-<section>
-  <h2 id="sources">Where the information comes from</h2>
-  <div class="tblwrap"><table>
-    <tr><th>Source</th><th>What</th><th>How often</th></tr>
-    <tr><td><code>regssb.sis.clemson.edu</code></td><td>Banner's public “Browse Classes” JSON endpoints — the same calls the search page makes. No login, no student data.</td><td>One paced sweep per live term, daily at 05:00; three tools can also read live for current seat counts</td></tr>
-    <tr><td><code>catalog.clemson.edu</code></td><td>The published online catalog (Acalog): program pages, course pages, General&nbsp;Education, footnotes.</td><td>About once a year, when a new catalog year is published — never from the serving host</td></tr>
-    <tr><td>CuSectionOverview report</td><td>Room seat counts for 435 rooms — the one input that is not on a public page, exported by hand and <a href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/security.md">named in the security document</a>.</td><td>Once; not currently returned to any caller</td></tr>
-  </table></div>
-  <p>The daily Banner sweep is deliberately gentle with someone else's production system: pages of 500 sections capped at 40, 200–400&nbsp;ms between requests, one second between terms, at most three attempts per term, and a <code>User-Agent</code> naming this service and repository so the traffic is attributable. A sweep that does not complete is discarded rather than written.</p>
-</section>
-
-<section>
-  <h2 id="architecture">How it is ingested and served</h2>
-  <p>Two independent pipelines feed two independent servers. Neither pipeline runs on a request — collection and serving never share a process.</p>
-
-  <h3>The class schedule, nightly</h3>
-  <div class="pipe sched">
-    <div class="stage"><div class="k">Collect</div><strong>Refresh job, 05:00</strong><span>Asks Banner for its term list, sweeps every live term — currently seven, ~21,000 sections in under three minutes.</span></div>
-    <div class="arrow">→</div>
-    <div class="stage"><div class="k">Rest</div><strong>One SQLite file per term</strong><span>Sections, meetings, instructors, and a “data as of” stamp. Written atomically — a reader never sees a partial snapshot.</span></div>
-    <div class="arrow">→</div>
-    <div class="stage"><div class="k">Serve</div><strong>Schedule server</strong><span>Opens the term's file read-only per request. Every answer carries the snapshot's timestamp.</span></div>
-  </div>
-
-  <h3>The curriculum catalog, annually</h3>
-  <div class="pipe cat">
-    <div class="stage"><div class="k">Collect</div><strong>Catalog rebuild</strong><span>A headless browser renders each program page (the catalog is a JavaScript application); parsers extract plans and rules; a language model extracts the prose requirements of minors and certificates, cached by page content.</span></div>
-    <div class="arrow">→</div>
-    <div class="stage"><div class="k">Rest</div><strong><code>gc_advisor.db</code></strong><span>Programs, semester plans, requirement rules, 4,085 courses, General&nbsp;Education, footnotes — with the source page recorded for every row.</span></div>
-    <div class="arrow">→</div>
-    <div class="stage"><div class="k">Serve</div><strong>Catalog server</strong><span>Reads the database in-process. No request ever runs Python; the pipeline that builds the database is checked against the serving code by a differential test.</span></div>
-  </div>
-
-  <div class="callout">
-    <p><strong>The design rule the codebase is organised around: silence must never read as absence.</strong> A lookup that found nothing because it did not look says so. Prerequisite eligibility is three-valued (<em>eligible / not eligible / undetermined</em>); a CRN check distinguishes “the snapshot has no such CRN” from “there is no snapshot”; an unreadable catalog is an error, never an empty answer.</p>
-  </div>
-
-  <p>A request travels: HTTPS to the campus reverse proxy → loopback HTTP to the server → bearer-token authentication against a per-server registry of hashed tokens → a scope check → the tool's handler, which is a read-only SQLite query (or, for three schedule tools, a live Banner read). One usage-ledger line per call records who called which tool — never the arguments, never the results.</p>
-</section>
-
-<section>
-  <h2 id="tools">The tools</h2>
-  <p>Twenty-two in all, eleven per server. The repository's test suite compares this list against what the running servers actually serve, so it cannot silently drift.</p>
-
-  <h3 id="schedule-tools">Schedule server <span class="band sched">port 8766</span></h3>
-  <p>Every tool taking a <code>term</code> accepts a code (<code>202608</code>) or a name (<code>"Fall 2026"</code>) and defaults to the current registration term.</p>
-  <div class="toolgrid">
-    <div class="tool"><div class="tname" data-tool="search-classes">search-classes</div><p>Search sections by subject and/or course number, with instructor, building/room, days, time-of-day, and open-seats filters. Snapshot-backed; <code>refresh:&nbsp;true</code> forces a live Banner read for up-to-the-minute seats.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-course-details">get-course-details</div><p>Details for one course (description, prerequisites, corequisites, restrictions, credits) or one section by CRN. Reads Banner live.</p></div>
-    <div class="tool"><div class="tname" data-tool="check-conflicts">check-conflicts</div><p>Which CRNs in a set clash in time, pair by pair; optionally tests candidate CRNs against a fixed set. Sections with no meeting time cannot conflict and are reported as such.</p></div>
-    <div class="tool"><div class="tname" data-tool="find-alternatives">find-alternatives</div><p>Sections that fit around the CRNs a student is keeping, with subject, credits, days, time, and seats filters.</p></div>
-    <div class="tool"><div class="tname" data-tool="find-conflict-free-schedule">find-conflict-free-schedule</div><p>Given committed CRNs and candidate CRNs, which candidates can be added with no conflicts — each checked against every fixed CRN and every other candidate.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-sections-by-crn">get-sections-by-crn</div><p>What the snapshot records for given CRNs — course, section, credits, every meeting. CRNs with no row come back in <code>not_found</code>, which is authoritative; a term with no snapshot claims nothing.</p></div>
-    <div class="tool"><div class="tname" data-tool="resolve-crns">resolve-crns</div><p>The CRN for each course + section pair, for schedule data that carries none. Results align by index; a null means no <em>single</em> match — it never guesses.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-schedule-freshness">get-schedule-freshness</div><p>When a term's snapshot was last ingested — the “data as of” behind every seat count. No Banner load.</p></div>
-    <div class="tool"><div class="tname" data-tool="list-clemson-terms">list-clemson-terms</div><p>Banner's term codes and names, for when no term is known. Live.</p></div>
-    <div class="tool"><div class="tname" data-tool="list-skills">list-skills <span class="tag">with get-skill-docs</span></div><p>List and fetch the advising guidance documents this server serves to a model — one document, describing which tool to reach for and where the data can mislead.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-skill-docs">get-skill-docs</div><p>Fetch one skill document in full, by name.</p></div>
-  </div>
-
-  <h3 id="catalog-tools">Catalog server <span class="band cat">port 8767</span></h3>
-  <p>Program names are the registrar's, exactly as the catalog spells them (<code>"Marketing, BS"</code>); students are pinned to their matriculation catalog year.</p>
-  <div class="toolgrid">
-    <div class="tool"><div class="tname" data-tool="list-gc-programs">list-gc-programs</div><p>Every program the catalog can advise on, with the catalog years each exists in — the valid values for every other tool's <code>program</code> argument.</p></div>
-    <div class="tool"><div class="tname" data-tool="list-gc-catalog-years">list-gc-catalog-years</div><p>The valid catalog-year labels.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-gc-program-plan">get-gc-program-plan</div><p>The full semester-by-semester degree plan: required courses, one-of choices, requirement slots, credits, footnotes, and the catalog page it came from.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-gc-requirement-rules">get-gc-requirement-rules</div><p>The named requirement slots — lab science, specialty area, technical, REACH — with explicit courses and credits. Only part of a degree: a course absent here is not absent from the program.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-gc-gen-ed">get-gc-gen-ed</div><p>Clemson's General Education requirements for a catalog year: six categories with minimum credits, allowed courses, and constraint rules. University-wide.</p></div>
-    <div class="tool"><div class="tname" data-tool="find-course-in-program">find-course-in-program</div><p>Every place a course or subject appears in one program — searching <em>both</em> the semester plan and the requirement rules, which is what makes its “not found” meaningful.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-gc-course">get-gc-course</div><p>One course's catalog entry — title, credits, description. An unreadable catalog is an error, never “not found”.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-program-requirements">get-program-requirements</div><p>What a minor or certificate requires. Partial or misspelled names return candidates to choose from.</p></div>
-    <div class="tool"><div class="tname" data-tool="find-requirement-sections">find-requirement-sections</div><p>The advising join: sections offered this term that fill a named requirement slot <em>and</em> that the student is eligible for. Eligibility is three-valued — <em>undetermined</em> tells the caller to read the actual prerequisite text rather than report the student ineligible.</p></div>
-    <div class="tool"><div class="tname" data-tool="list-gc-skills">list-gc-skills <span class="tag">with get-gc-skill-docs</span></div><p>List and fetch this server's two advising guidance documents: the advising playbook and the curriculum-lookup guide.</p></div>
-    <div class="tool"><div class="tname" data-tool="get-gc-skill-docs">get-gc-skill-docs</div><p>Fetch one of those documents in full, by name.</p></div>
-  </div>
-
-  <p style="margin-top:26px"><strong>Deliberately not tools:</strong> anything that writes (there is no write path to any Clemson system), a degree audit over MCP, and anything that takes a student's identity — no tool has a field for one.</p>
-</section>
-
-<footer>
-  <p>Owned and operated by Chip Tonkin, Clemson University College of Business.
-  Full documentation in the repository: <a href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/security.md">security model</a> ·
-  <a href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/overview.md">overview</a> ·
-  <a href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/architecture.md">architecture</a> ·
-  <a href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/operations.md">operations</a> ·
-  <a href="https://github.com/chiptoe-svg/clemson-advising-mcp/blob/main/docs/clemson-it-data-api-request.md">the request to Clemson&nbsp;IT</a>.
-  Report a concern via the repository's issues or GitHub's private vulnerability reporting.</p>
-</footer>
-
-</div>
-</body>
+  </body>
 </html>

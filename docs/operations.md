@@ -19,11 +19,11 @@ npm run typecheck
 
 Three data artifacts are not in git and must be provided:
 
-| Artifact                | What it is                                 | Where it comes from                                                               |
-| ----------------------- | ------------------------------------------ | --------------------------------------------------------------------------------- |
-| `core/db/gc_advisor.db` | Curriculum catalog, ~5.7 MB                | Built here by `core/scripts/rebuild_db.sh`, or copied from a machine that has one |
-| `state/clemson/*.db`    | Banner class-schedule snapshots, ~21 MB    | The refresh job (§4)                                                              |
-| `.env`                  | Per-server bearer tokens and bind settings | Written at deploy time (§2)                                                       |
+| Artifact             | What it is                                 | Where it comes from                                                               |
+| -------------------- | ------------------------------------------ | --------------------------------------------------------------------------------- |
+| `core/db/catalog.db` | Curriculum catalog, ~5.7 MB                | Built here by `core/scripts/rebuild_db.sh`, or copied from a machine that has one |
+| `state/clemson/*.db` | Banner class-schedule snapshots, ~21 MB    | The refresh job (§4)                                                              |
+| `.env`               | Per-server bearer tokens and bind settings | Written at deploy time (§2)                                                       |
 
 **The catalog database is built here, from this repository** — or copied from a
 machine that already built one, which is faster when one exists. Those are the
@@ -86,8 +86,8 @@ Set per server, in `.env`:
 
 ```
 MCP_TRANSPORT=http
-MCP_PUBLIC_HTTP_HOST=127.0.0.1     # keep loopback; TLS terminates in the proxy
-MCP_PUBLIC_HTTP_PORT=8766
+MCP_SCHEDULE_HTTP_HOST=127.0.0.1     # keep loopback; TLS terminates in the proxy
+MCP_SCHEDULE_HTTP_PORT=8766
 MCP_CATALOG_HTTP_HOST=127.0.0.1
 MCP_CATALOG_HTTP_PORT=8767
 ```
@@ -104,9 +104,9 @@ list, so "what else could be configured here?" has an answer that is not a grep.
 | Variable                                             | Default                        | What it does                                                                                            |
 | ---------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | `MCP_TRANSPORT`                                      | `stdio`                        | `http` to serve over the network. launchd sets it via `.env`                                            |
-| `MCP_PUBLIC_HTTP_HOST` / `_PORT`                     | `127.0.0.1` / `8766`           | Schedule server bind                                                                                    |
+| `MCP_SCHEDULE_HTTP_HOST` / `_PORT`                   | `127.0.0.1` / `8766`           | Schedule server bind                                                                                    |
 | `MCP_CATALOG_HTTP_HOST` / `_PORT`                    | `127.0.0.1` / `8767`           | Catalog server bind                                                                                     |
-| `MCP_PUBLIC_AUTH_TOKEN` / `MCP_CATALOG_AUTH_TOKEN`   | unset                          | Optional shared fallback token per server (§2, Tokens)                                                  |
+| `MCP_SCHEDULE_AUTH_TOKEN` / `MCP_CATALOG_AUTH_TOKEN` | unset                          | Optional shared fallback token per server (§2, Tokens)                                                  |
 | `MCP_TRUSTED_PROXIES`                                | loopback                       | Whose `X-Forwarded-For` is believed                                                                     |
 | **Rarely set**                                       |                                |                                                                                                         |
 | `MCP_CONSUMER_RATE_LIMIT`                            | `600`                          | Per-credential requests/minute. Garbage falls back to the default rather than disabling the limit       |
@@ -114,7 +114,7 @@ list, so "what else could be configured here?" has an answer that is not a grep.
 | `MCP_ANALYTICS_DIR`                                  | `$STATE_DIR/analytics`         | Where the ledger is written                                                                             |
 | `STATE_DIR`                                          | `./state`                      | Snapshots, registries, ledger                                                                           |
 | `POLICY_DIR`                                         | `./policy`                     | Where `action-policy.yaml` is read from. A bad path now refuses to start rather than serving zero tools |
-| `GC_ADVISOR_DB`                                      | `core/db/gc_advisor.db`        | The catalog database                                                                                    |
+| `CATALOG_DB`                                         | `core/db/catalog.db`           | The catalog database                                                                                    |
 | `GC_ADVISOR_SKILLS`                                  | `core/skills`                  | The catalog server's skill documents                                                                    |
 | `LOG_FILE`, `LOG_LEVEL`, `LOG_MAX_BYTES`, `LOG_KEEP` | see `src/log.ts`               | Application log destination and rotation                                                                |
 | `MCP_LOG_PATTERN`                                    | `advising-mcp.{which}.err.log` | Where `mcp:health` looks for startup lines                                                              |
@@ -122,10 +122,10 @@ list, so "what else could be configured here?" has an answer that is not a grep.
 ### Tokens
 
 ```bash
-npm run mcp:pair -- --server public  --id <agent>
+npm run mcp:pair -- --server schedule  --id <agent>
 npm run mcp:pair -- --server catalog --id <agent>
-npm run mcp:pair -- --server public  --list
-npm run mcp:pair -- --server public  --revoke <agent>
+npm run mcp:pair -- --server schedule  --list
+npm run mcp:pair -- --server schedule  --revoke <agent>
 ```
 
 The raw token prints **once**. Each server has its own registry, so pair an
@@ -137,8 +137,8 @@ the usage ledger meaningless.
 disk and the raw value is unrecoverable, so rotating is revoke-then-mint:
 
 ```bash
-npm run mcp:pair -- --server public --revoke <agent>   # effective immediately
-npm run mcp:pair -- --server public --id <agent>       # new token, printed once
+npm run mcp:pair -- --server schedule --revoke <agent>   # effective immediately
+npm run mcp:pair -- --server schedule --id <agent>       # new token, printed once
 ```
 
 Rotating the **shared** token instead means editing `.env` and restarting both
@@ -204,7 +204,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://<host>:8443/nonesuch/          
 #    (Post an initialize with the schedule token to /catalog/ — expect 401.)
 
 # 4. The server now attributes the real caller, not the proxy.
-tail -2 ~/Library/Logs/advising-mcp.public.log   # source must be the client, not 127.0.0.1
+tail -2 ~/Library/Logs/advising-mcp.schedule.log   # source must be the client, not 127.0.0.1
 ```
 
 Step 4 catches a genuinely silent misconfiguration: if `MCP_TRUSTED_PROXIES`
@@ -252,7 +252,7 @@ opens its database, or shells into `core/`.
 git clone <repo> && cd clemson-advising-mcp
 npm ci                                  # NOT a symlinked node_modules — see below
 cp deploy/env.example .env              # then fill it in (§2)
-# provide core/db/gc_advisor.db: build it (§1) or copy one across (§1)
+# provide core/db/catalog.db: build it (§1) or copy one across (§1)
 npm run clemson:refresh                 # first schedule snapshot
 npm run test:gate                       # 0 fail, 0 skipped
 bash deploy/install.sh
@@ -370,7 +370,7 @@ tool list is verified**.
 On macOS/launchd:
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.public
+launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.schedule
 launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.catalog
 ```
 
@@ -378,7 +378,7 @@ Then read the startup line, which is the single most informative log this system
 produces — it names the bind, the consumer count, and every tool being served:
 
 ```bash
-tail -1 ~/Library/Logs/advising-mcp.public.err.log
+tail -1 ~/Library/Logs/advising-mcp.schedule.err.log
 tail -1 ~/Library/Logs/advising-mcp.catalog.err.log
 ```
 
@@ -387,9 +387,11 @@ change. Restarting the reverse proxy is not required for tool or policy changes.
 
 ---
 
-The `server` field in older ledger rows reads `cuassistant-public` /
-`cuassistant-catalog`; rows written after 2026-08-29 read `advising-mcp-public`
-/ `advising-mcp-catalog`. Same servers, renamed.
+The `server` field in ledger rows tracks the server's name at the time:
+`cuassistant-public` before 2026-08-29, `advising-mcp-schedule` for a day, and
+`advising-mcp-schedule` from 2026-08-30. Same server throughout. The schedule
+server's registry file moved from `mcp-consumers-public.json` to
+`mcp-consumers-schedule.json` in the same rename; consumer hashes carried over.
 
 ## 6. Health
 

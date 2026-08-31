@@ -44,7 +44,7 @@ returning an empty result the caller might read as "nothing exists".
 
 ## 2. What the two servers are
 
-|                    | **Public server**                                | **Catalog server**                                 |
+|                    | **Schedule server**                              | **Catalog server**                                 |
 | ------------------ | ------------------------------------------------ | -------------------------------------------------- |
 | Port               | 8766                                             | 8767                                               |
 | Serves             | Clemson class schedule                           | Degree catalog and curriculum                      |
@@ -60,7 +60,7 @@ restarted, revoked, or taken down without touching the other.
 
 ### Tool inventory
 
-**Public (8766)** — `list-clemson-terms`, `search-classes`, `get-course-details`,
+**Schedule (8766)** — `list-clemson-terms`, `search-classes`, `get-course-details`,
 `check-conflicts`, `find-conflict-free-schedule`, `find-alternatives`,
 `get-schedule-freshness`, `get-sections-by-crn`, `resolve-crns`, `list-skills`,
 `get-skill-docs`
@@ -120,7 +120,7 @@ request can corrupt another's transport state.
 ### Module map (31 TypeScript files, the full closure)
 
 ```
-entry points        mcp-public.ts, mcp-catalog.ts
+entry points        mcp-schedule.ts, mcp-catalog.ts
   transport/auth    mcp-tools/server.ts        HTTP handler, auth, scopes, stateless MCP
                     mcp-tools/consumers.ts     per-agent token registry (sha256; per-server file)
                     mcp-tools/permissions.ts   operation → policy action; scope expansion
@@ -157,7 +157,7 @@ public server does not depend on it at all.
 
 | Artifact                  | Size                    | Origin                                                           | In git? |
 | ------------------------- | ----------------------- | ---------------------------------------------------------------- | ------- |
-| `core/db/gc_advisor.db`   | ~5.7 MB                 | built by `core/scripts/rebuild_db.sh` from the published catalog | no      |
+| `core/db/catalog.db`      | ~5.7 MB                 | built by `core/scripts/rebuild_db.sh` from the published catalog | no      |
 | `state/clemson/<term>.db` | ~3 MB × 7 terms = 21 MB | daily Banner refresh, 05:00                                      | no      |
 
 Total working set **~27 MB** — small enough that the OS page cache holds all of
@@ -235,7 +235,7 @@ There is no error. Any change to tools, permissions, or policy requires a
 restart, and the restart is not optional:
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.public
+launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.schedule
 launchctl kickstart -k gui/$(id -u)/edu.clemson.advising-mcp.catalog
 ```
 
@@ -245,15 +245,15 @@ the next call.
 
 ### Symptom → cause table
 
-| Symptom                                       | Likely cause                                                             | Check                                                                        |
-| --------------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| New tool absent from `tools/list`             | daemon not restarted                                                     | startup line in `*.err.log`                                                  |
-| All requests 401                              | token mismatch — wrong server, revoked, or the shared token changed      | `npm run mcp:pair -- --server <s> --list`                                    |
-| Server won't start, "no authorized consumers" | no token configured and empty registry — fail-closed working as designed | env token + registry file                                                    |
-| Schedule answers are stale/empty              | daily refresh failed; snapshot old                                       | `get-schedule-freshness`, snapshot mtime                                     |
-| `totalCount=0` from Banner                    | keep-alive dropped the stickiness cookie                                 | fixed 2026-08-12 (`Connection: close`); recheck if it returns                |
-| Catalog tools fail, schedule tools fine       | catalog DB missing or unreadable                                         | `ls -l core/db/gc_advisor.db`; the tools say "unreadable", never "not found" |
-| Answers are wrong but confident               | wrong store queried — see below                                          | `find-course-in-program`                                                     |
+| Symptom                                       | Likely cause                                                             | Check                                                                     |
+| --------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| New tool absent from `tools/list`             | daemon not restarted                                                     | startup line in `*.err.log`                                               |
+| All requests 401                              | token mismatch — wrong server, revoked, or the shared token changed      | `npm run mcp:pair -- --server <s> --list`                                 |
+| Server won't start, "no authorized consumers" | no token configured and empty registry — fail-closed working as designed | env token + registry file                                                 |
+| Schedule answers are stale/empty              | daily refresh failed; snapshot old                                       | `get-schedule-freshness`, snapshot mtime                                  |
+| `totalCount=0` from Banner                    | keep-alive dropped the stickiness cookie                                 | fixed 2026-08-12 (`Connection: close`); recheck if it returns             |
+| Catalog tools fail, schedule tools fine       | catalog DB missing or unreadable                                         | `ls -l core/db/catalog.db`; the tools say "unreadable", never "not found" |
+| Answers are wrong but confident               | wrong store queried — see below                                          | `find-course-in-program`                                                  |
 
 ### The recurring defect: silence read as absence
 

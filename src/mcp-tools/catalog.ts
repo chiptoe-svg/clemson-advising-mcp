@@ -9,7 +9,7 @@ import {
   getGcRequirementRules,
   getGcGenEd,
 } from "../gc-curriculum.js";
-import { GC_ADVISOR_DB } from "../config-mcp.js";
+import { CATALOG_DB } from "../config-mcp.js";
 import {
   getCourseEntry,
   listProgramOptions,
@@ -402,10 +402,10 @@ export const findCourseInProgram: McpToolDefinition = {
 
     let db: InstanceType<typeof Database>;
     try {
-      db = new Database(GC_ADVISOR_DB, { readonly: true });
+      db = new Database(CATALOG_DB, { readonly: true });
     } catch {
       return err(
-        "Could not open the Clemson catalog database (gc_advisor.db). It may not be loaded yet.",
+        "Could not open the Clemson catalog database (catalog.db). It may not be loaded yet.",
       );
     }
     try {
@@ -524,7 +524,7 @@ function safeJsonArray(raw: string): string[] | string {
  * The program + catalog-year list, as a tool.
  *
  * WHY IT EXISTS (2026-08-28): the advisor's own Program and Catalog-year
- * selectors were reading this straight off gc_advisor.db with better-sqlite3,
+ * selectors were reading this straight off catalog.db with better-sqlite3,
  * which is fine while the servers and the advisor share a filesystem and is
  * exactly what stops being true when these servers move to their own box. This
  * is the MCP replacement for advisor-catalog.ts's listPrograms().
@@ -591,13 +591,13 @@ export const listPrograms: McpToolDefinition = {
     }
     let db: InstanceType<typeof Database>;
     try {
-      db = new Database(GC_ADVISOR_DB, { readonly: true });
+      db = new Database(CATALOG_DB, { readonly: true });
     } catch {
       // NOT an empty list. "I could not open the catalog" and "this catalog has
       // no programs" are different facts, and the caller — a model, or the
       // advisor's selector — cannot tell them apart from an empty array.
       return err(
-        "Could not open the Clemson catalog database (gc_advisor.db). It may not be loaded yet. This is NOT the same as there being no programs.",
+        "Could not open the Clemson catalog database (catalog.db). It may not be loaded yet. This is NOT the same as there being no programs.",
       );
     }
     try {
@@ -688,10 +688,10 @@ export const getCourse: McpToolDefinition = {
     }
     let db: InstanceType<typeof Database>;
     try {
-      db = new Database(GC_ADVISOR_DB, { readonly: true });
+      db = new Database(CATALOG_DB, { readonly: true });
     } catch {
       return err(
-        "Could not open the Clemson catalog database (gc_advisor.db). It may not be loaded yet. This is NOT the same as the course not existing.",
+        "Could not open the Clemson catalog database (catalog.db). It may not be loaded yet. This is NOT the same as the course not existing.",
       );
     }
     try {

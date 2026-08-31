@@ -12,7 +12,7 @@ from registrar_rules import subject_ranges
 REGISTRAR = "management-support-area"
 
 PACK = Path(__file__).parent.parent / "packs" / "management"
-DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DB = Path(__file__).parent.parent / "db" / "catalog.db"
 
 
 def test_management_pack_declares_its_program():

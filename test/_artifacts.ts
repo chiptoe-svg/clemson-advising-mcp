@@ -5,7 +5,7 @@
 // not.
 //
 // Three kinds of local artifact are NOT in git and are NOT reproducible in CI:
-//   * core/db/gc_advisor.db   the built GC catalog database
+//   * core/db/catalog.db   the built GC catalog database
 //   * state/clemson/<term>.db the Banner class-schedule snapshots
 //   * core/.venv/bin/python   the provisioned Python core
 // A fourth prerequisite behaves the same way: CLEMSON_LLM_API_KEY, which the
@@ -37,10 +37,7 @@ import path from "node:path";
 // extracted MCP repo has no advisor, so its copy drops GATEWAY_KEY_PRESENT and
 // imports from config-mcp.ts alone. See
 // docs/superpowers/specs/2026-08-27-mcp-extraction-design.md.
-import {
-  GC_ADVISOR_DB,
-  STATE_DIR,
-} from "../src/config-mcp.ts";
+import { CATALOG_DB, STATE_DIR } from "../src/config-mcp.ts";
 
 /**
  * The Python oracle for the differential test (core/.venv/bin/python running
@@ -48,12 +45,14 @@ import {
  * so these paths live here rather than in src/config-mcp.ts.
  */
 export const GC_ADVISOR_PYTHON =
-  process.env.GC_ADVISOR_PYTHON || path.resolve(process.cwd(), "core", ".venv", "bin", "python");
+  process.env.GC_ADVISOR_PYTHON ||
+  path.resolve(process.cwd(), "core", ".venv", "bin", "python");
 export const GC_ADVISOR_QUERY =
-  process.env.GC_ADVISOR_QUERY || path.resolve(process.cwd(), "core", "scripts", "query.py");
+  process.env.GC_ADVISOR_QUERY ||
+  path.resolve(process.cwd(), "core", "scripts", "query.py");
 
-/** The built GC catalog database (core/db/gc_advisor.db) exists. */
-export const CORE_DB_PRESENT = fs.existsSync(GC_ADVISOR_DB);
+/** The built GC catalog database (core/db/catalog.db) exists. */
+export const CORE_DB_PRESENT = fs.existsSync(CATALOG_DB);
 
 /** The provisioned Python core (core/.venv/bin/python) exists. */
 export const CORE_PYTHON_PRESENT = fs.existsSync(GC_ADVISOR_PYTHON);
@@ -82,7 +81,7 @@ export const GATEWAY_KEY_PRESENT = true;
 
 export const SKIP_NO_CORE_DB: false | string = CORE_DB_PRESENT
   ? false
-  : "core/db/gc_advisor.db absent";
+  : "core/db/catalog.db absent";
 
 export const SKIP_NO_CORE_PYTHON: false | string = CORE_PYTHON_PRESENT
   ? false
@@ -129,8 +128,9 @@ export function requireArtifacts(...terms: string[]): void {
   }
   if (process.env.REQUIRE_ARTIFACTS !== "1") return;
   const missing: string[] = [];
-  if (!CORE_DB_PRESENT) missing.push(`GC_ADVISOR_DB=${GC_ADVISOR_DB}`);
-  if (!CORE_PYTHON_PRESENT) missing.push(`GC_ADVISOR_PYTHON=${GC_ADVISOR_PYTHON}`);
+  if (!CORE_DB_PRESENT) missing.push(`CATALOG_DB=${CATALOG_DB}`);
+  if (!CORE_PYTHON_PRESENT)
+    missing.push(`GC_ADVISOR_PYTHON=${GC_ADVISOR_PYTHON}`);
   if (terms.length === 0) {
     if (!SNAPSHOT_PRESENT()) missing.push(`${STATE_DIR}/clemson/<term>.db`);
   } else {
@@ -159,7 +159,7 @@ export function requireArtifacts(...terms: string[]): void {
 export function requireCoreArtifacts(opts: { python?: boolean } = {}): void {
   if (process.env.REQUIRE_ARTIFACTS !== "1") return;
   const missing: string[] = [];
-  if (!CORE_DB_PRESENT) missing.push(`GC_ADVISOR_DB=${GC_ADVISOR_DB}`);
+  if (!CORE_DB_PRESENT) missing.push(`CATALOG_DB=${CATALOG_DB}`);
   if (opts.python && !CORE_PYTHON_PRESENT)
     missing.push(`GC_ADVISOR_PYTHON=${GC_ADVISOR_PYTHON}`);
   if (missing.length > 0) {

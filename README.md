@@ -92,7 +92,7 @@ npm run typecheck
 npm test
 
 npm run mcp:pair -- --server public --id my-agent
-MCP_TRANSPORT=http npm run mcp:public:http
+MCP_TRANSPORT=http npm run mcp:schedule:http
 ```
 
 Two data artifacts are not in git — the curriculum database and the Banner
@@ -117,7 +117,7 @@ reverse proxy that terminates TLS.
 ## Layout
 
 ```
-src/mcp-public.ts, src/mcp-catalog.ts   the two entry points
+src/mcp-schedule.ts, src/mcp-catalog.ts   the two entry points
 src/mcp-tools/                          transport, auth, policy check, the tools
 src/policy.ts, policy/                  the action allow-list every tool is checked against
 skills/, core/skills/                   documents served to clients by the skill tools
@@ -142,7 +142,7 @@ Node, SQLite, and a built database.
 | **Banner**       | Clemson's student-information system. Its public "Browse Classes" search is where schedule data comes from.                                                                                                                                       |
 | **GC**           | Graphic Communications, the Clemson department this began with. It survives in tool names (`get-gc-program-plan`) and in the catalog database's filename. The catalog now covers seven College of Business programs plus minors and certificates. |
 | **The advisor**  | A separate, private application that is a _client_ of these servers. It holds the chat interface, the LLM keys, and student-facing state. None of it is in this repository.                                                                       |
-| **`gc_advisor`** | The name of the Python package under `core/` and of the database it builds. Historical; unrelated to the human advisors who use the system.                                                                                                       |
+| **`gc_advisor`** | The name of the Python package under `core/`; the database it builds is now `core/db/catalog.db` (renamed 2026-08-30). Historical; unrelated to the human advisors who use the system.                                                            |
 | **Consumer**     | A caller holding a bearer token this deployment issued — an agent or an application, not a person.                                                                                                                                                |
 
 ## History

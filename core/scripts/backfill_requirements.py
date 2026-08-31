@@ -33,7 +33,7 @@ BASE = "https://catalog.clemson.edu"
 # GC_INGEST_DB overrides the target DB (scratch rebuilds; deliberately NOT
 # GC_ADVISOR_DB, which the service config reads — an exported override must
 # never repoint the live daemons).
-DB = Path(os.environ["GC_INGEST_DB"]) if os.environ.get("GC_INGEST_DB") else ROOT / "db" / "gc_advisor.db"
+DB = Path(os.environ["GC_INGEST_DB"]) if os.environ.get("GC_INGEST_DB") else ROOT / "db" / "catalog.db"
 DATA = ROOT / "data" / "raw"
 
 

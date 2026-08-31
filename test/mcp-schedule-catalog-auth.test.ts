@@ -23,7 +23,7 @@ import {
 } from "../src/mcp-tools/server.ts";
 import { hashToken, type Consumer } from "../src/mcp-tools/consumers.ts";
 
-/** How mcp-public.ts / mcp-catalog.ts build their authenticator. */
+/** How mcp-schedule.ts / mcp-catalog.ts build their authenticator. */
 function publicStyleAuth(envToken: string) {
   return resolveCredentialedAuth({
     envToken,
@@ -37,7 +37,7 @@ test("fail closed: no key configured means the server refuses to start", () => {
   assert.throws(
     () => publicStyleAuth(""),
     /no authorized consumers|Refusing to start open/,
-    "an unset MCP_PUBLIC_AUTH_TOKEN must abort startup, never serve open",
+    "an unset MCP_SCHEDULE_AUTH_TOKEN must abort startup, never serve open",
   );
   // Whitespace is not a key either — resolveCredentialedAuth trims.
   assert.throws(() => publicStyleAuth("   "), /Refusing to start open/);
@@ -67,8 +67,14 @@ test("per-server separation: each key opens only its own server", async () => {
   const authPublic = publicStyleAuth("public-key");
   const authCatalog = publicStyleAuth("catalog-key");
 
-  assert.equal((await authPublic(authContext("Bearer public-key")))?.id, "env-token");
-  assert.equal((await authCatalog(authContext("Bearer catalog-key")))?.id, "env-token");
+  assert.equal(
+    (await authPublic(authContext("Bearer public-key")))?.id,
+    "env-token",
+  );
+  assert.equal(
+    (await authCatalog(authContext("Bearer catalog-key")))?.id,
+    "env-token",
+  );
 
   // The cross pairings are what "revoking one must not revoke the other"
   // reduces to: neither key is accepted by the other server.
@@ -94,7 +100,10 @@ test("per-server separation: 8765 registry tokens do not open 8766/8767", async 
   ];
   // Sanity: that token IS valid against a credentialed-style authenticator.
   const credentialed = resolveCredentialedAuth({ load: () => registryTokens });
-  assert.equal((await credentialed(authContext("Bearer registry-token")))?.id, "linda");
+  assert.equal(
+    (await credentialed(authContext("Bearer registry-token")))?.id,
+    "linda",
+  );
 
   // But not against the public server, whose consumer source is empty.
   const authPublic = publicStyleAuth("public-key");
@@ -103,19 +112,43 @@ test("per-server separation: 8765 registry tokens do not open 8766/8767", async 
 
 test("missing and malformed credentials are rejected", async () => {
   const authPublic = publicStyleAuth("public-key");
-  assert.equal(await authPublic(authContext(undefined)), null, "no Authorization header");
-  assert.equal(await authPublic(authContext("")), null, "empty Authorization header");
+  assert.equal(
+    await authPublic(authContext(undefined)),
+    null,
+    "no Authorization header",
+  );
+  assert.equal(
+    await authPublic(authContext("")),
+    null,
+    "empty Authorization header",
+  );
   assert.equal(await authPublic(authContext("Bearer ")), null, "empty bearer");
-  assert.equal(await authPublic(authContext("Bearer wrong-key")), null, "wrong key");
-  assert.equal(await authPublic(authContext("public-key")), null, "missing Bearer prefix");
-  assert.equal(await authPublic(authContext("Basic public-key")), null, "wrong scheme");
+  assert.equal(
+    await authPublic(authContext("Bearer wrong-key")),
+    null,
+    "wrong key",
+  );
+  assert.equal(
+    await authPublic(authContext("public-key")),
+    null,
+    "missing Bearer prefix",
+  );
+  assert.equal(
+    await authPublic(authContext("Basic public-key")),
+    null,
+    "wrong scheme",
+  );
   // A prefix of the real key must not pass — the comparison is over
   // fixed-length hashes, so length never leaks and truncation never matches.
-  assert.equal(await authPublic(authContext("Bearer public-ke")), null, "truncated key");
+  assert.equal(
+    await authPublic(authContext("Bearer public-ke")),
+    null,
+    "truncated key",
+  );
 });
 
 // The tests above exercise resolveCredentialedAuth directly. This one goes
-// through startMcpServer, which is what mcp-public.ts / mcp-catalog.ts
+// through startMcpServer, which is what mcp-schedule.ts / mcp-catalog.ts
 // actually call — it covers the `load` plumbing in the registry branch, so
 // dropping the override there (falling back to the shared on-disk registry)
 // is caught rather than passing on the unit tests alone.

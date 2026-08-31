@@ -1,7 +1,7 @@
 // MCP operation allow-list for the public/catalog registry.
 //
 // This is the operation registry for the two public-data servers this repo
-// serves: advising-mcp-public (8766, the class schedule) and
+// serves: advising-mcp-schedule (8766, the class schedule) and
 // advising-mcp-catalog (8767, the curriculum catalog). The credentialed registry (mail,
 // calendar, tasks, Sheets/Docs) moved to the mailcal repo with the 8765
 // server; it is not present here.

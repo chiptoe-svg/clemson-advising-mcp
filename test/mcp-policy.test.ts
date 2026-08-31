@@ -46,8 +46,20 @@ test("a missing policy file refuses to load rather than degrading to zero action
   try {
     out = execFileSync(
       process.execPath,
-      ["--import", "tsx", "-e", "import('./src/policy.ts').then(() => console.log('LOADED'))"],
-      { env: { ...process.env, POLICY_DIR: path.join(process.cwd(), "no-such-policy-dir") }, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] },
+      [
+        "--import",
+        "tsx",
+        "-e",
+        "import('./src/policy.ts').then(() => console.log('LOADED'))",
+      ],
+      {
+        env: {
+          ...process.env,
+          POLICY_DIR: path.join(process.cwd(), "no-such-policy-dir"),
+        },
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "pipe"],
+      },
     );
   } catch (e) {
     const err = e as { status?: number; stderr?: string };

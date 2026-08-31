@@ -1,7 +1,7 @@
 # `core/` — the catalog builder
 
 This is the only Python in the repository, and **no request ever runs it**. It
-builds `core/db/gc_advisor.db` from Clemson's published online catalog; the
+builds `core/db/catalog.db` from Clemson's published online catalog; the
 TypeScript servers then read that database in-process. A serving host needs
 Node, SQLite, and a built database — not an interpreter.
 
@@ -20,7 +20,7 @@ in here is about the human advisors who use the system.
 | Needs network               | Yes — `catalog.clemson.edu`                                       | No                         |
 | Needs Playwright + Chromium | Yes — the catalog is a JavaScript application                     | No                         |
 | Needs an LLM endpoint       | Yes — minor and certificate requirements are extracted by a model | No                         |
-| Writes                      | `core/db/gc_advisor.db`, and refreshes `core/data/raw`            | Nothing                    |
+| Writes                      | `core/db/catalog.db`, and refreshes `core/data/raw`            | Nothing                    |
 
 One consequence worth stating for a reviewer: **there is no code path from an
 MCP request into this package.** The tool that used to shell into it
@@ -84,7 +84,7 @@ MCP tool that wrapped it, so no _request_ can reach it; the CLI still can.
 
 ```bash
 echo '{"version":"gc-progress-v1","catalog_year":"2026-2027","program":"Graphic Communications, BS","passed":[]}' \
-  | .venv/bin/python scripts/audit.py --db db/gc_advisor.db
+  | .venv/bin/python scripts/audit.py --db db/catalog.db
 ```
 
 The `version` field is required; without it the CLI exits 2 with a JSON error

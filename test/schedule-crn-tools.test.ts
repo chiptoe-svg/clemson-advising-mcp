@@ -84,10 +84,7 @@ test("rows carry every field the verifier compares, including title", () => {
     assert.equal(s.title, "Graphic Communications I");
     assert.equal(s.credit_hours, 4);
     assert.equal(s.meetings.length, 2);
-    assert.deepEqual(
-      s.meetings.map((m) => m.day).sort(),
-      ["R", "T"],
-    );
+    assert.deepEqual(s.meetings.map((m) => m.day).sort(), ["R", "T"]);
     assert.equal(s.meetings[0]!.building, "Godfrey Hall");
   } finally {
     db.close();
@@ -98,7 +95,11 @@ test("a null credit_hours stays null — unknown is not zero", () => {
   const { db } = fixture();
   try {
     const s = getSectionsByCrn(db, "202608", ["80902"]).sections[0]!;
-    assert.equal(s.credit_hours, null, "null must not be coerced to 0, which is a claim");
+    assert.equal(
+      s.credit_hours,
+      null,
+      "null must not be coerced to 0, which is a claim",
+    );
   } finally {
     db.close();
   }
@@ -108,7 +109,10 @@ test("duplicate CRNs collapse, and results keep the requested order", () => {
   const { db } = fixture();
   try {
     const r = getSectionsByCrn(db, "202608", ["80771", "80773", "80771"]);
-    assert.deepEqual(r.sections.map((s) => s.crn), ["80771", "80773"]);
+    assert.deepEqual(
+      r.sections.map((s) => s.crn),
+      ["80771", "80773"],
+    );
   } finally {
     db.close();
   }
@@ -162,12 +166,13 @@ test("resolveCrns results stay aligned BY INDEX with the input", () => {
 });
 
 test("both tools are registered and served", async () => {
-  const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
+  const { InMemoryTransport } =
+    await import("@modelcontextprotocol/sdk/inMemory.js");
   const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
-  await import("../src/mcp-tools/index-public.ts");
+  await import("../src/mcp-tools/index-schedule.ts");
   const { __buildServerForTest } = await import("../src/mcp-tools/server.ts");
 
-  const server = __buildServerForTest("advising-mcp-public");
+  const server = __buildServerForTest("advising-mcp-schedule");
   const [ct, st] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "probe", version: "1" }, {});
   await Promise.all([server.connect(st), client.connect(ct)]);

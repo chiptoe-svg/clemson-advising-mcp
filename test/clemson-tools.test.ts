@@ -21,17 +21,29 @@ test("clemson public tools are exposed", () => {
   assert.equal(isMcpOperationExposed("clemson.find_alternatives"), true);
   assert.equal(isMcpOperationExposed("clemson.check_conflicts"), true);
   assert.equal(isMcpOperationExposed("clemson.course_details"), true);
-  assert.equal(isMcpOperationExposed("clemson.find_conflict_free_schedule"), true);
-  assert.equal(isMcpOperationExposed("clemson.find_requirement_sections"), true);
+  assert.equal(
+    isMcpOperationExposed("clemson.find_conflict_free_schedule"),
+    true,
+  );
+  assert.equal(
+    isMcpOperationExposed("clemson.find_requirement_sections"),
+    true,
+  );
 });
 
 test("removed operations are no longer in the allow-list", () => {
   assert.equal(isMcpOperationExposed("clemson.section_details"), false);
   assert.equal(isMcpOperationExposed("clemson.instructor_classes"), false);
   assert.equal(isMcpOperationExposed("clemson.room_availability"), false);
-  assert.equal(isMcpOperationExposed("clemson.check_schedule_conflicts"), false);
+  assert.equal(
+    isMcpOperationExposed("clemson.check_schedule_conflicts"),
+    false,
+  );
   assert.equal(isMcpOperationExposed("clemson.find_eligible_sections"), false);
-  assert.equal(isMcpOperationExposed("clemson.find_sections_by_schedule"), false);
+  assert.equal(
+    isMcpOperationExposed("clemson.find_sections_by_schedule"),
+    false,
+  );
   assert.equal(isMcpOperationExposed("clemson.gc_course"), false);
 });
 

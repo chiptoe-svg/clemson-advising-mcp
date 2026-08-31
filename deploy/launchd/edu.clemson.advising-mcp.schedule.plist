@@ -18,13 +18,13 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>edu.clemson.advising-mcp.public</string>
+  <string>edu.clemson.advising-mcp.schedule</string>
 
   <key>ProgramArguments</key>
   <array>
     <string>NPM_PATH</string>
     <string>run</string>
-    <string>mcp:public:http</string>
+    <string>mcp:schedule:http</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -37,7 +37,7 @@
     <key>HOME</key>
     <string>HOME_PATH</string>
     <key>LOG_FILE</key>
-    <string>HOME_PATH/Library/Logs/advising-mcp.public.log</string>
+    <string>HOME_PATH/Library/Logs/advising-mcp.schedule.log</string>
   </dict>
 
   <key>RunAtLoad</key>
@@ -46,8 +46,8 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>HOME_PATH/Library/Logs/advising-mcp.public.out.log</string>
+  <string>HOME_PATH/Library/Logs/advising-mcp.schedule.out.log</string>
   <key>StandardErrorPath</key>
-  <string>HOME_PATH/Library/Logs/advising-mcp.public.err.log</string>
+  <string>HOME_PATH/Library/Logs/advising-mcp.schedule.err.log</string>
 </dict>
 </plist>

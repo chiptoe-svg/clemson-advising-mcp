@@ -1,7 +1,7 @@
 // Regression tests for the per-server skill allowlist.
 //
 // `skills/` holds documents of mixed trust in one flat directory. Both skill
-// tools are registered from index-public.ts AND index-catalog.ts, which the
+// tools are registered from index-schedule.ts AND index-catalog.ts, which the
 // campus-reachable public server (8766) and the catalog server (8767) both
 // load, so only the allowlist keeps a non-public skill doc off either bearer.
 //
@@ -21,7 +21,7 @@ import path from "node:path";
 
 import {
   CATALOG_SKILLS,
-  PUBLIC_SKILLS,
+  SCHEDULE_SKILLS,
   __resetSkillRoots,
   __setSkillRoots,
   __skillTools,
@@ -36,7 +36,11 @@ interface CallResult {
 }
 
 function payload(res: CallResult): Record<string, unknown> {
-  assert.equal(res.isError, undefined, `unexpected error: ${res.content[0]?.text}`);
+  assert.equal(
+    res.isError,
+    undefined,
+    `unexpected error: ${res.content[0]?.text}`,
+  );
   return JSON.parse(res.content[0].text) as Record<string, unknown>;
 }
 
@@ -57,7 +61,9 @@ async function fetchDocs(name: string): Promise<CallResult> {
 // vacuously. The marker text is what the leak check looks for.
 const INTERNAL_SKILL = "internal-notes";
 const INTERNAL_MARKER = "FIXTURE-INTERNAL-MARKER-7f3a";
-const internalRoot = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-internal-skill-"));
+const internalRoot = fs.mkdtempSync(
+  path.join(os.tmpdir(), "advising-mcp-internal-skill-"),
+);
 fs.mkdirSync(path.join(internalRoot, INTERNAL_SKILL));
 fs.writeFileSync(
   path.join(internalRoot, INTERNAL_SKILL, "SKILL.md"),
@@ -84,23 +90,34 @@ test("the fixture root really contributes a non-public skill (sanity)", async ()
 test("public server: list-skills returns only the allowlisted skill", async () => {
   resetSkillExposure(); // the fail-closed default the public entry point uses
   const names = await listNames();
-  assert.deepEqual(names, [...PUBLIC_SKILLS]);
+  assert.deepEqual(names, [...SCHEDULE_SKILLS]);
 });
 
 test("public server: get-skill-docs refuses a non-allowlisted skill asked for by name", async () => {
   // THE BYPASS. A skill missing from list-skills but fetchable directly is
   // still published — hiding a document from an index while still serving it
   // by name is not hiding it. The fixture skill exists on disk but is not in
-  // PUBLIC_SKILLS.
+  // SCHEDULE_SKILLS.
   withInternalRoot();
   try {
     resetSkillExposure();
     const res = await fetchDocs(INTERNAL_SKILL);
-    assert.equal(res.isError, true, `get-skill-docs("${INTERNAL_SKILL}") must fail on the public server`);
+    assert.equal(
+      res.isError,
+      true,
+      `get-skill-docs("${INTERNAL_SKILL}") must fail on the public server`,
+    );
     const text = res.content[0].text;
-    assert.match(text, /not found/, `expected a not-found refusal, got: ${text}`);
+    assert.match(
+      text,
+      /not found/,
+      `expected a not-found refusal, got: ${text}`,
+    );
     // The refusal must not leak the document it is refusing to serve.
-    assert.ok(!text.includes(INTERNAL_MARKER), `refusal leaked document content: ${text}`);
+    assert.ok(
+      !text.includes(INTERNAL_MARKER),
+      `refusal leaked document content: ${text}`,
+    );
   } finally {
     resetSkillExposure();
     __resetSkillRoots();
@@ -112,7 +129,10 @@ test("public server: the allowlisted skill is still fetchable (advisor + nanocla
   const res = await fetchDocs("clemson-schedule-advising");
   const doc = payload(res);
   assert.equal(doc.name, "clemson-schedule-advising");
-  assert.ok((doc.content as string).length > 100, "expected real skill content");
+  assert.ok(
+    (doc.content as string).length > 100,
+    "expected real skill content",
+  );
 });
 
 test("the exposure default is the restrictive set, not 'all'", async () => {
@@ -123,7 +143,7 @@ test("the exposure default is the restrictive set, not 'all'", async () => {
   const names = await listNames();
   assert.deepEqual(
     names,
-    [...PUBLIC_SKILLS],
+    [...SCHEDULE_SKILLS],
     "an unconfigured server must serve only the public allowlist",
   );
 });
@@ -161,7 +181,10 @@ test("catalog server: the GC skills are actually fetchable and have real content
   for (const s of CATALOG_SKILLS) {
     const doc = payload(await fetchDocs(s));
     assert.equal(doc.name, s);
-    assert.ok((doc.content as string).length > 100, `expected real docs for "${s}"`);
+    assert.ok(
+      (doc.content as string).length > 100,
+      `expected real docs for "${s}"`,
+    );
   }
   resetSkillExposure();
 });
@@ -170,7 +193,7 @@ test("8766 exposure is unchanged by the second root", async () => {
   // The GC skills are now on disk for every server that loads skills.ts. The
   // public server must still list exactly one skill.
   resetSkillExposure();
-  assert.deepEqual(await listNames(), [...PUBLIC_SKILLS]);
+  assert.deepEqual(await listNames(), [...SCHEDULE_SKILLS]);
   for (const s of CATALOG_SKILLS) {
     const res = await fetchDocs(s);
     assert.equal(res.isError, true, `"${s}" must not be served on 8766`);
@@ -188,13 +211,19 @@ test("a missing second root degrades rather than throwing", async () => {
   __setSkillRoots([path.resolve(process.cwd(), "skills"), absent]);
   try {
     const index = buildSkillIndex();
-    assert.ok(index.has("clemson-schedule-advising"), "the readable root must still be indexed");
+    assert.ok(
+      index.has("clemson-schedule-advising"),
+      "the readable root must still be indexed",
+    );
     assert.ok(!index.has("gc-advisor"), "the absent root contributes nothing");
 
     setSkillExposure(CATALOG_SKILLS);
     const res = (await __skillTools.listSkills.handler({})) as CallResult;
     assert.equal(res.isError, undefined, "list-skills must still succeed");
-    assert.deepEqual((payload(res).skills as { name: string }[]).map((s) => s.name), []);
+    assert.deepEqual(
+      (payload(res).skills as { name: string }[]).map((s) => s.name),
+      [],
+    );
   } finally {
     resetSkillExposure();
     __resetSkillRoots();
@@ -205,8 +234,12 @@ test("a cross-root name collision fails loudly", async () => {
   // Two independent repos with no shared naming authority. Precedence would let
   // an agent read one skill's documentation while calling the other's tools,
   // with nothing in the transcript to show the substitution.
-  const shadow = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-skill-shadow-"));
-  fs.mkdirSync(path.join(shadow, "clemson-schedule-advising"), { recursive: true });
+  const shadow = fs.mkdtempSync(
+    path.join(os.tmpdir(), "advising-mcp-skill-shadow-"),
+  );
+  fs.mkdirSync(path.join(shadow, "clemson-schedule-advising"), {
+    recursive: true,
+  });
   fs.writeFileSync(
     path.join(shadow, "clemson-schedule-advising", "SKILL.md"),
     "---\ndescription: impostor\n---\n",

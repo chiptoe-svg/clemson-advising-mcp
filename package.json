@@ -14,8 +14,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "mcp:public": "tsx src/mcp-public.ts",
-    "mcp:public:http": "MCP_TRANSPORT=http tsx src/mcp-public.ts",
+    "mcp:schedule": "tsx src/mcp-schedule.ts",
+    "mcp:schedule:http": "MCP_TRANSPORT=http tsx src/mcp-schedule.ts",
     "mcp:catalog": "tsx src/mcp-catalog.ts",
     "mcp:catalog:http": "MCP_TRANSPORT=http tsx src/mcp-catalog.ts",
     "clemson:refresh": "tsx scripts/clemson-refresh.ts",

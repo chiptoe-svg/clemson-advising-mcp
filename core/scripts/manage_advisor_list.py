@@ -6,7 +6,7 @@ from pathlib import Path
 from gc_advisor.db.connection import get_connection
 from gc_advisor.db import advisor
 
-DEFAULT_DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DEFAULT_DB = Path(__file__).parent.parent / "db" / "catalog.db"
 SLOTS = {"specialty": "Specialty Area Requirement",
          "technical": "Graphic Communication Technical Requirement"}
 

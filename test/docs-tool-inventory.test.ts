@@ -56,8 +56,8 @@ function documentedHtml(sectionId: string): string[] {
 // in the order the real servers would see them: the schedule tools alone first,
 // then the catalog tools with the same skill-tool rename mcp-catalog.ts applies.
 test("docs/overview.md and index.html document exactly the schedule server's tools", async () => {
-  await import("../src/mcp-tools/index-public.ts");
-  const live = await served("advising-mcp-public");
+  await import("../src/mcp-tools/index-schedule.ts");
+  const live = await served("advising-mcp-schedule");
   assert.deepEqual(documented("Schedule server"), live, "overview.md drifted");
   assert.deepEqual(
     documentedHtml("schedule-tools"),

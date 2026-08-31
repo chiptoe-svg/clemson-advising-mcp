@@ -33,7 +33,9 @@ for (const f of gzFiles) {
   const term = f.replace(/\.json\.gz$/, "");
   const dbPath = scheduleDbPath(term);
   if (!force && fs.existsSync(dbPath)) {
-    console.log(`${term}: .db already exists — skipping (use --force to rebuild).`);
+    console.log(
+      `${term}: .db already exists — skipping (use --force to rebuild).`,
+    );
     continue;
   }
   try {

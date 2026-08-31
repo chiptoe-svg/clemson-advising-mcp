@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { hashToken, type Consumer } from "../src/mcp-tools/consumers.ts";
-import { authContext, resolveCredentialedAuth } from "../src/mcp-tools/server.ts";
+import {
+  authContext,
+  resolveCredentialedAuth,
+} from "../src/mcp-tools/server.ts";
 
 const TOKEN = "cma_principal-test";
 const loadWith = (c: Partial<Consumer>) => (): Consumer[] => [
@@ -10,7 +13,9 @@ const loadWith = (c: Partial<Consumer>) => (): Consumer[] => [
 ];
 
 test("Principal returned for a scoped consumer carries only its scope", async () => {
-  const auth = resolveCredentialedAuth({ load: loadWith({ scopes: ["clemson"] }) });
+  const auth = resolveCredentialedAuth({
+    load: loadWith({ scopes: ["clemson"] }),
+  });
   const p = await auth(authContext(`Bearer ${TOKEN}`));
   assert.equal(p?.id, "a");
   assert.equal(p?.scopes.has("clemson.list_terms"), true);
@@ -39,7 +44,10 @@ test("wrong token is rejected", async () => {
 });
 
 test("the env token authenticates as the env-token consumer", async () => {
-  const auth = resolveCredentialedAuth({ load: (): Consumer[] => [], envToken: "cma_env" });
+  const auth = resolveCredentialedAuth({
+    load: (): Consumer[] => [],
+    envToken: "cma_env",
+  });
   assert.equal((await auth(authContext(`Bearer cma_env`)))?.id, "env-token");
   assert.equal(await auth(authContext(`Bearer cma_other`)), null);
 });

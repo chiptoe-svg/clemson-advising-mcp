@@ -19,7 +19,7 @@ quietly unreproducible.
 
 A failure here means output moved. Regenerate ONLY when that is intended:
     .venv/bin/python scripts/regen_golden_audits.py
-The goldens also depend on db/gc_advisor.db, so a catalog re-ingest can move
+The goldens also depend on db/catalog.db, so a catalog re-ingest can move
 them too — read the diff to tell data drift from a code regression.
 """
 import json
@@ -28,7 +28,7 @@ import pytest
 from gc_advisor.audit.models import Progress
 from gc_advisor.audit.engine import run_audit
 
-DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DB = Path(__file__).parent.parent / "db" / "catalog.db"
 GOLDEN = Path(__file__).parent / "fixtures" / "golden"
 
 pytestmark = pytest.mark.skipif(not DB.exists(), reason="catalog DB not present")

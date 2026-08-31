@@ -6,7 +6,7 @@
 // AUTH: MCP_CATALOG_AUTH_TOKEN, distinct from the public server's key and from
 // anything on 8765, PLUS this server's own consumer registry
 // (state/mcp-consumers-catalog.json — a different file from the public
-// server's, so tokens are not interchangeable). See src/mcp-public.ts for the
+// server's, so tokens are not interchangeable). See src/mcp-schedule.ts for the
 // full rationale and the fail-closed startup.
 //
 // BIND: MCP_CATALOG_HTTP_HOST (its own variable, default loopback). Set to

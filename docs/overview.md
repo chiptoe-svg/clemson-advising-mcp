@@ -24,7 +24,7 @@ process, and neither pipeline runs on a request.
  public JSON endpoints         one sweep per live term           sections · meetings ·
                                                                  instructors · meta
 
- catalog.clemson.edu      ──▶  rebuild, about once a year   ──▶  core/db/gc_advisor.db    ──▶  catalog server   (8767)
+ catalog.clemson.edu      ──▶  rebuild, about once a year   ──▶  core/db/catalog.db    ──▶  catalog server   (8767)
  (Acalog; a JS app)            core/scripts/rebuild_db.sh        one SQLite file                11 tools
                                Playwright render → parsers       programs · plans · rules ·
                                → LLM extraction (minors)         courses · gen-ed · footnotes
@@ -95,7 +95,7 @@ every page fetched is kept under `core/data/raw/` and committed, so the
 database can be rebuilt from this repository alone. `core/README.md` maps the
 package.
 
-**Rest.** One SQLite file, `core/db/gc_advisor.db` (~5.7 MB), with tables for
+**Rest.** One SQLite file, `core/db/catalog.db` (~5.7 MB), with tables for
 catalog years, programs, plan items (the semester-by-semester plan), requirement
 groups and rules, courses, gen-ed categories, footnotes, academic regulations,
 and the source snapshot each row came from. Reference census: 997 programs (of
@@ -132,7 +132,7 @@ Both servers require a bearer token, are read-only, and filter every listing
 and every call by the caller's scope. "Snapshot" means the term's SQLite file;
 "live" means a request to Banner at call time.
 
-### Schedule server — `advising-mcp-public`, port 8766
+### Schedule server — `advising-mcp-schedule`, port 8766
 
 Every tool that takes a `term` accepts a code (`202608`) or a name
 (`"Fall 2026"`) and defaults to the current registration term. A term the

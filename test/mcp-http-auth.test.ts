@@ -31,7 +31,10 @@ test("isLoopbackHost", () => {
 
 test("openAuthenticator always admits", async () => {
   assert.equal((await openAuthenticator(authContext(undefined)))?.id, "public");
-  assert.equal((await openAuthenticator(authContext("Bearer whatever")))?.id, "public");
+  assert.equal(
+    (await openAuthenticator(authContext("Bearer whatever")))?.id,
+    "public",
+  );
 });
 
 test("resolveCredentialedAuth fails closed with no consumers", () => {
@@ -54,7 +57,10 @@ test("resolveCredentialedAuth authenticates a registered token and reports it", 
     load: () => consumers,
     onSeen: (id) => seen.push(id),
   });
-  assert.equal((await authenticate(authContext("Bearer cma_tok")))?.id, "agent-1");
+  assert.equal(
+    (await authenticate(authContext("Bearer cma_tok")))?.id,
+    "agent-1",
+  );
   assert.equal(await authenticate(authContext("Bearer nope")), null);
   assert.deepEqual(seen, ["agent-1"]); // onSeen fires only on success
 });
@@ -64,7 +70,10 @@ test("resolveCredentialedAuth accepts the env token as a consumer", async () => 
     load: () => [],
     envToken: "env-secret",
   });
-  assert.equal((await authenticate(authContext("Bearer env-secret")))?.id, "env-token");
+  assert.equal(
+    (await authenticate(authContext("Bearer env-secret")))?.id,
+    "env-token",
+  );
 });
 
 test("createHttpHandler rejects an oversized body with 413", async () => {

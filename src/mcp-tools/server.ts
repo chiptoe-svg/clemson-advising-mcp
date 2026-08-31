@@ -15,9 +15,9 @@
 //
 // The public (8766) and catalog (8767) servers use the same "registry" auth,
 // but with an EMPTY consumer source and a single per-server env key
-// (MCP_PUBLIC_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN), so each accepts exactly one
+// (MCP_SCHEDULE_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN), so each accepts exactly one
 // bearer and revoking one does not affect the other or 8765. They are the only
-// servers permitted a non-loopback bind (MCP_PUBLIC_HTTP_HOST /
+// servers permitted a non-loopback bind (MCP_SCHEDULE_HTTP_HOST /
 // MCP_CATALOG_HTTP_HOST); 8765 stays on MCP_HTTP_HOST, loopback.
 //
 // "open" mode (no credentials) remains available for stdio/dev and is still
@@ -378,7 +378,7 @@ export function isLoopbackHost(host: string): boolean {
 export function assertHttpAuthConfig(expected: string, host: string): void {
   if (!expected && !isLoopbackHost(host)) {
     throw new Error(
-      `a bearer token (MCP_PUBLIC_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN) is required ` +
+      `a bearer token (MCP_SCHEDULE_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN) is required ` +
         `when the bind host is not loopback (got "${host}")`,
     );
   }
@@ -418,7 +418,7 @@ export function resolveCredentialedAuth(
     throw new Error(
       "MCP HTTP server has no authorized consumers — pair one with " +
         "`npm run mcp:pair -- --server <public|catalog> --id <agent>` or set " +
-        "MCP_PUBLIC_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN. Refusing to start open.",
+        "MCP_SCHEDULE_AUTH_TOKEN / MCP_CATALOG_AUTH_TOKEN. Refusing to start open.",
     );
   }
   return async (ctx) => {
@@ -734,7 +734,7 @@ export type AuthConfig =
        * resolveCredentialedAuth throws at startup instead of serving open.
        *
        * UPDATE 2026-08-26: 8766/8767 now pass a loader scoped to their OWN
-       * registry file (`loadConsumers("public")` / `loadConsumers("catalog")`),
+       * registry file (`loadConsumers("schedule")` / `loadConsumers("catalog")`),
        * not `() => []`. Every guarantee above still holds — the files are
        * per-server, so a token minted for one is not accepted by the other and
        * revocation stays per-server. What changed is only that each server can

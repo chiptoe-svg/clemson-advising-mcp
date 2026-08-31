@@ -5,7 +5,7 @@ payload so a refactor that must not change GC behavior is proven not to.
 
 Run this ONLY when a change to the output is intended and reviewed — a diff
 here is the whole signal the golden test exists to produce. Note that the
-goldens depend on db/gc_advisor.db, so a catalog re-ingest can also move them;
+goldens depend on db/catalog.db, so a catalog re-ingest can also move them;
 inspect the diff before committing to tell data drift from a code regression.
 """
 import argparse, json
@@ -14,7 +14,7 @@ from gc_advisor.audit.models import Progress
 from gc_advisor.audit.engine import run_audit
 
 ROOT = Path(__file__).parent.parent
-DEFAULT_DB = ROOT / "db" / "gc_advisor.db"
+DEFAULT_DB = ROOT / "db" / "catalog.db"
 FIXTURES = ROOT / "tests" / "fixtures"
 GOLDEN = FIXTURES / "golden"
 

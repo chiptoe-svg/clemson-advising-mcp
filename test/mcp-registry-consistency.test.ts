@@ -22,9 +22,7 @@ test("MCP_ALLOWED_OPERATIONS and the union of SCOPE_OPERATIONS agree in both dir
   const allowed = new Set(Object.keys(MCP_ALLOWED_OPERATIONS));
   const scoped = new Set(Object.values(SCOPE_OPERATIONS).flat());
 
-  const missingFromScopes = [...allowed]
-    .filter((op) => !scoped.has(op))
-    .sort();
+  const missingFromScopes = [...allowed].filter((op) => !scoped.has(op)).sort();
   const extraInScopes = [...scoped].filter((op) => !allowed.has(op)).sort();
 
   assert.deepEqual(
@@ -93,7 +91,10 @@ test("clemson.schedule and clemson.catalog exactly partition clemson", () => {
 
 test("a schedule-scoped token cannot reach catalog operations", () => {
   const scoped = expandScopes(["clemson.schedule"]);
-  assert.ok(scoped.has("clemson.search_classes"), "schedule ops must be granted");
+  assert.ok(
+    scoped.has("clemson.search_classes"),
+    "schedule ops must be granted",
+  );
   assert.ok(
     !scoped.has("clemson.gc_program_plan"),
     "a schedule-only agent must not reach the degree catalog",

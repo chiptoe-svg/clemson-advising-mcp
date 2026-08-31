@@ -20,7 +20,7 @@ def main():
     ap = argparse.ArgumentParser(description="Backfill course.source_url from frozen snapshots")
     # GC_INGEST_DB: scratch-rebuild override (deliberately not GC_ADVISOR_DB)
     ap.add_argument("--db", default=os.environ.get("GC_INGEST_DB",
-                    str(ROOT / "db" / "gc_advisor.db")))
+                    str(ROOT / "db" / "catalog.db")))
     ap.add_argument("--raw", default=str(ROOT / "data" / "raw" / "courses"))
     ap.add_argument("--catoid", type=int, default=49,
                     help="catoid the courses were crawled from (default 49 = 2026-2027)")

@@ -2,10 +2,10 @@
 // Mint, list, and revoke per-agent bearer tokens for the public (8766) and
 // catalog (8767) MCP servers.
 //
-//   npm run mcp:pair -- --server public  --id claude-code
+//   npm run mcp:pair -- --server schedule  --id claude-code
 //   npm run mcp:pair -- --server catalog --id claude-code
-//   npm run mcp:pair -- --server public  --list
-//   npm run mcp:pair -- --server public  --revoke claude-code
+//   npm run mcp:pair -- --server schedule  --list
+//   npm run mcp:pair -- --server schedule  --revoke claude-code
 //
 // The raw token is printed ONCE and never stored — only its sha256 hash goes
 // into state/mcp-consumers-<server>.json (0600). Losing it means minting a new
@@ -26,7 +26,7 @@ import {
   type Consumer,
 } from "../src/mcp-tools/consumers.js";
 
-type Server = "public" | "catalog";
+type Server = "schedule" | "catalog";
 
 function fail(msg: string): never {
   process.stderr.write(`error: ${msg}\n`);
@@ -41,9 +41,15 @@ function has(name: string): boolean {
   return process.argv.includes(`--${name}`);
 }
 
-const server = flag("server");
-if (server !== "public" && server !== "catalog") {
-  fail("--server must be 'public' or 'catalog'");
+let server = flag("server");
+if (server === "public") {
+  // Pre-2026-08-30 name for the schedule server; accepted so old notes keep
+  // working, but the registry file is the schedule one either way.
+  process.stderr.write("note: --server schedule is now --server schedule\n");
+  server = "schedule";
+}
+if (server !== "schedule" && server !== "catalog") {
+  fail("--server must be 'schedule' or 'catalog'");
 }
 const registry: Server = server;
 
@@ -70,9 +76,12 @@ if (has("list")) {
 const revokeId = flag("revoke");
 if (revokeId) {
   const next = consumers.filter((c) => c.id !== revokeId);
-  if (next.length === consumers.length) fail(`no consumer '${revokeId}' on ${registry}`);
+  if (next.length === consumers.length)
+    fail(`no consumer '${revokeId}' on ${registry}`);
   saveConsumers(next, registry);
-  process.stdout.write(`revoked '${revokeId}' on ${registry}; effective on the next request\n`);
+  process.stdout.write(
+    `revoked '${revokeId}' on ${registry}; effective on the next request\n`,
+  );
   process.exit(0);
 }
 
@@ -81,7 +90,9 @@ const id = flag("id");
 if (!id) fail("--id <agent> is required");
 
 if (consumers.some((c) => c.id === id)) {
-  fail(`consumer '${id}' already exists on ${registry} — revoke it first to rotate`);
+  fail(
+    `consumer '${id}' already exists on ${registry} — revoke it first to rotate`,
+  );
 }
 
 const token = generateToken();

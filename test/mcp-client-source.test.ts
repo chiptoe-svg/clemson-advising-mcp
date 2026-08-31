@@ -41,7 +41,10 @@ test("a TRUSTED proxy's X-Forwarded-For is believed", () => {
 test("the RIGHTMOST hop wins — entries to its left are client-supplied", () => {
   // Taking hops[0] would let a client behind a trusted proxy pick its own
   // address again, defeating the check one layer further in.
-  assert.equal(clientSource(req("127.0.0.1", "9.9.9.9, 130.127.9.9")), "130.127.9.9");
+  assert.equal(
+    clientSource(req("127.0.0.1", "9.9.9.9, 130.127.9.9")),
+    "130.127.9.9",
+  );
   assert.equal(
     clientSource(req("127.0.0.1", ["9.9.9.9", "8.8.8.8, 130.127.9.9"])),
     "130.127.9.9",
@@ -57,7 +60,10 @@ test("a trusted peer with no header falls back to the peer, not to nothing", () 
 test("a missing socket address is reported as unknown, never as loopback", () => {
   // "?" is honest. Defaulting to 127.0.0.1 would silently grant proxy trust.
   assert.equal(clientSource({ headers: {} }), "?");
-  assert.equal(clientSource({ socket: {}, headers: { "x-forwarded-for": "9.9.9.9" } }), "?");
+  assert.equal(
+    clientSource({ socket: {}, headers: { "x-forwarded-for": "9.9.9.9" } }),
+    "?",
+  );
 });
 
 test("WIRING: the handler throttles per FORWARDED client, not per socket peer", async () => {

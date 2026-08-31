@@ -3,7 +3,7 @@ name: ci
 # Typecheck + the full node --test suite. Nothing here has ever run in CI
 # before, so this is the first automated gate on a pull request.
 #
-# CI has NO local artifacts: no core/db/gc_advisor.db, no state/clemson/*.db,
+# CI has NO local artifacts: no core/db/catalog.db, no state/clemson/*.db,
 # no core/.venv, no .env. Every test that needs one of those skips with a
 # counted string reason (test/_artifacts.ts). That is deliberate — CI proves
 # the code and the pure-logic suite, and `npm run test:gate` on the working
@@ -65,7 +65,7 @@ jobs:
           tail -n 12 test-output.txt
           skipped=$(grep -m1 '^# skipped ' test-output.txt | awk '{print $3}')
           failed=$(grep -m1 '^# fail ' test-output.txt | awk '{print $3}')
-          echo "skipped=${skipped:-unknown} (artifact-dependent: no gc_advisor.db, no Banner snapshot, no core/.venv)"
+          echo "skipped=${skipped:-unknown} (artifact-dependent: no catalog.db, no Banner snapshot, no core/.venv)"
           echo "fail=${failed:-unknown}"
           if [ -z "$failed" ]; then
             echo "no '# fail' line in the TAP summary — treating as a failure"

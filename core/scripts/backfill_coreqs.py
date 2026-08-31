@@ -17,7 +17,7 @@ from gc_advisor.ingest.coreqs import backfill_coreqs, derive_lab_pairs
 # GC_INGEST_DB overrides the target DB (scratch rebuilds; deliberately NOT
 # GC_ADVISOR_DB, which the service config reads — an exported override must
 # never repoint the live daemons).
-DEFAULT_DB = Path(os.environ["GC_INGEST_DB"]) if os.environ.get("GC_INGEST_DB") else Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DEFAULT_DB = Path(os.environ["GC_INGEST_DB"]) if os.environ.get("GC_INGEST_DB") else Path(__file__).parent.parent / "db" / "catalog.db"
 
 
 def main():

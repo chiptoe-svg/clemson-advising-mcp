@@ -21,7 +21,7 @@ from gc_advisor.ingest.packs import load_pack
 from registrar_rules import subjects
 
 PACK = Path(__file__).parent.parent / "packs" / "marketing"
-DB = Path(__file__).parent.parent / "db" / "gc_advisor.db"
+DB = Path(__file__).parent.parent / "db" / "catalog.db"
 
 # Parsed from the committed registrar rule line rather than hardcoded here, so
 # pack<->registrar drift is detectable on a fresh checkout (the DegreeWorks
