@@ -830,7 +830,8 @@ const teachingLoad: McpToolDefinition = {
     name: "get-teaching-load",
     description:
       "Weekly teaching load per instructor, computed server-side from the " +
-      'term snapshot — the primitive behind "how many contact hours does ' +
+      "term snapshot — and the way to LIST everyone teaching a subject this " +
+      'term ("who teaches GC?"). The primitive behind "how many contact hours does ' +
       'each GC faculty member have this semester?". Select by subject ' +
       "(e.g. 'GC': every instructor on that subject's sections, load counted " +
       "over those sections only) and/or by instructors ('Name <email>', a " +

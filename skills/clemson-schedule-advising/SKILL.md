@@ -41,23 +41,25 @@ the accepted forms — it is never reported as a term with no data.
 | `get-sections-by-crn`         | Confirm CRNs you already have: authoritative rows and meetings straight from the snapshot                              | `not_found` is the load-bearing half — it means the snapshot was read and has no such CRN. `has_snapshot: false` means nothing was checked, and `not_found` is then empty rather than listing every CRN as fake.                                                                                                       |
 | `resolve-crns`                | Get CRNs for course + section pairs, for schedule data that carries no CRNs                                            | Results align **by index** with the input. A null means no single match — none, or several. It never guesses between candidates.                                                                                                                                                                                       |
 | `get-instructor-classes`      | Everything each listed instructor teaches; optional day/window filter for teaching conflicts                           | Statuses are explicit: `teaching`/`not_teaching` unfiltered, `busy`/`free` filtered. `not_teaching` is NOT free — the snapshot sees only teaching. Emails match exactly; ambiguous names return candidates.                                                                                                            |
-| `get-teaching-load`           | Weekly contact hours + credit hours per instructor — by subject (e.g. `GC`), instructor list, or both                  | Two measures, never conflated. `untimed_sections` is reported separately — a contact-hour total never hides an online/arranged section. Co-taught sections attribute fully to each listed instructor; with a subject, load OUTSIDE that subject is not counted (the response's `scope` says so). |
+| `get-teaching-load`           | Weekly contact hours + credit hours per instructor — by subject (e.g. `GC`), instructor list, or both                  | Two measures, never conflated. `untimed_sections` is reported separately — a contact-hour total never hides an online/arranged section. Co-taught sections attribute fully to each listed instructor; with a subject, load OUTSIDE that subject is not counted (the response's `scope` says so).                       |
 | `get-schedule-freshness`      | How old the snapshot is for a term                                                                                     | Ask before trusting seat counts. `has_snapshot: false` means that term has not been ingested — it does not mean the term does not exist.                                                                                                                                                                               |
 | `list-clemson-terms`          | Banner term codes                                                                                                      | Rarely needed — the search tools default their own term.                                                                                                                                                                                                                                                               |
 
 ## Catalog tools (8767)
 
-| Tool                        | Use it to…                                                                                                            | Notes                                                                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `list-programs`          | See which programs the catalog covers                                                                                 | Start here when a program name is uncertain; names are the registrar's ("Marketing, BS").                                     |
-| `list-catalog-years`     | Get a valid `catalog_year`                                                                                            | Students are pinned to their matriculation year — never mix years.                                                            |
-| `get-program-plan`       | Full semester-by-semester degree plan                                                                                 | Groups → items (`fixed_course` / `choice` / `slot`) → footnotes. Includes `source_url`; cite it.                              |
-| `get-requirement-rules`  | Named requirement slots: lab science, specialty area, technical                                                       | The `slot_type` values here are what `find-requirement-sections` expects as `requirement`.                                    |
-| `get-gen-ed`             | Gen-Ed categories with minimum credits and allowed courses                                                            | Apply the `rules` constraint sentences (e.g. Social Sciences "two different fields").                                         |
-| `get-course`             | One course's catalog entry                                                                                            | Catalog prose, not a section. An unreadable catalog is an ERROR here, never `found: false`.                                   |
-| `find-course-in-program`    | Whether a course appears anywhere in a program                                                                        | Searches **both** requirement stores and says so, which is what makes its `found: false` trustworthy.                         |
-| `get-program-requirements`  | Requirement rules for a minor or certificate                                                                          | Partial or misspelled names return candidates.                                                                                |
-| `find-requirement-sections` | **The advising join** — sections that fill a named requirement slot AND are offered this term AND are prereq-eligible | An unknown slot name returns the valid slot list inline, so retry from that list. Prereq check is AND-logic only (see below). |
+| Tool                        | Use it to…                                                                                                                         | Notes                                                                                                                                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list-programs`             | See which programs the catalog covers                                                                                              | Start here when a program name is uncertain; names are the registrar's ("Marketing, BS").                                                                                                           |
+| `list-catalog-years`        | Get a valid `catalog_year`                                                                                                         | Students are pinned to their matriculation year — never mix years.                                                                                                                                  |
+| `get-program-plan`          | Full semester-by-semester degree plan                                                                                              | Groups → items (`fixed_course` / `choice` / `slot`) → footnotes. Includes `source_url`; cite it.                                                                                                    |
+| `get-requirement-rules`     | Named requirement slots: lab science, specialty area, technical                                                                    | The `slot_type` values here are what `find-requirement-sections` expects as `requirement`.                                                                                                          |
+| `get-gen-ed`                | Gen-Ed categories with minimum credits and allowed courses                                                                         | Apply the `rules` constraint sentences (e.g. Social Sciences "two different fields").                                                                                                               |
+| `get-course`                | One course's catalog entry                                                                                                         | Catalog prose, not a section. An unreadable catalog is an ERROR here, never `found: false`.                                                                                                         |
+| `find-course-in-program`    | Whether a course appears anywhere in a program                                                                                     | Searches **both** requirement stores and says so, which is what makes its `found: false` trustworthy.                                                                                               |
+| `get-program-requirements`  | Requirement rules for a minor or certificate                                                                                       | Partial or misspelled names return candidates.                                                                                                                                                      |
+| `get-department-rules`      | A department's recorded decisions: slot allow/deny lists AND the official faculty roster (`faculty`, with `banner_name` join keys) | Departmental provenance, not published catalog. Scope-gated: absent from `tools/list` without the `clemson.department` grant — absence means your token lacks the scope, not that no roster exists. |
+| `get-department-doc`        | A department's advising-policy document                                                                                            | Same provenance and scope gate. Omit `department` to list known ids.                                                                                                                                |
+| `find-requirement-sections` | **The advising join** — sections that fill a named requirement slot AND are offered this term AND are prereq-eligible              | An unknown slot name returns the valid slot list inline, so retry from that list. Prereq check is AND-logic only (see below).                                                                       |
 
 Both servers also serve `list-skills` / `get-skill-docs` (catalog:
 `list-catalog-skills` / `get-catalog-skill-docs`) — that is how you are reading this. The
@@ -90,6 +92,12 @@ no CRNs, `resolve-crns` first.
 an unknown `requirement` returns the valid slot list inline, so this is usually
 one call, two at most. Then `check-conflicts` against anything already fixed.
 
+**Who teaches a subject / who is teaching but NOT on the department's roster**
+`get-teaching-load { subject }` lists EVERYONE on that subject's sections this
+term (names, emails, load); `get-department-rules { department }` `.faculty` is
+the official roster. The set difference is the answer. Two calls — never page
+`search-classes` per course number for this.
+
 **Full advising session**
 `get-program-plan` (identify open slots) → `get-requirement-rules`
 (explicit courses and slot names for those slots) → `find-requirement-sections`
@@ -119,6 +127,15 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
   opened term before the daily refresh) errors — retry after the next refresh.
   For programs whose rules it does not cover, use `search-classes` with course
   codes from `get-program-plan` or `get-program-requirements`.
-- **No standalone instructor or room tools.** They are `instructor` and
-  `building_room` filters on `search-classes`; there is no "every section a
-  faculty member teaches" or "free blocks for a room" call.
+- **No standalone room tools.** Rooms are the `building_room` filter on
+  `search-classes`; there is no "free blocks for a room" call. (Instructor
+  tools DO exist — `get-instructor-classes` and `get-teaching-load` above; an
+  earlier version of this document said otherwise.)
+
+<!-- The stamp below pairs the Known-limitations section with the toolsets it
+     was written against. When a tool is added, removed, or renamed, the
+     skill-doc-limitations test fails until a person RE-READS the limitations
+     for absence claims that stopped being true, then updates the stamp.
+     (Origin: a bullet denying instructor tools outlived their arrival and
+     sent live models paging search-classes instead.) -->
+<!-- limitations-reviewed-against: schedule=540e7cab6abc catalog=8124dd37dc00 -->
