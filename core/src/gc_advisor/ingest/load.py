@@ -84,13 +84,18 @@ def load_gen_ed(con, cy_id: int, categories: list[GenEdCategory]) -> int:
         con.execute("ALTER TABLE gen_ed_category ADD COLUMN learning_outcome TEXT")
     except Exception:
         pass
+    try:
+        con.execute("ALTER TABLE gen_ed_category ADD COLUMN subcategories TEXT")
+    except Exception:
+        pass
     con.execute("DELETE FROM gen_ed_category WHERE catalog_year_id=?", (cy_id,))
     for c in categories:
         con.execute(
             "INSERT INTO gen_ed_category(catalog_year_id, name, min_credits, rules, "
-            "allowed_courses, learning_outcome) VALUES(?,?,?,?,?,?)",
+            "allowed_courses, learning_outcome, subcategories) VALUES(?,?,?,?,?,?,?)",
             (cy_id, c.name, c.min_credits, c.rules, json.dumps(c.allowed_courses),
-             c.learning_outcome))
+             c.learning_outcome,
+             json.dumps(c.subcategories) if c.subcategories else None))
     con.commit()
     return len(categories)
 

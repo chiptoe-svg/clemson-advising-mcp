@@ -129,6 +129,16 @@ actions:
     constraints:
       - public_data_only
 
+  # Courses by subject and/or catalog-number range, from the current course
+  # inventory — the deterministic half of DegreeWorks wildcard rows.
+  - id: clemson.list_courses
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
   # Departmental layer: decisions recorded by departments (departments/<id>/),
   # served only to consumers granted the clemson.department scope. Local file
   # reads; no external call; departmental provenance stated on every response.

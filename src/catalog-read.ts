@@ -67,6 +67,9 @@ export interface GenEdCategory {
   min_credits: number | null;
   rules: unknown;
   allowed_courses: unknown[];
+  /** Published sub-lists (e.g. Arts and Humanities: Literature /
+   *  Non-Literature). Absent = the page shows no split for this category. */
+  subcategories?: unknown;
 }
 
 type Db = InstanceType<typeof Database>;
@@ -249,20 +252,25 @@ export function getGenEd(db: Db, year: string): GenEdCategory[] {
   return (
     db
       .prepare(
-        "SELECT name, min_credits, rules, allowed_courses FROM gen_ed_category WHERE catalog_year_id=?",
+        "SELECT name, min_credits, rules, allowed_courses, subcategories FROM gen_ed_category WHERE catalog_year_id=?",
       )
       .all(cy) as Array<{
       name: string;
       min_credits: number | null;
       rules: unknown;
       allowed_courses: string | null;
+      subcategories: string | null;
     }>
-  ).map((r) => ({
-    name: r.name,
-    min_credits: r.min_credits,
-    rules: r.rules,
-    allowed_courses: parseJson<unknown[]>(r.allowed_courses, []),
-  }));
+  ).map((r) => {
+    const sub = parseJson<unknown>(r.subcategories, null);
+    return {
+      name: r.name,
+      min_credits: r.min_credits,
+      rules: r.rules,
+      allowed_courses: parseJson<unknown[]>(r.allowed_courses, []),
+      ...(sub ? { subcategories: sub } : {}),
+    };
+  });
 }
 
 /**
@@ -391,6 +399,46 @@ export function knownPrograms(db: Db, year: string): string[] {
 }
 
 /** One course row by code, or null. Mirrors `dict(row) if row else None`. */
+/**
+ * Courses by subject and/or catalog-number range, from the course table — the
+ * CURRENT course inventory (course rows are not catalog-year-pinned). Backs
+ * list-courses, which exists so DegreeWorks-style wildcards ("MGT @",
+ * "ACCT 3000:3999") resolve to real course codes instead of nulls.
+ */
+export function listCourses(
+  db: Db,
+  subject: string | null,
+  numberMin: number | null,
+  numberMax: number | null,
+): Array<{ code: string; title: string | null; credits: string | null }> {
+  const conds: string[] = [];
+  const params: unknown[] = [];
+  if (subject) {
+    conds.push("subject = ?");
+    params.push(subject.toUpperCase());
+  }
+  if (numberMin !== null) {
+    conds.push("CAST(number AS INTEGER) >= ?");
+    params.push(numberMin);
+  }
+  if (numberMax !== null) {
+    conds.push("CAST(number AS INTEGER) <= ?");
+    params.push(numberMax);
+  }
+  if (conds.length === 0) throw new Error("listCourses needs a filter");
+  return db
+    .prepare(
+      `SELECT code, title, credits FROM course WHERE status='active' AND ${conds.join(
+        " AND ",
+      )} ORDER BY subject, CAST(number AS INTEGER)`,
+    )
+    .all(...params) as Array<{
+    code: string;
+    title: string | null;
+    credits: string | null;
+  }>;
+}
+
 export function getCourse(
   db: Db,
   code: string,

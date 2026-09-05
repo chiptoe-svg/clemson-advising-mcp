@@ -10,6 +10,7 @@ import {
   programPlan,
   requirementRules,
   genEd,
+  listCourses,
 } from "../src/mcp-tools/catalog.ts";
 import { SKIP_NO_CORE_DB, requireCoreArtifacts } from "./_artifacts.ts";
 
@@ -228,3 +229,94 @@ test(
     assert.deepEqual(text, r.structuredContent);
   },
 );
+
+// --- the published Literature / Non-Literature split (2026-09-05) -----------
+
+test(
+  "get-gen-ed serves Arts and Humanities subcategories, and only where the page shows a split",
+  { skip: SKIP_NO_CORE_DB },
+  async () => {
+    const res = await genEd.handler({ catalog_year: "2026-2027" });
+    const b = JSON.parse((res.content[0] as { text: string }).text) as {
+      items: {
+        name: string;
+        allowed_courses: string[];
+        subcategories?: {
+          name: string;
+          min_credits: number;
+          allowed_courses: string[];
+          note?: string;
+        }[];
+      }[];
+    };
+    const ah = b.items.find((c) => c.name.includes("Arts and Humanities"));
+    assert.ok(ah?.subcategories, "A&H must carry the published split");
+    const names = ah!.subcategories!.map((s) => s.name);
+    assert.deepEqual(names, ["Literature", "Non-Literature"]);
+    const lit = ah!.subcategories![0];
+    assert.ok(lit.allowed_courses.includes("ENGL 2120"));
+    assert.equal(lit.min_credits, 3);
+    // The open-ended sentence is part of the requirement.
+    assert.match(String(lit.note), /Any 2000-level/i);
+    // Sub-lists never invent courses the category itself does not allow.
+    for (const s of ah!.subcategories!)
+      for (const c of s.allowed_courses)
+        assert.ok(ah!.allowed_courses.includes(c), `${c} not in category list`);
+    // Categories without a published split carry NO subcategories field —
+    // absence of the field, not an empty array pretending to be a fact.
+    const comm = b.items.find((c) => c.name.includes("Communication"));
+    assert.ok(comm && !("subcategories" in comm));
+  },
+);
+
+// --- list-courses: the wildcard resolver -------------------------------------
+
+test(
+  "list-courses resolves a subject + range like a DegreeWorks wildcard",
+  { skip: SKIP_NO_CORE_DB },
+  async () => {
+    const res = await listCourses.handler({
+      subject: "mgt",
+      number_min: 3000,
+      number_max: 4999,
+    });
+    const b = JSON.parse((res.content[0] as { text: string }).text) as {
+      count: number;
+      courses: { code: string }[];
+      scope: string;
+    };
+    assert.ok(b.count > 0 && b.count === b.courses.length);
+    for (const c of b.courses) {
+      assert.match(c.code, /^MGT \d{4}$/);
+      const n = Number(c.code.split(" ")[1]);
+      assert.ok(n >= 3000 && n <= 4999, c.code);
+    }
+    // The honesty line: current inventory, not year-pinned.
+    assert.match(b.scope, /not catalog-year-pinned/);
+  },
+);
+
+test(
+  "list-courses with only a range spans subjects; catalog_year is echoed not applied",
+  { skip: SKIP_NO_CORE_DB },
+  async () => {
+    const res = await listCourses.handler({
+      number_min: 4990,
+      number_max: 4999,
+      catalog_year: "2025-2026",
+    });
+    const b = JSON.parse((res.content[0] as { text: string }).text) as {
+      courses: { code: string }[];
+      catalog_year?: string;
+    };
+    const subjects = new Set(b.courses.map((c) => c.code.split(" ")[0]));
+    assert.ok(subjects.size > 1, "a bare range must span subjects");
+    assert.equal(b.catalog_year, "2025-2026");
+  },
+);
+
+test("list-courses without any filter is an error, not the whole catalog", async () => {
+  const res = await listCourses.handler({});
+  assert.equal(res.isError, true);
+  assert.match((res.content[0] as { text: string }).text, /at least one filter/);
+});

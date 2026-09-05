@@ -49,7 +49,7 @@ returning an empty result the caller might read as "nothing exists".
 | Port               | 8766                                             | 8767                                               |
 | Serves             | Clemson class schedule                           | Degree catalog and curriculum                      |
 | Data source        | Banner snapshots (SQLite, refreshed daily 05:00) | Built catalog DB (SQLite) + Python query/audit CLI |
-| Tools              | 13                                               | 13                                                 |
+| Tools              | 13                                               | 14                                                 |
 | Holds student data | No                                               | No                                                 |
 | Holds credentials  | No                                               | No                                                 |
 
@@ -69,7 +69,7 @@ restarted, revoked, or taken down without touching the other.
 **Catalog (8767)** — `list-catalog-years`, `get-program-plan`,
 `get-requirement-rules`, `get-gen-ed`, `get-program-requirements`,
 `find-requirement-sections`, `find-course-in-program`, `list-programs`,
-`get-course`, `get-department-rules`, `get-department-doc`,
+`get-course`, `list-courses`, `get-department-rules`, `get-department-doc`,
 `list-catalog-skills`, `get-catalog-skill-docs`
 
 ### The departmental layer

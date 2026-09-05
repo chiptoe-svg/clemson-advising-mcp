@@ -144,6 +144,12 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.gc_gen_ed",
   },
+  // Courses by subject / catalog-number range — resolves DegreeWorks-style
+  // wildcards ("MGT @", "ACCT 3000:3999") to real codes.
+  "clemson.list_courses": {
+    backend: "external-http",
+    policyActionId: "clemson.list_courses",
+  },
 };
 
 export class McpPermissionDeniedError extends Error {
@@ -286,6 +292,7 @@ const CLEMSON_CATALOG_OPS = [
   "clemson.gc_gen_ed",
   "clemson.find_requirement_sections",
   "clemson.gc_program_requirements",
+  "clemson.list_courses",
 ];
 
 export const SCOPE_OPERATIONS: Record<string, string[]> = {
@@ -316,6 +323,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.gc_gen_ed",
     "clemson.find_requirement_sections",
     "clemson.gc_program_requirements",
+    "clemson.list_courses",
     "clemson.schedule_freshness",
   ],
 };

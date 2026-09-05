@@ -19,6 +19,7 @@ Use the catalog tools (their JSON output is your source of truth):
   `"Marketing, BS"` or a minor. The output includes `source_url`, the exact
   Clemson catalog page for that program.
 - Look up a single course: `get-course { code: "GC 1020" }`
+- List courses by subject / number range: `list-courses { subject: "MGT", number_min: 3000, number_max: 4999 }` (current inventory, not year-pinned)
 
 ## Rules
 

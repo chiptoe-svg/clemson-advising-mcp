@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS gen_ed_category (
   min_credits     INTEGER,
   rules           TEXT,
   allowed_courses TEXT,
-  learning_outcome TEXT
+  learning_outcome TEXT,
+  subcategories   TEXT  -- JSON list of published sub-lists; NULL = no split shown
 );
 
 CREATE TABLE IF NOT EXISTS academic_regulation (

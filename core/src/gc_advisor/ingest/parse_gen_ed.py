@@ -26,6 +26,13 @@ REQ_HEADING_OLD_RE = re.compile(
 )
 
 CREDIT_RE = re.compile(r"(?:minimum of\s+)?(\d+)\s+[Cc]redit", re.IGNORECASE)
+
+# Sub-section headings inside a category. Both published formats:
+#   newer: "Literature (3 credit hours)"   older: "Literature 3 credits"
+SUBHEAD_RE = re.compile(
+    r"^(Literature|Non-Literature)\s*(?:\((\d+)\s+credit hours?\)|(\d+)\s+credits?)\s*$",
+    re.IGNORECASE,
+)
 CODE_RE = re.compile(r"\b([A-Z]{2,5})\s+(\d{4})\b")
 
 # Constraint sentences: sentences containing key constraint phrases
@@ -145,6 +152,41 @@ def _category_key(name: str) -> str | None:
     return None
 
 
+def _subcategories(buf: list[str]) -> list[dict] | None:
+    """Published sub-lists inside one category's lines (e.g. Arts and
+    Humanities -> Literature / Non-Literature). Returns None unless at least
+    two subheads are present — a single stray match must not fabricate a
+    split the page does not show."""
+    segments: list[dict] = []
+    cur: dict | None = None
+    for line in buf:
+        m = SUBHEAD_RE.match(line)
+        if m:
+            cur = {
+                "name": m.group(1),
+                "min_credits": int(m.group(2) or m.group(3)),
+                "allowed_courses": [],
+                "note": "",
+            }
+            segments.append(cur)
+        elif cur is not None:
+            codes = CODE_RE.findall(line)
+            if codes:
+                cur["allowed_courses"].extend(f"{a} {b}" for a, b in codes)
+            elif not cur["allowed_courses"] and line.lower().startswith("any "):
+                # The open-ended sentence under a subhead ("Any 2000-level
+                # ENGL literature course or any of the other courses listed")
+                # is part of the requirement, not decoration.
+                cur["note"] = line
+    if len(segments) < 2:
+        return None
+    for s in segments:
+        s["allowed_courses"] = sorted(set(s["allowed_courses"]))
+        if not s["note"]:
+            del s["note"]
+    return segments
+
+
 def parse_gen_ed(text: str) -> list[GenEdCategory]:
     """Parse the Clemson General Education page text into GenEdCategory records."""
     slos = _parse_slos(text)
@@ -161,6 +203,7 @@ def parse_gen_ed(text: str) -> list[GenEdCategory]:
             blob = " ".join(buf)
             cur.allowed_courses = sorted({f"{a} {b}" for a, b in CODE_RE.findall(blob)})
             cur.rules = " ".join(CONSTRAINT_RE.findall(blob)).strip()
+            cur.subcategories = _subcategories(buf)
             cats.append(cur)
         cur, buf = None, []
 

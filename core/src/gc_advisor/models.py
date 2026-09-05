@@ -78,6 +78,10 @@ class GenEdCategory:
     allowed_courses: list[str] = field(default_factory=list)
     rules: str = ""              # constraint sentences only
     learning_outcome: str = ""   # the category's Student Learning Outcome statement
+    # Published sub-lists inside a category (today: Arts and Humanities splits
+    # into Literature / Non-Literature). None = the page shows no split for
+    # this category — NOT the same as an empty split.
+    subcategories: list[dict] | None = None
 
 
 @dataclass

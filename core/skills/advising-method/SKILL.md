@@ -21,8 +21,9 @@ skill document alongside this one.
 | `list-catalog-years` | Valid year strings — fallback when `catalog_year` isn't already resolved |
 | `get-program-plan` | Full degree plan for a program + catalog year (groups → items → footnotes) |
 | `get-requirement-rules` | Named requirement slots with explicit courses, advisor additions/denials, wildcards |
-| `get-gen-ed` | 6 gen-ed categories with min credits and allowed course lists |
+| `get-gen-ed` | 6 gen-ed categories with min credits and allowed course lists; Arts and Humanities carries `subcategories` (Literature / Non-Literature) |
 | `get-course` | One course's catalog entry (title, credits, description) |
+| `list-courses` | Courses by subject and/or number range (current inventory) — resolves wildcard rows like `MGT @` or `ACCT 3000:3999` |
 | `get-program-requirements` | What a minor or certificate requires |
 | `get-course-details` | (schedule server) catalog info incl. prereqs/coreqs by `course_code`, or one live section by `crn` |
 

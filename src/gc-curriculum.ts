@@ -6,6 +6,7 @@
 import { CATALOG_DB } from "./config-mcp.js";
 import {
   getCourse as getCourseRow,
+  listCourses as listCoursesRows,
   getGenEd as getGenEdRows,
   getProgramPlan as getProgramPlanRow,
   getRequirementRules as getRequirementRulesRows,
@@ -88,4 +89,14 @@ export async function getGcGenEd(year: string): Promise<unknown> {
 
 export async function getGcCourse(code: string): Promise<unknown> {
   return withCatalog((db) => getCourseRow(db, code));
+}
+
+export async function listGcCourses(
+  subject: string | null,
+  numberMin: number | null,
+  numberMax: number | null,
+): Promise<unknown[]> {
+  return withCatalog((db) =>
+    listCoursesRows(db, subject, numberMin, numberMax),
+  );
 }

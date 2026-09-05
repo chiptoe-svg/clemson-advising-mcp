@@ -148,12 +148,19 @@ class CatalogAccess:
         con = self._con()
         try:
             cy = self._year_id(con, year)
-            return [{"name": r["name"], "min_credits": r["min_credits"],
-                     "rules": r["rules"],
-                     "allowed_courses": json.loads(r["allowed_courses"] or "[]")}
-                    for r in con.execute(
-                        "SELECT name, min_credits, rules, allowed_courses FROM gen_ed_category "
-                        "WHERE catalog_year_id=?", (cy,))]
+            out = []
+            for r in con.execute(
+                    "SELECT name, min_credits, rules, allowed_courses, subcategories "
+                    "FROM gen_ed_category WHERE catalog_year_id=?", (cy,)):
+                cat = {"name": r["name"], "min_credits": r["min_credits"],
+                       "rules": r["rules"],
+                       "allowed_courses": json.loads(r["allowed_courses"] or "[]")}
+                # Present only when the page shows a split — the field's
+                # absence means "no split published", matching the Node reader.
+                if r["subcategories"]:
+                    cat["subcategories"] = json.loads(r["subcategories"])
+                out.append(cat)
+            return out
         finally:
             con.close()
 

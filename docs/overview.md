@@ -274,6 +274,15 @@ Social Sciences, Global Challenges) with minimum credits, allowed courses,
 constraint rules, and learning outcomes. University-wide; does not vary by
 program.
 
+#### `list-courses`
+
+Courses by subject and/or catalog-number range (`MGT`, 3000–4999) from the
+**current course inventory** — the deterministic half of a DegreeWorks-style
+wildcard (`MGT @`, `ACCT 3000:3999`). Course rows are not catalog-year-pinned,
+and the response says so. `get-gen-ed` relatedly serves the published
+Literature / Non-Literature split inside Arts and Humanities as
+`subcategories`.
+
 #### `find-course-in-program`
 
 Every place a course code or subject prefix appears in one program's catalog

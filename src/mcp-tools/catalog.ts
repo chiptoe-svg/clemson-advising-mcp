@@ -4,6 +4,7 @@
 import Database from "better-sqlite3";
 
 import {
+  listGcCourses,
   getGcProgramPlan,
   listGcCatalogYears,
   getGcRequirementRules,
@@ -193,6 +194,9 @@ export const genEd: McpToolDefinition = {
       "6 categories (Communication, Mathematics, Natural Sciences with Lab, " +
       "Arts and Humanities, Social Sciences, Global Challenges) with minimum " +
       "credits, allowed course lists, constraint rules, and student learning outcomes. " +
+      "Arts and Humanities also carries `subcategories` — the published " +
+      "Literature / Non-Literature split, each with its own course list — " +
+      "so LIT vs NONL questions need no guessing. " +
       "Read-only, no login. For major-specific requirements (lab science, " +
       "specialty area, technical) use get-requirement-rules instead. " +
       "General Education is university-wide: `program` is accepted and echoed " +
@@ -722,6 +726,104 @@ export const getCourse: McpToolDefinition = {
   },
 };
 
+/**
+ * list-courses: the deterministic half of a DegreeWorks-style wildcard row
+ * ("MGT @", "ACCT 3000:3999 Except ACCT 4100"). The advisor resolves the
+ * range here and applies Except-lists itself. Reads the CURRENT course
+ * inventory — course rows are not catalog-year-pinned, and the response says
+ * so rather than letting an echoed catalog_year imply otherwise.
+ */
+export const listCourses: McpToolDefinition = {
+  operation: "clemson.list_courses",
+  category: "curriculum-extras",
+  tool: {
+    name: "list-courses",
+    description:
+      "Courses by subject and/or catalog-number range — e.g. subject 'MGT' " +
+      "with number_min 3000 / number_max 4999 lists every MGT 3000-4999 " +
+      "course. The deterministic resolver for DegreeWorks-style wildcards " +
+      "('MGT @', 'ACCT 3000:3999'); apply any 'Except' list on your side. " +
+      "Reads the CURRENT course inventory: rows are not catalog-year-pinned " +
+      "(catalog_year is accepted and echoed, but does not change the " +
+      "result). At least one filter is required. Read-only, no login.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        subject: {
+          type: "string",
+          description: "Subject code, e.g. 'MGT'. Case-insensitive.",
+        },
+        number_min: {
+          type: "integer",
+          description: "Lowest catalog number to include, e.g. 3000.",
+        },
+        number_max: {
+          type: "integer",
+          description: "Highest catalog number to include, e.g. 4999.",
+        },
+        catalog_year: {
+          type: "string",
+          description:
+            "Accepted and echoed for consistency; the course inventory is " +
+            "current-only, so this does not change the result.",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  async handler(args) {
+    try {
+      assertMcpOperation("clemson.list_courses");
+    } catch (e) {
+      return permissionErr(e);
+    }
+    const subject =
+      typeof args.subject === "string" && args.subject.trim() !== ""
+        ? args.subject.trim().toUpperCase()
+        : null;
+    if (subject && !/^[A-Z]{1,6}$/.test(subject))
+      return err("subject must be 1-6 letters, e.g. 'MGT'.");
+    const bound = (v: unknown, name: string): number | null => {
+      if (v === undefined) return null;
+      if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > 9999)
+        throw new Error(`${name} must be an integer 0-9999.`);
+      return v;
+    };
+    let min: number | null, max: number | null;
+    try {
+      min = bound(args.number_min, "number_min");
+      max = bound(args.number_max, "number_max");
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
+    if (min !== null && max !== null && min > max)
+      return err("number_min must not exceed number_max.");
+    if (!subject && min === null && max === null)
+      return err(
+        "Give at least one filter: subject and/or number_min/number_max.",
+      );
+    try {
+      const rows = (await listGcCourses(subject, min, max)) as {
+        code: string;
+      }[];
+      return okJson({
+        count: rows.length,
+        courses: rows,
+        ...(typeof args.catalog_year === "string"
+          ? { catalog_year: args.catalog_year }
+          : {}),
+        scope:
+          "current course inventory — course rows are not catalog-year-pinned",
+        _source: "Clemson University Online Catalog (gc_advisor)",
+      });
+    } catch (e) {
+      return err(
+        `course listing failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  },
+};
+
 registerTools([
   catalogYears,
   programPlan,
@@ -730,4 +832,5 @@ registerTools([
   findCourseInProgram,
   listPrograms,
   getCourse,
+  listCourses,
 ]);

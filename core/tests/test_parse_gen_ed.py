@@ -39,3 +39,43 @@ def test_load_gen_ed_persists_slo(tmp_path, fixtures_dir):
     assert n == len(cats) >= 6
     row = con.execute("SELECT learning_outcome FROM gen_ed_category WHERE name LIKE 'Communication%'").fetchone()
     assert row and "Students will" in (row["learning_outcome"] or "")
+
+
+def test_arts_and_humanities_subcategories(fixtures_dir):
+    cats = _cats(fixtures_dir)
+    ah = next(c for c in cats if "Arts and Humanities" in c.name)
+    assert ah.subcategories, "published Literature/Non-Literature split not parsed"
+    by_name = {s["name"]: s for s in ah.subcategories}
+    assert set(by_name) == {"Literature", "Non-Literature"}
+    assert "ENGL 2120" in by_name["Literature"]["allowed_courses"]
+    assert "PHIL 1010" in by_name["Non-Literature"]["allowed_courses"]
+    assert by_name["Literature"]["min_credits"] == 3
+    # The open-ended sentence is requirement text, not decoration.
+    assert by_name["Literature"].get("note", "").lower().startswith("any 2000-level")
+    # Sub-lists are subsets of the category's own list — a parse that invents
+    # courses the category does not allow is wrong.
+    for s in by_name.values():
+        assert set(s["allowed_courses"]) <= set(ah.allowed_courses)
+    # No split shown for other categories -> None, never [].
+    comm = next(c for c in cats if "Communication" in c.name)
+    assert comm.subcategories is None
+
+
+def test_subcategories_old_format():
+    text = """
+A. Communication: at least 6 credits
+ENGL 1030 - Composition and Rhetoric 3 Credits
+C. Arts and Humanities: at least 6 credits
+Literature 3 credits
+Any 2000-level ENGL literature course or any of the other courses listed
+ENGL 2120 - World Literature 3 Credits
+Non-Literature 3 credits
+PHIL 1010 - Introduction to Philosophic Problems 3 Credits
+D. Social Science: at least 6 credits
+ECON 2110 - Principles of Microeconomics 3 Credits
+"""
+    cats = parse_gen_ed(text)
+    ah = next(c for c in cats if "Arts and Humanities" in c.name)
+    assert ah.subcategories is not None
+    assert [s["name"] for s in ah.subcategories] == ["Literature", "Non-Literature"]
+    assert ah.subcategories[0]["allowed_courses"] == ["ENGL 2120"]
