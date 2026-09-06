@@ -223,8 +223,11 @@ every Banner term snapshot this deployment holds — the raw evidence behind
 "is this a fall-only course?". `observed_terms` lists exactly what was
 observed, so a term with no snapshot is **unknown**, never "not offered"; a
 renamed course keeps its history under its old code. Each course carries a
-`seasons` rollup (offered of observed per fall/spring/summer, last offered
-term) — historical frequency as evidence, never a commitment. Served from a
+`seasons` rollup per fall/spring/summer: the evidence (offered of observed,
+recent window, consecutive misses, last offered term) plus
+`estimated_probability` with a student-communicable label — an era-aware,
+recency-weighted estimate for the next term of that season, clamped away from
+0 and 1 and always shipped beside the numbers it came from. Served from a
 consolidated cache that rebuilds itself whenever the snapshot set changes.
 Batch-shaped. Snapshot.
 

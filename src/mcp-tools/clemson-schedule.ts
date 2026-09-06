@@ -1017,10 +1017,11 @@ const courseOfferings: McpToolDefinition = {
       "observed_terms first: a term absent there was NOT observed, so it is " +
       'UNKNOWN — never "not offered"; a term present there but missing ' +
       "from a course's offerings means the term was observed and the course " +
-      "did not run. Each course also carries a seasons rollup — offered vs " +
-      "observed counts per fall/spring/summer with the last offered term — " +
-      'the evidence behind "will it run next spring?", as historical ' +
-      "frequency, never a commitment. Course codes are matched as published per term, so a " +
+      "did not run. Each course also carries a seasons rollup per " +
+      "fall/spring/summer: the evidence (offered/observed, recent, " +
+      "consecutive_missed, last_offered) plus estimated_probability and a " +
+      'student-communicable label for "will it run next spring?" — an ' +
+      "era-aware recency-weighted estimate, never a commitment. Course codes are matched as published per term, so a " +
       "renamed or retired course keeps its history under its old code. " +
       "Snapshot-backed, read-only, no Banner load.",
     inputSchema: {
@@ -1082,7 +1083,7 @@ const courseOfferings: McpToolDefinition = {
     return okJson({
       observed_terms: observed,
       seasons_note:
-        "seasons = historical frequency over OBSERVED terms only (offered of observed, with the last offered term) — evidence for a likelihood, not a scheduling commitment",
+        "seasons carry BOTH the evidence (offered/observed whole-history, since_first_offered, recent = last 3, consecutive_missed, last_offered) AND estimated_probability with a label — an era-aware, recency-weighted estimate for the NEXT term of that season, clamped away from 0 and 1. Communicate it as an estimate from observed history, never as the registrar's commitment.",
       courses: codes.map((code) => {
         const offerings = perCourse.get(code) ?? [];
         return {

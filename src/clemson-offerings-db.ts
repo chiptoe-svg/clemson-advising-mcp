@@ -155,35 +155,125 @@ const SEASON_OF: Record<string, "spring" | "summer" | "fall"> = {
 };
 
 export interface SeasonRollup {
+  /** Whole observed history — the base fact. */
   offered: number;
   observed: number;
+  /** Denominator starts at the course's first-ever appearance, so a young
+   *  course is not judged by falls that predate its existence. */
+  since_first_offered: { offered: number; observed: number } | null;
+  /** The last 3 observed terms of this season — the is-it-still-alive signal. */
+  recent: { offered: number; observed: number };
   last_offered: string | null;
+  /** Most-recent observed season-terms in a row with no offering (0 = ran
+   *  in the latest observed one) — the retirement signal. */
+  consecutive_missed: number;
+  /** Estimated probability the course runs in the NEXT term of this season:
+   *  exponentially weighted history since first appearance (half-life = 2
+   *  observed season-terms), clamped to [0.05, 0.97]. An estimate from
+   *  observation, never a scheduling commitment; null when the course has
+   *  never been observed anywhere. */
+  estimated_probability: number | null;
+  /** The probability as a student-communicable phrase. */
+  label:
+    | "very likely"
+    | "likely"
+    | "uncertain"
+    | "unlikely"
+    | "very unlikely"
+    | "no basis";
+}
+
+const HALF_LIFE = 2; // observed season-terms
+
+function labelFor(p: number | null): SeasonRollup["label"] {
+  if (p === null) return "no basis";
+  if (p >= 0.9) return "very likely";
+  if (p >= 0.7) return "likely";
+  if (p >= 0.4) return "uncertain";
+  if (p >= 0.15) return "unlikely";
+  return "very unlikely";
 }
 
 /**
- * Historical frequency per season — the evidence a caller turns into a
- * likelihood ("offered in 8 of 9 observed falls"). Derived arithmetic over
- * observed terms only; deliberately NOT a probability field, and never a
- * statement of the registrar's intent.
+ * Per-season offering evidence PLUS a probability estimate (Chip's call,
+ * 2026-09-06: advisors need a number they can communicate to a student).
+ * The estimate is deliberately reproducible arithmetic — an exponentially
+ * weighted frequency over the course's own era, newest season-term weighted
+ * 1, the one before 0.5^(1/HALF_LIFE)... — shipped WITH the evidence it came
+ * from (recent, since_first_offered, consecutive_missed) and clamped away
+ * from 0 and 1 so it can never read as a guarantee. A flat lifetime ratio
+ * was rejected for mixing eras: it made new courses look unreliable and
+ * retired ones look alive.
  */
 export function seasonRollup(
   observed: readonly ObservedTerm[],
   offerings: readonly { term: string; section_count: number }[],
 ): Record<string, SeasonRollup> {
-  const out: Record<string, SeasonRollup> = {};
+  const offeredSet = new Set(offerings.map((o) => o.term));
+  const firstOffered =
+    offerings.length > 0
+      ? offerings.reduce((m, o) => (o.term < m ? o.term : m), offerings[0].term)
+      : null;
+
+  const bySeason = new Map<string, string[]>(); // season -> observed terms asc
   for (const t of observed) {
     const season = SEASON_OF[t.term.slice(4)];
     if (!season) continue;
-    out[season] ??= { offered: 0, observed: 0, last_offered: null };
-    out[season].observed += 1;
+    const list = bySeason.get(season) ?? [];
+    list.push(t.term);
+    bySeason.set(season, list);
   }
-  for (const o of offerings) {
-    const season = SEASON_OF[o.term.slice(4)];
-    if (!season) continue;
-    out[season] ??= { offered: 0, observed: 0, last_offered: null };
-    out[season].offered += 1;
-    if (!out[season].last_offered || o.term > out[season].last_offered!)
-      out[season].last_offered = o.term;
+
+  const out: Record<string, SeasonRollup> = {};
+  for (const [season, terms] of bySeason) {
+    terms.sort();
+    const ran = terms.map((t) => offeredSet.has(t));
+    const offeredCount = ran.filter(Boolean).length;
+    const lastOffered =
+      [...terms].reverse().find((t) => offeredSet.has(t)) ?? null;
+    let missed = 0;
+    for (let i = terms.length - 1; i >= 0 && !ran[i]; i--) missed++;
+    const recentTerms = terms.slice(-3);
+    const recent = {
+      offered: recentTerms.filter((t) => offeredSet.has(t)).length,
+      observed: recentTerms.length,
+    };
+
+    // Era-aware series: observed season-terms since the course first ran
+    // ANYWHERE. Null when the course was never observed at all.
+    let sinceFirst: { offered: number; observed: number } | null = null;
+    let probability: number | null = null;
+    if (firstOffered !== null) {
+      const era = terms.filter((t) => t >= firstOffered);
+      sinceFirst = {
+        offered: era.filter((t) => offeredSet.has(t)).length,
+        observed: era.length,
+      };
+      if (era.length > 0) {
+        let num = 0;
+        let den = 0;
+        // newest gets weight 1; each step back halves per HALF_LIFE terms
+        for (let i = 0; i < era.length; i++) {
+          const back = era.length - 1 - i;
+          const w = Math.pow(0.5, back / HALF_LIFE);
+          den += w;
+          if (offeredSet.has(era[i])) num += w;
+        }
+        probability = Math.min(0.97, Math.max(0.05, num / den));
+        probability = Math.round(probability * 100) / 100;
+      }
+    }
+
+    out[season] = {
+      offered: offeredCount,
+      observed: terms.length,
+      since_first_offered: sinceFirst,
+      recent,
+      last_offered: lastOffered,
+      consecutive_missed: missed,
+      estimated_probability: probability,
+      label: labelFor(probability),
+    };
   }
   return out;
 }

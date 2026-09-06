@@ -77,7 +77,16 @@ async function offerings(courses: string[]) {
       offerings: { term: string; section_count: number }[];
       seasons: Record<
         string,
-        { offered: number; observed: number; last_offered: string | null }
+        {
+          offered: number;
+          observed: number;
+          since_first_offered: { offered: number; observed: number } | null;
+          recent: { offered: number; observed: number };
+          last_offered: string | null;
+          consecutive_missed: number;
+          estimated_probability: number | null;
+          label: string;
+        }
       >;
       note?: string;
     }[];
@@ -124,22 +133,37 @@ test("empty courses is an error, not an empty answer", async () => {
   assert.equal(res.isError, true);
 });
 
-test("seasons rollup is offered-of-observed with last term — likelihood as evidence", async () => {
+test("seasons rollup carries evidence AND an era-aware probability estimate", async () => {
   const b = await offerings(["GC 3400", "MATH 1060"]);
   const gc = b.courses.find((c) => c.code === "GC3400")!;
-  // Two falls observed; GC3400 ran in one (202408). No springs/summers held.
-  assert.deepEqual(gc.seasons.fall, {
-    offered: 1,
-    observed: 2,
-    last_offered: "202408",
-  });
+  // Two falls observed; GC3400 ran in the older one only.
+  const fall = gc.seasons.fall;
+  assert.equal(fall.offered, 1);
+  assert.equal(fall.observed, 2);
+  assert.equal(fall.last_offered, "202408");
+  assert.equal(fall.consecutive_missed, 1);
+  assert.deepEqual(fall.recent, { offered: 1, observed: 2 });
+  assert.deepEqual(fall.since_first_offered, { offered: 1, observed: 2 });
+  // Recency-weighted: the miss is newest (weight 1), the run older (0.707)
+  // -> 0.707/1.707 = 0.41. A flat lifetime ratio would say 0.5.
+  assert.equal(fall.estimated_probability, 0.41);
+  assert.equal(fall.label, "uncertain");
   assert.equal(gc.seasons.spring, undefined);
+
   const math = b.courses.find((c) => c.code === "MATH1060")!;
-  assert.deepEqual(math.seasons.fall, {
-    offered: 2,
-    observed: 2,
-    last_offered: "202608",
-  });
+  // Ran every observed fall — clamped away from 1.0: never a guarantee.
+  assert.equal(math.seasons.fall.estimated_probability, 0.97);
+  assert.equal(math.seasons.fall.label, "very likely");
+  assert.equal(math.seasons.fall.consecutive_missed, 0);
+});
+
+test("a never-observed course has no probability basis — null, not zero", async () => {
+  const b = await offerings(["ARCH 9990"]);
+  const [c] = b.courses;
+  const fall = c.seasons.fall;
+  assert.equal(fall.estimated_probability, null);
+  assert.equal(fall.label, "no basis");
+  assert.equal(fall.since_first_offered, null);
 });
 
 test("the offerings cache absorbs a new snapshot on the next call (fingerprint rebuild)", async () => {
@@ -158,9 +182,10 @@ test("the offerings cache absorbs a new snapshot on the next call (fingerprint r
     ["202408", "202601", "202608"],
   );
   const gc = b.courses[0];
-  assert.deepEqual(gc.seasons.spring, {
-    offered: 1,
-    observed: 1,
-    last_offered: "202601",
-  });
+  const spring = gc.seasons.spring;
+  assert.equal(spring.offered, 1);
+  assert.equal(spring.observed, 1);
+  assert.equal(spring.last_offered, "202601");
+  assert.equal(spring.estimated_probability, 0.97);
+  assert.equal(spring.label, "very likely");
 });
