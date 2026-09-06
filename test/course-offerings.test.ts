@@ -75,6 +75,10 @@ async function offerings(courses: string[]) {
     courses: {
       code: string;
       offerings: { term: string; section_count: number }[];
+      seasons: Record<
+        string,
+        { offered: number; observed: number; last_offered: string | null }
+      >;
       note?: string;
     }[];
   };
@@ -118,4 +122,45 @@ test("garbage codes are an error naming the offenders", async () => {
 test("empty courses is an error, not an empty answer", async () => {
   const res = await __schedTools.courseOfferings.handler({ courses: [] });
   assert.equal(res.isError, true);
+});
+
+test("seasons rollup is offered-of-observed with last term — likelihood as evidence", async () => {
+  const b = await offerings(["GC 3400", "MATH 1060"]);
+  const gc = b.courses.find((c) => c.code === "GC3400")!;
+  // Two falls observed; GC3400 ran in one (202408). No springs/summers held.
+  assert.deepEqual(gc.seasons.fall, {
+    offered: 1,
+    observed: 2,
+    last_offered: "202408",
+  });
+  assert.equal(gc.seasons.spring, undefined);
+  const math = b.courses.find((c) => c.code === "MATH1060")!;
+  assert.deepEqual(math.seasons.fall, {
+    offered: 2,
+    observed: 2,
+    last_offered: "202608",
+  });
+});
+
+test("the offerings cache absorbs a new snapshot on the next call (fingerprint rebuild)", async () => {
+  // A spring term appears AFTER the cache was first built...
+  writeScheduleDb({
+    term: "202601",
+    termDescription: "Spring 2026",
+    fetchedAt: "2026-01-02T05:00:00Z",
+    sectionCount: 1,
+    sections: [section("70001", "GC3400")],
+  });
+  // ...and the very next call sees it, with the season now present.
+  const b = await offerings(["GC 3400"]);
+  assert.deepEqual(
+    b.observed_terms.map((t) => t.term),
+    ["202408", "202601", "202608"],
+  );
+  const gc = b.courses[0];
+  assert.deepEqual(gc.seasons.spring, {
+    offered: 1,
+    observed: 1,
+    last_offered: "202601",
+  });
 });

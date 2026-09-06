@@ -1,10 +1,6 @@
 // src/mcp-tools/clemson-schedule.ts
 // Deterministic schedule-conflict tools backed by the per-term SQLite snapshot.
-import {
-  parseTermCode,
-  resolveTerm,
-  listSnapshotTerms,
-} from "../term-resolve.js";
+import { parseTermCode, resolveTerm } from "../term-resolve.js";
 import {
   openScheduleDb,
   getScheduleDbMeta,
@@ -15,10 +11,15 @@ import {
   findInstructorMeetings,
   teachingLoadRows,
   type TeachingLoadRow,
-  offeringCounts,
   findConflicts,
   type ConflictPair,
 } from "../clemson-schedule-db.js";
+import {
+  openOfferingsDb,
+  observedTerms,
+  offeringsFor,
+  seasonRollup,
+} from "../clemson-offerings-db.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
@@ -995,9 +996,10 @@ const teachingLoad: McpToolDefinition = {
 /**
  * get-course-offerings: when has a course actually RUN, from the per-term
  * Banner snapshots — the raw evidence a graduation planner derives offering
- * patterns from. Deliberately NOT a derived "offered in fall" claim and NOT a
- * copy table: the snapshots are the store, so the daily refresh "appends" by
- * existing, and a second store that could disagree is never created. The
+ * patterns from, served from a consolidated cache (clemson-offerings-db.ts)
+ * that fingerprints the snapshot set and rebuilds itself when it changes —
+ * frozen terms are precomputed, and the cache can never drift because its
+ * source files are immutable once a term ends (Chip, 2026-09-06). The
  * three-state discipline is structural here: observed_terms says exactly
  * which terms were observed, so "no fall snapshot held" is distinguishable
  * from "observed a fall and the course did not run".
@@ -1015,7 +1017,10 @@ const courseOfferings: McpToolDefinition = {
       "observed_terms first: a term absent there was NOT observed, so it is " +
       'UNKNOWN — never "not offered"; a term present there but missing ' +
       "from a course's offerings means the term was observed and the course " +
-      "did not run. Course codes are matched as published per term, so a " +
+      "did not run. Each course also carries a seasons rollup — offered vs " +
+      "observed counts per fall/spring/summer with the last offered term — " +
+      'the evidence behind "will it run next spring?", as historical ' +
+      "frequency, never a commitment. Course codes are matched as published per term, so a " +
       "renamed or retired course keeps its history under its old code. " +
       "Snapshot-backed, read-only, no Banner load.",
     inputSchema: {
@@ -1055,8 +1060,18 @@ const courseOfferings: McpToolDefinition = {
     if (bad.length > 0)
       return err(`Not course codes: ${bad.join(", ")} — e.g. "GC 3400".`);
 
-    const terms = listSnapshotTerms();
-    if (terms.length === 0) {
+    // The consolidated cache: frozen terms precomputed, new snapshots
+    // absorbed on the next open via the fingerprint check.
+    const db = openOfferingsDb();
+    let observed: ReturnType<typeof observedTerms>;
+    let perCourse: ReturnType<typeof offeringsFor>;
+    try {
+      observed = observedTerms(db);
+      perCourse = offeringsFor(db, codes);
+    } finally {
+      db.close();
+    }
+    if (observed.length === 0) {
       return okJson({
         observed_terms: [],
         courses: [],
@@ -1064,37 +1079,16 @@ const courseOfferings: McpToolDefinition = {
           "No term snapshots are held, so NOTHING was observed — this says nothing about any course's offerings.",
       });
     }
-    const observed: { term: string; data_as_of: string | null }[] = [];
-    const perCourse = new Map<
-      string,
-      { term: string; section_count: number }[]
-    >(codes.map((c) => [c, []]));
-    for (const term of terms) {
-      const db = openScheduleDb(term);
-      if (!db) continue; // raced away between listing and open
-      try {
-        let fetchedAt: string | null = null;
-        try {
-          fetchedAt = getScheduleDbMeta(db).fetchedAt;
-        } catch {
-          fetchedAt = null;
-        }
-        observed.push({ term, data_as_of: fetchedAt });
-        const counts = offeringCounts(db, codes);
-        for (const [code, n] of counts) {
-          perCourse.get(code)?.push({ term, section_count: n });
-        }
-      } finally {
-        db.close();
-      }
-    }
     return okJson({
       observed_terms: observed,
+      seasons_note:
+        "seasons = historical frequency over OBSERVED terms only (offered of observed, with the last offered term) — evidence for a likelihood, not a scheduling commitment",
       courses: codes.map((code) => {
         const offerings = perCourse.get(code) ?? [];
         return {
           code,
           offerings,
+          seasons: seasonRollup(observed, offerings),
           ...(offerings.length === 0
             ? {
                 note:

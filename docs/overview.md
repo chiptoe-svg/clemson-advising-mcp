@@ -222,7 +222,11 @@ Which terms each given course actually **ran**, with section counts, from
 every Banner term snapshot this deployment holds — the raw evidence behind
 "is this a fall-only course?". `observed_terms` lists exactly what was
 observed, so a term with no snapshot is **unknown**, never "not offered"; a
-renamed course keeps its history under its old code. Batch-shaped. Snapshot.
+renamed course keeps its history under its old code. Each course carries a
+`seasons` rollup (offered of observed per fall/spring/summer, last offered
+term) — historical frequency as evidence, never a commitment. Served from a
+consolidated cache that rebuilds itself whenever the snapshot set changes.
+Batch-shaped. Snapshot.
 
 #### `get-schedule-freshness`
 
