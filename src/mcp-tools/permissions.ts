@@ -81,6 +81,11 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.teaching_load",
   },
+  // Which terms each course actually ran, from the held snapshots.
+  "clemson.course_offerings": {
+    backend: "external-http",
+    policyActionId: "clemson.course_offerings",
+  },
   "clemson.sections_by_crn": {
     backend: "external-http",
     policyActionId: "clemson.sections_by_crn",
@@ -279,6 +284,7 @@ const CLEMSON_SCHEDULE_OPS = [
   "clemson.resolve_crns",
   "clemson.instructor_classes",
   "clemson.teaching_load",
+  "clemson.course_offerings",
   "clemson.schedule_freshness",
 ];
 
@@ -314,6 +320,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.resolve_crns",
     "clemson.instructor_classes",
     "clemson.teaching_load",
+    "clemson.course_offerings",
     "clemson.gc_catalog_years",
     "clemson.gc_program_plan",
     "clemson.gc_requirement_rules",

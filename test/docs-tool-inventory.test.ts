@@ -93,4 +93,5 @@ const PUBLIC_ONLY = new Set([
   "resolve-crns",
   "get-instructor-classes",
   "get-teaching-load",
+  "get-course-offerings",
 ]);

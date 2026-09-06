@@ -216,6 +216,14 @@ sections only) and/or by instructor. Two measures, never conflated:
 reported in `untimed_sections`, **never** folded into the totals; co-taught
 sections attribute fully to each listed instructor. Snapshot.
 
+#### `get-course-offerings`
+
+Which terms each given course actually **ran**, with section counts, from
+every Banner term snapshot this deployment holds — the raw evidence behind
+"is this a fall-only course?". `observed_terms` lists exactly what was
+observed, so a term with no snapshot is **unknown**, never "not offered"; a
+renamed course keeps its history under its old code. Batch-shaped. Snapshot.
+
 #### `get-schedule-freshness`
 
 When the snapshot for a term was last ingested — the `data as of` behind every

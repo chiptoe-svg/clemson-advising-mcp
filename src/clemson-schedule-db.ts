@@ -767,3 +767,24 @@ export function teachingLoadRows(
     )
     .all(...params) as TeachingLoadRow[];
 }
+
+/**
+ * Section counts per course code for ONE term snapshot — the raw evidence
+ * behind get-course-offerings. Codes are matched spaceless-uppercase, the way
+ * snapshots store subject_course. A code with no rows is simply absent from
+ * the map: "observed and not offered" is derived by the caller from the
+ * term's presence in observed_terms, never invented here.
+ */
+export function offeringCounts(
+  db: Database.Database,
+  codes: readonly string[],
+): Map<string, number> {
+  const phs = codes.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT subject_course, COUNT(*) AS n FROM sections
+        WHERE subject_course IN (${phs}) GROUP BY subject_course`,
+    )
+    .all(...codes) as { subject_course: string; n: number }[];
+  return new Map(rows.map((r) => [r.subject_course, r.n]));
+}

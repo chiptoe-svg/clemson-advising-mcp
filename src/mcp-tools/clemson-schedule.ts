@@ -1,6 +1,10 @@
 // src/mcp-tools/clemson-schedule.ts
 // Deterministic schedule-conflict tools backed by the per-term SQLite snapshot.
-import { parseTermCode, resolveTerm } from "../term-resolve.js";
+import {
+  parseTermCode,
+  resolveTerm,
+  listSnapshotTerms,
+} from "../term-resolve.js";
 import {
   openScheduleDb,
   getScheduleDbMeta,
@@ -11,6 +15,7 @@ import {
   findInstructorMeetings,
   teachingLoadRows,
   type TeachingLoadRow,
+  offeringCounts,
   findConflicts,
   type ConflictPair,
 } from "../clemson-schedule-db.js";
@@ -987,9 +992,129 @@ const teachingLoad: McpToolDefinition = {
   },
 };
 
+/**
+ * get-course-offerings: when has a course actually RUN, from the per-term
+ * Banner snapshots — the raw evidence a graduation planner derives offering
+ * patterns from. Deliberately NOT a derived "offered in fall" claim and NOT a
+ * copy table: the snapshots are the store, so the daily refresh "appends" by
+ * existing, and a second store that could disagree is never created. The
+ * three-state discipline is structural here: observed_terms says exactly
+ * which terms were observed, so "no fall snapshot held" is distinguishable
+ * from "observed a fall and the course did not run".
+ */
+const courseOfferings: McpToolDefinition = {
+  operation: "clemson.course_offerings",
+  category: "scheduling",
+  tool: {
+    name: "get-course-offerings",
+    description:
+      "Which terms each given course actually RAN, with section counts, " +
+      "from every Banner term snapshot this deployment holds — the raw " +
+      'evidence for offering patterns ("is GC 3400 a fall-only course?"). ' +
+      "Batch-shaped: pass every course of a plan at once. Read " +
+      "observed_terms first: a term absent there was NOT observed, so it is " +
+      'UNKNOWN — never "not offered"; a term present there but missing ' +
+      "from a course's offerings means the term was observed and the course " +
+      "did not run. Course codes are matched as published per term, so a " +
+      "renamed or retired course keeps its history under its old code. " +
+      "Snapshot-backed, read-only, no Banner load.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        courses: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            'Course codes, e.g. ["GC 3400", "MATH1060"] — spacing and case ' +
+            "are normalized. Duplicates are collapsed.",
+        },
+      },
+      required: ["courses"],
+      additionalProperties: false,
+    },
+  },
+  async handler(args) {
+    try {
+      assertMcpOperation("clemson.course_offerings");
+    } catch (e) {
+      return permissionErr(e);
+    }
+    const rawList = Array.isArray(args.courses)
+      ? (args.courses as unknown[]).filter(
+          (x): x is string => typeof x === "string" && x.trim() !== "",
+        )
+      : [];
+    if (rawList.length === 0)
+      return err("courses is required and must contain at least one code.");
+    if (rawList.length > 200)
+      return err("At most 200 courses per call — split larger plans.");
+    const codes = [
+      ...new Set(rawList.map((c) => c.replace(/\s+/g, "").toUpperCase())),
+    ];
+    const bad = codes.filter((c) => !/^[A-Z]{1,6}\d{3,4}$/.test(c));
+    if (bad.length > 0)
+      return err(`Not course codes: ${bad.join(", ")} — e.g. "GC 3400".`);
+
+    const terms = listSnapshotTerms();
+    if (terms.length === 0) {
+      return okJson({
+        observed_terms: [],
+        courses: [],
+        _note:
+          "No term snapshots are held, so NOTHING was observed — this says nothing about any course's offerings.",
+      });
+    }
+    const observed: { term: string; data_as_of: string | null }[] = [];
+    const perCourse = new Map<
+      string,
+      { term: string; section_count: number }[]
+    >(codes.map((c) => [c, []]));
+    for (const term of terms) {
+      const db = openScheduleDb(term);
+      if (!db) continue; // raced away between listing and open
+      try {
+        let fetchedAt: string | null = null;
+        try {
+          fetchedAt = getScheduleDbMeta(db).fetchedAt;
+        } catch {
+          fetchedAt = null;
+        }
+        observed.push({ term, data_as_of: fetchedAt });
+        const counts = offeringCounts(db, codes);
+        for (const [code, n] of counts) {
+          perCourse.get(code)?.push({ term, section_count: n });
+        }
+      } finally {
+        db.close();
+      }
+    }
+    return okJson({
+      observed_terms: observed,
+      courses: codes.map((code) => {
+        const offerings = perCourse.get(code) ?? [];
+        return {
+          code,
+          offerings,
+          ...(offerings.length === 0
+            ? {
+                note:
+                  "Not seen in ANY held snapshot. Check observed_terms for " +
+                  "coverage — a term with no snapshot is unknown, not " +
+                  '"not offered".',
+              }
+            : {}),
+        };
+      }),
+      _source:
+        "Banner term snapshots held by this deployment — observed sections only, not a statement of intent",
+    });
+  },
+};
+
 export const __schedTools = {
   instructorClasses,
   teachingLoad,
+  courseOfferings,
   findConflictFree,
   scheduleFreshness,
   sectionsByCrn,
@@ -1003,4 +1128,5 @@ registerTools([
   resolveCrnsTool,
   instructorClasses,
   teachingLoad,
+  courseOfferings,
 ]);
