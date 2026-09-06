@@ -109,7 +109,7 @@ list, so "what else could be configured here?" has an answer that is not a grep.
 | `MCP_SCHEDULE_AUTH_TOKEN` / `MCP_CATALOG_AUTH_TOKEN` | unset                          | Optional shared fallback token per server (§2, Tokens)                                                  |
 | `MCP_TRUSTED_PROXIES`                                | loopback                       | Whose `X-Forwarded-For` is believed                                                                     |
 | **Rarely set**                                       |                                |                                                                                                         |
-| `MCP_CONSUMER_RATE_LIMIT`                            | `600`                          | Per-credential requests/minute. Garbage falls back to the default rather than disabling the limit       |
+| `MCP_CONSUMER_RATE_LIMIT`                            | `600`                          | Per-credential requests/minute. Garbage falls back to the default rather than disabling the limit. Counts HTTP requests, not tool calls: a client opening a fresh MCP session per call spends ~4 requests per call       |
 | `MCP_USAGE_ANALYTICS`                                | on                             | `off` disables the usage ledger. The test suite sets it                                                 |
 | `MCP_ANALYTICS_DIR`                                  | `$STATE_DIR/analytics`         | Where the ledger is written                                                                             |
 | `STATE_DIR`                                          | `./state`                      | Snapshots, registries, ledger                                                                           |

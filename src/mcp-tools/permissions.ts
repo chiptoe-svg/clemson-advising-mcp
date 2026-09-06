@@ -61,6 +61,13 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.course_details",
   },
+  // Batch catalog facts (credits, prereq/coreq text + parse) for many courses
+  // — the per-course get-course-details loop collapsed into one read so a
+  // planner page build costs one call, not ~150 (2026-09-06).
+  "clemson.course_facts": {
+    backend: "external-http",
+    policyActionId: "clemson.course_facts",
+  },
   // Authoritative section rows by CRN from the term snapshot. Added
   // 2026-08-28 so the advisor's host-side check that a model-proposed CRN is
   // real can run over MCP instead of opening state/clemson/<term>.db directly.
@@ -279,6 +286,7 @@ const CLEMSON_SCHEDULE_OPS = [
   "clemson.find_alternatives",
   "clemson.check_conflicts",
   "clemson.course_details",
+  "clemson.course_facts",
   "clemson.find_conflict_free_schedule",
   "clemson.sections_by_crn",
   "clemson.resolve_crns",
@@ -315,6 +323,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.find_alternatives",
     "clemson.check_conflicts",
     "clemson.course_details",
+    "clemson.course_facts",
     "clemson.find_conflict_free_schedule",
     "clemson.sections_by_crn",
     "clemson.resolve_crns",

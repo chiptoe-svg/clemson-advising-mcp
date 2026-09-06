@@ -61,7 +61,7 @@ restarted, revoked, or taken down without touching the other.
 ### Tool inventory
 
 **Schedule (8766)** — `list-clemson-terms`, `search-classes`, `get-course-details`,
-`check-conflicts`, `find-conflict-free-schedule`, `find-alternatives`,
+`get-course-facts`, `check-conflicts`, `find-conflict-free-schedule`, `find-alternatives`,
 `get-schedule-freshness`, `get-sections-by-crn`, `resolve-crns`,
 `get-instructor-classes`, `get-teaching-load`, `get-course-offerings`, `list-skills`,
 `get-skill-docs`
@@ -144,7 +144,8 @@ entry points        mcp-schedule.ts, mcp-catalog.ts
   tool barrels      mcp-tools/index-schedule.ts  side-effect imports that register schedule tools
                     mcp-tools/index-catalog.ts  … and catalog tools
   schedule tools    mcp-tools/core-search.ts   search-classes, get-course-details,
-                                               check-conflicts, find-alternatives
+                                               get-course-facts, check-conflicts,
+                                               find-alternatives
                     mcp-tools/clemson-schedule.ts  freshness, conflict-free, CRN lookup
                     mcp-tools/clemson-classes.ts   list-clemson-terms, result compaction
                     mcp-tools/section-query.ts     shared section filtering

@@ -159,6 +159,17 @@ Corequisites come from the catalog's structured field; a course with none
 listed returns an empty list rather than an inferred one. Not a search. Live
 (reads Banner).
 
+#### `get-course-facts`
+
+Catalog facts for **many** courses in one call — credits, title, prerequisite
+text and parse, corequisite parse, and the structured `coreqs` pairing — the
+per-course `get-course-details` loop a degree audit used to need, collapsed
+into one read (up to 200 codes, normalized and deduplicated). Three-state per
+entry: `found: true` with the facts; `found: false` when the published catalog
+has no such course — a data absence, never an outage, because an unavailable
+catalog fails the whole call loudly. Current course inventory, not
+catalog-year-pinned. Catalog database; no Banner load.
+
 #### `check-conflicts`
 
 Which CRNs in a set have time conflicts, pair by pair. Optional

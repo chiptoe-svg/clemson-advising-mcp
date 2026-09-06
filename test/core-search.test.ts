@@ -27,6 +27,8 @@ const {
   checkConflicts,
   getCourseDetails,
   makeGetCourseDetails,
+  makeGetCourseFacts,
+  getCourseFacts,
   makeSearchClasses,
 } = await import("../src/mcp-tools/core-search.ts");
 const { toolsForScope } = await import("../src/mcp-tools/server.ts");
@@ -658,4 +660,106 @@ test("get-course-details: course_code with no coreq omits the coreqs field", asy
   const body = json(res);
   assert.equal(body.code, "GC 3010");
   assert.equal("coreqs" in body, false);
+});
+
+// ---------------------------------------------------------------------------
+// get-course-facts: batch catalog facts (injected deps)
+// ---------------------------------------------------------------------------
+
+test("get-course-facts is registered and passes policy", () => {
+  assert.equal(getCourseFacts.tool.name, "get-course-facts");
+  const names = toolsForScope(allExposedOperations()).map((t) => t.name);
+  assert.ok(names.includes("get-course-facts"));
+});
+
+test("get-course-facts: found true/false mix, normalization, dedupe, projection", async () => {
+  const calls: string[] = [];
+  const tool = makeGetCourseFacts({
+    getGcCourse: async (code: string) => {
+      calls.push(code);
+      if (code === "GC 3010")
+        return {
+          code,
+          title: "T",
+          credits: "3",
+          prereq_text: "GC 1010",
+          prereq_parsed: '["GC 1010"]',
+          coreq_parsed: null,
+          description: "long prose that the batch read must NOT serve",
+        };
+      return null;
+    },
+    findCoreqs: () => [],
+  });
+  const res = await tool.handler({
+    courses: ["gc3010", "GC 3010", " gc  3010 ", "ABCD 9999"],
+  });
+  const body = json(res);
+  assert.deepEqual(calls, ["GC 3010", "ABCD 9999"]);
+  const list = body.courses as Array<Record<string, unknown>>;
+  assert.equal(list.length, 2);
+  assert.deepEqual(list[0], {
+    code: "GC 3010",
+    found: true,
+    title: "T",
+    credits: "3",
+    prereq_text: "GC 1010",
+    prereq_parsed: '["GC 1010"]',
+    coreq_parsed: null,
+  });
+  assert.deepEqual(list[1], { code: "ABCD 9999", found: false });
+});
+
+test("get-course-facts: junk that is not a course code fails the whole call", async () => {
+  const tool = makeGetCourseFacts({
+    getGcCourse: async () => null,
+    findCoreqs: () => [],
+  });
+  const res = await tool.handler({ courses: ["GC 3010", "not-a-code"] });
+  assert.match(errText(res), /Not course codes: not-a-code/);
+});
+
+test("get-course-facts: empty and oversized batches are refused", async () => {
+  const tool = makeGetCourseFacts({
+    getGcCourse: async () => null,
+    findCoreqs: () => [],
+  });
+  assert.match(errText(await tool.handler({ courses: [] })), /at least one/);
+  const many = Array.from({ length: 201 }, (_, i) => `GC ${1000 + i}`);
+  assert.match(errText(await tool.handler({ courses: many })), /At most 200/);
+});
+
+test("get-course-facts: coreqs attach only when the pairing is non-empty", async () => {
+  const tool = makeGetCourseFacts({
+    getGcCourse: async (code: string) => ({ code, title: null, credits: "3" }),
+    findCoreqs: (code: string) =>
+      code === "GC 4060"
+        ? [
+            {
+              code: "GC 4061",
+              title: "Lab",
+              credits: "0",
+              relationship: "required non-credit lab (coreq)",
+              source: "catalog_coreq" as const,
+            },
+          ]
+        : [],
+  });
+  const body = json(await tool.handler({ courses: ["GC 4060", "GC 3010"] }));
+  const [a, b] = body.courses as Array<Record<string, unknown>>;
+  assert.ok(Array.isArray(a.coreqs) && (a.coreqs as unknown[]).length === 1);
+  assert.ok(!("coreqs" in b));
+});
+
+test("get-course-facts: a thrown catalog read fails the whole call loudly", async () => {
+  const tool = makeGetCourseFacts({
+    getGcCourse: async () => {
+      throw new Error("catalog.db unreadable");
+    },
+    findCoreqs: () => [],
+  });
+  assert.match(
+    errText(await tool.handler({ courses: ["GC 3010"] })),
+    /catalog\.db unreadable/,
+  );
 });

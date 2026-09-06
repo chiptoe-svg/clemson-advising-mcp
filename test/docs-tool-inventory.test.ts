@@ -87,6 +87,7 @@ const PUBLIC_ONLY = new Set([
   "find-alternatives",
   "check-conflicts",
   "get-course-details",
+  "get-course-facts",
   "find-conflict-free-schedule",
   "get-schedule-freshness",
   "get-sections-by-crn",

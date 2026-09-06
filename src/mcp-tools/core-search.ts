@@ -22,6 +22,7 @@ import {
   type ClemsonSection,
 } from "../clemson-classes.js";
 import { getGcCourse as getGcCourseLive } from "../gc-curriculum.js";
+import { normalizeCourseCode } from "../catalog-read.js";
 import { findCoreqs as findCoreqsLive } from "./gc-coreqs.js";
 import Database from "better-sqlite3";
 import {
@@ -640,10 +641,142 @@ export function makeGetCourseDetails(
 export const getCourseDetails: McpToolDefinition = makeGetCourseDetails();
 
 // ---------------------------------------------------------------------------
+// get-course-facts — the get-course-details catalog fields, batch-shaped.
+// Born from a real outage shape (Cob_advisor, 2026-09-06): a graduation-
+// planner page build fetched facts for ~150 courses one get-course-details
+// call at a time, and its session-per-call client burned ~4 HTTP requests per
+// course — one page build spent the consumer's whole 600/min budget in its
+// first second. The fix is not a higher ceiling; it is one read per plan.
+// ---------------------------------------------------------------------------
+
+const GET_COURSE_FACTS_DESCRIPTION =
+  "Catalog facts for MANY courses in one call (up to 200 codes, normalized, " +
+  "duplicates collapsed): credits, title, prereq_text, prereq_parsed, " +
+  "coreq_parsed, and the structured coreqs pairing — the get-course-details " +
+  "catalog fields a degree audit needs, batch-shaped: pass every course of " +
+  "a plan at once. Three-state per entry: found true with the facts; found " +
+  "false when the published catalog has no such course (a data absence, " +
+  "NEVER an outage — an unavailable catalog fails the whole call loudly). " +
+  "No sections, seats, or offering history — use search-classes / " +
+  "get-course-offerings for those. Each entry in coreqs comes from the " +
+  "catalog's structured corequisite field; a course with none listed has no " +
+  "coreqs field — do not infer one.";
+
+/** Injectable for tests — defaults to the real catalog lookups. */
+export interface GetCourseFactsDeps {
+  getGcCourse: typeof getGcCourseLive;
+  findCoreqs: typeof findCoreqsLive;
+}
+
+export function makeGetCourseFacts(
+  deps: Partial<GetCourseFactsDeps> = {},
+): McpToolDefinition {
+  const getCourse = deps.getGcCourse ?? getGcCourseLive;
+  const findCoreqs = deps.findCoreqs ?? findCoreqsLive;
+  return {
+    operation: "clemson.course_facts",
+    category: "core",
+    tool: {
+      name: "get-course-facts",
+      description: GET_COURSE_FACTS_DESCRIPTION,
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          courses: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              'Course codes, e.g. ["GC 3400", "pksc2200"] — spacing and ' +
+              "case are normalized. Duplicates are collapsed. At most 200.",
+          },
+        },
+        required: ["courses"],
+        additionalProperties: false,
+      },
+    },
+    async handler(args) {
+      try {
+        assertMcpOperation("clemson.course_facts");
+      } catch (e) {
+        return permissionErr(e);
+      }
+      const rawList = Array.isArray(args.courses)
+        ? (args.courses as unknown[]).filter(
+            (x): x is string => typeof x === "string" && x.trim() !== "",
+          )
+        : [];
+      if (rawList.length === 0)
+        return err("courses is required and must contain at least one code.");
+      if (rawList.length > 200)
+        return err("At most 200 courses per call — split larger plans.");
+      // Junk fails as junk, not as a miss: a string that is not a course code
+      // errors the call, while a WELL-FORMED code the catalog lacks comes back
+      // found:false — same absence-vs-garbage split as get-course-offerings.
+      const bad: string[] = [];
+      const codes: string[] = [];
+      const seen = new Set<string>();
+      for (const raw of rawList) {
+        const norm = normalizeCourseCode(raw);
+        if (!norm) {
+          bad.push(raw);
+          continue;
+        }
+        if (!seen.has(norm)) {
+          seen.add(norm);
+          codes.push(norm);
+        }
+      }
+      if (bad.length > 0)
+        return err(`Not course codes: ${bad.join(", ")} — e.g. "GC 3400".`);
+      try {
+        const courses: Record<string, unknown>[] = [];
+        for (const code of codes) {
+          const c = (await getCourse(code)) as Record<string, unknown> | null;
+          if (c === null || c === undefined) {
+            courses.push({ code, found: false });
+            continue;
+          }
+          const entry: Record<string, unknown> = {
+            code,
+            found: true,
+            title: c.title ?? null,
+            credits: c.credits ?? null,
+            prereq_text: c.prereq_text ?? null,
+            prereq_parsed: c.prereq_parsed ?? null,
+            coreq_parsed: c.coreq_parsed ?? null,
+          };
+          // Same convention as get-course-details: absent means "none listed".
+          const coreqs = findCoreqs(code);
+          if (coreqs.length > 0) entry.coreqs = coreqs;
+          courses.push(entry);
+        }
+        return okJson({
+          courses,
+          _note:
+            '"found": false means the published catalog has no such course ' +
+            "code — a data absence, never an outage; an unavailable catalog " +
+            "fails this whole call with an error instead.",
+          _source:
+            "published Clemson catalog — current course inventory, not " +
+            "catalog-year-pinned",
+        });
+      } catch (e) {
+        return err(
+          `Catalog lookup failed: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    },
+  };
+}
+
+export const getCourseFacts: McpToolDefinition = makeGetCourseFacts();
+
+// ---------------------------------------------------------------------------
 
 registerTools([
   searchClasses,
   findAlternatives,
   checkConflicts,
   getCourseDetails,
+  getCourseFacts,
 ]);
