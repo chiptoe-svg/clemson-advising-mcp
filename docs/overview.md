@@ -47,10 +47,13 @@ published but not yet opened for registration is captured from day one), and
 sweeps each: pages of 500 sections, capped at 40 pages, 200–400 ms between
 requests, 1 s between terms, at most three attempts, `Connection: close` on
 every request so Banner's load balancer pins the session correctly, and a
-`User-Agent` naming this service and repository. Today that is seven terms and
-about 21,000 sections in under three minutes. A sweep that does not complete is
-discarded; the previous snapshot stays in place and the job reports `FAILED`
-for that term.
+`User-Agent` naming this service and repository. Today that is the live terms
+(currently six, about 20,000 sections) in under three minutes. A sweep that
+does not complete is discarded; the previous snapshot stays in place and the
+job reports `FAILED` for that term. Alongside the live terms, **34 term
+snapshots are held in total — every fall, spring, and summer back to Spring
+2016** (one-time backfill, 2026-09-06): past terms never change, so they are
+never re-swept, and they feed `get-course-offerings`' history.
 
 **Rest.** One SQLite file per term under `state/clemson/`, written atomically
 (temp file, then rename) so a reader never sees a half-written snapshot. Four

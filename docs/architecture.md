@@ -174,10 +174,10 @@ public server does not depend on it at all.
 | Artifact                  | Size                    | Origin                                                           | In git? |
 | ------------------------- | ----------------------- | ---------------------------------------------------------------- | ------- |
 | `core/db/catalog.db`      | ~5.7 MB                 | built by `core/scripts/rebuild_db.sh` from the published catalog | no      |
-| `state/clemson/<term>.db` | ~3 MB × 7 terms = 21 MB | daily Banner refresh, 05:00                                      | no      |
+| `state/clemson/<term>.db` | ~3 MB × 34 terms = ~100 MB | daily refresh (live terms); one-time backfill to Spring 2016 | no      |
 
-Total working set **~27 MB** — small enough that the OS page cache holds all of
-it after the first read. This matters for the throughput figures in `capacity.md`.
+Total working set **~110 MB** — still small enough that the OS page
+cache holds all of it after the first read. This matters for the throughput figures in `capacity.md`.
 
 ---
 
