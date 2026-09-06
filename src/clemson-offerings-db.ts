@@ -180,7 +180,12 @@ export interface SeasonRollup {
     | "uncertain"
     | "unlikely"
     | "very unlikely"
-    | "no basis";
+    | "no basis"
+    // Overrides applied by the tool layer when a RECORDED DECISION exists
+    // (offering-decisions.ts) — the decision, not the estimate, is then the
+    // student-facing answer:
+    | "ruled out"
+    | "confirmed";
 }
 
 const HALF_LIFE = 2; // observed season-terms

@@ -230,7 +230,10 @@ renamed course keeps its history under its old code. Each course carries a
 recent window, consecutive misses, last offered term) plus
 `estimated_probability` with a student-communicable label — an era-aware,
 recency-weighted estimate for the next term of that season, clamped away from
-0 and 1 and always shipped beside the numbers it came from. Served from a
+0 and 1 and always shipped beside the numbers it came from. A **recorded
+departmental decision** (a third provenance, kept outside both the snapshots
+and the catalog) overrides the estimate where one exists: the season carries
+`known_decision` and its label reads `ruled out` or `confirmed`. Served from a
 consolidated cache that rebuilds itself whenever the snapshot set changes.
 Batch-shaped. Snapshot.
 

@@ -72,6 +72,7 @@ async function offerings(courses: string[]) {
   assert.equal(res.isError, undefined, JSON.stringify(res.content?.[0]));
   return JSON.parse((res.content[0] as { text: string }).text) as {
     observed_terms: { term: string; data_as_of: string | null }[];
+    seasons_note?: string;
     courses: {
       code: string;
       offerings: { term: string; section_count: number }[];
@@ -188,4 +189,80 @@ test("the offerings cache absorbs a new snapshot on the next call (fingerprint r
   assert.equal(spring.last_offered, "202601");
   assert.equal(spring.estimated_probability, 0.97);
   assert.equal(spring.label, "very likely");
+});
+
+// --- recorded decisions: the third provenance overrides the estimate --------
+
+const DECISIONS_PATH = path.join(STATE, "offering-decisions.yaml");
+
+test("a recorded decision overrides the label and rides as known_decision", async () => {
+  fs.writeFileSync(
+    DECISIONS_PATH,
+    [
+      "decisions:",
+      '  - course: "GC 3400"',
+      "    expect: not_offered",
+      "    seasons: [fall]",
+      '    note: "discontinued in falls"',
+      '    source: "dept chair"',
+      "    recorded: 2026-09-06",
+    ].join("\n"),
+  );
+  const b = await offerings(["GC 3400"]);
+  const fall = b.courses[0].seasons.fall as typeof b.courses[0].seasons.fall & {
+    known_decision?: { expect: string; note?: string; source?: string };
+  };
+  assert.equal(fall.label, "ruled out");
+  assert.equal(fall.known_decision?.expect, "not_offered");
+  assert.equal(fall.known_decision?.source, "dept chair");
+  // The estimate stays visible as evidence — overridden, not erased.
+  assert.notEqual(fall.estimated_probability, null);
+  // Other seasons untouched.
+  assert.notEqual(b.courses[0].seasons.spring.label, "ruled out");
+  assert.match(String(b.seasons_note ?? ""), /known_decision/);
+});
+
+test("a decision about a season with no observed history still surfaces", async () => {
+  fs.writeFileSync(
+    DECISIONS_PATH,
+    'decisions:\n  - course: "GC 3400"\n    expect: offered\n    seasons: [summer]\n',
+  );
+  const b = await offerings(["GC 3400"]);
+  // No summers are held in this fixture — the decision creates the entry.
+  const summer = b.courses[0].seasons.summer as {
+    label: string;
+    estimated_probability: number | null;
+    known_decision?: { expect: string };
+  };
+  assert.equal(summer.label, "confirmed");
+  assert.equal(summer.estimated_probability, null);
+  assert.equal(summer.known_decision?.expect, "offered");
+});
+
+test("an unreadable decisions file is an ERROR, never estimates that ignore it", async () => {
+  fs.writeFileSync(DECISIONS_PATH, "decisions: [unclosed");
+  const res = await __schedTools.courseOfferings.handler({
+    courses: ["GC 3400"],
+  });
+  assert.equal(res.isError, true);
+  assert.match((res.content[0] as { text: string }).text, /unreadable/);
+});
+
+test("a malformed entry names itself in the error", async () => {
+  fs.writeFileSync(
+    DECISIONS_PATH,
+    'decisions:\n  - course: "GC 3400"\n    expect: maybe\n    seasons: [fall]\n',
+  );
+  const res = await __schedTools.courseOfferings.handler({
+    courses: ["GC 3400"],
+  });
+  assert.equal(res.isError, true);
+  assert.match((res.content[0] as { text: string }).text, /expect/);
+});
+
+test("removing the file removes the overrides — absent is a true absence", async () => {
+  fs.unlinkSync(DECISIONS_PATH);
+  const b = await offerings(["GC 3400"]);
+  const fall = b.courses[0].seasons.fall as { known_decision?: unknown };
+  assert.equal(fall.known_decision, undefined);
 });

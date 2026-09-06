@@ -19,7 +19,13 @@ import {
   observedTerms,
   offeringsFor,
   seasonRollup,
+  type SeasonRollup,
 } from "../clemson-offerings-db.js";
+import {
+  loadOfferingDecisions,
+  decisionFor,
+  type OfferingDecision,
+} from "../offering-decisions.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
@@ -1004,6 +1010,42 @@ const teachingLoad: McpToolDefinition = {
  * which terms were observed, so "no fall snapshot held" is distinguishable
  * from "observed a fall and the course did not run".
  */
+/**
+ * Layer recorded decisions over the observed-history rollup. The decision
+ * OVERRIDES the label ("ruled out" / "confirmed") while the estimate stays
+ * visible as evidence; a decision about a season with no observed history
+ * still surfaces, on an explicit empty rollup rather than not at all.
+ */
+function applyDecisions(
+  seasons: Record<string, SeasonRollup>,
+  decisions: OfferingDecision[] | undefined,
+): Record<string, SeasonRollup & { known_decision?: unknown }> {
+  if (!decisions || decisions.length === 0) return seasons;
+  const out: Record<string, SeasonRollup & { known_decision?: unknown }> = {
+    ...seasons,
+  };
+  for (const season of ["spring", "summer", "fall"]) {
+    const kd = decisionFor(decisions, season);
+    if (!kd) continue;
+    const base: SeasonRollup = out[season] ?? {
+      offered: 0,
+      observed: 0,
+      since_first_offered: null,
+      recent: { offered: 0, observed: 0 },
+      last_offered: null,
+      consecutive_missed: 0,
+      estimated_probability: null,
+      label: "no basis",
+    };
+    out[season] = {
+      ...base,
+      label: kd.expect === "not_offered" ? "ruled out" : "confirmed",
+      known_decision: kd,
+    };
+  }
+  return out;
+}
+
 const courseOfferings: McpToolDefinition = {
   operation: "clemson.course_offerings",
   category: "scheduling",
@@ -1021,7 +1063,7 @@ const courseOfferings: McpToolDefinition = {
       "fall/spring/summer: the evidence (offered/observed, recent, " +
       "consecutive_missed, last_offered) plus estimated_probability and a " +
       'student-communicable label for "will it run next spring?" — an ' +
-      "era-aware recency-weighted estimate, never a commitment. Course codes are matched as published per term, so a " +
+      "era-aware recency-weighted estimate, never a commitment — unless a season carries known_decision, a RECORDED departmental decision that overrides the estimate (label: ruled out / confirmed). Course codes are matched as published per term, so a " +
       "renamed or retired course keeps its history under its old code. " +
       "Snapshot-backed, read-only, no Banner load.",
     inputSchema: {
@@ -1061,6 +1103,15 @@ const courseOfferings: McpToolDefinition = {
     if (bad.length > 0)
       return err(`Not course codes: ${bad.join(", ")} — e.g. "GC 3400".`);
 
+    // Recorded decisions (state/offering-decisions.yaml): the third
+    // provenance. Unreadable is an ERROR — an estimate that silently ignores
+    // a recorded decision is the silence defect with a probability on it.
+    let decisions: Map<string, OfferingDecision[]>;
+    try {
+      decisions = loadOfferingDecisions();
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
     // The consolidated cache: frozen terms precomputed, new snapshots
     // absorbed on the next open via the fingerprint check.
     const db = openOfferingsDb();
@@ -1083,13 +1134,16 @@ const courseOfferings: McpToolDefinition = {
     return okJson({
       observed_terms: observed,
       seasons_note:
-        "seasons carry BOTH the evidence (offered/observed whole-history, since_first_offered, recent = last 3, consecutive_missed, last_offered) AND estimated_probability with a label — an era-aware, recency-weighted estimate for the NEXT term of that season, clamped away from 0 and 1. Communicate it as an estimate from observed history, never as the registrar's commitment.",
+        "seasons carry BOTH the evidence (offered/observed whole-history, since_first_offered, recent = last 3, consecutive_missed, last_offered) AND estimated_probability with a label — an era-aware, recency-weighted estimate for the NEXT term of that season, clamped away from 0 and 1. Communicate it as an estimate from observed history, never as the registrar's commitment. EXCEPTION: a season carrying known_decision is a RECORDED DECISION and overrides the estimate — its label reads 'ruled out' or 'confirmed', and that, not the probability, is the answer to give.",
       courses: codes.map((code) => {
         const offerings = perCourse.get(code) ?? [];
         return {
           code,
           offerings,
-          seasons: seasonRollup(observed, offerings),
+          seasons: applyDecisions(
+            seasonRollup(observed, offerings),
+            decisions.get(code),
+          ),
           ...(offerings.length === 0
             ? {
                 note:
