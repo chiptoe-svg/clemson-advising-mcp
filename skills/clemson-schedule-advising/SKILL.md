@@ -103,6 +103,19 @@ term (names, emails, load); `get-department-rules { department }` `.faculty` is
 the official roster. The set difference is the answer. Two calls — never page
 `search-classes` per course number for this.
 
+**"What 3000/4000-level courses ran in <term>?" — do NOT reach for search-classes**
+There is NO way to express a level range on `search-classes`: `course_number`
+is an EXACT match, so `subject: GC` is the only option, and that truncates —
+which is precisely how a model once answered "Summer 2026 had two GC 4000-level
+offerings" when eighteen sections ran. Cross the two servers instead, in two
+calls that cannot truncate:
+`list-courses { subject: "GC", number_min: 4000, number_max: 4999 }` (catalog)
+→ `get-course-enrollment-history { courses: <those codes>, terms: [<term>] }`
+(schedule; use `get-course-offerings` if you only need whether it ran). The
+first gives every catalogued course at that level, the second says which
+actually ran, how many sections, and how full. The same shape answers "every
+course in a subject" — never page `search-classes` for inventory questions.
+
 **Full advising session**
 `get-program-plan` (identify open slots) → `get-requirement-rules`
 (explicit courses and slot names for those slots) → `find-requirement-sections`
