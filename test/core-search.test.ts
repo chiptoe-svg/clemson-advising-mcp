@@ -197,19 +197,19 @@ test("search-classes: description names the discriminator and both siblings", ()
   assert.match(desc, /subject and\/or course number/);
   assert.match(desc, /check-conflicts/);
   assert.match(desc, /find-alternatives/);
-  assert.match(
-    desc,
-    /top sections by open seats plus a needsNarrowing summary/,
-  );
+  // The description must warn about the cut, not merely mention it: a page
+  // ordered by open seats was reported as a complete course list (2026-09-08).
+  assert.match(desc, /top sections by open seats/);
+  assert.match(desc, /truncated/);
+  assert.match(desc, /emptiest/);
+  assert.match(desc, /part_of_term/);
 });
 
 test("find-alternatives: description names current_crns as required", () => {
   const desc = findAlternatives.tool.description ?? "";
   assert.match(desc, /Requires current_crns/);
-  assert.match(
-    desc,
-    /top sections by open seats plus a needsNarrowing summary/,
-  );
+  assert.match(desc, /top sections by open seats/);
+  assert.match(desc, /truncated/);
   assert.match(desc, /show a few, don't ask first/);
 });
 

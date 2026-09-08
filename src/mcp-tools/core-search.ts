@@ -57,7 +57,13 @@ const SEARCH_CLASSES_DESCRIPTION =
   "open_seats_only. Term is optional — defaults to the current registration term; " +
   "accepts names like 'Spring 2027' or codes. Do NOT use this to check conflicts " +
   "(check-conflicts) or to find what fits an existing schedule (find-alternatives). " +
-  "Large result sets return the top sections by open seats plus a needsNarrowing summary.";
+  "A result too large to list is CUT: it returns the top sections by open " +
+  "seats plus a `truncated` block that states the cut in words. Never answer " +
+  '"what was offered" or "how many" from a truncated page — those sections ' +
+  "are the emptiest ones, not a sample; narrow the query or page with " +
+  'offset. Sections carry part_of_term verbatim ("1" full term, "H1"/' +
+  '\"H2\" Summer 1/2, \"MMA\"..\"MMD\" mini-mesters; null on snapshots ' +
+  "taken before 2026-09-08).";
 
 const FIND_ALTERNATIVES_DESCRIPTION =
   "Find sections that fit around a student's existing schedule without time " +
@@ -66,7 +72,8 @@ const FIND_ALTERNATIVES_DESCRIPTION =
   "open_seats_only. Returns options ready to present side by side. Term is " +
   "optional — defaults to the current registration term. When many fit, the " +
   "response contains the top sections by open seats plus a needsNarrowing " +
-  "summary — show a few, don't ask first.";
+  "summary and a `truncated` block — show a few, don't ask first, but do not " +
+  "report the page as the complete set of what fits.";
 
 const CHECK_CONFLICTS_DESCRIPTION =
   "Check which CRNs in a schedule have time conflicts, pair by pair. Optional " +
@@ -131,6 +138,9 @@ function toEngineSections(sections: ClemsonSection[]): EngineSection[] {
   return sections.map((s) => ({
     crn: s.crn,
     subjectCourse: s.subjectCourse,
+    // Live Banner results carry it too, so a refresh:true page reports the
+    // same session codes as a snapshot page.
+    partOfTerm: s.partOfTerm ?? null,
     title: s.title,
     creditHours: s.creditHours,
     enrollment: s.enrollment,

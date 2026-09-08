@@ -59,6 +59,17 @@ export interface ClemsonSection {
   campus: string | null;
   scheduleType: string | null;
   instructionalMethod: string | null;
+  /**
+   * Banner's part-of-term code: "1" = full term, "H1"/"H2" = first/second half
+   * (Summer 1 and Summer 2), "MMA".."MMD" = the short mini-mester sessions.
+   * Summer 2026 splits 771 / 300 / 400 / 29 across those, so "was this a
+   * Summer 1 course?" is answerable — it was simply never read before
+   * (2026-09-08). Comes free in the same search response; the per-meeting
+   * startDate/endDate that would otherwise answer it are null on this
+   * endpoint, and are only populated by the per-CRN getFacultyMeetingTimes
+   * call, which would cost thousands of extra requests per term.
+   */
+  partOfTerm: string | null;
   creditHours: number | null;
   enrollment: number;
   maxEnrollment: number;
@@ -276,6 +287,7 @@ function mapSection(r: Record<string, unknown>): ClemsonSection {
     campus: str(r.campusDescription),
     scheduleType: str(r.scheduleTypeDescription),
     instructionalMethod: str(r.instructionalMethodDescription),
+    partOfTerm: str(r.partOfTerm),
     creditHours:
       typeof r.creditHourLow === "number"
         ? r.creditHourLow

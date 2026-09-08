@@ -59,6 +59,11 @@ const SCHEMA = `
     campus               TEXT,
     schedule_type        TEXT,
     instructional_method TEXT,
+    -- Banner's part-of-term: "1" full term, "H1"/"H2" first/second half
+    -- (Summer 1 / Summer 2), "MMA".."MMD" mini-mesters. Free in the search
+    -- response and previously discarded, which is why "which part of summer
+    -- was this?" was unanswerable (2026-09-08).
+    part_of_term         TEXT,
     credit_hours         REAL,
     enrollment           INTEGER NOT NULL DEFAULT 0,
     max_enrollment       INTEGER NOT NULL DEFAULT 0,
@@ -140,9 +145,9 @@ export function writeScheduleDb(snap: ClemsonTermSnapshot): boolean {
       const insertSection = db.prepare(`
         INSERT OR REPLACE INTO sections
           (crn, term, subject_course, section, title, campus, schedule_type,
-           instructional_method, credit_hours, enrollment, max_enrollment,
-           seats_available, wait_count, wait_capacity, open)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           instructional_method, part_of_term, credit_hours, enrollment,
+           max_enrollment, seats_available, wait_count, wait_capacity, open)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `);
       const insertMeeting = db.prepare(`
         INSERT INTO meetings (crn, term, day, start_min, end_min, building, room, type)
@@ -164,6 +169,7 @@ export function writeScheduleDb(snap: ClemsonTermSnapshot): boolean {
             s.campus,
             s.scheduleType,
             s.instructionalMethod,
+            s.partOfTerm ?? null,
             s.creditHours,
             s.enrollment,
             s.maxEnrollment,
@@ -243,6 +249,31 @@ export function openScheduleDb(term: string): Database.Database | null {
   } catch (err) {
     log.warn("clemson schedule db open failed", { term, err: String(err) });
     return null;
+  }
+}
+
+/**
+ * Whether a snapshot carries a given `sections` column.
+ *
+ * Snapshots are opened READ-ONLY and past terms are never re-swept — a term
+ * that has ended is frozen by design — so a column added later can never be
+ * back-filled by migration into the archive. The 34 snapshots held when
+ * part_of_term was added (2026-09-08) therefore lack it permanently, and a
+ * SELECT naming it unconditionally would fail on every one of them. Callers
+ * ask first and report null for the older files, which is the honest answer:
+ * the value was not recorded, rather than being absent from Banner.
+ */
+export function snapshotHasColumn(
+  db: Database.Database,
+  column: string,
+): boolean {
+  try {
+    const cols = db.prepare("PRAGMA table_info(sections)").all() as Array<{
+      name: string;
+    }>;
+    return cols.some((c) => c.name === column);
+  } catch {
+    return false;
   }
 }
 
@@ -449,6 +480,7 @@ interface SectionRow {
   campus: string | null;
   schedule_type: string | null;
   instructional_method: string | null;
+  part_of_term: string | null;
   credit_hours: number | null;
   enrollment: number;
   max_enrollment: number;
@@ -571,6 +603,7 @@ function buildSections(
       campus: row.campus,
       scheduleType: row.schedule_type,
       instructionalMethod: row.instructional_method,
+      partOfTerm: row.part_of_term,
       creditHours: row.credit_hours,
       enrollment: row.enrollment,
       maxEnrollment: row.max_enrollment,

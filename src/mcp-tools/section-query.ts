@@ -8,6 +8,7 @@
 // resolveTerm); this engine takes a resolved term code only. No live Banner
 // calls here — snapshot only; refresh overlay stays in search-classes.
 import {
+  snapshotHasColumn,
   openScheduleDb,
   getScheduleDbMeta,
   getMeetingsForCrns,
@@ -56,6 +57,15 @@ export interface EngineMeeting {
 export interface EngineSection {
   crn: string;
   subjectCourse: string;
+  /**
+   * Banner's part-of-term code, passed through VERBATIM and never bucketed:
+   * "1" (full term), "H1"/"H2" (Summer 1 / Summer 2), "MMA".."MMD" (the short
+   * mini-mester sessions). Chip's call 2026-09-08 — collapsing MMA..MMD into a
+   * single "custom" label would throw away which session a course actually ran
+   * in, which is the question being asked. Null on snapshots written before
+   * the column existed.
+   */
+  partOfTerm: string | null;
   title: string;
   creditHours: number | null;
   enrollment: number;
@@ -68,6 +78,15 @@ export interface EngineSection {
 export interface EngineResult {
   totalCount: number;
   sections: EngineSection[];
+  /** Present ONLY when the result was cut. Its `note` says so in words —
+   *  see the truncation branch in querySectionsEngine for why a count alone
+   *  proved insufficient. */
+  truncated?: {
+    shown: number;
+    total: number;
+    ordered_by: string;
+    note: string;
+  };
   needsNarrowing?: { total: number; bySubject: Record<string, number> };
   snapshotDate: string;
 }
@@ -90,6 +109,7 @@ const TOP_PAGE_WHEN_NARROWING = 12;
 interface SectionRow {
   crn: string;
   subject_course: string;
+  part_of_term: string | null;
   title: string;
   credit_hours: number | null;
   enrollment: number;
@@ -276,10 +296,14 @@ export function querySectionsEngine(
     }
 
     const where = conditions.join(" AND ");
+    // part_of_term only exists on snapshots written after 2026-09-08; archived
+    // terms are frozen and can never gain it (see snapshotHasColumn).
+    const hasPot = snapshotHasColumn(db, "part_of_term");
     const rows = db
       .prepare(
-        `SELECT crn, subject_course, title, credit_hours, enrollment, max_enrollment, seats_available
-         FROM sections WHERE ${where} ORDER BY subject_course, section`,
+        `SELECT crn, subject_course, title, credit_hours, enrollment, max_enrollment, seats_available` +
+          (hasPot ? ", part_of_term" : "") +
+          ` FROM sections WHERE ${where} ORDER BY subject_course, section`,
       )
       .all(...bindings) as SectionRow[];
 
@@ -408,6 +432,7 @@ export function querySectionsEngine(
       matched.push({
         crn: row.crn,
         subjectCourse: row.subject_course,
+        partOfTerm: row.part_of_term ?? null,
         title: row.title,
         creditHours: row.credit_hours,
         enrollment: row.enrollment,
@@ -439,9 +464,33 @@ export function querySectionsEngine(
         .sort((a, b) => b[1] - a[1])
         .slice(0, 12)
         .map(([subject, count]) => [subject, count]);
+      const shown = matched.slice(0, TOP_PAGE_WHEN_NARROWING);
       return {
         totalCount,
-        sections: matched.slice(0, TOP_PAGE_WHEN_NARROWING),
+        sections: shown,
+        // Say it in words, not only in a count a reader has to compare.
+        // needsNarrowing carried the numbers already and was still read as a
+        // complete answer: asked for Summer 2026's GC 4000-level courses, a
+        // model got this page, filtered it, found the two zero-credit
+        // internships that float to the top on open seats, and reported them
+        // as the whole list — 2 of 18 (2026-09-08). Naming the bias matters as
+        // much as naming the cut: a sample ordered by open seats is the
+        // EMPTIEST sections, so it is not representative of what ran, and is
+        // exactly inverted for demand questions.
+        truncated: {
+          shown: shown.length,
+          total: totalCount,
+          ordered_by: "seats_available desc",
+          note:
+            `PARTIAL RESULT: showing ${shown.length} of ${totalCount} matching ` +
+            "sections, chosen as the ones with the MOST OPEN SEATS. This is " +
+            "not a complete list and not a representative sample — the " +
+            "fullest sections are the ones missing. Do NOT answer " +
+            '"what was offered", "how many", or any demand question from ' +
+            "this page. To get everything, either narrow the query " +
+            "(course_number, days, instructor) or page with offset until you " +
+            `have all ${totalCount}.`,
+        },
         needsNarrowing: {
           total: totalCount,
           bySubject: Object.fromEntries(by_subject),
