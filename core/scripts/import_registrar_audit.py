@@ -65,7 +65,13 @@ _CATALOG_YEAR_RE = re.compile(r"Catalog year:\s*(\d{4}-\d{4})")
 # So completeness is recorded per import and reported loudly. A What-If run
 # from a record with NO coursework yields a complete set; anything else is
 # partial and must say so rather than pass as whole.
-_ENROLLED_ROW_RE = re.compile(r"\b(?:IP|TR)\s*\(\d")
+#
+# The parenthesis is OPTIONAL: Degree Works prints in-progress rows as
+# "GC 1010 Orientation to Graphic Comm IP (1) Fall 2026" but transfer/AP rows
+# as "ART 1030 Visual Arts Studio TR 3 Spring 2026". Requiring "(" caught the
+# first and missed the second, so audits carrying AP credit reported as clean.
+# A guard that under-reports is worse than none, because it is believed.
+_ENROLLED_ROW_RE = re.compile(r"\b(?:IP|TR)\s*\(?\d")
 
 
 def slug(program: str) -> str:
