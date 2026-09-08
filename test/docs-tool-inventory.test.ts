@@ -95,4 +95,5 @@ const PUBLIC_ONLY = new Set([
   "get-instructor-classes",
   "get-teaching-load",
   "get-course-offerings",
+  "get-course-enrollment-history",
 ]);

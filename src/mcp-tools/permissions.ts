@@ -93,6 +93,12 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.course_offerings",
   },
+  // Section-level enrollment/capacity across terms — the demand-planning
+  // batch read; snapshots only, no Banner (2026-09-08).
+  "clemson.enrollment_history": {
+    backend: "external-http",
+    policyActionId: "clemson.enrollment_history",
+  },
   "clemson.sections_by_crn": {
     backend: "external-http",
     policyActionId: "clemson.sections_by_crn",
@@ -299,6 +305,7 @@ const CLEMSON_SCHEDULE_OPS = [
   "clemson.instructor_classes",
   "clemson.teaching_load",
   "clemson.course_offerings",
+  "clemson.enrollment_history",
   "clemson.schedule_freshness",
 ];
 
@@ -337,6 +344,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.instructor_classes",
     "clemson.teaching_load",
     "clemson.course_offerings",
+    "clemson.enrollment_history",
     "clemson.gc_catalog_years",
     "clemson.gc_program_plan",
     "clemson.gc_requirement_rules",

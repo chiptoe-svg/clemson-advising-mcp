@@ -1,6 +1,10 @@
 // src/mcp-tools/clemson-schedule.ts
 // Deterministic schedule-conflict tools backed by the per-term SQLite snapshot.
-import { parseTermCode, resolveTerm } from "../term-resolve.js";
+import {
+  listSnapshotTerms,
+  parseTermCode,
+  resolveTerm,
+} from "../term-resolve.js";
 import {
   openScheduleDb,
   getScheduleDbMeta,
@@ -14,6 +18,7 @@ import {
   findConflicts,
   type ConflictPair,
 } from "../clemson-schedule-db.js";
+import { enrollmentHistory } from "../clemson-enrollment-history.js";
 import {
   openOfferingsDb,
   observedTerms,
@@ -1160,6 +1165,174 @@ const courseOfferings: McpToolDefinition = {
   },
 };
 
+/**
+ * get-course-enrollment-history: section-level enrollment and capacity for a
+ * course list across terms — the demand / capacity-planning read, and the
+ * batch companion to get-course-offerings (which carries section COUNTS but no
+ * enrollment).
+ *
+ * Exists because the same question was being asked as one search-classes call
+ * per course per term: 196 calls, ~30 minutes. The server was 0.6% of that
+ * (35 ms per round trip); the rest was one model generation per call. Batching
+ * removes 195 inference round trips, not 7 seconds of I/O.
+ */
+const enrollmentHistoryTool: McpToolDefinition = {
+  operation: "clemson.enrollment_history",
+  category: "scheduling",
+  tool: {
+    name: "get-course-enrollment-history",
+    description:
+      "Section-level ENROLLMENT and CAPACITY per course per term, from the " +
+      "held Banner snapshots — the read for demand and capacity planning. " +
+      "Batch-shaped: pass every course and term at once (<=200 courses, <=50 " +
+      "terms); omit terms to get every observed term. Per course-term: " +
+      "section_count, total_enrollment, total_capacity, seats_available, " +
+      "fill_rate, full_sections, max_section_enrollment, and (with " +
+      "include_sections) the per-CRN rows. " +
+      "READ observed_terms FIRST and heed each term's status: 'final' means " +
+      "the snapshot was taken after the term ended so its numbers are " +
+      "settled; 'in_term' means it was taken mid-term; 'pre_term' means it " +
+      "was taken BEFORE the term began, so its enrollment reflects " +
+      "registration in progress and is NOT comparable demand. A term absent " +
+      "from observed_terms was never observed — UNKNOWN, never zero demand; " +
+      "a term present there but absent from a course's list means the term " +
+      "was observed and the course did not run. fill_rate can exceed 1.0 " +
+      "(labs run over their listed cap); that is real, not an error. " +
+      "Snapshot-backed, read-only, no Banner load.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        courses: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            'Course codes, e.g. ["GC 3401", "gc3461"] — spacing and case are ' +
+            "normalized, duplicates collapsed. At most 200.",
+        },
+        terms: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            'Term codes, e.g. ["202508", "202608"]. Omit for every observed ' +
+            "term. At most 50.",
+        },
+        include_sections: {
+          type: "boolean",
+          description:
+            "Include the per-CRN rows behind each course-term aggregate " +
+            "(default false). Aggregates are identical either way.",
+        },
+        section_size_threshold: {
+          type: "number",
+          description:
+            "When set, each course-term also reports sections_at_threshold: " +
+            "how many sections enrolled at or above this number. Use it for " +
+            "a local capacity rule (e.g. a lab cap); there is no built-in " +
+            "default, because the right threshold is a departmental fact.",
+        },
+      },
+      required: ["courses"],
+      additionalProperties: false,
+    },
+  },
+  async handler(args) {
+    try {
+      assertMcpOperation("clemson.enrollment_history");
+    } catch (e) {
+      return permissionErr(e);
+    }
+    const rawList = Array.isArray(args.courses)
+      ? (args.courses as unknown[]).filter(
+          (x): x is string => typeof x === "string" && x.trim() !== "",
+        )
+      : [];
+    if (rawList.length === 0)
+      return err("courses is required and must contain at least one code.");
+    if (rawList.length > 200)
+      return err("At most 200 courses per call — split the request.");
+    // Report the code the CALLER typed, not our normalized form — "NOT-A-CODE"
+    // back at someone who wrote "not-a-code" reads like a second bug.
+    const badRaw = rawList.filter(
+      (c) => !/^[A-Z]{1,6}\d{3,4}$/.test(c.replace(/\s+/g, "").toUpperCase()),
+    );
+    if (badRaw.length > 0)
+      return err(`Not course codes: ${badRaw.join(", ")} — e.g. "GC 3401".`);
+    const codes = [
+      ...new Set(rawList.map((c) => c.replace(/\s+/g, "").toUpperCase())),
+    ];
+
+    const allTerms = listSnapshotTerms();
+    let terms = allTerms;
+    if (args.terms !== undefined) {
+      const rawTerms = Array.isArray(args.terms)
+        ? (args.terms as unknown[]).filter(
+            (x): x is string => typeof x === "string",
+          )
+        : [];
+      if (rawTerms.length > 50)
+        return err("At most 50 terms per call — split the request.");
+      const badTerms = rawTerms.filter((t) => !/^\d{6}$/.test(t));
+      if (badTerms.length > 0)
+        return err(
+          `Not term codes: ${badTerms.join(", ")} — six digits, e.g. "202508".`,
+        );
+      terms = [...new Set(rawTerms)];
+    }
+
+    const threshold =
+      typeof args.section_size_threshold === "number"
+        ? args.section_size_threshold
+        : null;
+    const { observed, byCourse } = enrollmentHistory(codes, terms, {
+      includeSections: args.include_sections === true,
+      sizeThreshold: threshold,
+    });
+
+    if (observed.length === 0) {
+      return okJson({
+        observed_terms: [],
+        courses: [],
+        _note:
+          "None of the requested terms is held as a snapshot, so NOTHING was " +
+          "observed — this says nothing about any course's enrollment.",
+      });
+    }
+    const requestedNotHeld = terms.filter(
+      (t: string) => !observed.some((o) => o.term === t),
+    );
+    return okJson({
+      observed_terms: observed,
+      ...(requestedNotHeld.length > 0
+        ? { requested_terms_not_held: requestedNotHeld }
+        : {}),
+      status_note:
+        "Each observed term carries a status: 'final' (snapshot taken after " +
+        "the term ended — settled numbers), 'in_term' (taken during it), " +
+        "'pre_term' (taken BEFORE it began — registration still in progress, " +
+        "NOT comparable demand). Comparing a pre_term figure against final " +
+        "ones shows a drop that is an artifact of when the snapshot was " +
+        "taken, not a change in demand. Clemson's add/drop calendar is not " +
+        "known here; judge an in_term figure with data_as_of.",
+      courses: codes.map((code) => {
+        const rows = byCourse.get(code) ?? [];
+        return {
+          course: code,
+          terms: rows,
+          ...(rows.length === 0
+            ? {
+                note:
+                  "Not seen in ANY observed term. Check observed_terms for " +
+                  'coverage — an unobserved term is unknown, not "no demand".',
+              }
+            : {}),
+        };
+      }),
+      _source:
+        "Banner term snapshots held by this deployment — enrollment as of each snapshot's data_as_of, not a registrar census",
+    });
+  },
+};
+
 export const __schedTools = {
   instructorClasses,
   teachingLoad,
@@ -1168,6 +1341,7 @@ export const __schedTools = {
   scheduleFreshness,
   sectionsByCrn,
   resolveCrns: resolveCrnsTool,
+  enrollmentHistory: enrollmentHistoryTool,
 };
 
 registerTools([
@@ -1178,4 +1352,5 @@ registerTools([
   instructorClasses,
   teachingLoad,
   courseOfferings,
+  enrollmentHistoryTool,
 ]);

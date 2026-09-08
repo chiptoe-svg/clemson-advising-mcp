@@ -248,6 +248,24 @@ and the catalog) overrides the estimate where one exists: the season carries
 consolidated cache that rebuilds itself whenever the snapshot set changes.
 Batch-shaped. Snapshot.
 
+#### `get-course-enrollment-history`
+
+Section-level **enrollment and capacity** per course per term, from the held
+snapshots — the demand and capacity-planning read, and the batch companion to
+`get-course-offerings` (which carries section counts but no enrollment). Up to
+200 courses across 50 terms in one call; omit `terms` for every observed term.
+Each course-term gives section count, total enrollment, total capacity, seats
+available, fill rate, full sections, and the largest section; with
+`include_sections` it also returns the per-CRN rows.
+
+Every observed term declares a **status**: `final` (the snapshot was taken
+after the term ended, so its numbers are settled), `in_term`, or `pre_term`
+(taken _before_ the term began, so its counts reflect registration in progress
+and are **not** comparable demand). Comparing a `pre_term` figure with `final`
+ones produces a cliff that is an artifact of when the snapshot was taken. Fill
+rate can exceed 1.0 — labs run over their listed cap, and that is real.
+Snapshot-backed; no Banner load.
+
 #### `get-schedule-freshness`
 
 When the snapshot for a term was last ingested — the `data as of` behind every

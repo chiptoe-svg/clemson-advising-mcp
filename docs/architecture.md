@@ -63,7 +63,8 @@ restarted, revoked, or taken down without touching the other.
 **Schedule (8766)** — `list-clemson-terms`, `search-classes`, `get-course-details`,
 `get-course-facts`, `check-conflicts`, `find-conflict-free-schedule`, `find-alternatives`,
 `get-schedule-freshness`, `get-sections-by-crn`, `resolve-crns`,
-`get-instructor-classes`, `get-teaching-load`, `get-course-offerings`, `list-skills`,
+`get-instructor-classes`, `get-teaching-load`, `get-course-offerings`,
+`get-course-enrollment-history`, `list-skills`,
 `get-skill-docs`
 
 **Catalog (8767)** — `list-catalog-years`, `get-program-plan`,
