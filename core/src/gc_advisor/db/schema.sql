@@ -62,6 +62,37 @@ CREATE TABLE IF NOT EXISTS requirement_rule (
 CREATE VIEW IF NOT EXISTS requirement_rule_effective AS
   SELECT id, program_id, slot_type, rule FROM requirement_rule WHERE bogus = 0;
 
+-- Requirements as the REGISTRAR states them (Degree Works), a provenance of
+-- its own beside the catalog. Deliberately NOT merged into requirement_rule:
+-- the two sources describe the same degree at different granularities and in
+-- different vocabularies, and the measurement that settled it is worth
+-- recording -- of 235 registrar requirements for the nine current-year majors,
+-- exactly 8 matched a catalog slot_type by name. 139 of them are single
+-- courses ("1 Class in ACCT 2010") that the catalog already carries as
+-- fixed_course plan_items; only the ~45 attribute/wildcard requirements
+-- correspond to a catalog slot at all.
+--
+-- Keeping this table separate is what makes the two sources CHECKABLE against
+-- each other rather than silently blended -- the disagreement is the useful
+-- signal (it is how the dropped PKSC 4050 was found). It also leaves
+-- requirement_rule, which run_audit depends on, completely untouched.
+--
+-- `rule` is the JSON serialization of ingest.registrar_audit.RegistrarRequirement.
+-- `audit_date` is the date printed on the source audit, so a stale import is
+-- visible rather than assumed current.
+CREATE TABLE IF NOT EXISTS registrar_requirement (
+  id           INTEGER PRIMARY KEY,
+  program_id   INTEGER NOT NULL REFERENCES program(id),
+  ordering     INTEGER NOT NULL DEFAULT 0,
+  display_name TEXT,
+  need         INTEGER,
+  unit         TEXT,
+  rule         TEXT NOT NULL,
+  audit_date   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_registrar_req_program
+  ON registrar_requirement(program_id);
+
 CREATE TABLE IF NOT EXISTS gen_ed_category (
   id              INTEGER PRIMARY KEY,
   catalog_year_id INTEGER NOT NULL REFERENCES catalog_year(id),
