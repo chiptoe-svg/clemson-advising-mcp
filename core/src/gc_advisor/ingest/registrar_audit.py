@@ -57,8 +57,20 @@ EXCEPT_CLAUSE_RE = re.compile(r"\bExcept\b(.*)$", re.S | re.I)
 _EXCEPT_REF_RE = re.compile(r"\b([A-Z]{2,5})\s+(@|\d{4})")
 # An explicit option set. Degree Works ELIDES a repeated subject, so a bare
 # number inherits the subject that preceded it: "HIST 1010 or POSC 1010 or 1030"
-# is three courses, the last of which is POSC 1030.
-OPTION_RE = re.compile(r"\b([A-Z]{2,5})\s+(\d{4})\b|\bor\s+(\d{4})\b")
+# is three courses, the last of which is POSC 1030. A bare number may follow
+# "and" as well as "or" — "4 Classes in AS 3090 and 3100 and 4090 and 4100" —
+# and dropping the "and" members left a 4-class requirement listing one course.
+# ("and" before a non-number, as in "attribute = GLCH and resident= Y", cannot
+# match: a 4-digit number is required.)
+OPTION_RE = re.compile(r"\b([A-Z]{2,5})\s+(\d{4})\b|\b(?:or|and)\s+(\d{4})\b")
+# Whether the option list is a choice or a conjunction. "N Classes in A and B
+# and C" requires ALL of them; treating it as a choice would mark a student
+# complete after one. Detected on a course-joining "and" only.
+AND_JOIN_RE = re.compile(r"\band\s+\d{4}\b")
+# "Choose from 1 of the following:" — the requirement is satisfied by ONE of
+# several sub-rules, each printed on its own "-Label ..." line.
+CHOOSE_RE = re.compile(r"Choose\s+from\s+(\d+)\s+of\s+the\s+following", re.I)
+_SUB_RULE_RE = re.compile(r"(?:^|\s)-(?=[A-Z])")
 # "with attribute = LIT" — a gen-ed attribute rather than a course list.
 ATTRIBUTE_RE = re.compile(r"with\s+attribute\s*=\s*([A-Z]{2,6})", re.I)
 # "resident= Y" — must be taken at Clemson.
@@ -70,8 +82,25 @@ _STILL_NEEDED = "Still needed:"
 # stop a rule from swallowing the NEXT requirement's heading when the audit's
 # line wrapping interleaves them.
 _HEADING_RE = re.compile(r"^[A-Z][A-Z0-9 \-#()/&,.']{10,}$")
-# Boilerplate that must never be read as a requirement.
-_STOP_LINES = ("Legend", "Disclaimer", "Ellucian Degree Works", "Excess Electives")
+# Boilerplate that must never be read as a requirement — and, just as
+# important, the start of the APPLIED-COURSES table. Degree Works prints the
+# courses a student already has right after the last requirement ("Required
+# Electives (8 Cr) ART 1030 Visual Arts Studio TR 3 Spring 2026"), and without
+# these stops the final rule swallowed them: Management 2026-2027's "Global
+# Business — 1 Class in MGT 3030" came out offering ART 1030, ELEC 0001 and
+# ENGL 1999 as ways to satisfy it. Reading a student's transcript rows into a
+# REQUIREMENT is wrong twice over — a false rule, and course history leaking
+# into a store that must hold requirements only.
+_STOP_LINES = (
+    "Legend",
+    "Disclaimer",
+    "Ellucian Degree Works",
+    "Excess Electives",
+    "Required Electives",
+    "Satisfied by:",
+    "Course Title",
+    "In-progress",
+)
 # HARD block boundaries. Without these a rule ran on into the NEXT block's
 # prose and stole its course codes: the REACH Act requirement ("3 Credits in
 # HIST 1010 or POSC 1010 or 1030") absorbed the Packaging Science block's
@@ -81,6 +110,17 @@ _STOP_LINES = ("Legend", "Disclaimer", "Ellucian Degree Works", "Excess Elective
 # stops — and unlike a "looks like rule text" test, they do not trip over the
 # display-name fragments the audit interleaves INSIDE a wrapped rule.
 _BLOCK_END_RE = re.compile(r"\b(INCOMPLETE|COMPLETE)\b|^Catalog year:", re.I)
+# A row of the student's OWN coursework. An ALREADY-SATISFIED requirement is
+# printed with the course that satisfied it in place of a "Still needed:"
+# clause ("GENERAL EDUCATION - Social Sciences #2 - ECON 2110 Principles of
+# Microeconomics IP (3) Fall 2026"), so such a line reads exactly like a
+# continuation of the requirement above it and pulled transcript rows into a
+# rule. This is a PRIVACY control as much as a correctness one: whatever else
+# happens, transcript rows must never be read into a requirement store. The
+# grade/term markers Degree Works prints on those rows are the reliable tell.
+_COURSE_ROW_RE = re.compile(
+    r"\b(?:IP|TR)\s*\(?\d|\b(?:Fall|Spring|Summer)\s+\d{4}\b|\bSatisfied by:"
+)
 
 
 @dataclass
@@ -96,13 +136,25 @@ class RegistrarRequirement:
     excludes: list[str] = field(default_factory=list)
     attribute: str | None = None
     resident_required: bool = False
+    #: "or" (pick from) or "and" (take ALL of them). Degree Works writes both
+    #: with the same "N Classes in ..." frame, and reading an "and" list as a
+    #: choice marks a student complete after one of four courses.
+    conjunction: str = "or"
+    #: For "Choose from 1 of the following:" — each sub-rule is a COMPLETE way
+    #: to satisfy this requirement, and they are not interchangeable course
+    #: lists. Flattening them says AS 3090 alone satisfies Oral Communication
+    #: when the AS route needs four classes: false-permissive, the one error
+    #: direction that tells a student they can graduate when they cannot.
+    alternatives: list["RegistrarRequirement"] = field(default_factory=list)
     raw: str = ""
 
     def is_empty(self) -> bool:
         """No way to satisfy it was stated — a prose requirement ("See advisor")
         rather than a machine-checkable one. Callers must not treat this as a
         requirement with zero options, which would be unsatisfiable."""
-        return not (self.courses or self.wildcards or self.attribute)
+        return not (
+            self.courses or self.wildcards or self.attribute or self.alternatives
+        )
 
 
 def _expand_options(text: str) -> list[str]:
@@ -128,6 +180,21 @@ def _expand_options(text: str) -> list[str]:
 
 def parse_requirement(text: str) -> RegistrarRequirement | None:
     """One requirement from the text following "Still needed:"."""
+    # "Choose from 1 of the following:" — each "-Label ..." line is a whole
+    # alternative route, parsed on its own and kept separate.
+    choose = CHOOSE_RE.search(text)
+    if choose:
+        parts = [p.strip() for p in _SUB_RULE_RE.split(text[choose.end():]) if p.strip()]
+        alts = [r for r in (parse_requirement(p) for p in parts) if r and not r.is_empty()]
+        if alts:
+            return RegistrarRequirement(
+                need=int(choose.group(1)),
+                unit="alternatives",
+                alternatives=alts,
+                raw=" ".join(text.split()),
+            )
+        return None
+
     m = NEED_RE.search(text)
     if not m:
         return None
@@ -166,6 +233,7 @@ def parse_requirement(text: str) -> RegistrarRequirement | None:
         excludes=excludes,
         attribute=attr.group(1).upper() if attr else None,
         resident_required=bool(RESIDENT_RE.search(body)),
+        conjunction="and" if AND_JOIN_RE.search(body_wo_ranges) else "or",
         raw=" ".join(text.split()),
     )
 
@@ -194,7 +262,7 @@ def _blocks(lines: list[str]) -> list[tuple[str, str]]:
             nxt = lines[j].strip()
             if not nxt or _STILL_NEEDED in nxt or _HEADING_RE.match(nxt):
                 break
-            if _BLOCK_END_RE.search(nxt):
+            if _BLOCK_END_RE.search(nxt) or _COURSE_ROW_RE.search(nxt):
                 break
             if any(nxt.startswith(s) for s in _STOP_LINES):
                 break

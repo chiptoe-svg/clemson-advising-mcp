@@ -146,3 +146,98 @@ def test_2_0_gpa_and_see_section_pointers_are_dropped():
         "MAJOR REQUIREMENTS Still needed: See Major in Packaging Science section\n"
     )
     assert parse_audit(text) == []
+
+
+# ---------------------------------------------------------------------------
+# Shapes the Management / GC audits introduced (2026-09-08). Every excerpt is
+# verbatim; each one was parsed WRONG before the assertion below existed.
+# ---------------------------------------------------------------------------
+
+# "Choose from 1 of the following:" — three whole alternative routes, one of
+# which needs FOUR classes. Flattening them into a single option list said
+# AS 3090 alone satisfies Oral Communication: false-permissive, which tells a
+# student they can graduate when they cannot.
+CHOOSE_BLOCK = """GENERAL EDUCATION - Oral Communication Still needed: Choose from 1 of the following:
+(3 Cr)
+-COMM Coursework 3 Credits in COMM 1500 or 2500 or HON 1950 or 2230
+-AS Cluster 4 Classes in AS 3090 and 3100 and 4090 and 4100
+-ML Cluster 2 Classes in ML 1010 and 1020
+"""
+
+
+def test_choose_from_keeps_routes_separate():
+    (name, r), = parse_audit(CHOOSE_BLOCK)
+    assert r.need == 1 and r.unit == "alternatives"
+    assert len(r.alternatives) == 3
+    comm, aas, ml = r.alternatives
+    assert comm.courses == ["COMM 1500", "COMM 2500", "HON 1950", "HON 2230"]
+    assert aas.courses == ["AS 3090", "AS 3100", "AS 4090", "AS 4100"]
+    assert ml.courses == ["ML 1010", "ML 1020"]
+    # The top level must NOT present them as one interchangeable list.
+    assert r.courses == []
+
+
+def test_and_cluster_is_a_conjunction_not_a_choice():
+    """"4 Classes in AS 3090 and 3100 and 4090 and 4100" needs ALL four."""
+    (_, r), = parse_audit(CHOOSE_BLOCK)
+    comm, aas, ml = r.alternatives
+    assert aas.conjunction == "and" and aas.need == 4
+    assert ml.conjunction == "and" and ml.need == 2
+    assert comm.conjunction == "or", "a plain 'or' list must stay a choice"
+
+
+# An ALREADY-SATISFIED requirement is printed with the course that satisfied
+# it instead of a "Still needed:" clause, so the line reads like a
+# continuation of the requirement above. This pulled the student's own
+# transcript rows into a rule.
+SATISFIED_ROWS_FOLLOW = """GENERAL EDUCATION - Social Sciences #1 - Still needed: 3 Credits in PSYC 2010
+PSYC 2010 (3 Cr)
+GENERAL EDUCATION - Social Sciences #2 - ECON 2110 Principles of Microeconomics IP (3) Fall 2026
+ECON 2000 or 2110 (3 Cr)
+Chemistry or Physics for Everyone CH 1050 Chemistry in Context I IP (4) Fall 2026
+"""
+
+
+def test_transcript_rows_never_enter_a_rule():
+    (name, r), = parse_audit(SATISFIED_ROWS_FOLLOW)
+    assert r.courses == ["PSYC 2010"], (
+        f"course history leaked into the rule: {r.courses}"
+    )
+
+
+APPLIED_TABLE_FOLLOWS = """Global Business (3 Cr) Still needed: 1 Class in MGT 3030
+Required Electives (8 Cr) ART 1030 Visual Arts Studio TR 3 Spring 2026
+Satisfied by: APA25 - Art Studio 2D - Advanced Placement (AP)
+ELEC 0001 Transfer Elective TR 3 Spring 2026
+"""
+
+
+def test_applied_courses_table_does_not_extend_the_last_rule():
+    (name, r), = parse_audit(APPLIED_TABLE_FOLLOWS)
+    assert r.courses == ["MGT 3030"], (
+        f"the applied-courses table extended the rule: {r.courses}"
+    )
+
+
+def test_multiple_ranges_all_become_wildcards():
+    """Management's support area lists ten ranges in one rule."""
+    r = parse_requirement(
+        "15 Credits in @ 3000:4999 or ARAB 2000:4999 or ASL 2000:4999 or "
+        "CHIN 2000:4999 or FR 2000:4999 or GER 2000:4999 or ITAL 2000:4999 or "
+        "JAPN 2000:4999 or RUSS 2000:4999 or SPAN 2000:4999"
+    )
+    assert len(r.wildcards) == 10
+    assert {"type": "level_min", "min": 3000} in r.wildcards
+    assert {"type": "dept_level_min", "dept": "SPAN", "min": 2000} in r.wildcards
+    assert r.courses == [], "range bounds must not be read as course numbers"
+
+
+def test_rule_stated_on_the_line_below_still_needed():
+    """"Still needed:" can be empty with the rule wrapped onto the next line."""
+    text = (
+        "**GENERAL EDUCATION - Natural Science with Still needed:\n"
+        "Lab (4 Cr)\n"
+        "-NSWL Coursework 4 Credits in @ @ with attribute = NSWL\n"
+    )
+    (name, r), = parse_audit(text)
+    assert r.need == 4 and r.attribute == "NSWL"
