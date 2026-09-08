@@ -9,14 +9,47 @@ TERMS = ("First Semester", "Second Semester", "Summer")
 # block, e.g. Marketing's pre-business block vs. its major block).
 _FN_TRAILER = r"(?:\s+(\d[\d*,\s]*))?"
 
+# An "or" the page prints at the END of a course line instead of on a line of
+# its own. Both forms appear, sometimes on the same page. Anchoring on `$`
+# without this made every trailing-or line fail COURSE_RE and vanish, leaving
+# only the LAST alternative — which then parsed as a REQUIRED course (GC
+# 2021-2022 senior: "must take PSYC 3680" when MGT 3070 also satisfies it).
+_OR_TRAILER = r"(\s+or)?"
+
 # Matches: SUBJ 1234 - Title text N Credit[s]  (optional trailing footnote refs)
 COURSE_RE = re.compile(
-    r"^([A-Z]{2,5})\s+(\d{4})\s+-\s+(.+?)\s+(\d+)\s+Credits?" + _FN_TRAILER + r"$"
+    r"^([A-Z]{2,5})\s+(\d{4})\s+-\s+(.+?)\s+(\d+)\s+Credits?"
+    + _FN_TRAILER
+    + _OR_TRAILER
+    + r"$"
 )
+# A course line stripped of its title and credits — "PKSC 4050 2" (code plus
+# footnote ref) as printed by Packaging Science 2024-2025. A page defect, but
+# dropping the line loses a real requirement (DegreeWorks lists PKSC 4050 for
+# that year), so parse it and let credit inference below restore the number.
+# Deliberately strict: the WHOLE line must be a code plus optional footnote
+# digits, so ordinary prose cannot reach it.
+BARE_COURSE_RE = re.compile(r"^([A-Z]{2,5})\s+(\d{4})" + _FN_TRAILER + _OR_TRAILER + r"$")
 # Matches slot/requirement lines: must NOT contain ' - ' (which marks a course line)
 # Captures: slot description, credits, optional footnote refs
+# "Req." because the page abbreviates ("Graphic Communication Technical Req.
+# 6 Credits"), and six credits disappeared for want of four letters.
 SLOT_RE = re.compile(
-    r"^(.*?(?:Requirement|Elective))\s+(\d+)\s+Credits?" + _FN_TRAILER + r"$"
+    r"^(.*?(?:Requirements?|Req\.|Electives?))\s+(\d+)\s+Credits?"
+    + _FN_TRAILER
+    + _OR_TRAILER
+    + r"$"
+)
+# LAST-RESORT slot form: any non-course line inside a term that states credits.
+# The named form above misses cells the page titles without either keyword —
+# "South Carolina REACH Act 3 Credits" (Accounting 2026-2027, current year).
+# Such a line used to match nothing and be skipped in silence, which also left
+# a pending "or" dangling so it swept into the NEXT or-group and merged two
+# distinct requirements into one choice. Inside a term group, a line that
+# states credits and is not a course IS a requirement cell; reading it as one
+# is the honest interpretation.
+GENERIC_SLOT_RE = re.compile(
+    r"^(.+?)\s+(\d+)\s+Credits?" + _FN_TRAILER + _OR_TRAILER + r"$"
 )
 
 
@@ -120,8 +153,118 @@ def _name(text: str) -> str:
     return ""
 
 
+# "(A and B) or (C and D)" — a choice between PAIRS, printed with the "and" at
+# the end of the first line of each pair:
+#
+#     CH 2010 - Survey of Organic Chemistry 3 Credits and
+#     CH 2020 - Survey of Organic Chemistry Laboratory 1 Credits
+#     or
+#     CH 2230 - Organic Chemistry 3 Credits and
+#     CH 2270 - Organic Chemistry Laboratory 1 Credit
+#
+# The lecture lines end in "and", failed COURSE_RE, and were dropped — six
+# credits gone from Packaging Science 2022-2023's sophomore fall alone, with
+# the surviving lab lines left as a bogus 1-credit choice.
+#
+# THE REGISTRAR'S OWN MODEL is position-wise, not paired — DegreeWorks encodes
+# the block above as two independent requirements, "1 Class in CH 2010 or 2230"
+# and "1 Class in CH 2020 or 2270" — so that is what we emit. Doing it as a
+# PRE-PASS over the lines, rewriting the block into the plain alternating form
+# the main loop already handles correctly, keeps this out of the loop's
+# carefully-tuned choice/slot interaction entirely.
+_COURSE_HEAD_RE = re.compile(r"^([A-Z]{2,5})\s+(\d{4})\s+-\s+.+?\s+\d+\s+Credits?")
+_AND_SUFFIX_RE = re.compile(r"^(.*)\s+and$")
+
+
+def _split_and_suffix(line: str) -> tuple[str, bool]:
+    """('CH 2010 - X 3 Credits and') -> ('CH 2010 - X 3 Credits', True)."""
+    m = _AND_SUFFIX_RE.match(line.strip())
+    return (m.group(1), True) if m else (line.strip(), False)
+
+
+def _read_alternative(lines: list[str], i: int) -> tuple[list[str], int]:
+    """One alternative: consecutive course lines chained by a trailing 'and'.
+    Returns ([course lines without their 'and'], index after it)."""
+    out: list[str] = []
+    n = len(lines)
+    while i < n:
+        body, has_and = _split_and_suffix(lines[i])
+        if not _COURSE_HEAD_RE.match(body):
+            break
+        out.append(body)
+        i += 1
+        if not has_and:
+            break
+        while i < n and lines[i].strip() == "":  # blanks inside a pair
+            i += 1
+    return out, i
+
+
+def _regroup_and_pairs(lines: list[str]) -> list[str]:
+    """Rewrite "(A and B) or (C and D)" blocks into position-wise or-groups.
+
+    Only fires when an alternative actually contains an 'and' chain; a plain
+    "X or Y" is left exactly as it was, so the main loop's existing behaviour
+    (and every test guarding it) is untouched.
+    """
+    out: list[str] = []
+    i, n = 0, len(lines)
+    while i < n:
+        alts: list[list[str]] = []
+        j = i
+        while True:
+            alt, j2 = _read_alternative(lines, j)
+            if not alt:
+                break
+            alts.append(alt)
+            k = j2
+            while k < n and lines[k].strip() == "":
+                k += 1
+            if k < n and lines[k].strip() == "or":
+                k += 1
+                while k < n and lines[k].strip() == "":
+                    k += 1
+                j = k
+                continue
+            j = j2
+            break
+        if len(alts) > 1 and any(len(a) > 1 for a in alts):
+            for pos in range(max(len(a) for a in alts)):
+                opts = [a[pos] for a in alts if pos < len(a)]
+                for idx, opt in enumerate(opts):
+                    out.append(opt)
+                    if idx < len(opts) - 1:
+                        out.extend(["", "or", ""])
+                out.append("")
+            i = j
+            continue
+        out.append(lines[i])
+        i += 1
+    return out
+
+
+def _infer_missing_credits(group) -> None:
+    """Restore the credits of a single item the page printed without them.
+
+    ARITHMETIC, NOT GUESSWORK, and only in the one case where it is forced:
+    the page states the term's total ("Credit Hours: 15") and every item but
+    one carries printed credits, so the shortfall IS the missing item's value.
+    With two or more unknowns the split is genuinely ambiguous — leave them
+    None and let the credit invariant report the group instead of inventing a
+    number. Never runs when the totals already agree.
+    """
+    if group.credit_total is None:
+        return
+    unknown = [i for i in group.items if i.credits is None]
+    if len(unknown) != 1:
+        return
+    shortfall = group.credit_total - sum(i.credits or 0 for i in group.items)
+    if shortfall > 0:
+        unknown[0].credits = shortfall
+
+
 def parse_program(text: str, kind: str, degree: str | None = None) -> ParsedProgram:
-    lines = [l.rstrip() for l in text.splitlines()]
+    lines = _regroup_and_pairs([l.rstrip() for l in text.splitlines()])
     prog = ParsedProgram(name=_name(text), kind=kind, degree=degree)
 
     if "Program Description" in text:
@@ -139,10 +282,17 @@ def parse_program(text: str, kind: str, degree: str | None = None) -> ParsedProg
     pending_choice_fn: list[int] = []
 
     def flush_group() -> None:
-        nonlocal cur_group
+        nonlocal cur_group, pending_choice, pending_choice_credits, pending_choice_fn
         if cur_group and cur_group.items:
+            _infer_missing_credits(cur_group)
             prog.groups.append(cur_group)
         cur_group = None
+        # A choice left pending at a term boundary belongs to THIS term and must
+        # never survive into the next one. Leaking it is what merged Accounting
+        # 2026-2027's two separate or-groups into a single three-way choice.
+        pending_choice = []
+        pending_choice_credits = None
+        pending_choice_fn = []
 
     def is_blank(s: str) -> bool:
         return s.strip() == ""
@@ -251,6 +401,15 @@ def parse_program(text: str, kind: str, degree: str | None = None) -> ParsedProg
             credits = int(cm.group(4))
             code_fn = _fn_refs(cm.group(5))
 
+            # "or" printed at the end of THIS line (see _OR_TRAILER): identical
+            # meaning to an "or" on the next line, so take the same branch.
+            if cm.group(6):
+                pending_choice.append(code)
+                pending_choice_credits = credits
+                pending_choice_fn.extend(code_fn)
+                i += 1
+                continue
+
             # Look ahead past blanks for "or"
             j = i + 1
             while j < len(lines) and is_blank(lines[j]):
@@ -289,10 +448,27 @@ def parse_program(text: str, kind: str, degree: str | None = None) -> ParsedProg
             i += 1
             continue
 
+        # ── Course line stripped of its title/credits ─────────────────────
+        # Before the slot branch: "PKSC 4050 2" is a COURSE, not a requirement
+        # cell, and must not be read as one.
+        if " - " not in line:
+            bm = BARE_COURSE_RE.match(line)
+            if bm:
+                cur_group.items.append(
+                    ParsedItem(
+                        kind="fixed_course",
+                        course_code=f"{bm.group(1)} {bm.group(2)}",
+                        credits=None,  # restored by _infer_missing_credits
+                        footnote_refs=_fn_refs(bm.group(3)),
+                    )
+                )
+                i += 1
+                continue
+
         # ── Slot line ─────────────────────────────────────────────────────
         # Guard: skip if line contains ' - ' (would be a malformed course)
         if " - " not in line:
-            sm = SLOT_RE.match(line)
+            sm = SLOT_RE.match(line) or GENERIC_SLOT_RE.match(line)
             if sm:
                 fn = _fn_refs(sm.group(3))
                 slot_type = sm.group(1).strip()
