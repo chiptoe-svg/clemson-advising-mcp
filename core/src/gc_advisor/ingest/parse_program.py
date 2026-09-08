@@ -243,6 +243,36 @@ def _regroup_and_pairs(lines: list[str]) -> list[str]:
     return out
 
 
+def _canonicalize_slot_names(prog) -> None:
+    """Merge a bare slot name into the program's own "... Requirement" form.
+
+    GENERIC_SLOT_RE reads a cell's name verbatim, so the Accounting page's
+    "South Carolina REACH Act 3 Credits" cell arrives as "South Carolina REACH
+    Act" while the SAME requirement appears elsewhere on the page as "South
+    Carolina REACH Act Requirement". Two names for one requirement is not a
+    cosmetic problem: requirement_rules are keyed by slot_type, so the variant
+    split the footnote-to-slot mapping and DROPPED rules that had resolved
+    before (Accounting 2026-2027 lost both its Business and REACH rules).
+
+    Only fires on a genuine collision — a bare name is renamed only when this
+    same program also carries that name plus " Requirement" — so a slot the
+    page really does title without the word is left exactly as printed.
+    """
+    names = {
+        it.slot_type
+        for g in prog.groups
+        for it in g.items
+        if it.slot_type
+    }
+    rename = {n: f"{n} Requirement" for n in names if f"{n} Requirement" in names}
+    if not rename:
+        return
+    for g in prog.groups:
+        for it in g.items:
+            if it.slot_type in rename:
+                it.slot_type = rename[it.slot_type]
+
+
 def _infer_missing_credits(group) -> None:
     """Restore the credits of a single item the page printed without them.
 
@@ -554,4 +584,5 @@ def parse_program(text: str, kind: str, degree: str | None = None) -> ParsedProg
         i += 1
 
     flush_group()
+    _canonicalize_slot_names(prog)
     return prog
