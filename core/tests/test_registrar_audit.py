@@ -241,3 +241,28 @@ def test_rule_stated_on_the_line_below_still_needed():
     )
     (name, r), = parse_audit(text)
     assert r.need == 4 and r.attribute == "NSWL"
+
+
+# Degree Works marks "Choose from" sub-rules with a leading "-" on some pages
+# and NOT on others. Graphic Communications 2026-2027 prints no marker, and
+# splitting on "-" merged its three routes into one seven-course "and" — a
+# requirement to take every physics AND chemistry course listed, when any one
+# pair satisfies it.
+GC_CHOOSE_NO_BULLETS = """GENERAL EDUCATION - Natural Science with Still needed: Choose from 1 of the following:
+Lab - Specific Course Required (4 Cr)
+Physics with Calculus I and Laboratory 2 Classes in PHYS 1220 and 1240
+General Physics I and Laboratory 2 Classes in PHYS 2070 and 2090
+Chemistry or Physics for Everyone 1 Class in CH 1010 or 1050 or PHYS 2000
+"""
+
+
+def test_choose_from_splits_without_bullet_markers():
+    (name, r), = parse_audit(GC_CHOOSE_NO_BULLETS)
+    assert r.unit == "alternatives"
+    assert len(r.alternatives) == 3, (
+        f"expected 3 routes, got {[a.courses for a in r.alternatives]}"
+    )
+    a, b, c = r.alternatives
+    assert a.courses == ["PHYS 1220", "PHYS 1240"] and a.conjunction == "and"
+    assert b.courses == ["PHYS 2070", "PHYS 2090"] and b.conjunction == "and"
+    assert c.courses == ["CH 1010", "CH 1050", "PHYS 2000"] and c.conjunction == "or"

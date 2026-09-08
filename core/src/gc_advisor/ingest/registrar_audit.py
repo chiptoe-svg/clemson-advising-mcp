@@ -70,7 +70,6 @@ AND_JOIN_RE = re.compile(r"\band\s+\d{4}\b")
 # "Choose from 1 of the following:" — the requirement is satisfied by ONE of
 # several sub-rules, each printed on its own "-Label ..." line.
 CHOOSE_RE = re.compile(r"Choose\s+from\s+(\d+)\s+of\s+the\s+following", re.I)
-_SUB_RULE_RE = re.compile(r"(?:^|\s)-(?=[A-Z])")
 # "with attribute = LIT" — a gen-ed attribute rather than a course list.
 ATTRIBUTE_RE = re.compile(r"with\s+attribute\s*=\s*([A-Z]{2,6})", re.I)
 # "resident= Y" — must be taken at Clemson.
@@ -184,7 +183,21 @@ def parse_requirement(text: str) -> RegistrarRequirement | None:
     # alternative route, parsed on its own and kept separate.
     choose = CHOOSE_RE.search(text)
     if choose:
-        parts = [p.strip() for p in _SUB_RULE_RE.split(text[choose.end():]) if p.strip()]
+        # Split on the NOTATION, not on a bullet character. Degree Works marks
+        # these sub-rules with a leading "-" on some pages and not on others:
+        # Management's Oral Communication prints "-COMM Coursework 3 Credits
+        # in ...", while Graphic Communications' Natural Science prints
+        # "Physics with Calculus I and Laboratory 2 Classes in PHYS 1220 and
+        # 1240" with no marker at all. Splitting on "-" merged GC's three
+        # routes into a single seven-course "and" — a requirement to take
+        # every physics and chemistry course listed, when any ONE pair
+        # satisfies it. Each "N Credits/Classes in" IS a sub-rule boundary, on
+        # both page styles.
+        body = text[choose.end():]
+        starts = [m.start() for m in NEED_RE.finditer(body)]
+        parts = [
+            body[s:e] for s, e in zip(starts, starts[1:] + [len(body)])
+        ]
         alts = [r for r in (parse_requirement(p) for p in parts) if r and not r.is_empty()]
         if alts:
             return RegistrarRequirement(
