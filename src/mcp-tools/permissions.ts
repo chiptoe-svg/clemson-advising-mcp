@@ -162,6 +162,12 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.list_courses",
   },
+  // Requirements as the REGISTRAR states them (Degree Works import) — a
+  // provenance distinct from the catalog plan (2026-09-08).
+  "clemson.registrar_requirements": {
+    backend: "external-http",
+    policyActionId: "clemson.registrar_requirements",
+  },
 };
 
 export class McpPermissionDeniedError extends Error {
@@ -307,6 +313,7 @@ const CLEMSON_CATALOG_OPS = [
   "clemson.find_requirement_sections",
   "clemson.gc_program_requirements",
   "clemson.list_courses",
+  "clemson.registrar_requirements",
 ];
 
 export const SCOPE_OPERATIONS: Record<string, string[]> = {
@@ -340,6 +347,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.find_requirement_sections",
     "clemson.gc_program_requirements",
     "clemson.list_courses",
+    "clemson.registrar_requirements",
     "clemson.schedule_freshness",
   ],
 };

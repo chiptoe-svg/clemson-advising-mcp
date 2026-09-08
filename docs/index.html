@@ -605,8 +605,8 @@
               get-course-facts
             </div>
             <p>
-              Catalog facts (credits, prerequisites, corequisites) for up to
-              200 courses in one call — a whole degree plan in a single read.
+              Catalog facts (credits, prerequisites, corequisites) for up to 200
+              courses in one call — a whole degree plan in a single read.
               <code>found:&nbsp;false</code> marks a code the catalog lacks; an
               unavailable catalog fails the call loudly instead.
             </p>
@@ -686,9 +686,8 @@
               Which terms each course actually ran, with section counts,
               per-season evidence rollups, a recency-weighted probability
               estimate, and recorded departmental decisions where they exist,
-              from the held snapshots —
-              observed_terms states what was observed, so an unobserved term is
-              unknown, never “not offered”.
+              from the held snapshots — observed_terms states what was observed,
+              so an unobserved term is unknown, never “not offered”.
             </p>
           </div>
           <div class="tool">
@@ -734,9 +733,7 @@
         </p>
         <div class="toolgrid">
           <div class="tool">
-            <div class="tname" data-tool="list-programs">
-              list-programs
-            </div>
+            <div class="tname" data-tool="list-programs">list-programs</div>
             <p>
               Every program the catalog can advise on, with the catalog years
               each exists in — the valid values for every other tool's
@@ -767,6 +764,18 @@
               The named requirement slots — lab science, specialty area,
               technical, REACH — with explicit courses and credits. Only part of
               a degree: a course absent here is not absent from the program.
+            </p>
+          </div>
+          <div class="tool">
+            <div class="tname" data-tool="get-degree-requirements">
+              get-degree-requirements
+            </div>
+            <p>
+              Degree requirements as the <em>registrar</em> states them, from
+              Degree Works — the gate a student is graded against, beside the
+              catalog’s own plan. Carries credits-vs-classes, and/or joins,
+              attribute rules, wildcards and alternate routes. An empty list
+              means no audit was imported, not a degree without requirements.
             </p>
           </div>
           <div class="tool">
@@ -846,7 +855,8 @@
           </div>
           <div class="tool">
             <div class="tname" data-tool="list-catalog-skills">
-              list-catalog-skills <span class="tag">with get-catalog-skill-docs</span>
+              list-catalog-skills
+              <span class="tag">with get-catalog-skill-docs</span>
             </div>
             <p>
               List and fetch this server's three shared guidance documents: the

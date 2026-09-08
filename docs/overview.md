@@ -298,6 +298,20 @@ the footnote text they come from. Only part of a program's obligations: a
 course absent here is **not** absent from the degree. Does not include General
 Education.
 
+#### `get-degree-requirements`
+
+Degree requirements as the **registrar** states them, imported from Degree
+Works — a provenance distinct from the catalog plan above. This is the gate a
+student is actually graded against, in the registrar's own notation: each
+entry carries how much is needed and in what unit (3 credits and 1 class are
+different things), the courses that satisfy it, whether they are joined by
+`and` (take them all) or `or` (pick from), plus attribute rules (any course
+carrying `LIT`), subject/level wildcards, exclusions, a residency flag, and
+alternatives — whole alternate routes where satisfying **one** is enough. Use
+`get-program-plan` for what to take and when; use this for what actually
+counts. A program with no audit imported returns an empty list **and says so**:
+that is absence of an import, never a degree without requirements.
+
 #### `get-gen-ed`
 
 Clemson's General Education requirements for a catalog year: six categories

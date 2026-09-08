@@ -69,7 +69,7 @@ restarted, revoked, or taken down without touching the other.
 **Catalog (8767)** — `list-catalog-years`, `get-program-plan`,
 `get-requirement-rules`, `get-gen-ed`, `get-program-requirements`,
 `find-requirement-sections`, `find-course-in-program`, `list-programs`,
-`get-course`, `list-courses`, `get-department-rules`, `get-department-doc`,
+`get-course`, `list-courses`, `get-degree-requirements`, `get-department-rules`, `get-department-doc`,
 `list-catalog-skills`, `get-catalog-skill-docs`
 
 ### The departmental layer
@@ -172,10 +172,10 @@ public server does not depend on it at all.
 
 ### Data artifacts
 
-| Artifact                  | Size                    | Origin                                                           | In git? |
-| ------------------------- | ----------------------- | ---------------------------------------------------------------- | ------- |
-| `core/db/catalog.db`      | ~5.7 MB                 | built by `core/scripts/rebuild_db.sh` from the published catalog | no      |
-| `state/clemson/<term>.db` | ~3 MB × 34 terms = ~100 MB | daily refresh (live terms); one-time backfill to Spring 2016 | no      |
+| Artifact                  | Size                       | Origin                                                           | In git? |
+| ------------------------- | -------------------------- | ---------------------------------------------------------------- | ------- |
+| `core/db/catalog.db`      | ~5.7 MB                    | built by `core/scripts/rebuild_db.sh` from the published catalog | no      |
+| `state/clemson/<term>.db` | ~3 MB × 34 terms = ~100 MB | daily refresh (live terms); one-time backfill to Spring 2016     | no      |
 
 Total working set **~110 MB** — still small enough that the OS page
 cache holds all of it after the first read. This matters for the throughput figures in `capacity.md`.

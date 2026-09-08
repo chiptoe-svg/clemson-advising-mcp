@@ -8,6 +8,7 @@ import {
   getGcProgramPlan,
   listGcCatalogYears,
   getGcRequirementRules,
+  getGcRegistrarRequirements,
   getGcGenEd,
 } from "../gc-curriculum.js";
 import { CATALOG_DB } from "../config-mcp.js";
@@ -824,6 +825,97 @@ export const listCourses: McpToolDefinition = {
   },
 };
 
+/**
+ * get-degree-requirements: the REGISTRAR's own statement of what satisfies a
+ * degree, imported from Degree Works — a provenance distinct from the catalog
+ * plan that get-program-plan serves.
+ *
+ * Kept as its own tool rather than folded into the plan because the two
+ * sources are not interchangeable: the catalog says what to take and WHEN
+ * (the semester sequence), while Degree Works states what actually SATISFIES
+ * each requirement and is the gate a student is graded against. They agree on
+ * every current-year major, and where they differ the difference is
+ * vocabulary, not fact — but a caller must always know which one it is
+ * holding.
+ */
+export const registrarRequirements: McpToolDefinition = {
+  operation: "clemson.registrar_requirements",
+  category: "curriculum-extras",
+  tool: {
+    name: "get-degree-requirements",
+    description:
+      "Degree requirements as the REGISTRAR states them (imported from " +
+      "Degree Works), for one program and catalog year. This is the " +
+      "authoritative gate a student is graded against, in the registrar's own " +
+      "notation: each entry carries need + unit (3 credits vs 1 class — they " +
+      "are NOT the same), the courses that satisfy it, conjunction ('and' " +
+      "means every course is required, 'or' means pick from), plus " +
+      "attribute rules (e.g. any course carrying LIT), level/subject " +
+      "wildcards, exclusions, a residency flag, and alternatives (whole " +
+      "alternate routes — satisfy ONE of them, not all). " +
+      "Complements get-program-plan, which is the CATALOG's semester-by-" +
+      "semester sequence; use that for what to take when, and this for what " +
+      "actually counts. A program with nothing imported returns an empty " +
+      "list and says so — that means no audit has been imported, NEVER that " +
+      "the degree has no requirements. Read-only, no login.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        program: { type: "string", description: PROGRAM_ARG_DESCRIPTION },
+        catalog_year: {
+          type: "string",
+          description: CATALOG_YEAR_ARG_DESCRIPTION,
+        },
+        name: { type: "string", description: NAME_ALIAS_DESCRIPTION },
+        year: { type: "string", description: YEAR_ALIAS_DESCRIPTION },
+      },
+      additionalProperties: false,
+    },
+  },
+  async handler(args) {
+    try {
+      assertMcpOperation("clemson.registrar_requirements");
+    } catch (e) {
+      return permissionErr(e);
+    }
+    const program = resolveProgramArg(args);
+    if (!program) return err(missingProgramMessage());
+    const year = resolveCatalogYearArg(args);
+    if (!year) return err("catalog_year is required (see list-catalog-years)");
+    try {
+      const res = (await getGcRegistrarRequirements(year, program)) as {
+        audit_date: string | null;
+        requirements: unknown[];
+      };
+      const empty = res.requirements.length === 0;
+      return okJson({
+        program,
+        catalog_year: year,
+        audit_date: res.audit_date,
+        requirements: res.requirements,
+        // The three-state discipline: an empty list here is ABSENCE OF AN
+        // IMPORT, never a degree without requirements. Say which, always.
+        ...(empty
+          ? {
+              _note:
+                "No Degree Works audit has been imported for this program and " +
+                "catalog year, so NOTHING is known here — this says nothing " +
+                "about what the degree requires. Use get-program-plan for the " +
+                "catalog's requirements.",
+            }
+          : {}),
+        _source: empty
+          ? "no registrar import for this program/year"
+          : `Clemson Degree Works audit imported ${res.audit_date ?? "(date not recorded)"} — the registrar's statement, not the catalog`,
+      });
+    } catch (e) {
+      return err(
+        `registrar requirements lookup failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  },
+};
+
 registerTools([
   catalogYears,
   programPlan,
@@ -833,4 +925,5 @@ registerTools([
   listPrograms,
   getCourse,
   listCourses,
+  registrarRequirements,
 ]);

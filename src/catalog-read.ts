@@ -530,3 +530,39 @@ export function findStaleBogusFlags(db: Db): Array<{
   }
   return stale;
 }
+
+/**
+ * Requirements as the REGISTRAR states them (Degree Works), for one program
+ * and catalog year — a provenance of its own beside the catalog plan.
+ *
+ * Returns an EMPTY LIST for a program with nothing imported, which the caller
+ * must not conflate with "this degree has no requirements". The tool layer
+ * says which of the two it is; see src/mcp-tools/catalog.ts.
+ */
+export function getRegistrarRequirements(
+  db: Db,
+  year: string,
+  name: string,
+): { audit_date: string | null; requirements: Record<string, unknown>[] } {
+  const cy = yearId(db, year);
+  const pid = programId(db, cy, name, year);
+  const rows = db
+    .prepare(
+      "SELECT display_name, need, unit, rule, audit_date " +
+        "FROM registrar_requirement WHERE program_id=? ORDER BY ordering",
+    )
+    .all(pid) as Array<{
+    display_name: string | null;
+    need: number | null;
+    unit: string | null;
+    rule: string;
+    audit_date: string | null;
+  }>;
+  return {
+    audit_date: rows.length > 0 ? rows[0].audit_date : null,
+    requirements: rows.map((r) => ({
+      display_name: r.display_name,
+      ...(JSON.parse(r.rule) as Record<string, unknown>),
+    })),
+  };
+}

@@ -10,6 +10,7 @@ import {
   getGenEd as getGenEdRows,
   getProgramPlan as getProgramPlanRow,
   getRequirementRules as getRequirementRulesRows,
+  getRegistrarRequirements as getRegistrarRequirementsRows,
   knownPrograms,
   listCatalogYears,
   openCatalog,
@@ -99,4 +100,15 @@ export async function listGcCourses(
   return withCatalog((db) =>
     listCoursesRows(db, subject, numberMin, numberMax),
   );
+}
+
+export async function getGcRegistrarRequirements(
+  year: string,
+  name: string,
+): Promise<unknown> {
+  try {
+    return withCatalog((db) => getRegistrarRequirementsRows(db, year, name));
+  } catch (e) {
+    return asCatalogError(e, year);
+  }
 }
