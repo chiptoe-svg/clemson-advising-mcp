@@ -11,6 +11,20 @@ real program in the catalog: call `get-program-plan` with
 `program: "Pre-Business"` for the student's catalog year. Casual inquiry — no
 DegreeWorks or audit needed. The generic method lives in `advising-method`.
 
+**NO STUDENT STARTS IN ONE OF THE FIVE MAJORS.** Accounting, Economics (BS),
+Financial Management, Management and Marketing are not directly enterable:
+every student is admitted as **Pre-Business**, completes the shared freshman
+core, and declares the major on meeting the threshold below. So "a freshman in
+Marketing" does not exist — that student is a Pre-Business freshman *heading
+for* Marketing, and a first-year plan for them is the Pre-Business plan, not
+the major's. Each of the five majors' own `get-program-plan` reflects this: its
+freshman terms are labelled `Pre-Business Freshman/…`.
+
+This applies to those five and no others. **Economics BA, Graphic
+Communications and Packaging Science are direct-entry** — a freshman really is
+in the major from day one, and none of them carries a Pre-Business block. Do
+not generalize the rule beyond the five.
+
 - **"What should a pre-business freshman take?"** → read the plan's two
   semesters (fixed courses, the MATH-sequence choice, the slots).
 - **"Which MATH sequence?"** → the `MATH …` choice items carry `footnote_refs`
