@@ -265,6 +265,22 @@ def _canonicalize_slot_names(prog) -> None:
         if it.slot_type
     }
     rename = {n: f"{n} Requirement" for n in names if f"{n} Requirement" in names}
+    # ALSO canonicalize a layout-artifact family when this program prints
+    # ONLY the bare form. The page cell reads "South Carolina REACH Act";
+    # Degree Works, the requirement packs and every other program call it
+    # "South Carolina REACH Act Requirement" — and requirement_rule is keyed
+    # by slot_type, so the bare name silently missed the reach-act pack and
+    # the access layer served NO REACH rule for five 2025-2026 programs.
+    # Caught by tests/test_reach_act.py before it reached anyone. Scoped to
+    # the families _choice_is_layout_artifact already governs, so it cannot
+    # rename a slot the page genuinely titles without the word.
+    rename.update(
+        {
+            n: f"{n} Requirement"
+            for n in names
+            if _choice_is_layout_artifact(n) and not n.endswith("Requirement")
+        }
+    )
     if not rename:
         return
     for g in prog.groups:
