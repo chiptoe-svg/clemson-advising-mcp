@@ -24,3 +24,10 @@ workflows, scheduling lore, declared-major rules beyond the catalog's — it
 belongs HERE, so every advising agent fetches one authoritative copy. Until
 then, direct department-policy questions to the department's human advisors
 rather than guessing.
+
+<!-- No policy is asserted in this document, so there is no owner claim to
+     re-confirm — but the ABSENCE is itself a claim that goes stale: a
+     department can adopt a rule while this file keeps quietly saying nothing
+     is recorded. The date is what makes that noticeable.
+     test/department-doc-freshness.test.ts enforces it. -->
+<!-- policy-reviewed: 2026-09-11 no-policy-asserted -->

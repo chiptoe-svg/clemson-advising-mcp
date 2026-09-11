@@ -129,3 +129,14 @@ force the choice too early.
   guidance is the `pre-business-advising` skill.
 - Footnotes 1, 2, and 6 govern GC's slots in most years — quote them, never
   paraphrase.
+
+<!-- The stamp below records the last time a PERSON who owns this policy
+     confirmed it. Nothing in this repository can verify a departmental rule —
+     it comes from the program owner, not from catalog data — so
+     test/department-doc-freshness.test.ts fails when the date goes stale and
+     puts a human back in the loop. Re-confirm with the owner before bumping
+     it; the defect this guards against is a rule that reads perfectly and is
+     not the policy (2026-09-11: "internships must be in the summer", which
+     was stricter than the real rule and pushed a student into a term they did
+     not need). -->
+<!-- policy-reviewed: 2026-09-11 by C. Tonkin (GC program owner) -->
