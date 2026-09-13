@@ -28,7 +28,8 @@
     "test:gate": "npm run typecheck && REQUIRE_ARTIFACTS=1 CORE_E2E=required npm test && npm run core:test",
     "mcp:pair": "npx tsx scripts/mcp-pair.ts",
     "mcp:grant": "npx tsx scripts/mcp-grant.ts",
-    "mcp:health": "tsx scripts/mcp-health-check.ts"
+    "mcp:health": "tsx scripts/mcp-health-check.ts",
+    "mcp:bulk-invite": "tsx scripts/mcp-bulk-invite.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
