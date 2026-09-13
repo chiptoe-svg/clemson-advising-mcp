@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "purpose": "Canonical cross-implementation contract for the MCP consumer registry. Loaded by clemson-advising-mcp (TypeScript) and gc_alumni (Python). Every vector MUST be consumed by an assertion; see the meta-assertions in each loader. A vector nothing asserts reads as authoritative and is checked by nothing.",
+  "hash_vectors": [
+    {
+      "name": "ascii token",
+      "raw": "cma_alpha_token",
+      "sha256": "9ec766e44b3749e663b6ffadb8bc45e0de4f54cbde46d4fe11c69b9b362cccff"
+    },
+    {
+      "name": "second ascii token",
+      "raw": "cma_beta_token",
+      "sha256": "fc6b89872dfe1576ca59dd14c587d4cf366fa6556958258fa709e25af79e138e"
+    },
+    {
+      "name": "empty string",
+      "raw": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "non-ascii is hashed as utf-8",
+      "raw": "cma_uni_ü✓",
+      "sha256": "bab2bd9a536b585a90b16bcc444609f7833084a137f721bf89cda182967318bf"
+    },
+    {
+      "name": "trailing space is significant",
+      "raw": "cma_trailing ",
+      "sha256": "644f66a43e48da8bc5bba0112994c7dfd7f802b2f9e3d0e4d083d6d59e33f122"
+    }
+  ],
+  "registry": {
+    "consumers": [
+      {
+        "id": "alpha",
+        "token_hash": "9ec766e44b3749e663b6ffadb8bc45e0de4f54cbde46d4fe11c69b9b362cccff",
+        "created_at": "2026-01-01T00:00:00Z"
+      },
+      {
+        "id": "beta",
+        "token_hash": "fc6b89872dfe1576ca59dd14c587d4cf366fa6556958258fa709e25af79e138e",
+        "created_at": "2026-01-01T00:00:00Z",
+        "scopes": []
+      },
+      {
+        "id": "ghost-no-hash",
+        "created_at": "2026-01-01T00:00:00Z",
+        "scopes": [
+          "anything"
+        ]
+      }
+    ]
+  },
+  "auth_vectors": [
+    {
+      "name": "valid token matches its consumer",
+      "header": "Bearer cma_alpha_token",
+      "expect": "alpha"
+    },
+    {
+      "name": "a second consumer is distinguished",
+      "header": "Bearer cma_beta_token",
+      "expect": "beta"
+    },
+    {
+      "name": "RFC 7235: scheme name is case-insensitive (lowercase)",
+      "header": "bearer cma_alpha_token",
+      "expect": "alpha"
+    },
+    {
+      "name": "RFC 7235: scheme name is case-insensitive (uppercase)",
+      "header": "BEARER cma_alpha_token",
+      "expect": "alpha"
+    },
+    {
+      "name": "unknown token is rejected",
+      "header": "Bearer cma_ghost_token",
+      "expect": null
+    },
+    {
+      "name": "absent header is rejected",
+      "header": null,
+      "expect": null
+    },
+    {
+      "name": "empty header is rejected",
+      "header": "",
+      "expect": null
+    },
+    {
+      "name": "scheme with no token is rejected",
+      "header": "Bearer ",
+      "expect": null
+    },
+    {
+      "name": "a different scheme is rejected",
+      "header": "Token cma_alpha_token",
+      "expect": null
+    },
+    {
+      "name": "extra space is not stripped",
+      "header": "Bearer  cma_alpha_token",
+      "expect": null
+    },
+    {
+      "name": "trailing newline is not stripped",
+      "header": "Bearer cma_alpha_token\n",
+      "expect": null
+    },
+    {
+      "name": "hashless entry never matches any bearer",
+      "header": "Bearer anything",
+      "expect": null
+    },
+    {
+      "name": "hashless entry is not matched by an empty token",
+      "header": "Bearer ",
+      "expect": null
+    }
+  ],
+  "parse_vectors": [
+    {
+      "name": "object form with consumers key",
+      "raw": "{\"consumers\":[{\"id\":\"a\",\"token_hash\":\"ff\",\"created_at\":\"x\"}]}",
+      "expect_ids": [
+        "a"
+      ]
+    },
+    {
+      "name": "bare array form is accepted",
+      "raw": "[{\"id\":\"a\",\"token_hash\":\"ff\",\"created_at\":\"x\"}]",
+      "expect_ids": [
+        "a"
+      ]
+    },
+    {
+      "name": "invalid JSON yields an empty registry, never a throw",
+      "raw": "{not json",
+      "expect_ids": []
+    },
+    {
+      "name": "entry lacking id is dropped",
+      "raw": "{\"consumers\":[{\"token_hash\":\"ff\",\"created_at\":\"x\"},{\"id\":\"a\",\"token_hash\":\"ff\",\"created_at\":\"x\"}]}",
+      "expect_ids": [
+        "a"
+      ]
+    },
+    {
+      "name": "entry with non-string token_hash is dropped",
+      "raw": "{\"consumers\":[{\"id\":\"bad\",\"token_hash\":7,\"created_at\":\"x\"},{\"id\":\"a\",\"token_hash\":\"ff\",\"created_at\":\"x\"}]}",
+      "expect_ids": [
+        "a"
+      ]
+    }
+  ],
+  "scope_vectors": [
+    {
+      "name": "absent scopes means full access",
+      "scopes": null,
+      "expect": "full"
+    },
+    {
+      "name": "empty scopes means full access",
+      "scopes": [],
+      "expect": "full"
+    },
+    {
+      "name": "an unrecognized scope grants nothing",
+      "scopes": [
+        "__no_such_scope__"
+      ],
+      "expect": "empty"
+    }
+  ]
+}

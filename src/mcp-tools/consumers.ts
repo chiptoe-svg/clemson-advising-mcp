@@ -131,9 +131,19 @@ export function authenticateConsumer(
   authHeader: string | undefined,
   consumers: Consumer[],
 ): Consumer | null {
-  const prefix = "Bearer ";
-  if (!authHeader || !authHeader.startsWith(prefix)) return null;
-  const got = Buffer.from(hashToken(authHeader.slice(prefix.length)));
+  // RFC 7235 §2.1: the auth SCHEME NAME is case-insensitive. This was matched
+  // case-sensitively until 2026-09-13, while gc_alumni's Python guard lowercased
+  // it — so `bearer <token>` authenticated there and 401'd here, the same token
+  // giving different answers per server, with a symptom ("bad token") that
+  // points nowhere near the cause. Caught by test/registry-contract.test.ts on
+  // its first run. Only the scheme name is case-folded; the TOKEN that follows
+  // is compared byte-for-byte, and the single space after the scheme is still
+  // significant (`Bearer  x` leaves a leading space in the token, which will
+  // not match — deliberately, since we never trim a credential).
+  const PREFIX_LEN = 7; // "Bearer ".length
+  if (!authHeader) return null;
+  if (authHeader.slice(0, PREFIX_LEN).toLowerCase() !== "bearer ") return null;
+  const got = Buffer.from(hashToken(authHeader.slice(PREFIX_LEN)));
   for (const c of consumers) {
     const exp = Buffer.from(c.token_hash);
     if (got.length === exp.length && crypto.timingSafeEqual(got, exp)) {
