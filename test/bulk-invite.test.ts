@@ -224,3 +224,50 @@ test("summary carries count, servers and a fingerprint prefix", () => {
   assert.match(s, /catalog \+ schedule/);
   assert.match(s, new RegExp(r.fingerprint.slice(0, 12)));
 });
+
+// --- Cross-repo contract: mailcal's send-on-decision rejects any recipient
+// that is not a single bare address (no commas, semicolons, quotes, angle
+// brackets or spaces), returning recipient_not_clemson: invalid. That check
+// runs AFTER Chip has approved the decision, so anything this parser lets
+// through fails at send time on a spent approval. These assert the parser is
+// structurally incapable of emitting such an address — not that it happens
+// not to today.
+test("no resolved address can carry a character mailcal rejects", () => {
+  const hostile = [
+    "jane,doe@clemson.edu",
+    "jane;doe@clemson.edu",
+    '"jane"@clemson.edu',
+    "jane<smith>@clemson.edu",
+    "Jane Smith <jsmith@clemson.edu>",
+    "jsmith@clemson.edu, bob@clemson.edu",
+    "jsmith@clemson.edu;bob@clemson.edu",
+    "jsmith@clemson.edu>",
+  ];
+  for (const email of hostile) {
+    const r = parseRoster(`${HEAD}Jane,"${email.replace(/"/g, '""')}",schedule\n`, opts());
+    assert.equal(r.roster, null, `parser accepted a hostile address: ${email}`);
+    // A rejection is only evidence if it is the RIGHT rejection — otherwise a
+    // quoting accident in the test could reject the row for an unrelated
+    // reason and this would pass while proving nothing.
+    assert.ok(
+      r.problems.some((p) => p.field === "email"),
+      `rejected ${email}, but not on the email field: ${JSON.stringify(r.problems)}`,
+    );
+  }
+});
+
+test("every address the parser emits survives mailcal's shape check", () => {
+  // The independent witness: re-derive mailcal's rule here rather than trusting
+  // that ours implies it. If either side's rule moves, this fails.
+  const MAILCAL_OK = /^[^\s,;"'<>()[\]]+@[^\s,;"'<>()[\]]+$/;
+  const r = ok(
+    HEAD +
+      "Jane,jsmith@clemson.edu,schedule\n" +
+      "Bob,b.lee-2@g.clemson.edu,catalog\n" +
+      "Amy,a_k99@clemson.edu,schedule\n",
+  );
+  for (const row of r.rows) {
+    assert.match(row.email, MAILCAL_OK, `would be refused at send time: ${row.email}`);
+    assert.equal(row.email.trim(), row.email, "address carries surrounding whitespace");
+  }
+});
