@@ -115,8 +115,20 @@ for (const { dept, file, text } of DOCS) {
   });
 
   test(`${dept}: every course code it cites exists in the catalog`, () => {
-    if (!fs.existsSync(CATALOG_DB)) return; // catalog not built in this checkout
+    // FAIL, never skip, when the catalog is absent. A `return` here meant a
+    // wrong or moved CATALOG_DB silently passed every course-existence check
+    // and the run went green having verified nothing — the same invisible
+    // no-op this file was written to catch. Set CATALOG_DB explicitly if the
+    // database lives elsewhere.
+    assert.ok(
+      fs.existsSync(CATALOG_DB),
+      `catalog database not found at ${CATALOG_DB}. This check cannot run ` +
+        `without it, and skipping would report success for course codes it ` +
+        `never looked up. Build the catalog or set CATALOG_DB.`,
+    );
     const codes = [...new Set(text.match(/\b[A-Z]{2,5} \d{4}\b/g) ?? [])];
+    // Returning here is legitimate: a doc citing no course codes has nothing
+    // to verify. That is not the same as not verifying.
     if (codes.length === 0) return;
     const db = new Database(CATALOG_DB, { readonly: true });
     try {
