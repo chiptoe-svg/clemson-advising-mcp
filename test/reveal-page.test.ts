@@ -89,10 +89,18 @@ test("the CLI example uses a real grant, never a placeholder", () => {
   assert.doesNotMatch(html, /YOUR_TOKEN|<token>|xxxx/i);
 });
 
-test("it explains why pasting into the client beats an env var", () => {
-  // The trap that has burned this project: a shell export that reads correctly
-  // in a terminal and 401s under a GUI-launched app.
-  assert.match(page(), /never read that profile|environment variable/i);
+test("it warns against the 'Bearer token env var' field by name", () => {
+  // Codex's add-MCP form has BOTH a "Bearer token env var" field (which takes a
+  // VARIABLE NAME) and a literal Headers row. A token pasted into the former
+  // makes Codex look for a variable with that name, find nothing, and send no
+  // credential — a 401 indistinguishable from a bad token, which sends the
+  // person to check the token rather than the field. The page must name the
+  // field it is warning about; "do not use an env var" would not be actionable.
+  const html = page();
+  assert.match(html, /Bearer token env var/);
+  assert.match(html, /NAME of an environment variable/i);
+  assert.match(html, /Add header/, "must point at the field that DOES work");
+  assert.match(html, /Streamable HTTP/, "the type must be named, not assumed");
 });
 
 test("the claim window is never SHORTER than the PIN window", () => {

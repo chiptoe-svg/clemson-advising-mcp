@@ -149,16 +149,31 @@ ${input.grants.map(grantCard).join("")}
 <details open>
   <summary>Adding these to Codex</summary>
   <ol class="steps">
-    <li>Open Codex settings and choose <b>Add MCP server</b>.</li>
-    <li>Paste the <b>Server URL</b> above.</li>
-    <li>Choose bearer-token authentication and paste the <b>Bearer token</b>.</li>
-    <li>Repeat for each server listed — the tokens are different and are
+    <li>In the ChatGPT app, click your name at the bottom left, then
+        <b>Settings</b> (<kbd>⌘,</kbd>).</li>
+    <li>Choose <b>Plugins</b>, under <i>Integrations</i>.</li>
+    <li>Select the <b>MCPs</b> tab, then <b>Add</b> → <b>Add MCP server</b>.</li>
+    <li><b>Name</b>: anything you like — the server name above works well.</li>
+    <li><b>Type</b>: choose <b>Streamable HTTP</b> (not STDIO).</li>
+    <li><b>URL</b>: paste the Server URL above, including the trailing slash.</li>
+    <li><b>Leave “Bearer token env var” empty.</b> See the warning below.</li>
+    <li>Under <b>Headers</b>, click <b>Add header</b> and enter:<br>
+        Key <code>Authorization</code> — Value <code>Bearer &lt;your token&gt;</code>
+        (the word <code>Bearer</code>, a space, then the token).</li>
+    <li>Save, and make sure the server’s toggle is on.</li>
+    <li>Repeat for each server above. The tokens are different and are
         <b>not interchangeable</b>.</li>
   </ol>
-  <p class="scope">Pasting the token into Codex is the reliable way to do this:
-  Codex stores it itself, so there is no environment variable to set. A token
-  exported from a shell profile often works in a terminal and fails under an
-  app launched from the Dock, because the app never read that profile.</p>
+  <p class="disclosure"><b>Do not paste your token into “Bearer token env var”.</b>
+  That field expects the NAME of an environment variable, not the token itself —
+  so a token pasted there makes Codex look for a variable with that name, find
+  nothing, and send no credential. The result is a 401 that looks exactly like a
+  bad token, and you will spend your time checking the token rather than the
+  field. Use the <b>Headers</b> row instead: it takes the value literally.</p>
+  <p class="scope">Using a header rather than an environment variable also
+  avoids a second trap: a variable exported from a shell profile is visible to
+  a terminal but not to an app launched from the Dock, which never read that
+  profile.</p>
 </details>
 
 <details>
