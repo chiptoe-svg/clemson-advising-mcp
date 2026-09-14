@@ -8,6 +8,11 @@ import test from "node:test";
 import { renderRevealPage, type Grant } from "../src/portal/reveal-page.js";
 import { escapeHtml } from "../src/portal/escape.js";
 import {
+  FALLBACK_DISCLOSURE,
+  DISCLOSURE_REQUIRED,
+  resolveDisclosure,
+} from "../src/portal/disclosures.js";
+import {
   PIN_TTL_HOURS,
   CLAIM_TTL_HOURS,
   MAX_PIN_RESENDS,
@@ -123,17 +128,45 @@ test("ONLY granted servers appear — the page has no notion of the others", () 
   assert.match(html, /1 server\b/, "count must reflect the grants, not the roster");
 });
 
-test("the alumni disclosure keeps its measured figures intact", () => {
+test("the RETURNED disclosure wins over the local fallback", () => {
+  // The owning repo asserts its figures against the database it serves; this
+  // side cannot. So the endpoint is authoritative and the local copy is only
+  // for a response that omits the field.
+  const fresh = "Updated by the owner: this token reads 9,999 records.";
+  const html = page([grant({ server: "gc_alumni", disclosure: fresh })]);
+  assert.match(html, /9,999 records/);
+  assert.doesNotMatch(html, /3,135/, "the stale fallback must not also appear");
+});
+
+test("a delegated grant NEVER renders without a disclosure", () => {
+  // A 200 that omits the field — older build, renamed key, serialisation slip
+  // — must not produce a silent page. Silence here reads as "nothing about
+  // this needs saying", on the one page where the holder learns what they hold.
+  for (const server of DISCLOSURE_REQUIRED) {
+    const html = page([grant({ server, disclosure: undefined })]);
+    assert.match(
+      html,
+      /class="disclosure"/,
+      `${server} rendered with no disclosure at all`,
+    );
+  }
+});
+
+test("resolveDisclosure treats blank as absent, not as a value", () => {
+  // An empty string is what a serialisation slip produces, and `?? fallback`
+  // would happily render it as a disclosure of nothing.
+  assert.equal(resolveDisclosure("gc_alumni", "   "), FALLBACK_DISCLOSURE.gc_alumni);
+  assert.equal(resolveDisclosure("cu_schedule", undefined), null);
+});
+
+test("the alumni fallback keeps its measured figures intact", () => {
   // The numbers ARE the disclosure. A paraphrase that rounds or drops one is
   // the failure mode this block has already had three times, each time in the
   // direction that reassured.
-  const d =
-    "This token reads the complete alumni record for 3,135 Clemson Graphic " +
-    "Communications graduates: email for 2,162 of them, phone for 2,318, " +
-    "Clemson ID (CUID) for 896, plus full job history, LinkedIn profiles and " +
-    "photographs.";
-  const html = page([grant({ server: "gc_alumni", disclosure: d })]);
+  const html = page([grant({ server: "gc_alumni", disclosure: undefined })]);
   for (const n of ["3,135", "2,162", "2,318", "896"]) {
     assert.match(html, new RegExp(n), `figure ${n} must survive rendering`);
   }
+  // The sentence the owner removed must not creep back via the fallback.
+  assert.doesNotMatch(FALLBACK_DISCLOSURE.gc_alumni, /student-facing directory/);
 });

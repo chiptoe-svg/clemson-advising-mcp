@@ -26,6 +26,7 @@
 // That has to be stated before the tokens rather than after, because a person
 // who scrolls past it has already lost the thing.
 import { escapeHtml } from "./escape.js";
+import { resolveDisclosure } from "./disclosures.js";
 
 export interface Grant {
   /** User-visible server name, e.g. "cu_schedule". */
@@ -40,9 +41,13 @@ export interface Grant {
   scopeSummary: string | null;
   /**
    * A plain-language statement of what this token reaches, shown prominently.
-   * Authored by the repo that owns the server — every warning before this page
-   * was aimed at the approver, and the HOLDER has seen none of them. This is
-   * the moment they understand what they are holding.
+   * RETURNED BY THE SERVER THAT OWNS THE DATA (gc_alumni's /claim includes it
+   * in the 200 payload), because that side can assert its figures against the
+   * database it actually serves and this side cannot. Render what you are
+   * given; a local fallback applies only when the field is absent.
+   *
+   * Every warning before this page was aimed at the approver. The HOLDER has
+   * seen none of them, and this is the moment they understand what they hold.
    */
   disclosure?: string;
 }
@@ -94,9 +99,10 @@ border-top:1px solid var(--line);padding-top:1.25rem}
 `;
 
 function grantCard(g: Grant): string {
-  const disclosure = g.disclosure
-    ? `<p class="disclosure">${escapeHtml(g.disclosure)}</p>`
-    : "";
+  // Falls back rather than rendering nothing: a missing disclosure is silence,
+  // and silence here reads as "nothing about this needs saying".
+  const text = resolveDisclosure(g.server, g.disclosure);
+  const disclosure = text ? `<p class="disclosure">${escapeHtml(text)}</p>` : "";
   const scope = g.scopeSummary
     ? `<p class="scope">Scope: ${escapeHtml(g.scopeSummary)}</p>`
     : `<p class="scope">Granted in full — this server has no narrower scope.</p>`;
