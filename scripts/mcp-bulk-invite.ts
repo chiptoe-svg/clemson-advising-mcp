@@ -128,15 +128,28 @@ if (roster.hasDelegated) {
     //    meaningless to a faculty member. It is a CONFUSION control.
     //
     // Together those made the previous text reassuring about the wrong things,
-    // in front of the operator, on every roster. Counts verified live
-    // 2026-09-13; magnitudes are given rather than exact figures, because a
-    // stale number inside a safety warning is its own defect.
+    // in front of the operator, on every roster.
+    //
+    // THE THIRD ERROR, and the one worth reading before editing this again: the
+    // correction to (1) OVERSTATED — it cited 3,100, which is the ROW COUNT.
+    // 2,763 people have any contact field; 372 have none. Accuracy cuts both
+    // ways here, and not symmetrically: a warning that overstates gets
+    // discounted the first time someone checks it, and every accurate warning
+    // beside it is discounted with it. 2,763 is alarming enough while being
+    // true. Figures carry their measurement DATE so staleness is visible
+    // rather than silent — the reason to avoid bare numbers, without the cost
+    // of vagueness.
     w(
       `\n  ⚠  gc_alumni serves the FULL WORKING DATABASE (changed 2026-09-13),\n` +
-        `     not the published copy. A grant reaches CONTACT PII for roughly\n` +
-        `     3,100 people: email and personal phone for over half, plus CUID\n` +
-        `     and reported salary for hundreds — alongside names, employers,\n` +
-        `     grad year, LinkedIn URLs and photos.\n` +
+        `     not the published copy. Measured 2026-09-13, of 3,135 records:\n` +
+        `\n       2,763  have at least one of email, phone or CUID\n` +
+        `       2,162  any email          2,318  any phone\n` +
+        `         896  CUID — a STUDENT IDENTIFIER, not contact detail, and a\n` +
+        `              different kind of exposure from the rest\n` +
+        `         268  reported salary      372  no contact field at all\n` +
+        `\n     Plus names, employers, grad year, LinkedIn URLs and photos.\n` +
+        `     (3,135 is the row count, NOT the number of people whose contact\n` +
+        `     details a grant hands over. That number is 2,763.)\n` +
         `\n     SCOPE DOES NOT NARROW THIS. gc.alumni.research hides the 4\n` +
         `     pipeline tools and nothing else; both scopes read every record,\n` +
         `     via query. Narrow for fewer confusing tools, never for less\n` +
