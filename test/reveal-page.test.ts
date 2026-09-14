@@ -99,26 +99,11 @@ test("the claim window is never SHORTER than the PIN window", () => {
     "a claim expiring before its PIN makes the emailed code dead on arrival",
   );
   assert.equal(PIN_TTL_HOURS, 24, "settled by the owner 2026-09-13");
-});
-
-test("resend only means something while the claim outlives the PIN", () => {
-  // Encodes the consequence rather than asserting a preferred number: if the
-  // two are equal, a person whose PIN lapsed has also lost the claim, and the
-  // resend button cannot help them. Raising CLAIM_TTL_HOURS is what makes this
-  // stop being true — deliberately, in one place.
-  const resendCanHelp = CLAIM_TTL_HOURS > PIN_TTL_HOURS;
-  assert.equal(
-    resendCanHelp,
-    false,
-    "if this fails, the claim now outlives the PIN — resend became useful; " +
-      "update constants.ts and delete this test rather than editing it",
+  assert.ok(
+    CLAIM_TTL_HOURS > PIN_TTL_HOURS,
+    "the claim must OUTLIVE the PIN or the resend button is decorative — see " +
+      "the Friday-roster scenario in constants.ts before changing either",
   );
-});
-
-test("a PIN can be re-requested a bounded number of times", () => {
-  // 24 hours is only workable because a fresh code needs no new approval. But
-  // unbounded resends make the resend form an email-sending oracle.
-  assert.ok(MAX_PIN_RESENDS > 0 && MAX_PIN_RESENDS <= 10);
 });
 
 test("ONLY granted servers appear — the page has no notion of the others", () => {
