@@ -71,7 +71,7 @@ test("every granted server gets its own labelled token", () => {
 
 test("a disclosure is rendered verbatim when supplied", () => {
   // Authored by the repo that owns the server; paraphrasing it here would put
-  // measured figures in the hands of the side that has been wrong about them.
+  // the text in the hands of the side that has been wrong about that surface.
   const d = "This token reads the complete alumni record for 3,135 graduates.";
   assert.match(page([grant({ server: "gc_alumni", disclosure: d })]), new RegExp(d));
 });
@@ -159,14 +159,29 @@ test("resolveDisclosure treats blank as absent, not as a value", () => {
   assert.equal(resolveDisclosure("cu_schedule", undefined), null);
 });
 
-test("the alumni fallback keeps its measured figures intact", () => {
-  // The numbers ARE the disclosure. A paraphrase that rounds or drops one is
-  // the failure mode this block has already had three times, each time in the
-  // direction that reassured.
+test("the alumni fallback names data CATEGORIES, not counts", () => {
+  // REPLACES a test that asserted four measured figures survived rendering.
+  // The owner cut the numbers (2026-09-13) and his reasoning retired the test
+  // with them: a count is stale the second it is printed, and a reader learns
+  // nothing from "2,162" that "email addresses" has not already told them.
+  // Nobody behaves differently on 2,162 than on 2,161. Both repos had been
+  // treating the figures as the SUBSTANCE of the disclosure; they were
+  // decoration with a maintenance cost, and removing them removed the drift.
+  //
+  // What can still go WRONG is a category claim — gc_careers promising "no
+  // email" is true only while it serves the published copy — and that is
+  // asserted against the database in the repo that owns it, which is the only
+  // place it can be. A category claim can become a lie; a count can only go
+  // stale.
   const html = page([grant({ server: "gc_alumni", disclosure: undefined })]);
-  for (const n of ["3,135", "2,162", "2,318", "896"]) {
-    assert.match(html, new RegExp(n), `figure ${n} must survive rendering`);
+  for (const cat of ["email addresses", "phone numbers", "photographs"]) {
+    assert.match(html, new RegExp(cat), `the fallback must still name ${cat}`);
   }
+  assert.doesNotMatch(
+    FALLBACK_DISCLOSURE.gc_alumni,
+    /\d,\d{3}/,
+    "counts were deliberately removed — do not reintroduce them here",
+  );
   // The sentence the owner removed must not creep back via the fallback.
   assert.doesNotMatch(FALLBACK_DISCLOSURE.gc_alumni, /student-facing directory/);
 });

@@ -14,10 +14,19 @@
 // as "nothing here needs one". That is the defect this project keeps meeting,
 // and it would land on the one page where the holder learns what they hold.
 //
-// These will drift. That is acceptable and bounded: they are used only when
-// the authoritative value is absent, and the owning repo has a test that fails
-// when its figures stop matching the database. A stale fallback that names the
-// right categories beats silence.
+// NO COUNTS, deliberately (owner, 2026-09-13). An earlier version named
+// measured figures — 3,135 records, email for 2,162 — and both repos carried
+// tests to keep them true. Chip cut them, and his reasoning retired the tests
+// with them: a count is stale the second it is printed, and a reader learns
+// nothing from "2,162" that "email addresses" has not already told them.
+// Nobody behaves differently on 2,162 than on 2,161. We had both been treating
+// the numbers as the SUBSTANCE of the disclosure; they were decoration with a
+// maintenance cost, and deleting them deleted the drift they created.
+//
+// What remains worth guarding is WHICH DATA each token reaches — gc_careers
+// promising no email or phone is true only while it serves the published copy,
+// and that is asserted against the database in the owning repo rather than
+// read as prose. A category claim can become a lie. A count can only go stale.
 //
 // The gc_alumni text deliberately OMITS one sentence the owning repo retains:
 //   "It also returns graduates who asked to be left out of the student-facing
@@ -28,15 +37,14 @@
 // damage. Both repos record that.
 export const FALLBACK_DISCLOSURE: Record<string, string> = {
   gc_alumni:
-    "This token reads the complete alumni record for 3,135 Clemson Graphic " +
-    "Communications graduates: email for 2,162 of them, phone for 2,318, " +
-    "Clemson ID (CUID) for 896, plus full job history, LinkedIn profiles and " +
-    "photographs. This is departmental data. Do not paste it into anything " +
+    "This token reads complete alumni records: names, email addresses, phone " +
+    "numbers, full job history, LinkedIn profiles and photographs. This is " +
+    "departmental data. Be careful with it — do not paste it into anything " +
     "that leaves Clemson, and do not share this token.",
   gc_careers:
     "This token reads published career data: aggregate graduate outcomes, " +
     "occupation and salary reference, and named graduates at companies and in " +
-    "cities. It holds no email, no phone, no Clemson ID and no individual " +
+    "cities. It holds no email addresses, no phone numbers and no individual " +
     "salary figures, and it excludes graduates who opted out of the directory.",
 };
 
