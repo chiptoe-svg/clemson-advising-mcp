@@ -45,6 +45,23 @@ const RENAMED: Record<string, DelegatedServer> = { gc_public: "gc_careers" };
 /** Email domains a roster row may carry. Owner decision, 2026-09-13. */
 export const ALLOWED_DOMAINS = ["clemson.edu", "g.clemson.edu"];
 
+/**
+ * gc_alumni's scope vocabulary. ENFORCED AT REQUEST TIME — verified live by
+ * the gc_alumni session 2026-09-13: a research-scoped token sees 10 tools
+ * rather than 14, and an ops tool returns -32601 "Unknown tool" on call. Both
+ * halves agree, which is why the scope is worth recording.
+ *
+ * THE TRAP, and it is why these are validated HERE rather than passed through:
+ * an unrecognized scope grants NOTHING over there. That is the right failure
+ * direction for a typo — closed, not open — but it means a decision carrying
+ * "gc.alumni.reasearch" mints a credential that authenticates perfectly and
+ * can call zero tools. The holder gets a working token and an empty toolbox
+ * and NOTHING ANYWHERE REPORTS AN ERROR. So a misspelling must die at parse
+ * time, before an approval is spent; it cannot be left for the other side to
+ * reject, because the other side will honour it as "nothing".
+ */
+export const ALUMNI_SCOPES = ["gc.alumni.research", "gc.alumni.ops"] as const;
+
 /** The scope a row gets when it names a server and no explicit scopes. */
 const DEFAULT_SCOPES: Record<MintableServer, string[]> = {
   schedule: ["clemson.schedule"],
@@ -80,6 +97,19 @@ export interface RosterRow {
    * inferring them.
    */
   scopes: string[];
+  /**
+   * gc_alumni scopes. Kept SEPARATE from `scopes` rather than merged, because
+   * the two vocabularies are enforced by different servers in different repos
+   * and merging them would make an unroutable token look routable. Empty means
+   * granted whole, per the shared contract.
+   *
+   * NOTE FOR THE DECISION DETAILS: do not serialise this under a bare "scopes"
+   * key beside a gc_careers grant. `scope` is already a PARAMETER on careers'
+   * find_alumni_at_company / find_alumni_near_city, where it means
+   * current|prior|first|internship|any and has nothing to do with
+   * authorization. Use an unambiguous key such as `auth_scopes`.
+   */
+  alumniScopes: string[];
   note: string;
 }
 
@@ -277,25 +307,55 @@ export function parseRoster(
       if (!servers.includes(s as Server)) servers.push(s as Server);
     }
 
+    // Scopes are ROUTED by their namespace rather than needing per-server
+    // syntax: gc.alumni.* belongs to gc_alumni, everything else to this repo's
+    // servers. A scope naming a server the row does not grant is a mistake
+    // worth refusing, not a no-op worth ignoring.
     const explicit = splitList(get(iScopes));
-    for (const s of explicit) {
-      if (!opts.isValidScope(s)) {
-        problems.push({ line, field: "scopes", message: `unknown scope '${s}'` });
-      }
+    const localExplicit: string[] = [];
+    const alumniExplicit: string[] = [];
+    for (const sc of explicit) {
+      if (sc.startsWith("gc.alumni.")) {
+        if (!(ALUMNI_SCOPES as readonly string[]).includes(sc)) {
+          problems.push({
+            line,
+            field: "scopes",
+            message:
+              `unknown gc_alumni scope '${sc}' (expected ${ALUMNI_SCOPES.join(" or ")}). ` +
+              `An unrecognized scope grants NOTHING there — the token would ` +
+              `authenticate and call no tools, with no error anywhere.`,
+          });
+        } else if (!delegated.includes("gc_alumni")) {
+          problems.push({
+            line,
+            field: "scopes",
+            message: `'${sc}' applies to gc_alumni, which this row does not grant`,
+          });
+        } else alumniExplicit.push(sc);
+      } else if (!opts.isValidScope(sc)) {
+        problems.push({ line, field: "scopes", message: `unknown scope '${sc}'` });
+      } else if (mintable.length === 0) {
+        problems.push({
+          line,
+          field: "scopes",
+          message: `'${sc}' applies to ${MINTABLE_SERVERS.join("/")}, which this row does not grant`,
+        });
+      } else localExplicit.push(sc);
     }
-    if (explicit.length && mintable.length === 0) {
+    if (explicit.length && mintable.length === 0 && !delegated.includes("gc_alumni")) {
       problems.push({
         line,
         field: "scopes",
         message:
-          `scopes apply to ${MINTABLE_SERVERS.join("/")} only, and this row ` +
-          `grants neither. ${delegated.join("/")} is granted whole — recording ` +
-          `a scope nothing enforces would state a control that does not exist.`,
+          `this row grants only ${delegated.join("/")}, which is granted whole — ` +
+          `gc_careers has no scope layer at all, so recording a scope would ` +
+          `state a control that does not exist.`,
       });
     }
-    const scopes = explicit.length
-      ? explicit
+    const scopes = localExplicit.length
+      ? localExplicit
       : [...new Set(mintable.flatMap((s) => DEFAULT_SCOPES[s]))];
+    const alumniScopes = alumniExplicit;
 
     for (const s of mintable) {
       if (id && opts.existing[s]?.has(id)) {
@@ -309,7 +369,10 @@ export function parseRoster(
       }
     }
 
-    rows.push({ line, name, email, id, servers, mintable, delegated, scopes, note: get(iNote) });
+    rows.push({
+      line, name, email, id, servers, mintable, delegated, scopes, alumniScopes,
+      note: get(iNote),
+    });
   }
 
   if (rows.length === 0) {
@@ -355,7 +418,16 @@ export function parseRoster(
 export function fingerprintRoster(rows: RosterRow[]): string {
   const canon = [...rows]
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((r) => [r.id, r.email, r.name, [...r.servers].sort().join("+"), [...r.scopes].sort().join("+")]);
+    .map((r) => [
+      r.id,
+      r.email,
+      r.name,
+      [...r.servers].sort().join("+"),
+      [...r.scopes].sort().join("+"),
+      // Included because a research-only alumni grant and a full one are
+      // different acts, and the approval must bind to which was requested.
+      [...r.alumniScopes].sort().join("+"),
+    ]);
   return crypto.createHash("sha256").update(JSON.stringify(canon), "utf-8").digest("hex");
 }
 

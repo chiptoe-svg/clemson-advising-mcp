@@ -115,12 +115,52 @@ test("gc_public is accepted as the old name for gc_careers, and noted", () => {
   assert.deepEqual(r.renamed, ["gc_public"]);
 });
 
-test("scopes on a delegated-only row are refused, not silently dropped", () => {
-  // Neither delegated server consults a scope at request time. Accepting one
-  // would record a control that does not exist — and the person reading the
-  // roster would believe access had been limited.
-  const p = bad("name,email,servers,scopes\nJane,jsmith@clemson.edu,gc_alumni,host\n");
-  assert.match(p[0].message, /granted whole/);
+test("gc_alumni scopes are carried — they ARE enforced at request time", () => {
+  // Verified live by the gc_alumni session 2026-09-13: a research-scoped token
+  // sees 10 tools not 14, and an ops tool returns -32601 on call.
+  const r = ok("name,email,servers,scopes\nJane,jsmith@clemson.edu,gc_alumni,gc.alumni.research\n");
+  assert.deepEqual(r.rows[0].alumniScopes, ["gc.alumni.research"]);
+  assert.deepEqual(r.rows[0].scopes, [], "must not leak into this repo's scopes");
+});
+
+test("a MISSPELLED gc_alumni scope dies at parse time, never passed through", () => {
+  // The trap: an unrecognized scope grants NOTHING over there — right for a
+  // typo, but it mints a credential that authenticates and calls zero tools
+  // with no error anywhere. It cannot be left for the other side to reject,
+  // because the other side honours it as "nothing".
+  const p = bad("name,email,servers,scopes\nJane,jsmith@clemson.edu,gc_alumni,gc.alumni.reasearch\n");
+  assert.match(p[0].message, /unknown gc_alumni scope/);
+  assert.match(p[0].message, /grants NOTHING/);
+});
+
+test("an alumni scope on a row that does not grant alumni is refused", () => {
+  const p = bad("name,email,servers,scopes\nJane,jsmith@clemson.edu,schedule,gc.alumni.ops\n");
+  assert.match(p[0].message, /which this row does not grant/);
+});
+
+test("gc_careers takes no scopes — it has no scope layer at all", () => {
+  const p = bad("name,email,servers,scopes\nJane,jsmith@clemson.edu,gc_careers,gc.alumni.research\n");
+  assert.match(p[0].message, /does not grant/);
+  const p2 = bad("name,email,servers,scopes\nJane,jsmith@clemson.edu,gc_careers,host\n");
+  assert.match(p2[0].message, /does not grant/);
+});
+
+test("scopes route by namespace on a mixed row", () => {
+  const r = ok(
+    "name,email,servers,scopes\n" +
+      'Jane,jsmith@clemson.edu,schedule|gc_alumni,"clemson.schedule gc.alumni.research"\n',
+  );
+  assert.deepEqual(r.rows[0].scopes, ["clemson.schedule"]);
+  assert.deepEqual(r.rows[0].alumniScopes, ["gc.alumni.research"]);
+});
+
+test("a research-only alumni grant fingerprints differently from a whole one", () => {
+  // The approval must bind to WHICH grant was requested, not merely that one was.
+  const whole = ok(HEAD + "Jane,jsmith@clemson.edu,gc_alumni\n").fingerprint;
+  const narrow = ok(
+    "name,email,servers,scopes\nJane,jsmith@clemson.edu,gc_alumni,gc.alumni.research\n",
+  ).fingerprint;
+  assert.notEqual(whole, narrow);
 });
 
 test("a delegated grant changes the fingerprint", () => {

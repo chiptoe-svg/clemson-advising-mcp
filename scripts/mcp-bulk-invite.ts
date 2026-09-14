@@ -110,12 +110,27 @@ if (roster.hasDelegated) {
       `  by the gc_alumni repo, which owns those registries:\n\n`,
   );
   for (const r of rows) {
-    w(`    ${pad(r.id, 16)}${pad(r.email, 30)}${r.delegated.join("+")}\n`);
+    const scoped = r.alumniScopes.length ? ` [${r.alumniScopes.join(",")}]` : "";
+    w(`    ${pad(r.id, 16)}${pad(r.email, 30)}${r.delegated.join("+")}${scoped}\n`);
   }
-  w(
-    `\n  Those grants are ALL-OR-NOTHING today — neither server consults a\n` +
-      `  scope at request time, so each person above gets that server whole.\n`,
+  const wholeAlumni = rows.filter(
+    (r) => r.delegated.includes("gc_alumni") && r.alumniScopes.length === 0,
   );
+  if (wholeAlumni.length) {
+    w(
+      `\n  ${wholeAlumni.length} gc_alumni grant(s) carry NO scope, which means the\n` +
+        `  whole surface: names, employers, grad year, LinkedIn URLs and photos.\n` +
+        `  Narrow with a scopes column (gc.alumni.research or gc.alumni.ops).\n`,
+    );
+  }
+  if (rows.some((r) => r.delegated.includes("gc_careers"))) {
+    w(
+      `\n  gc_careers has no scope layer at all, so those grants are whole by\n` +
+        `  construction. It names graduates by design (company and location\n` +
+        `  searches), filtered against opt-out and capped — safer by what it\n` +
+        `  withholds, not by being aggregate-only.\n`,
+    );
+  }
 }
 
 if (roster.large) {
