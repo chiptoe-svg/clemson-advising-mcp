@@ -7,6 +7,11 @@ import test from "node:test";
 
 import { renderRevealPage, type Grant } from "../src/portal/reveal-page.js";
 import { escapeHtml } from "../src/portal/escape.js";
+import {
+  PIN_TTL_HOURS,
+  CLAIM_TTL_HOURS,
+  MAX_PIN_RESENDS,
+} from "../src/portal/constants.js";
 
 const grant = (o: Partial<Grant> = {}): Grant => ({
   server: "cu_schedule",
@@ -83,4 +88,52 @@ test("it explains why pasting into the client beats an env var", () => {
   // The trap that has burned this project: a shell export that reads correctly
   // in a terminal and 401s under a GUI-launched app.
   assert.match(page(), /never read that profile|environment variable/i);
+});
+
+test("the claim window is never SHORTER than the PIN window", () => {
+  // A claim that dies before its own delivery key is strictly incoherent: the
+  // code arrives already useless. This is the invariant; equality is allowed
+  // but makes resend decorative, which is the open question in constants.ts.
+  assert.ok(
+    CLAIM_TTL_HOURS >= PIN_TTL_HOURS,
+    "a claim expiring before its PIN makes the emailed code dead on arrival",
+  );
+  assert.equal(PIN_TTL_HOURS, 24, "settled by the owner 2026-09-13");
+});
+
+test("resend only means something while the claim outlives the PIN", () => {
+  // Encodes the consequence rather than asserting a preferred number: if the
+  // two are equal, a person whose PIN lapsed has also lost the claim, and the
+  // resend button cannot help them. Raising CLAIM_TTL_HOURS is what makes this
+  // stop being true — deliberately, in one place.
+  const resendCanHelp = CLAIM_TTL_HOURS > PIN_TTL_HOURS;
+  assert.equal(
+    resendCanHelp,
+    false,
+    "if this fails, the claim now outlives the PIN — resend became useful; " +
+      "update constants.ts and delete this test rather than editing it",
+  );
+});
+
+test("a PIN can be re-requested a bounded number of times", () => {
+  // 24 hours is only workable because a fresh code needs no new approval. But
+  // unbounded resends make the resend form an email-sending oracle.
+  assert.ok(MAX_PIN_RESENDS > 0 && MAX_PIN_RESENDS <= 10);
+});
+
+test("ONLY granted servers appear — the page has no notion of the others", () => {
+  // Structural rather than filtered: the page renders the grants it is given
+  // and holds no list of all servers, so there is nothing for a bug to leak.
+  // Pinned because "which servers exist, and does this person have alumni?"
+  // is itself information the holder should not learn from their own page.
+  const html = page([grant({ server: "cu_schedule", token: "cma_ONLYONE" })]);
+  assert.match(html, /cu_schedule/);
+  for (const absent of ["cu_catalog", "gc_alumni", "gc_careers"]) {
+    assert.doesNotMatch(
+      html,
+      new RegExp(absent),
+      `${absent} was not granted and must not appear anywhere on the page`,
+    );
+  }
+  assert.match(html, /1 server\b/, "count must reflect the grants, not the roster");
 });
