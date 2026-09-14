@@ -137,3 +137,18 @@ test("ONLY granted servers appear — the page has no notion of the others", () 
   }
   assert.match(html, /1 server\b/, "count must reflect the grants, not the roster");
 });
+
+test("the alumni disclosure keeps its measured figures intact", () => {
+  // The numbers ARE the disclosure. A paraphrase that rounds or drops one is
+  // the failure mode this block has already had three times, each time in the
+  // direction that reassured.
+  const d =
+    "This token reads the complete alumni record for 3,135 Clemson Graphic " +
+    "Communications graduates: email for 2,162 of them, phone for 2,318, " +
+    "Clemson ID (CUID) for 896, plus full job history, LinkedIn profiles and " +
+    "photographs.";
+  const html = page([grant({ server: "gc_alumni", disclosure: d })]);
+  for (const n of ["3,135", "2,162", "2,318", "896"]) {
+    assert.match(html, new RegExp(n), `figure ${n} must survive rendering`);
+  }
+});

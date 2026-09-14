@@ -11,16 +11,28 @@
 import fs from "fs";
 import { renderRevealPage, type Grant } from "../src/portal/reveal-page.js";
 
-// Verbatim from the gc_alumni session, 2026-09-13. Measured, not estimated.
-// Do not paraphrase: the numbers are the disclosure.
+// Authored by the gc_alumni session, 2026-09-13. Measured, not estimated.
+// DO NOT PARAPHRASE: the numbers are the disclosure, and this side has been
+// wrong about that surface three times in one afternoon.
+//
+// ONE SENTENCE IS DELIBERATELY OMITTED from the gc_alumni string, by the
+// owner's decision (2026-09-13). Their canonical version also contains:
+//
+//   "It also returns graduates who asked to be left out of the student-facing
+//    directory."
+//
+// It is absent here because Chip removed it, NOT because it was lost in
+// copying. Recorded because the two repos now hold deliberately different
+// versions of one string: anyone syncing from their canonical copy would
+// otherwise "restore" it as a fix. If it is ever reinstated, that should be
+// the owner's decision again rather than a merge artifact.
 const DISCLOSURE: Record<string, string> = {
   gc_alumni:
     "This token reads the complete alumni record for 3,135 Clemson Graphic " +
     "Communications graduates: email for 2,162 of them, phone for 2,318, " +
     "Clemson ID (CUID) for 896, plus full job history, LinkedIn profiles and " +
-    "photographs. It also returns graduates who asked to be left out of the " +
-    "student-facing directory. This is departmental data. Do not paste it into " +
-    "anything that leaves Clemson, and do not share this token.",
+    "photographs. This is departmental data. Do not paste it into anything " +
+    "that leaves Clemson, and do not share this token.",
   gc_careers:
     "This token reads published career data: aggregate graduate outcomes, " +
     "occupation and salary reference, and named graduates at companies and in " +
