@@ -9,13 +9,26 @@
 // here with the URL and bearer token for each server they were granted, ready
 // to paste into Codex's "add MCP server" settings.
 //
-// WHY PASTE-INTO-SETTINGS IS THE PRIMARY FORM, not the CLI. When a token is
-// pasted into Codex's own settings, Codex stores it, and the whole
-// bearer-token-env-var problem disappears. That trap has burned this project
-// before: a .zshrc export reads correctly in a shell and 401s under a
-// GUI-launched client, because the GUI never sourced the shell profile. The
-// symptom is an auth failure that points at the token. So the page leads with
-// copyable URL + token fields and offers the CLI form second.
+// WHY THE HEADERS ROW, not the "Bearer token env var" field. Codex's add-MCP
+// form offers both, and only Headers takes a literal value. CONFIRMED by the
+// owner against Codex itself, 2026-09-13: "if you do not have a way to define
+// environment variables, use Headers instead — Key: Authorization, Value:
+// Bearer YOUR_TOKEN". An earlier version of this file asserted the opposite —
+// that Codex "stores it itself, so there is no environment variable to set" —
+// which pointed a reader straight at the field that does not take a token.
+//
+// The env-var field is legitimate for someone who manages environment
+// variables, and the page says so, with the caveat that it reads the APP's
+// environment: an export in a shell profile is invisible to an app launched
+// from the Dock, which never read that profile. That trap has burned this
+// project before and its symptom is an auth failure that points at the token.
+//
+// NOTE the two surfaces are different products with different stores. This
+// page documents the ChatGPT app's Settings -> Plugins -> MCPs form, which is
+// where the owner's servers actually live. The Codex CLI (`codex mcp add
+// --url ... --bearer-token-env-var ...`) writes ~/.codex/config.toml and
+// accepts ONLY an env var name — no header option — so its instructions are
+// not interchangeable with these.
 //
 // ONE TOKEN PER SERVER, NEVER MERGED. The servers keep separate registries and
 // the tokens are not interchangeable; a token minted for one returns 401 on
@@ -165,15 +178,18 @@ ${input.grants.map(grantCard).join("")}
         <b>not interchangeable</b>.</li>
   </ol>
   <p class="disclosure"><b>Do not paste your token into “Bearer token env var”.</b>
-  That field expects the NAME of an environment variable, not the token itself —
-  so a token pasted there makes Codex look for a variable with that name, find
-  nothing, and send no credential. The result is a 401 that looks exactly like a
-  bad token, and you will spend your time checking the token rather than the
-  field. Use the <b>Headers</b> row instead: it takes the value literally.</p>
-  <p class="scope">Using a header rather than an environment variable also
-  avoids a second trap: a variable exported from a shell profile is visible to
-  a terminal but not to an app launched from the Dock, which never read that
-  profile.</p>
+  That field expects the NAME of an environment variable, not the token itself.
+  A token pasted there makes Codex look for a variable with that name, find
+  nothing, and send no credential — producing a 401 that looks exactly like a
+  bad token, so you would spend your time checking the token rather than the
+  field. The <b>Headers</b> row takes the value literally, which is why it is
+  the step above.</p>
+  <p class="scope">If you already manage environment variables, that field is a
+  perfectly good alternative — put the variable’s name in it and set the
+  variable. One caveat if you do: it reads the environment of the app itself,
+  and an app launched from the Dock never read your shell profile, so an export
+  in <code>.zshrc</code> will work in a terminal and fail in the app. On macOS,
+  <code>launchctl setenv NAME value</code> sets it where the app can see it.</p>
 </details>
 
 <details>

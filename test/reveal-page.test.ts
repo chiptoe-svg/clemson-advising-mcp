@@ -101,6 +101,10 @@ test("it warns against the 'Bearer token env var' field by name", () => {
   assert.match(html, /NAME of an environment variable/i);
   assert.match(html, /Add header/, "must point at the field that DOES work");
   assert.match(html, /Streamable HTTP/, "the type must be named, not assumed");
+  // The env-var field is legitimate for someone who manages env vars; the page
+  // must not read as "that field is broken", only as "it is not for a token".
+  assert.match(html, /perfectly good alternative/);
+  assert.match(html, /launchctl setenv/, "the app-environment caveat is the usable half");
 });
 
 test("the claim window is never SHORTER than the PIN window", () => {
