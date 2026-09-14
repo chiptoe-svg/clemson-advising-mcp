@@ -113,14 +113,24 @@ if (roster.hasDelegated) {
     const scoped = r.alumniScopes.length ? ` [${r.alumniScopes.join(",")}]` : "";
     w(`    ${pad(r.id, 16)}${pad(r.email, 30)}${r.delegated.join("+")}${scoped}\n`);
   }
-  const wholeAlumni = rows.filter(
-    (r) => r.delegated.includes("gc_alumni") && r.alumniScopes.length === 0,
-  );
-  if (wholeAlumni.length) {
+  if (rows.some((r) => r.delegated.includes("gc_alumni"))) {
+    // WHAT THIS BLOCK MUST NOT IMPLY: that a narrower scope reduces data
+    // reach. It does not. `query` — arbitrary read-only SELECT over the whole
+    // database — is inside gc.alumni.research, so a research grant reaches
+    // every record a full grant does. The scope removes four pipeline tools
+    // whose answers are meaningless to a faculty member (SOC_NOMATCH,
+    // "awaiting the admin"); it is a CONFUSION control, not a privacy one, and
+    // every tool on that server is read-only. An earlier draft of this text
+    // suggested narrowing as though it withheld data — which would have had
+    // the operator believe he had limited access he had not.
     w(
-      `\n  ${wholeAlumni.length} gc_alumni grant(s) carry NO scope, which means the\n` +
-        `  whole surface: names, employers, grad year, LinkedIn URLs and photos.\n` +
-        `  Narrow with a scopes column (gc.alumni.research or gc.alumni.ops).\n`,
+      `\n  gc_alumni serves the PII-STRIPPED copy: no email, phone, CUID or\n` +
+        `  salary reaches any consumer, at any scope. What IS reachable:\n` +
+        `  names, employers, grad year, LinkedIn URLs and photos.\n` +
+        `\n  Scope does NOT change that. gc.alumni.research hides the 4 pipeline\n` +
+        `  tools; it does not reduce what data is readable — both scopes can\n` +
+        `  read every alumni record, via query. Narrow for fewer confusing\n` +
+        `  tools, not for less exposure.\n`,
     );
   }
   if (rows.some((r) => r.delegated.includes("gc_careers"))) {

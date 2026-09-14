@@ -365,3 +365,21 @@ test("every address the parser emits survives mailcal's shape check", () => {
     assert.equal(row.email.trim(), row.email, "address carries surrounding whitespace");
   }
 });
+
+test("alumni scopes are a tool filter, not a data-reach filter", () => {
+  // Pins the fact, not the copy. `query` — arbitrary read-only SELECT over the
+  // whole database — is inside gc.alumni.research, so a research grant reaches
+  // every record a full grant does; the scope removes four pipeline tools.
+  // Recorded as a test because an earlier draft of the CLI preview implied
+  // narrowing withheld data, which would have had the operator believe he had
+  // limited access he had not. If a future scope ever DOES restrict data, this
+  // test is where that changes, deliberately.
+  const narrow = ok(
+    "name,email,servers,scopes\nJane,jsmith@clemson.edu,gc_alumni,gc.alumni.research\n",
+  );
+  const whole = ok(HEAD + "Jane,jsmith@clemson.edu,gc_alumni\n");
+  // Both are recorded as full grants of the same server; only the tool set differs.
+  assert.deepEqual(narrow.rows[0].delegated, whole.rows[0].delegated);
+  // ...and the approval still distinguishes them, because they ARE different acts.
+  assert.notEqual(narrow.fingerprint, whole.fingerprint);
+});
