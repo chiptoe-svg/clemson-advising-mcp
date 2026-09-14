@@ -3,6 +3,7 @@
 // properties whose failure is silent or exploitable.
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
 
 import {
   openStore,
@@ -14,6 +15,7 @@ import {
   expireLapsed,
   hashPin,
   pinMatches,
+  generatePin,
 } from "../src/portal/store.js";
 
 const HOUR = 3_600_000;
@@ -188,4 +190,39 @@ test("scopes and servers survive the round trip", () => {
   const g = findByEmail(db, "jsmith@clemson.edu")!;
   assert.deepEqual(g.servers, ["schedule", "gc_alumni"]);
   assert.deepEqual(g.auth_scopes.gc_alumni, ["gc.alumni.research"]);
+});
+
+test("PINs come from the CSPRNG, not a predictable generator", () => {
+  // Math.random is V8's xorshift128+; its state is recoverable from a few
+  // outputs. The resend endpoint is UNAUTHENTICATED, so an attacker can drive
+  // the generator, and anyone holding one grant sees real outputs — enough to
+  // predict codes issued to other people. This asserts the shape and the
+  // spread; the primitive itself is pinned by the source-level check below.
+  const seen = new Set<string>();
+  for (let i = 0; i < 2000; i++) {
+    const p = generatePin(6);
+    assert.match(p, /^\d{6}$/, "must be exactly 6 digits, zero-padded");
+    seen.add(p);
+  }
+  assert.ok(seen.size > 1900, `only ${seen.size} distinct in 2000 — suspiciously clustered`);
+});
+
+test("the low digit is not biased", () => {
+  // A modulo of a wider random value biases low digits. randomInt is
+  // rejection-sampled; this would catch a regression to `% 10**n`.
+  const counts = new Array(10).fill(0);
+  for (let i = 0; i < 20000; i++) counts[Number(generatePin(6).at(-1))]++;
+  for (const c of counts) assert.ok(c > 1500 && c < 2500, `digit skew: ${counts}`);
+});
+
+test("no portal source uses Math.random", () => {
+  // The property that matters is the PRIMITIVE, and no distribution test can
+  // tell a good PRNG from a CSPRNG — only reading the source can.
+  const dir = new URL("../src/portal/", import.meta.url);
+  for (const f of fs.readdirSync(dir)) {
+    if (!f.endsWith(".ts")) continue;
+    const src = fs.readFileSync(new URL(f, dir), "utf-8");
+    const code = src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+    assert.doesNotMatch(code, /Math\.random/, `${f} uses Math.random`);
+  }
 });

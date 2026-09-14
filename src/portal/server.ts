@@ -20,7 +20,15 @@
 import http from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { openStore, verifyPin, rotatePin, markRevealed, hashPin, expireLapsed } from "./store.js";
+import {
+  openStore,
+  verifyPin,
+  rotatePin,
+  markRevealed,
+  hashPin,
+  generatePin,
+  expireLapsed,
+} from "./store.js";
 import { activatePage, resendPage, errorPage } from "./pages.js";
 import { renderRevealPage, type RevealFailure } from "./reveal-page.js";
 import { mintAll } from "./mint.js";
@@ -104,10 +112,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && route === "resend") {
       const body = await readBody(req);
       const email = (body.get("email") ?? "").trim().toLowerCase();
-      const pin = String(Math.floor(Math.random() * 10 ** PIN_DIGITS)).padStart(
-        PIN_DIGITS,
-        "0",
-      );
+      const pin = generatePin(PIN_DIGITS);
       const r = rotatePin(
         db,
         email,
