@@ -114,31 +114,42 @@ if (roster.hasDelegated) {
     w(`    ${pad(r.id, 16)}${pad(r.email, 30)}${r.delegated.join("+")}${scoped}\n`);
   }
   if (rows.some((r) => r.delegated.includes("gc_alumni"))) {
-    // WHAT THIS BLOCK MUST NOT IMPLY: that a narrower scope reduces data
-    // reach. It does not. `query` — arbitrary read-only SELECT over the whole
-    // database — is inside gc.alumni.research, so a research grant reaches
-    // every record a full grant does. The scope removes four pipeline tools
-    // whose answers are meaningless to a faculty member (SOC_NOMATCH,
-    // "awaiting the admin"); it is a CONFUSION control, not a privacy one, and
-    // every tool on that server is read-only. An earlier draft of this text
-    // suggested narrowing as though it withheld data — which would have had
-    // the operator believe he had limited access he had not.
+    // TWO THINGS THIS BLOCK MUST NOT IMPLY, both of which an earlier draft did.
+    //
+    // 1. That gc_alumni serves the stripped copy. It NO LONGER DOES. It was
+    //    pointed at alumni_public.db from June as containment for a server
+    //    that had no auth; the per-consumer retrofit (2026-09-13) removed the
+    //    reason and it was flipped back to the full working database the same
+    //    day. Contact PII is now in reach of any grant.
+    // 2. That a narrower scope reduces data reach. It does not: `query` —
+    //    arbitrary read-only SELECT over the whole database — is inside
+    //    gc.alumni.research, so research and full access read exactly the same
+    //    rows. The scope hides four pipeline tools whose answers are
+    //    meaningless to a faculty member. It is a CONFUSION control.
+    //
+    // Together those made the previous text reassuring about the wrong things,
+    // in front of the operator, on every roster. Counts verified live
+    // 2026-09-13; magnitudes are given rather than exact figures, because a
+    // stale number inside a safety warning is its own defect.
     w(
-      `\n  gc_alumni serves the PII-STRIPPED copy: no email, phone, CUID or\n` +
-        `  salary reaches any consumer, at any scope. What IS reachable:\n` +
-        `  names, employers, grad year, LinkedIn URLs and photos.\n` +
-        `\n  Scope does NOT change that. gc.alumni.research hides the 4 pipeline\n` +
-        `  tools; it does not reduce what data is readable — both scopes can\n` +
-        `  read every alumni record, via query. Narrow for fewer confusing\n` +
-        `  tools, not for less exposure.\n`,
+      `\n  ⚠  gc_alumni serves the FULL WORKING DATABASE (changed 2026-09-13),\n` +
+        `     not the published copy. A grant reaches CONTACT PII for roughly\n` +
+        `     3,100 people: email and personal phone for over half, plus CUID\n` +
+        `     and reported salary for hundreds — alongside names, employers,\n` +
+        `     grad year, LinkedIn URLs and photos.\n` +
+        `\n     SCOPE DOES NOT NARROW THIS. gc.alumni.research hides the 4\n` +
+        `     pipeline tools and nothing else; both scopes read every record,\n` +
+        `     via query. Narrow for fewer confusing tools, never for less\n` +
+        `     exposure. There is no scope today that restricts data reach.\n`,
     );
   }
   if (rows.some((r) => r.delegated.includes("gc_careers"))) {
     w(
-      `\n  gc_careers has no scope layer at all, so those grants are whole by\n` +
-        `  construction. It names graduates by design (company and location\n` +
-        `  searches), filtered against opt-out and capped — safer by what it\n` +
-        `  withholds, not by being aggregate-only.\n`,
+      `\n  gc_careers reads the PUBLISHED copy (alumni_public.db): no email,\n` +
+        `  phone, CUID or salary, verified 0 non-null. It names graduates by\n` +
+        `  design through company and location searches, filtered against\n` +
+        `  opt-out and capped — safer by what it withholds, not by being\n` +
+        `  aggregate-only. No scope layer, so grants are whole by construction.\n`,
     );
   }
 }
