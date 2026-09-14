@@ -1,0 +1,254 @@
+// Portal state: who may claim what, and the PIN that proves they can.
+//
+// SQLite rather than a JSON file. The registry uses atomic-rename JSON and that
+// is right for a small, operator-edited list; this table is written on every
+// PIN attempt and resend, by a server, concurrently. Read-modify-write on a
+// JSON file under that load is how the registry lost 3,001 entries to a
+// concurrent revoke during an adversarial review.
+//
+// WHAT IS AND IS NOT STORED. Never the PIN — only its sha256. Never a bearer
+// token: tokens are minted at reveal, returned in one response, and forgotten.
+// The row holds who was authorized and what for, which is not a credential.
+//
+// TWO CLOCKS, and they are deliberately different (see constants.ts):
+//   pin_expires_at    one delivery attempt; a fresh PIN replaces it
+//   claim_expires_at  the authorization itself; a fresh PIN never extends it
+import crypto from "crypto";
+import fs from "fs";
+import path from "path";
+import Database from "better-sqlite3";
+
+import { STATE_DIR } from "../config-mcp.js";
+
+export type GrantStatus = "pending" | "revealed" | "expired";
+
+export interface PendingGrant {
+  id: string;
+  decision_id: string;
+  email: string;
+  consumer_id: string;
+  name: string;
+  /** Server -> scope tokens. Absent/empty = granted whole. */
+  servers: string[];
+  auth_scopes: Record<string, string[]>;
+  pin_hash: string;
+  pin_expires_at: number;
+  claim_expires_at: number;
+  attempts: number;
+  resends: number;
+  status: GrantStatus;
+  created_at: number;
+  revealed_at: number | null;
+}
+
+const SCHEMA = `
+CREATE TABLE IF NOT EXISTS pending_grant (
+  id                TEXT PRIMARY KEY,
+  decision_id       TEXT NOT NULL,
+  email             TEXT NOT NULL,
+  consumer_id       TEXT NOT NULL,
+  name              TEXT NOT NULL,
+  servers           TEXT NOT NULL,
+  auth_scopes       TEXT NOT NULL,
+  pin_hash          TEXT NOT NULL,
+  pin_expires_at    INTEGER NOT NULL,
+  claim_expires_at  INTEGER NOT NULL,
+  attempts          INTEGER NOT NULL DEFAULT 0,
+  resends           INTEGER NOT NULL DEFAULT 0,
+  status            TEXT NOT NULL DEFAULT 'pending',
+  created_at        INTEGER NOT NULL,
+  revealed_at       INTEGER
+);
+-- One live grant per (email, decision). A person appearing twice in one roster
+-- is a roster bug caught at parse time; this is the backstop.
+CREATE UNIQUE INDEX IF NOT EXISTS pending_grant_email_decision
+  ON pending_grant(email, decision_id);
+CREATE INDEX IF NOT EXISTS pending_grant_email ON pending_grant(email);
+`;
+
+export function openStore(file?: string): Database.Database {
+  const target = file ?? path.join(STATE_DIR, "access-portal.db");
+  if (target !== ":memory:") {
+    fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+  }
+  const db = new Database(target);
+  db.pragma("journal_mode = WAL");
+  db.exec(SCHEMA);
+  if (target !== ":memory:") {
+    try {
+      fs.chmodSync(target, 0o600);
+    } catch {
+      /* best effort */
+    }
+  }
+  return db;
+}
+
+/** sha256 of a PIN. The PIN itself is never stored or logged. */
+export function hashPin(pin: string): string {
+  return crypto.createHash("sha256").update(pin, "utf-8").digest("hex");
+}
+
+/**
+ * Constant-time PIN comparison.
+ *
+ * A 6-digit PIN has a million values, so the attempt cap is the real control,
+ * not the comparison. Constant time anyway: it costs nothing and a timing
+ * oracle on a 6-digit space is a genuinely exploitable shortcut.
+ */
+export function pinMatches(pin: string, hash: string): boolean {
+  const got = Buffer.from(hashPin(pin));
+  const exp = Buffer.from(hash);
+  return got.length === exp.length && crypto.timingSafeEqual(got, exp);
+}
+
+function row(r: Record<string, unknown>): PendingGrant {
+  return {
+    ...(r as unknown as PendingGrant),
+    servers: JSON.parse(String(r.servers)),
+    auth_scopes: JSON.parse(String(r.auth_scopes)),
+  };
+}
+
+export interface NewGrant {
+  decision_id: string;
+  email: string;
+  consumer_id: string;
+  name: string;
+  servers: string[];
+  auth_scopes: Record<string, string[]>;
+  pin_hash: string;
+  pin_expires_at: number;
+  claim_expires_at: number;
+}
+
+export function insertGrant(
+  db: Database.Database,
+  g: NewGrant,
+  now = Date.now(),
+): string {
+  const id = crypto.randomUUID();
+  db.prepare(
+    `INSERT INTO pending_grant
+     (id, decision_id, email, consumer_id, name, servers, auth_scopes,
+      pin_hash, pin_expires_at, claim_expires_at, created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+  ).run(
+    id,
+    g.decision_id,
+    g.email.toLowerCase(),
+    g.consumer_id,
+    g.name,
+    JSON.stringify(g.servers),
+    JSON.stringify(g.auth_scopes),
+    g.pin_hash,
+    g.pin_expires_at,
+    g.claim_expires_at,
+    now,
+  );
+  return id;
+}
+
+/** The live grant for an address, or null. Never reveals whether one existed. */
+export function findByEmail(
+  db: Database.Database,
+  email: string,
+): PendingGrant | null {
+  const r = db
+    .prepare(
+      `SELECT * FROM pending_grant WHERE email = ? AND status = 'pending'
+       ORDER BY created_at DESC LIMIT 1`,
+    )
+    .get(email.toLowerCase()) as Record<string, unknown> | undefined;
+  return r ? row(r) : null;
+}
+
+export type AttemptResult =
+  | { ok: true; grant: PendingGrant }
+  | { ok: false; reason: "no_grant" | "pin_expired" | "claim_expired" | "too_many_attempts" | "wrong_pin" };
+
+/**
+ * Verify a PIN and consume the grant on success.
+ *
+ * ORDER MATTERS. The claim window is checked BEFORE the PIN, because a lapsed
+ * authorization and a wrong code are different facts and a person who typed
+ * the right code deserves the real reason. Attempts are counted even for an
+ * expired PIN, so a brute-force cannot be laundered through stale codes.
+ */
+export function verifyPin(
+  db: Database.Database,
+  email: string,
+  pin: string,
+  maxAttempts: number,
+  now = Date.now(),
+): AttemptResult {
+  const g = findByEmail(db, email);
+  if (!g) return { ok: false, reason: "no_grant" };
+  if (now > g.claim_expires_at) {
+    db.prepare("UPDATE pending_grant SET status='expired' WHERE id=?").run(g.id);
+    return { ok: false, reason: "claim_expired" };
+  }
+  if (g.attempts >= maxAttempts) return { ok: false, reason: "too_many_attempts" };
+  db.prepare("UPDATE pending_grant SET attempts = attempts + 1 WHERE id=?").run(g.id);
+  if (now > g.pin_expires_at) return { ok: false, reason: "pin_expired" };
+  if (!pinMatches(pin, g.pin_hash)) return { ok: false, reason: "wrong_pin" };
+  return { ok: true, grant: g };
+}
+
+/** Mark a grant revealed. Called only after every token is in hand. */
+export function markRevealed(
+  db: Database.Database,
+  id: string,
+  now = Date.now(),
+): void {
+  db.prepare(
+    "UPDATE pending_grant SET status='revealed', revealed_at=? WHERE id=?",
+  ).run(now, id);
+}
+
+export type ResendResult =
+  | { ok: true; grant: PendingGrant }
+  | { ok: false; reason: "no_grant" | "claim_expired" | "too_many_resends" };
+
+/**
+ * Issue a fresh PIN against an existing claim.
+ *
+ * NEVER EXTENDS claim_expires_at. A new code is another key to the same
+ * capability, not a renewal of it — otherwise the claim window becomes
+ * unbounded by repeated clicking.
+ *
+ * Resetting `attempts` is deliberate: a new code is a new secret, and carrying
+ * the old count would let five wrong guesses lock someone out permanently with
+ * no way back except asking a human.
+ */
+export function rotatePin(
+  db: Database.Database,
+  email: string,
+  pinHash: string,
+  pinExpiresAt: number,
+  maxResends: number,
+  now = Date.now(),
+): ResendResult {
+  const g = findByEmail(db, email);
+  if (!g) return { ok: false, reason: "no_grant" };
+  if (now > g.claim_expires_at) {
+    db.prepare("UPDATE pending_grant SET status='expired' WHERE id=?").run(g.id);
+    return { ok: false, reason: "claim_expired" };
+  }
+  if (g.resends >= maxResends) return { ok: false, reason: "too_many_resends" };
+  db.prepare(
+    `UPDATE pending_grant
+     SET pin_hash=?, pin_expires_at=?, resends = resends + 1, attempts = 0
+     WHERE id=?`,
+  ).run(pinHash, pinExpiresAt, g.id);
+  return { ok: true, grant: { ...g, pin_hash: pinHash, pin_expires_at: pinExpiresAt } };
+}
+
+/** Sweep lapsed claims so `status` is a fact rather than a guess at read time. */
+export function expireLapsed(db: Database.Database, now = Date.now()): number {
+  return db
+    .prepare(
+      "UPDATE pending_grant SET status='expired' WHERE status='pending' AND claim_expires_at < ?",
+    )
+    .run(now).changes;
+}

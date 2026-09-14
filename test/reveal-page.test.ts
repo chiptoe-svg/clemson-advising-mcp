@@ -197,3 +197,35 @@ test("the alumni fallback names data CATEGORIES, not counts", () => {
   // The sentence the owner removed must not creep back via the fallback.
   assert.doesNotMatch(FALLBACK_DISCLOSURE.gc_alumni, /student-facing directory/);
 });
+
+test("a failed server is named above the tokens, never silently omitted", () => {
+  // Minting is deliberately not atomic across repos. A person with three cards
+  // who was granted four must be TOLD, not left to count — and the count in the
+  // header must not quietly agree with the shortfall.
+  const html = renderRevealPage({
+    personName: "Jane Smith",
+    grants: [grant({ server: "cu_schedule", token: "cma_GOT" })],
+    failures: [{ label: "GC graduate careers", message: "could not be issued" }],
+    contact: "Chip Tonkin",
+  });
+  assert.match(html, /Some access could not be issued/);
+  assert.match(html, /GC graduate careers/);
+  assert.match(html, /1 server, 1 could not be issued/);
+  assert.ok(
+    html.indexOf("could not be issued") < html.indexOf("cma_GOT"),
+    "the failure must appear before the tokens, not after",
+  );
+});
+
+test("a total failure says so rather than rendering an empty page", () => {
+  // Zero cards and no explanation reads as "you were granted nothing", which
+  // is a different and wrong statement.
+  const html = renderRevealPage({
+    personName: "Jane Smith",
+    grants: [],
+    failures: [{ label: "GC alumni records", message: "could not be issued" }],
+    contact: "Chip Tonkin",
+  });
+  assert.match(html, /Nothing could be issued/);
+  assert.match(html, /approved, but none of it could be issued/);
+});

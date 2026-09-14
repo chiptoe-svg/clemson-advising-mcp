@@ -30,7 +30,8 @@
     "mcp:grant": "npx tsx scripts/mcp-grant.ts",
     "mcp:health": "tsx scripts/mcp-health-check.ts",
     "mcp:bulk-invite": "tsx scripts/mcp-bulk-invite.ts",
-    "portal:preview": "tsx scripts/portal-preview.ts"
+    "portal:preview": "tsx scripts/portal-preview.ts",
+    "portal": "tsx src/portal/server.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

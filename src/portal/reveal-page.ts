@@ -65,9 +65,21 @@ export interface Grant {
   disclosure?: string;
 }
 
+export interface RevealFailure {
+  label: string;
+  message: string;
+}
+
 export interface RevealPageInput {
   personName: string;
   grants: Grant[];
+  /**
+   * Servers that were granted but could not be issued. Rendered ABOVE the
+   * tokens and never merged into them: a person who has three cards and was
+   * granted four must be told, not left to count. Minting is deliberately not
+   * atomic across repos, so this is a real state rather than a defensive one.
+   */
+  failures?: RevealFailure[];
   /** Where to point someone whose grant is wrong or missing. */
   contact: string;
 }
@@ -140,6 +152,7 @@ function grantCard(g: Grant): string {
 
 export function renderRevealPage(input: RevealPageInput): string {
   const n = input.grants.length;
+  const failed = input.failures ?? [];
   // A token is per-server, so the CLI example uses the FIRST grant rather than
   // a placeholder — a placeholder is the thing people paste by accident.
   const first = input.grants[0];
@@ -149,7 +162,9 @@ export function renderRevealPage(input: RevealPageInput): string {
 <title>Your MCP access</title><style>${STYLE}</style></head>
 <body><div class="wrap">
 <h1>Your MCP access is ready</h1>
-<p class="sub">${escapeHtml(input.personName)} — ${n} server${n === 1 ? "" : "s"}</p>
+<p class="sub">${escapeHtml(input.personName)} — ${n} server${n === 1 ? "" : "s"}${
+    failed.length ? `, ${failed.length} could not be issued` : ""
+  }</p>
 
 <div class="once">
   <strong>This page is shown once.</strong> Only a hash of each token is stored,
@@ -157,7 +172,26 @@ export function renderRevealPage(input: RevealPageInput): string {
   them, ask ${escapeHtml(input.contact)} to issue new ones.
 </div>
 
+${
+    (input.failures ?? []).length
+      ? `<div class="once"><strong>Some access could not be issued.</strong>
+  ${(input.failures ?? [])
+    .map((f) => `<br>${escapeHtml(f.label)} — ${escapeHtml(f.message)}`)
+    .join("")}
+  <br><br>What is shown below did work and is yours to keep.</div>`
+      : ""
+  }
+
 ${input.grants.map(grantCard).join("")}
+
+${
+    input.grants.length === 0
+      ? `<section class="card"><h2>Nothing could be issued</h2>
+  <p class="scope">Your access was approved, but none of it could be issued just
+  now. This is a fault on our side, not a problem with your request. Contact
+  ${escapeHtml(input.contact)} and it can be reissued.</p></section>`
+      : ""
+  }
 
 <details open>
   <summary>Adding these to Codex</summary>
