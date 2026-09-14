@@ -22,17 +22,31 @@ import crypto from "crypto";
 
 /** The registries this repo can mint into. */
 export const MINTABLE_SERVERS = ["schedule", "catalog"] as const;
-export type Server = (typeof MINTABLE_SERVERS)[number];
+export type MintableServer = (typeof MINTABLE_SERVERS)[number];
 
-/** Servers that exist but live in another repo's registry — named so the
- *  error can say WHY rather than "unknown server". */
-const FOREIGN_SERVERS = new Set(["gc_alumni", "alumni", "gc_public", "careers"]);
+/**
+ * Servers whose registries live in the gc_alumni repo. A roster may GRANT
+ * these — they are recorded in the approval decision and minted there by
+ * `--from-decision` — but this tool cannot issue them. That is deliberate and
+ * load-bearing: a student roster cannot pick up alumni access through a typo
+ * in a servers column, and the sensitive registry always takes a second,
+ * deliberate command in the repo that owns it.
+ */
+export const DELEGATED_SERVERS = ["gc_alumni", "gc_careers"] as const;
+export type DelegatedServer = (typeof DELEGATED_SERVERS)[number];
+
+export type Server = MintableServer | DelegatedServer;
+
+/** Renamed 2026-09-13. Accepted with a note, because notes and half-written
+ *  rosters will carry the old name for a while and an unknown-server error
+ *  would read as a typo rather than a rename. */
+const RENAMED: Record<string, DelegatedServer> = { gc_public: "gc_careers" };
 
 /** Email domains a roster row may carry. Owner decision, 2026-09-13. */
 export const ALLOWED_DOMAINS = ["clemson.edu", "g.clemson.edu"];
 
 /** The scope a row gets when it names a server and no explicit scopes. */
-const DEFAULT_SCOPES: Record<Server, string[]> = {
+const DEFAULT_SCOPES: Record<MintableServer, string[]> = {
   schedule: ["clemson.schedule"],
   catalog: ["clemson.catalog"],
 };
@@ -51,7 +65,20 @@ export interface RosterRow {
    *  in the usage ledger on every request and an audit identity should not be
    *  contact PII. Agreed with the gc_alumni session 2026-09-13. */
   id: string;
+  /** Every server granted, mintable and delegated alike. */
   servers: Server[];
+  /** The subset this tool will issue. */
+  mintable: MintableServer[];
+  /** The subset gc_alumni issues from the approved decision. */
+  delegated: DelegatedServer[];
+  /**
+   * Scopes for the MINTABLE servers only. Delegated servers are granted whole:
+   * gc_careers has no scope vocabulary and gc_alumni's is not consulted at
+   * request time, so emitting per-server scopes here would record a control
+   * that nothing honours — the defect this project keeps meeting. When
+   * enforcement exists, carry them in the decision details instead of
+   * inferring them.
+   */
   scopes: string[];
   note: string;
 }
@@ -68,7 +95,11 @@ export interface Roster {
   fingerprint: string;
   /** Distinct servers across all rows, for the approval summary. */
   servers: Server[];
+  /** True when any row grants a server this tool cannot issue. */
+  hasDelegated: boolean;
   large: boolean;
+  /** Deprecated server names seen, so the CLI can print a rename note. */
+  renamed: string[];
 }
 
 /**
@@ -114,8 +145,10 @@ const EMAIL_RE = /^([^\s@]+)@([^\s@]+)$/;
 const ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
 
 export interface ParseOptions {
-  /** Existing consumer ids per server, so collisions are caught before minting. */
-  existing: Partial<Record<Server, Set<string>>>;
+  /** Existing consumer ids per MINTABLE server, so collisions are caught
+   *  before minting. Delegated registries are checked by their own tool; this
+   *  process cannot read them and must not pretend to. */
+  existing: Partial<Record<MintableServer, Set<string>>>;
   /** Accept a roster past SANITY_CEILING. */
   allowHuge?: boolean;
   isValidScope: (token: string) => boolean;
@@ -161,6 +194,7 @@ export function parseRoster(
 
   const seenEmail = new Map<string, number>();
   const seenId = new Map<string, number>();
+  const renamedSeen = new Set<string>();
 
   for (let n = headerIdx + 1; n < lines.length; n++) {
     const raw = lines[n];
@@ -218,27 +252,29 @@ export function parseRoster(
 
     const serverCells = splitList(get(iServers));
     const servers: Server[] = [];
+    const mintable: MintableServer[] = [];
+    const delegated: DelegatedServer[] = [];
     if (serverCells.length === 0) {
       problems.push({ line, field: "servers", message: "no server requested" });
     }
-    for (const s of serverCells) {
+    for (const cell of serverCells) {
+      const s = RENAMED[cell] ?? cell;
+      if (RENAMED[cell]) renamedSeen.add(cell);
       if ((MINTABLE_SERVERS as readonly string[]).includes(s)) {
-        if (!servers.includes(s as Server)) servers.push(s as Server);
-      } else if (FOREIGN_SERVERS.has(s)) {
-        problems.push({
-          line,
-          field: "servers",
-          message:
-            `'${s}' cannot be granted by this tool — it authenticates against a ` +
-            `registry owned by another repository. Request it separately.`,
-        });
+        if (!mintable.includes(s as MintableServer)) mintable.push(s as MintableServer);
+      } else if ((DELEGATED_SERVERS as readonly string[]).includes(s)) {
+        if (!delegated.includes(s as DelegatedServer)) delegated.push(s as DelegatedServer);
       } else {
         problems.push({
           line,
           field: "servers",
-          message: `unknown server '${s}' (expected ${MINTABLE_SERVERS.join(" or ")})`,
+          message:
+            `unknown server '${cell}' (expected ` +
+            `${[...MINTABLE_SERVERS, ...DELEGATED_SERVERS].join(", ")})`,
         });
+        continue;
       }
+      if (!servers.includes(s as Server)) servers.push(s as Server);
     }
 
     const explicit = splitList(get(iScopes));
@@ -247,11 +283,21 @@ export function parseRoster(
         problems.push({ line, field: "scopes", message: `unknown scope '${s}'` });
       }
     }
+    if (explicit.length && mintable.length === 0) {
+      problems.push({
+        line,
+        field: "scopes",
+        message:
+          `scopes apply to ${MINTABLE_SERVERS.join("/")} only, and this row ` +
+          `grants neither. ${delegated.join("/")} is granted whole — recording ` +
+          `a scope nothing enforces would state a control that does not exist.`,
+      });
+    }
     const scopes = explicit.length
       ? explicit
-      : [...new Set(servers.flatMap((s) => DEFAULT_SCOPES[s]))];
+      : [...new Set(mintable.flatMap((s) => DEFAULT_SCOPES[s]))];
 
-    for (const s of servers) {
+    for (const s of mintable) {
       if (id && opts.existing[s]?.has(id)) {
         problems.push({
           line,
@@ -263,7 +309,7 @@ export function parseRoster(
       }
     }
 
-    rows.push({ line, name, email, id, servers, scopes, note: get(iNote) });
+    rows.push({ line, name, email, id, servers, mintable, delegated, scopes, note: get(iNote) });
   }
 
   if (rows.length === 0) {
@@ -291,8 +337,10 @@ export function parseRoster(
     roster: {
       rows,
       servers,
+      hasDelegated: rows.some((r) => r.delegated.length > 0),
       large: rows.length > LARGE_ROSTER,
       fingerprint: fingerprintRoster(rows),
+      renamed: [...renamedSeen].sort(),
     },
     problems: [],
   };
@@ -311,10 +359,21 @@ export function fingerprintRoster(rows: RosterRow[]): string {
   return crypto.createHash("sha256").update(JSON.stringify(canon), "utf-8").digest("hex");
 }
 
-/** The one-line summary that goes on the Telegram card. */
+/**
+ * The one-line summary that goes on the Telegram card.
+ *
+ * Delegated servers are named explicitly rather than folded in with the rest:
+ * approving a roster that grants gc_alumni is a materially different act from
+ * approving one that grants class times, and the card is where that has to be
+ * legible. The full roster never appears here — it is reviewed in the terminal
+ * and bound to this approval by the fingerprint.
+ */
 export function rosterSummary(roster: Roster): string {
+  const delegated = [...new Set(roster.rows.flatMap((r) => r.delegated))].sort();
   return (
     `${roster.rows.length} recipients · ${roster.servers.join(" + ")} · ` +
-    `fp ${roster.fingerprint.slice(0, 12)}${roster.large ? " · LARGE ROSTER" : ""}`
+    `fp ${roster.fingerprint.slice(0, 12)}` +
+    (delegated.length ? ` · DELEGATED: ${delegated.join(" + ")}` : "") +
+    (roster.large ? " · LARGE ROSTER" : "")
   );
 }

@@ -88,11 +88,65 @@ test("non-Clemson domains are refused", () => {
   assert.match(p[0].message, /not permitted/);
 });
 
-test("alumni cannot be granted here, and the error says why", () => {
-  // Structural, not a policy check: this tool writes only the registries this
-  // repo owns, so a student roster cannot pick up alumni through a typo.
-  const p = bad(HEAD + "Jane,jsmith@clemson.edu,gc_alumni\n");
-  assert.match(p[0].message, /registry owned by another repository/);
+test("a delegated server is RECORDED but never mintable here", () => {
+  // The safety property is not "alumni is refused" — a roster may legitimately
+  // grant it. It is that this tool CANNOT ISSUE it: the grant is recorded in
+  // the approval and minted by the repo that owns that registry. A student
+  // roster therefore cannot pick up alumni access from this command, even if a
+  // typo puts it in the servers column.
+  const r = ok(HEAD + "Jane,jsmith@clemson.edu,gc_alumni\n");
+  assert.deepEqual(r.rows[0].delegated, ["gc_alumni"]);
+  assert.deepEqual(r.rows[0].mintable, [], "must never be mintable here");
+  assert.equal(r.hasDelegated, true);
+});
+
+test("a row can mix mintable and delegated servers", () => {
+  const r = ok(HEAD + "Jane,jsmith@clemson.edu,schedule|gc_careers\n");
+  assert.deepEqual(r.rows[0].mintable, ["schedule"]);
+  assert.deepEqual(r.rows[0].delegated, ["gc_careers"]);
+  assert.deepEqual(r.rows[0].scopes, ["clemson.schedule"], "scopes cover the mintable half only");
+});
+
+test("gc_public is accepted as the old name for gc_careers, and noted", () => {
+  // Renamed 2026-09-13. An unknown-server error would read as a typo rather
+  // than a rename, and old notes will carry the old name for a while.
+  const r = ok(HEAD + "Jane,jsmith@clemson.edu,gc_public\n");
+  assert.deepEqual(r.rows[0].delegated, ["gc_careers"]);
+  assert.deepEqual(r.renamed, ["gc_public"]);
+});
+
+test("scopes on a delegated-only row are refused, not silently dropped", () => {
+  // Neither delegated server consults a scope at request time. Accepting one
+  // would record a control that does not exist — and the person reading the
+  // roster would believe access had been limited.
+  const p = bad("name,email,servers,scopes\nJane,jsmith@clemson.edu,gc_alumni,host\n");
+  assert.match(p[0].message, /granted whole/);
+});
+
+test("a delegated grant changes the fingerprint", () => {
+  // The approval covers delegated grants too, so they must bind to the tap.
+  const a = ok(HEAD + "Jane,jsmith@clemson.edu,schedule\n").fingerprint;
+  const b = ok(HEAD + "Jane,jsmith@clemson.edu,schedule|gc_alumni\n").fingerprint;
+  assert.notEqual(a, b);
+});
+
+test("the summary names delegated servers explicitly on the card", () => {
+  // Approving a roster that grants gc_alumni is a materially different act
+  // from approving one that grants class times; the card is where that has to
+  // be legible, since the roster itself never appears there.
+  const r = ok(HEAD + "Jane,jsmith@clemson.edu,schedule|gc_alumni\n");
+  assert.match(rosterSummary(r), /DELEGATED: gc_alumni/);
+  const plain = ok(HEAD + "Jane,jsmith@clemson.edu,schedule\n");
+  assert.doesNotMatch(rosterSummary(plain), /DELEGATED/);
+});
+
+test("an existing-id collision is checked for mintable servers only", () => {
+  // This process cannot read the gc_alumni registry and must not pretend to:
+  // a clean result here is not evidence the id is free over there.
+  const r = parseRoster(HEAD + "Jane,jsmith@clemson.edu,gc_alumni\n", opts({
+    schedule: new Set(["jsmith"]),
+  }));
+  assert.equal(r.problems.length, 0, "a schedule collision must not block a gc_alumni grant");
 });
 
 test("an unknown server is named, not silently dropped", () => {

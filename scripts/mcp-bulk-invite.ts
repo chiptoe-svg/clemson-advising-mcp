@@ -22,7 +22,13 @@
 // approve cannot authorize content other than what was reviewed here.
 import fs from "fs";
 
-import { parseRoster, rosterSummary, MINTABLE_SERVERS, type Server } from "../src/bulk-invite.js";
+import {
+  parseRoster,
+  rosterSummary,
+  MINTABLE_SERVERS,
+  DELEGATED_SERVERS,
+  type MintableServer,
+} from "../src/bulk-invite.js";
 import { loadConsumers } from "../src/mcp-tools/consumers.js";
 import { isValidScopeToken } from "../src/mcp-tools/permissions.js";
 
@@ -34,7 +40,10 @@ if (!file) {
   process.stderr.write(
     "usage: npm run mcp:bulk-invite -- <roster.csv> [--allow-huge]\n" +
       "  CSV header: name,email,servers[,scopes][,note]\n" +
-      `  servers: ${MINTABLE_SERVERS.join(" or ")} (space, | or ; separated)\n`,
+      `  servers: ${[...MINTABLE_SERVERS, ...DELEGATED_SERVERS].join(", ")} ` +
+      `(space, | or ; separated)\n` +
+      `  ${DELEGATED_SERVERS.join("/")} are RECORDED here and issued by the ` +
+      `gc_alumni repo's --from-decision\n`,
   );
   process.exit(2);
 }
@@ -47,7 +56,7 @@ try {
   process.exit(2);
 }
 
-const existing: Partial<Record<Server, Set<string>>> = {};
+const existing: Partial<Record<MintableServer, Set<string>>> = {};
 for (const s of MINTABLE_SERVERS) {
   existing[s] = new Set(loadConsumers(s).map((c) => c.id));
 }
@@ -77,17 +86,37 @@ const w = (s: string) => process.stdout.write(s);
 const pad = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s.padEnd(n));
 
 w(`\n${file}: ${roster.rows.length} recipients, all valid.\n\n`);
-w(`  ${pad("ID", 16)}${pad("EMAIL", 30)}${pad("NAME", 22)}${pad("SERVERS", 18)}SCOPES\n`);
-w(`  ${"-".repeat(94)}\n`);
+w(`  ${pad("ID", 16)}${pad("EMAIL", 30)}${pad("NAME", 22)}${pad("SERVERS", 26)}SCOPES\n`);
+w(`  ${"-".repeat(102)}\n`);
 for (const r of roster.rows) {
   w(
     `  ${pad(r.id, 16)}${pad(r.email, 30)}${pad(r.name, 22)}` +
-      `${pad(r.servers.join("+"), 18)}${r.scopes.join(",")}\n`,
+      `${pad(r.servers.join("+"), 26)}${r.scopes.join(",") || "—"}\n`,
   );
 }
 
 w(`\n  ${rosterSummary(roster)}\n`);
 w(`  fingerprint: ${roster.fingerprint}\n`);
+
+for (const old of roster.renamed) {
+  w(`\n  note: '${old}' was renamed 2026-09-13 — recorded as its current name.\n`);
+}
+
+if (roster.hasDelegated) {
+  const rows = roster.rows.filter((r) => r.delegated.length);
+  w(
+    `\n  DELEGATED — ${rows.length} of ${roster.rows.length} rows grant a server\n` +
+      `  this tool CANNOT issue. They are recorded in the approval and minted\n` +
+      `  by the gc_alumni repo, which owns those registries:\n\n`,
+  );
+  for (const r of rows) {
+    w(`    ${pad(r.id, 16)}${pad(r.email, 30)}${r.delegated.join("+")}\n`);
+  }
+  w(
+    `\n  Those grants are ALL-OR-NOTHING today — neither server consults a\n` +
+      `  scope at request time, so each person above gets that server whole.\n`,
+  );
+}
 
 if (roster.large) {
   w(
