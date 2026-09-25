@@ -185,11 +185,11 @@ const listSkills: McpToolDefinition = {
     name: "list-skills",
     description:
       "List the skill documents this server serves, by name and description. " +
-      "They hold what the tool schemas do not: the advising method (running a " +
-      "degree audit by hand with its counting rules, checking prerequisites, " +
-      "planning a semester, reading a pasted DegreeWorks audit) and which " +
-      "tool answers which question. Fetch the relevant one before taking a " +
-      "student through an audit, a prerequisite check, or a semester plan. " +
+      "They hold what the tool schemas do not: which tool answers which " +
+      "question, the standard multi-tool workflows (finding open sections, " +
+      "checking a schedule for conflicts, finding sections for a requirement " +
+      "slot), and the tools' known limitations. Fetch one before chaining " +
+      "several tools or when unsure which tool fits. " +
       "Pass a name to get-skill-docs to retrieve the full content.",
     inputSchema: {
       type: "object" as const,
@@ -225,8 +225,8 @@ const getSkillDocs: McpToolDefinition = {
   tool: {
     name: "get-skill-docs",
     description:
-      "Return the full text of one skill document by name — the advising " +
-      "method and tool workflows the tool schemas do not carry. " +
+      "Return the full text of one skill document by name — the tool routing, " +
+      "workflows and known limitations the tool schemas do not carry. " +
       `Use ${listToolName} to discover available skill names.`,
     inputSchema: {
       type: "object" as const,

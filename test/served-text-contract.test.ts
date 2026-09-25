@@ -47,3 +47,15 @@ test("department docs are served without maintainer HTML comments", () => {
   // The retracted rule must not reach the model even as a quotation.
   assert.doesNotMatch(doc.content, /must be in the summer/i);
 });
+
+test("the schedule server's skill tools promise only what it serves", async () => {
+  // ae45b5f wrote the catalog's pitch ("the advising method: degree audits,
+  // prerequisite checks...") into the schedule server's descriptions too. 8766
+  // serves only clemson-schedule-advising (SCHEDULE_SKILLS); the method docs
+  // are catalog-only, so a model sent to fetch them here finds nothing.
+  const { __skillTools, SCHEDULE_SKILLS } = await import("../src/mcp-tools/skills.js");
+  assert.deepEqual([...SCHEDULE_SKILLS], ["clemson-schedule-advising"], "re-check this text");
+  for (const t of [__skillTools.listSkills, __skillTools.getSkillDocs]) {
+    assert.doesNotMatch(t.tool.description ?? "", /advising method|degree audit|DegreeWorks/i, t.tool.name);
+  }
+});
