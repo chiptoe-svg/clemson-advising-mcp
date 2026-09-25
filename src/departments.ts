@@ -160,7 +160,9 @@ export function getDepartmentDoc(
     // test/department-doc-freshness.test.ts reads the FILE, so the stamp it
     // checks is unaffected.
     const raw = fs.readFileSync(p, "utf-8");
-    const content = raw.replace(/<!--[\s\S]*?-->\n?/g, "").replace(/\n{3,}/g, "\n\n");
+    const content = raw
+      .replace(/<!--[\s\S]*?-->\n?/g, "")
+      .replace(/\n{3,}/g, "\n\n");
     return { id, content };
   } catch (err) {
     throw new Error(

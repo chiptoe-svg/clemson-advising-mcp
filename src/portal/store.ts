@@ -183,7 +183,15 @@ export function findByEmail(
 
 export type AttemptResult =
   | { ok: true; grant: PendingGrant }
-  | { ok: false; reason: "no_grant" | "pin_expired" | "claim_expired" | "too_many_attempts" | "wrong_pin" };
+  | {
+      ok: false;
+      reason:
+        | "no_grant"
+        | "pin_expired"
+        | "claim_expired"
+        | "too_many_attempts"
+        | "wrong_pin";
+    };
 
 /**
  * Verify a PIN and consume the grant on success.
@@ -203,11 +211,16 @@ export function verifyPin(
   const g = findByEmail(db, email);
   if (!g) return { ok: false, reason: "no_grant" };
   if (now > g.claim_expires_at) {
-    db.prepare("UPDATE pending_grant SET status='expired' WHERE id=?").run(g.id);
+    db.prepare("UPDATE pending_grant SET status='expired' WHERE id=?").run(
+      g.id,
+    );
     return { ok: false, reason: "claim_expired" };
   }
-  if (g.attempts >= maxAttempts) return { ok: false, reason: "too_many_attempts" };
-  db.prepare("UPDATE pending_grant SET attempts = attempts + 1 WHERE id=?").run(g.id);
+  if (g.attempts >= maxAttempts)
+    return { ok: false, reason: "too_many_attempts" };
+  db.prepare("UPDATE pending_grant SET attempts = attempts + 1 WHERE id=?").run(
+    g.id,
+  );
   if (now > g.pin_expires_at) return { ok: false, reason: "pin_expired" };
   if (!pinMatches(pin, g.pin_hash)) return { ok: false, reason: "wrong_pin" };
   return { ok: true, grant: g };
@@ -250,7 +263,9 @@ export function rotatePin(
   const g = findByEmail(db, email);
   if (!g) return { ok: false, reason: "no_grant" };
   if (now > g.claim_expires_at) {
-    db.prepare("UPDATE pending_grant SET status='expired' WHERE id=?").run(g.id);
+    db.prepare("UPDATE pending_grant SET status='expired' WHERE id=?").run(
+      g.id,
+    );
     return { ok: false, reason: "claim_expired" };
   }
   if (g.resends >= maxResends) return { ok: false, reason: "too_many_resends" };
@@ -259,7 +274,10 @@ export function rotatePin(
      SET pin_hash=?, pin_expires_at=?, resends = resends + 1, attempts = 0
      WHERE id=?`,
   ).run(pinHash, pinExpiresAt, g.id);
-  return { ok: true, grant: { ...g, pin_hash: pinHash, pin_expires_at: pinExpiresAt } };
+  return {
+    ok: true,
+    grant: { ...g, pin_hash: pinHash, pin_expires_at: pinExpiresAt },
+  };
 }
 
 /** Sweep lapsed claims so `status` is a fact rather than a guess at read time. */

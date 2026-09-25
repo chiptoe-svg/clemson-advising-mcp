@@ -149,7 +149,8 @@ const server = http.createServer(async (req, res) => {
         v.grant.consumer_id,
         v.grant.auth_scopes,
       );
-      for (const f of failures) log.info(`mint failed ${f.server}: ${f.detail}`);
+      for (const f of failures)
+        log.info(`mint failed ${f.server}: ${f.detail}`);
 
       // Marked revealed even on partial failure: the PIN is spent, and letting
       // it be reused would mint a SECOND token for whatever already succeeded.
@@ -174,7 +175,11 @@ const server = http.createServer(async (req, res) => {
       );
     }
 
-    return send(res, 404, errorPage("Not found", "There is nothing at this address."));
+    return send(
+      res,
+      404,
+      errorPage("Not found", "There is nothing at this address."),
+    );
   } catch (e) {
     log.error(`portal unhandled: ${String(e)}`);
     return send(

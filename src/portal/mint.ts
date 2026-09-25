@@ -32,7 +32,8 @@ const LABEL: Record<string, string> = {
   gc_careers: "GC graduate careers",
 };
 
-const PUBLIC_BASE = process.env.MCP_PUBLIC_BASE ?? "https://gcworkflow.clemson.edu:8443";
+const PUBLIC_BASE =
+  process.env.MCP_PUBLIC_BASE ?? "https://gcworkflow.clemson.edu:8443";
 const PUBLIC_PATH: Record<string, string> = {
   schedule: "/cu_schedule/",
   catalog: "/cu_catalog/",
@@ -69,7 +70,11 @@ export interface MintOutcome {
 }
 
 /** Mint one of this repo's registries. */
-function mintLocal(server: string, consumerId: string, scopes: string[]): Grant {
+function mintLocal(
+  server: string,
+  consumerId: string,
+  scopes: string[],
+): Grant {
   const token = generateToken();
   const consumers = loadConsumers(server);
   if (consumers.some((c) => c.id === consumerId)) {
@@ -95,7 +100,10 @@ function mintLocal(server: string, consumerId: string, scopes: string[]): Grant 
 }
 
 /** Claim one of gc_alumni's registries. url and disclosure come from there. */
-async function mintDelegated(server: string, consumerId: string): Promise<Grant> {
+async function mintDelegated(
+  server: string,
+  consumerId: string,
+): Promise<Grant> {
   const res = await fetch(CLAIM_URL, {
     method: "POST",
     headers: { "content-type": "application/json", "X-Portal-Key": claimKey() },
@@ -113,10 +121,12 @@ async function mintDelegated(server: string, consumerId: string): Promise<Grant>
     // /gc_careers) and the disclosure figures.
     url: String(body.url),
     token: String(body.token),
-    scopeSummary: Array.isArray(body.scopes) && body.scopes.length
-      ? (body.scopes as string[]).join(", ")
-      : null,
-    disclosure: typeof body.disclosure === "string" ? body.disclosure : undefined,
+    scopeSummary:
+      Array.isArray(body.scopes) && body.scopes.length
+        ? (body.scopes as string[]).join(", ")
+        : null,
+    disclosure:
+      typeof body.disclosure === "string" ? body.disclosure : undefined,
   };
 }
 

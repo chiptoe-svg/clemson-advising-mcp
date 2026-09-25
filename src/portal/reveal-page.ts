@@ -127,7 +127,9 @@ function grantCard(g: Grant): string {
   // Falls back rather than rendering nothing: a missing disclosure is silence,
   // and silence here reads as "nothing about this needs saying".
   const text = resolveDisclosure(g.server, g.disclosure);
-  const disclosure = text ? `<p class="disclosure">${escapeHtml(text)}</p>` : "";
+  const disclosure = text
+    ? `<p class="disclosure">${escapeHtml(text)}</p>`
+    : "";
   const scope = g.scopeSummary
     ? `<p class="scope">Scope: ${escapeHtml(g.scopeSummary)}</p>`
     : `<p class="scope">Granted in full — this server has no narrower scope.</p>`;
@@ -173,25 +175,25 @@ export function renderRevealPage(input: RevealPageInput): string {
 </div>
 
 ${
-    (input.failures ?? []).length
-      ? `<div class="once"><strong>Some access could not be issued.</strong>
+  (input.failures ?? []).length
+    ? `<div class="once"><strong>Some access could not be issued.</strong>
   ${(input.failures ?? [])
     .map((f) => `<br>${escapeHtml(f.label)} — ${escapeHtml(f.message)}`)
     .join("")}
   <br><br>What is shown below did work and is yours to keep.</div>`
-      : ""
-  }
+    : ""
+}
 
 ${input.grants.map(grantCard).join("")}
 
 ${
-    input.grants.length === 0
-      ? `<section class="card"><h2>Nothing could be issued</h2>
+  input.grants.length === 0
+    ? `<section class="card"><h2>Nothing could be issued</h2>
   <p class="scope">Your access was approved, but none of it could be issued just
   now. This is a fault on our side, not a problem with your request. Contact
   ${escapeHtml(input.contact)} and it can be reissued.</p></section>`
-      : ""
-  }
+    : ""
+}
 
 <details open>
   <summary>Adding these to Codex</summary>

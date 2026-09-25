@@ -202,7 +202,10 @@ export function parseRoster(
 
   const headerIdx = lines.findIndex((l) => l.trim() !== "");
   if (headerIdx === -1) {
-    return { roster: null, problems: [{ line: 0, field: "file", message: "the file is empty" }] };
+    return {
+      roster: null,
+      problems: [{ line: 0, field: "file", message: "the file is empty" }],
+    };
   }
   const header = splitCsvLine(lines[headerIdx]).map((h) => h.toLowerCase());
   const col = (n: string) => header.indexOf(n);
@@ -219,8 +222,11 @@ export function parseRoster(
   }
   if (problems.length) return { roster: null, problems };
 
-  const iName = col("name"), iEmail = col("email"), iServers = col("servers");
-  const iScopes = col("scopes"), iNote = col("note");
+  const iName = col("name"),
+    iEmail = col("email"),
+    iServers = col("servers");
+  const iScopes = col("scopes"),
+    iNote = col("note");
 
   const seenEmail = new Map<string, number>();
   const seenId = new Map<string, number>();
@@ -240,7 +246,11 @@ export function parseRoster(
     const m = EMAIL_RE.exec(email);
     let id = "";
     if (!m) {
-      problems.push({ line, field: "email", message: `'${email}' is not an email address` });
+      problems.push({
+        line,
+        field: "email",
+        message: `'${email}' is not an email address`,
+      });
     } else {
       const [, local, domain] = m;
       if (!ALLOWED_DOMAINS.includes(domain)) {
@@ -262,7 +272,11 @@ export function parseRoster(
       }
       const prevE = seenEmail.get(email);
       if (prevE !== undefined) {
-        problems.push({ line, field: "email", message: `duplicate of line ${prevE}` });
+        problems.push({
+          line,
+          field: "email",
+          message: `duplicate of line ${prevE}`,
+        });
       } else seenEmail.set(email, line);
 
       const prevI = seenId.get(id);
@@ -291,9 +305,11 @@ export function parseRoster(
       const s = RENAMED[cell] ?? cell;
       if (RENAMED[cell]) renamedSeen.add(cell);
       if ((MINTABLE_SERVERS as readonly string[]).includes(s)) {
-        if (!mintable.includes(s as MintableServer)) mintable.push(s as MintableServer);
+        if (!mintable.includes(s as MintableServer))
+          mintable.push(s as MintableServer);
       } else if ((DELEGATED_SERVERS as readonly string[]).includes(s)) {
-        if (!delegated.includes(s as DelegatedServer)) delegated.push(s as DelegatedServer);
+        if (!delegated.includes(s as DelegatedServer))
+          delegated.push(s as DelegatedServer);
       } else {
         problems.push({
           line,
@@ -333,7 +349,11 @@ export function parseRoster(
           });
         } else alumniExplicit.push(sc);
       } else if (!opts.isValidScope(sc)) {
-        problems.push({ line, field: "scopes", message: `unknown scope '${sc}'` });
+        problems.push({
+          line,
+          field: "scopes",
+          message: `unknown scope '${sc}'`,
+        });
       } else if (mintable.length === 0) {
         problems.push({
           line,
@@ -342,7 +362,11 @@ export function parseRoster(
         });
       } else localExplicit.push(sc);
     }
-    if (explicit.length && mintable.length === 0 && !delegated.includes("gc_alumni")) {
+    if (
+      explicit.length &&
+      mintable.length === 0 &&
+      !delegated.includes("gc_alumni")
+    ) {
       problems.push({
         line,
         field: "scopes",
@@ -370,13 +394,25 @@ export function parseRoster(
     }
 
     rows.push({
-      line, name, email, id, servers, mintable, delegated, scopes, alumniScopes,
+      line,
+      name,
+      email,
+      id,
+      servers,
+      mintable,
+      delegated,
+      scopes,
+      alumniScopes,
       note: get(iNote),
     });
   }
 
   if (rows.length === 0) {
-    problems.push({ line: headerIdx + 1, field: "file", message: "the roster has no data rows" });
+    problems.push({
+      line: headerIdx + 1,
+      field: "file",
+      message: "the roster has no data rows",
+    });
   }
   if (rows.length > SANITY_CEILING && !opts.allowHuge) {
     problems.push({
@@ -395,7 +431,9 @@ export function parseRoster(
     return { roster: null, problems };
   }
 
-  const servers = [...new Set(rows.flatMap((r) => r.servers))].sort() as Server[];
+  const servers = [
+    ...new Set(rows.flatMap((r) => r.servers)),
+  ].sort() as Server[];
   return {
     roster: {
       rows,
@@ -428,7 +466,10 @@ export function fingerprintRoster(rows: RosterRow[]): string {
       // different acts, and the approval must bind to which was requested.
       [...r.alumniScopes].sort().join("+"),
     ]);
-  return crypto.createHash("sha256").update(JSON.stringify(canon), "utf-8").digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify(canon), "utf-8")
+    .digest("hex");
 }
 
 /**
@@ -441,7 +482,9 @@ export function fingerprintRoster(rows: RosterRow[]): string {
  * and bound to this approval by the fingerprint.
  */
 export function rosterSummary(roster: Roster): string {
-  const delegated = [...new Set(roster.rows.flatMap((r) => r.delegated))].sort();
+  const delegated = [
+    ...new Set(roster.rows.flatMap((r) => r.delegated)),
+  ].sort();
   return (
     `${roster.rows.length} recipients · ${roster.servers.join(" + ")} · ` +
     `fp ${roster.fingerprint.slice(0, 12)}` +
