@@ -377,14 +377,46 @@ export function allExposedOperations(): Set<string> {
  * exposed set. Undefined/empty tokens => full exposed set (default-allow).
  * Unknown tokens contribute nothing (the CLI rejects them at pair time).
  */
+/**
+ * Operations granted to EVERY consumer holding at least one recognized scope.
+ *
+ * The skill-document tools, and only those. They were reachable only through
+ * `host` by inheritance, not decision — `host` is what was left when the
+ * mail/calendar/tasks scopes moved to mailcal — so a clemson.schedule token
+ * (the student roster default, and the owner's own Codex token) could not see
+ * them, and a client asked to "get the skill from clemson_schedule" truthfully
+ * reported the server had none (2026-09-25). There is nothing to gate: they
+ * serve department-neutral advising guidance already public in this repo.
+ * Department POLICY docs are a different surface (clemson.department) and
+ * stay gated.
+ *
+ * Kept OUTSIDE the scope map on purpose. The narrow scopes partition the DATA
+ * tools of `clemson` exactly — disjoint, and never granting more than the
+ * broad scope (test/mcp-registry-consistency.test.ts). Shared guidance is not
+ * data; putting it inside both narrow scopes broke both of those properties.
+ *
+ * Only with a RECOGNIZED scope: the shared registry contract with gc_alumni
+ * (test/fixtures/registry-contract.json) says an unrecognized scope grants
+ * nothing, so a token carrying only a misspelled scope must still see nothing.
+ */
+export const BASELINE_OPERATIONS: readonly string[] = [
+  "host.list_skills",
+  "host.get_skill_docs",
+];
+
 export function expandScopes(tokens: string[] | undefined): Set<string> {
   if (!tokens || tokens.length === 0) return allExposedOperations();
   const exposed = allExposedOperations();
   const out = new Set<string>();
+  let recognized = false;
   for (const token of tokens) {
+    if (isValidScopeToken(token)) recognized = true;
     for (const op of SCOPE_OPERATIONS[token] ?? []) {
       if (exposed.has(op)) out.add(op);
     }
+  }
+  if (recognized) {
+    for (const op of BASELINE_OPERATIONS) if (exposed.has(op)) out.add(op);
   }
   return out;
 }

@@ -19,7 +19,10 @@ test("Principal returned for a scoped consumer carries only its scope", async ()
   const p = await auth(authContext(`Bearer ${TOKEN}`));
   assert.equal(p?.id, "a");
   assert.equal(p?.scopes.has("clemson.list_terms"), true);
-  assert.equal(p?.scopes.has("host.list_skills"), false);
+  // Skill docs are baseline for any recognized scope (see BASELINE_OPERATIONS);
+  // department data is not, and must not arrive with a `clemson` grant.
+  assert.equal(p?.scopes.has("host.list_skills"), true);
+  assert.equal(p?.scopes.has("clemson.department_rules"), false);
 });
 
 test("an unscoped consumer gets the full exposed scope", async () => {

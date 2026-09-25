@@ -56,7 +56,14 @@ test("the clemson.department scope grants exactly the two department operations"
   const visible = toolsForScope(scoped)
     .map((t) => t.name)
     .sort();
-  assert.deepEqual(visible, ["get-department-doc", "get-department-rules"]);
+  // Exactly the two department tools plus the shared skill-doc baseline —
+  // no schedule or catalog data rides along with a department grant.
+  assert.deepEqual(visible, [
+    "get-department-doc",
+    "get-department-rules",
+    "get-skill-docs",
+    "list-skills",
+  ]);
 });
 
 test("an unscoped consumer (the advisor) sees the department tools", () => {

@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  BASELINE_OPERATIONS,
   MCP_ALLOWED_OPERATIONS,
   SCOPE_OPERATIONS,
   expandScopes,
@@ -111,4 +112,24 @@ test("both narrow scopes together equal the broad one", () => {
   const both = expandScopes(["clemson.schedule", "clemson.catalog"]);
   const broad = expandScopes(["clemson"]);
   assert.deepEqual([...both].sort(), [...broad].sort());
+});
+
+test("every recognized scope carries the skill-document tools", () => {
+  // A clemson.schedule token could not see them, so a client asked to fetch
+  // the skill reported the server had none. They are shared guidance, not
+  // data, so they ride along with ANY recognized scope rather than living
+  // inside the partitioned data scopes.
+  for (const sc of ["clemson.schedule", "clemson.catalog", "clemson.department"]) {
+    const ops = expandScopes([sc]);
+    for (const op of BASELINE_OPERATIONS) {
+      assert.ok(ops.has(op), `${sc} must grant ${op}`);
+    }
+  }
+});
+
+test("an unrecognized scope still grants nothing, baseline included", () => {
+  // The shared registry contract with gc_alumni. If a misspelled scope began
+  // granting the baseline here but nothing there, the two implementations
+  // would disagree about the same token.
+  assert.equal(expandScopes(["clemson.shcedule"]).size, 0);
 });

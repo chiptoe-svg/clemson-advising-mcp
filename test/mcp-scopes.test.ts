@@ -5,6 +5,7 @@ import {
   SCOPE_OPERATIONS,
   allExposedOperations,
   expandScopes,
+  BASELINE_OPERATIONS,
   isValidScopeToken,
 } from "../src/mcp-tools/permissions.ts";
 
@@ -25,16 +26,22 @@ test("expandScopes(undefined) returns the full exposed set", () => {
 // that is exactly what test/mcp-registry-consistency.test.ts now checks
 // structurally (every MCP_ALLOWED_OPERATIONS key is covered by some scope,
 // and vice versa) — so this only keeps the property a registry-wide equality
-// check can't express: that "clemson" specifically stays clemson-only and
-// does not leak the (separately-scoped) skill-doc operations.
-test("expandScopes(['clemson']) grants only clemson.* operations, never the host.* skill-doc ones", () => {
+// check can't express: that "clemson" grants clemson.* operations plus the
+// shared baseline and NOTHING else. The skill-doc operations were once kept
+// out of it; since 2026-09-25 they are baseline for every recognized scope
+// (see BASELINE_OPERATIONS for why). What must still never leak is any other
+// host.* operation, and department data — the property with a stated harm.
+test("expandScopes(['clemson']) grants clemson.* operations plus the baseline, nothing else", () => {
   const s = expandScopes(["clemson"]);
   assert.ok(s.size > 0);
-  assert.equal(s.has("host.list_skills"), false);
-  assert.equal(s.has("host.get_skill_docs"), false);
   for (const op of s) {
-    assert.match(op, /^clemson\./);
+    assert.ok(
+      /^clemson\./.test(op) || BASELINE_OPERATIONS.includes(op),
+      `clemson granted ${op}, which is neither clemson.* nor baseline`,
+    );
   }
+  assert.equal(s.has("clemson.department_rules"), false, "department data must not leak");
+  assert.equal(s.has("clemson.department_docs"), false, "department docs must not leak");
 });
 
 test("expandScopes(['host']) grants only the host.* skill-doc operations", () => {
