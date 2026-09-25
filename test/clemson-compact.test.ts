@@ -18,6 +18,7 @@ function section(over: Partial<ClemsonSection> = {}): ClemsonSection {
     campus: "Main",
     scheduleType: "Lecture",
     instructionalMethod: "Traditional",
+    partOfTerm: "1",
     creditHours: 3,
     enrollment: 20,
     maxEnrollment: 30,
@@ -161,6 +162,8 @@ const FIELD_POLICY: Record<keyof ClemsonSection, FieldPolicy> = {
   campus: "omit-when-null",
   scheduleType: "omit-when-null",
   instructionalMethod: "omit-when-null",
+  // Banner part-of-term ("1" = full term); null means not reported.
+  partOfTerm: "omit-when-null",
   // These four carry meaningful zeros. seatsAvailable:0 means FULL — omitting
   // it would make a full section look like one with no reported seat count.
   enrollment: "always",
@@ -215,6 +218,7 @@ test("an empty section omits exactly the fields its policy allows", () => {
           campus: null,
           scheduleType: null,
           instructionalMethod: null,
+          partOfTerm: null,
           creditHours: null,
           enrollment: 0,
           maxEnrollment: 0,

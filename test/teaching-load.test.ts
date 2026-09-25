@@ -26,6 +26,9 @@ function section(
   meetings: { days: string; beginTime: string; endTime: string }[],
 ) {
   return {
+    // writeScheduleDb files every row under the snapshot's term, not these.
+    term: "",
+    termDescription: "",
     crn,
     subjectCourse: course,
     section: "001",
@@ -33,6 +36,7 @@ function section(
     campus: "C",
     scheduleType: "Lecture",
     instructionalMethod: "F",
+    partOfTerm: "1",
     creditHours: credit,
     enrollment: 5,
     maxEnrollment: 20,
@@ -44,6 +48,9 @@ function section(
       ...m,
       building: "Hall",
       room: "1",
+      roomCapacity: null,
+      startDate: null,
+      endDate: null,
       type: "Class",
     })),
     instructors,

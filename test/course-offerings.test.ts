@@ -19,6 +19,9 @@ const { __schedTools } = await import("../src/mcp-tools/clemson-schedule.ts");
 
 function section(crn: string, course: string) {
   return {
+    // writeScheduleDb files every row under the snapshot's term, not these.
+    term: "",
+    termDescription: "",
     crn,
     subjectCourse: course,
     section: "001",
@@ -26,6 +29,7 @@ function section(crn: string, course: string) {
     campus: "C",
     scheduleType: "Lecture",
     instructionalMethod: "F",
+    partOfTerm: "1",
     creditHours: 3,
     enrollment: 5,
     maxEnrollment: 20,
@@ -40,6 +44,9 @@ function section(crn: string, course: string) {
         endTime: "0950",
         building: "Hall",
         room: "1",
+        roomCapacity: null,
+        startDate: null,
+        endDate: null,
         type: "Class",
       },
     ],
@@ -209,7 +216,7 @@ test("a recorded decision overrides the label and rides as known_decision", asyn
     ].join("\n"),
   );
   const b = await offerings(["GC 3400"]);
-  const fall = b.courses[0].seasons.fall as typeof b.courses[0].seasons.fall & {
+  const fall = b.courses[0].seasons.fall as (typeof b)["courses"][number]["seasons"]["fall"] & {
     known_decision?: { expect: string; note?: string; source?: string };
   };
   assert.equal(fall.label, "ruled out");

@@ -252,6 +252,7 @@ function section(
     campus: "Main",
     scheduleType: "Lecture",
     instructionalMethod: null,
+    partOfTerm: "1",
     creditHours: 3,
     enrollment: 10,
     maxEnrollment: 20,
