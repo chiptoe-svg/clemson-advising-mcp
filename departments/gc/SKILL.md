@@ -88,11 +88,8 @@ when a student is eligible for them.
   the PAIR, not a term restriction on either course: GC 3500 and GC 4500 may
   each be taken in fall, spring, or summer; what is disallowed is BOTH
   landing in summer. A student whose GC 3500 was in spring may take GC 4500
-  in spring, fall, or summer. (Corrected 2026-09-11 by C. Tonkin, GC program
-  owner. This bullet previously read "Must be in the summer", which is
-  stricter than the real rule and was quoted to force a spring-GC-3500
-  student's GC 4500 into summer — do not re-derive the old wording from a
-  plan that happens to show both internships in summer.)
+  in spring, fall, or summer. A plan that happens to show both internships in
+  summer is one possible arrangement, not the rule.
 - **GC 4060 or GC 4400 before the 2nd** internship.
 - **1st internship:** register **GC 3500 + COOP 1010**.
 - **2nd internship:** register **GC 4500 + COOP 2010**.

@@ -33,15 +33,20 @@ export const CATALOG_SKILL_RENAMES: readonly CatalogSkillRename[] = [
     to: "list-catalog-skills",
     description:
       "List the catalog server's skill documents by name and " +
-      "description. Pass a name to get-catalog-skill-docs to retrieve the full " +
-      "content.",
+      "description. They hold what the tool schemas do not: the advising method (running a " +
+      "degree audit by hand with its counting rules, checking prerequisites, " +
+      "planning a semester, reading a pasted DegreeWorks audit) and which " +
+      "tool answers which question. Fetch the relevant one before taking a " +
+      "student through an audit, a prerequisite check, or a semester plan. " +
+      "Pass a name to get-catalog-skill-docs to retrieve the full content.",
   },
   {
     from: "get-skill-docs",
     to: "get-catalog-skill-docs",
     description:
-      "Return the full documentation for a catalog-server " +
-      "skill by name. Use list-catalog-skills to discover available skill names.",
+      "Return the full documentation for a catalog-server skill by name — the " +
+      "advising method and tool workflows the tool schemas do not carry. Use " +
+      "list-catalog-skills to discover available skill names.",
   },
 ];
 

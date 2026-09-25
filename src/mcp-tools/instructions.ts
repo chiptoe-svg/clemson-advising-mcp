@@ -55,8 +55,10 @@ What agents get wrong here:
   day/time filter silently excludes them. If a student asks for "afternoon
   classes", untimed sections are not absent from the catalog — they are absent
   from your filter. Say so.
-- TERMS ARE EXPLICIT. Resolve the term with \`list-clemson-terms\` rather than
-  assuming the current one; "fall" is ambiguous in August.
+- TERMS ARE EXPLICIT. Pass the term the user named. If they named none, the
+  tools default to the current registration term — say which term you used,
+  since "fall" is ambiguous in August. \`list-clemson-terms\` is only for
+  finding a term code you cannot otherwise determine.
 - A CRN SOMEONE GAVE YOU IS A CLAIM, NOT A FACT. Verify CRNs with
   \`get-sections-by-crn\` before repeating them: its \`not_found\` is
   authoritative (the snapshot was read), which is exactly what catches a
@@ -82,10 +84,8 @@ a wrong answer to a real advisor:
   Therefore: a course absent from one of them is NOT absent from the degree.
   To answer "does this program require X" or "what is the X requirement", call
   \`find-course-in-program\`, which searches BOTH and whose not-found IS
-  authoritative. (Observed failure, 2026-08-27: an advisor asked about the PCID
-  requirement; the rules tool answered without mentioning PCID, and the reply
-  was "no such requirement exists". PCID 3040/3140 is a real 3-credit choice
-  slot in the plan.)
+  authoritative. For example, PCID 3040/3140 is a 3-credit choice slot in the
+  plan that \`get-requirement-rules\` never mentions.
 - PROGRAM AND CATALOG YEAR ARE REQUIRED and there is no default program. Eight
   programs exist; if you were not told which, ask rather than assuming. If the
   session supplied one by assumption rather than choice, say which you used.
@@ -112,6 +112,25 @@ export function serverInstructions(
   const specific = name.includes("catalog")
     ? CATALOG_GUIDANCE
     : PUBLIC_GUIDANCE;
+  // Named from the VISIBLE tool list, never hardcoded: the catalog server
+  // renames these tools, and a scoped consumer (e.g. clemson.schedule only)
+  // cannot see them at all. Naming a tool the reader cannot call is the defect
+  // this replaces.
+  const listTool = toolNames.find((n) => /^list-(?:[a-z]+-)?skills$/.test(n));
+  const docTool = toolNames.find((n) => /^get-(?:[a-z]+-)?skill-docs$/.test(n));
+  const skillParagraph =
+    listTool && docTool
+      ? [
+          "",
+          `SKILL DOCUMENTS AND STALENESS. \`${listTool}\` / \`${docTool}\` carry longer`,
+          "worked examples. Fetch them ONCE and reuse them — but every tool result",
+          'carries `_meta["cuassistant/skillsVersion"]`, a digest of the skill',
+          "documents' content. Record it when you fetch the docs; if a later result",
+          "shows a different value, your copy is out of date — re-fetch it with the",
+          'tool named in `_meta["cuassistant/skillsDocTool"]`. The version changes',
+          "only when the documents' CONTENT changes, so it will not churn.",
+        ]
+      : [];
   return [
     specific,
     "",
@@ -120,14 +139,6 @@ export function serverInstructions(
     `Toolset version: ${toolsetVersion(toolNames)} (${toolNames.length} tools).`,
     "These instructions change only when the toolset does; cache them against",
     "that version and re-read when it differs.",
-    "",
-    "SKILL DOCUMENTS AND STALENESS. `list-skills` / `get-skill-docs` (named",
-    "`list-catalog-skills` / `get-catalog-skill-docs` on the catalog server) carry longer",
-    "worked examples. Fetch them ONCE and reuse them — but every tool result",
-    'carries `_meta["cuassistant/skillsVersion"]`, a digest of the skill',
-    "documents' content. Record it when you fetch the docs; if a later result",
-    "shows a different value, your copy is out of date — re-fetch it with the",
-    'tool named in `_meta["cuassistant/skillsDocTool"]`. The version changes',
-    "only when the documents' CONTENT changes, so it will not churn.",
+    ...skillParagraph,
   ].join("\n");
 }

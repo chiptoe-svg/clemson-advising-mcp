@@ -154,7 +154,14 @@ export function getDepartmentDoc(
   if (!dir) return null;
   const p = path.join(dir, "SKILL.md");
   try {
-    return { id, content: fs.readFileSync(p, "utf-8") };
+    // HTML comments are maintainer notes (review stamps, provenance) and are
+    // stripped before serving: they are addressed to whoever edits the file,
+    // not to the model, and one of them quotes a retracted rule verbatim.
+    // test/department-doc-freshness.test.ts reads the FILE, so the stamp it
+    // checks is unaffected.
+    const raw = fs.readFileSync(p, "utf-8");
+    const content = raw.replace(/<!--[\s\S]*?-->\n?/g, "").replace(/\n{3,}/g, "\n\n");
+    return { id, content };
   } catch (err) {
     throw new Error(
       `department document unreadable for "${id}": ${String(err)}`,

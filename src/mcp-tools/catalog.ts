@@ -640,8 +640,9 @@ export const getCourse: McpToolDefinition = {
       "Look up ONE course's catalog entry — title, credits, and catalog " +
       'description — by its exact code ("GC 4061", case- and ' +
       "spacing-insensitive). This is the CATALOG entry, not a class section: " +
-      "for meeting times, seats, or instructor use the schedule server's " +
-      "get-course-details. To find where a course appears in a program's " +
+      "for meeting times use the schedule server's get-sections-by-crn, and " +
+      "for seats or instructors use search-classes. To find where a course " +
+      "appears in a program's " +
       "requirements, use find-course-in-program. Read-only, no login.",
     inputSchema: {
       type: "object" as const,
