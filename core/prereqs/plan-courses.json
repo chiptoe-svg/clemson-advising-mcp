@@ -1,0 +1,411 @@
+{
+  "ACCT 2020": {
+    "text": "ACCT 2010",
+    "expr": "ACCT 2010"
+  },
+  "ACCT 3030": {
+    "text": "ACCT 2010 with a C or better",
+    "expr": "ACCT 2010>=C"
+  },
+  "ACCT 3110": {
+    "text": "ACCT 2010 with a C or better",
+    "expr": "ACCT 2010>=C"
+  },
+  "ACCT 3120": {
+    "text": "ACCT 3110 with a C or better",
+    "expr": "ACCT 3110>=C"
+  },
+  "ACCT 3130": {
+    "text": "ACCT 3110 with a grade of C or higher",
+    "expr": "ACCT 3110>=C"
+  },
+  "ACCT 3220": {
+    "text": "ACCT 2010 with a grade of C or higher; and one of CPSC 2200 or MGT 2180",
+    "expr": "ACCT 2010>=C & (CPSC 2200 | MGT 2180)"
+  },
+  "ACCT 4040": {
+    "text": "ACCT 3110 with a C or better",
+    "expr": "ACCT 3110>=C"
+  },
+  "ACCT 4060": {
+    "text": "ACCT 3110 with a C or better",
+    "expr": "ACCT 3110>=C"
+  },
+  "ACCT 4100": {
+    "text": "ACCT 3030 with a C or better",
+    "expr": "ACCT 3030>=C"
+  },
+  "ACCT 4110": {
+    "text": "ACCT 3120 with a grade of C or better",
+    "expr": "ACCT 3120>=C"
+  },
+  "ACCT 4150": {
+    "text": "ACCT 3110 and ACCT 3220, each with a C or better",
+    "expr": "ACCT 3110>=C & ACCT 3220>=C"
+  },
+  "AGRB 2020": {
+    "text": "MATH 1020 with a grade of C or higher or a score of 620 or higher on the SAT Math section or a score of 26 or higher on the ACT Math section or a score of 60 or higher on the Clemson Mathematics Placement Test (CMPT)",
+    "expr": "MATH 1020>=C | [test:SAT Math>=620] | [test:ACT Math>=26] | [test:CMPT>=60]"
+  },
+  "BIOL 1040": {
+    "text": "BIOL 1030 and BIOL 1050; or BIOL 1100",
+    "expr": "(BIOL 1030 & BIOL 1050) | BIOL 1100"
+  },
+  "BUS 2010": {
+    "text": "BUS 1010 and sophomore standing",
+    "expr": "BUS 1010 & [standing:sophomore]"
+  },
+  "BUS 3010": {
+    "text": "BUS 1010 and BUS 2010",
+    "expr": "BUS 1010 & BUS 2010"
+  },
+  "CH 1010": {
+    "text": "A score of 60 or higher on the Clemson Mathematics Placement Test (CMPT). Preq or concurrent enrollment: MATH 1020 or MATH 1040 or MATH 1060 or MATH 1080 or MATH 2060 or MATH 2080 or STAT 2300",
+    "expr": "[test:CMPT>=60] & ~(MATH 1020 | MATH 1040 | MATH 1060 | MATH 1080 | MATH 2060 | MATH 2080 | STAT 2300)",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement; the placement score and the math course may instead be alternatives — confirm"
+  },
+  "CH 1020": {
+    "text": "CH 1010 with a C or better",
+    "expr": "CH 1010>=C"
+  },
+  "CH 2010": {
+    "text": "CH 1020",
+    "expr": "CH 1020"
+  },
+  "CH 2020": {
+    "text": "CH 1020. Preq or concurrent enrollment: CH 2010",
+    "expr": "CH 1020 & ~CH 2010",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement"
+  },
+  "CH 2230": {
+    "text": "CH 1020",
+    "expr": "CH 1020"
+  },
+  "ECON 2120": {
+    "text": "AGRB 2020 or ECON 2110",
+    "expr": "AGRB 2020 | ECON 2110"
+  },
+  "ECON 3140": {
+    "text": "AGRB 2020 or ECON 2110; and either MATH 1020 with a grade of C or higher or MATH 1060",
+    "expr": "(AGRB 2020 | ECON 2110) & (MATH 1020>=C | MATH 1060)"
+  },
+  "ECON 3150": {
+    "text": "ECON 2120; and either MATH 1020 with a grade of C or higher or MATH 1060",
+    "expr": "ECON 2120 & (MATH 1020>=C | MATH 1060)"
+  },
+  "ECON 4050": {
+    "text": "ECON 2110 and ECON 2120; and either MATH 1080 or MATH 2070; and MATH 3020 or STAT 3090 or STAT 3300",
+    "expr": "ECON 2110 & ECON 2120 & (MATH 1080 | MATH 2070) & (MATH 3020 | STAT 3090 | STAT 3300)"
+  },
+  "ENGL 3040": {
+    "text": "Junior standing",
+    "expr": "[standing:junior]"
+  },
+  "ENGL 3140": {
+    "text": "Junior standing",
+    "expr": "[standing:junior]"
+  },
+  "FIN 3050": {
+    "text": "FIN 3060 or FIN 3110, each with a C or better",
+    "expr": "FIN 3060>=C | FIN 3110>=C"
+  },
+  "FIN 3060": {
+    "text": "ACCT 2010; and one of the following courses: IE 3610 or MATH 3020 or PSYC 3090 or STAT 2300 or STAT 3090 or STAT 4110",
+    "expr": "ACCT 2010 & (IE 3610 | MATH 3020 | PSYC 3090 | STAT 2300 | STAT 3090 | STAT 4110)"
+  },
+  "FIN 3070": {
+    "text": "FIN 3060 or FIN 3110, each with a C or better",
+    "expr": "FIN 3060>=C | FIN 3110>=C"
+  },
+  "FIN 3080": {
+    "text": "FIN 3060 or FIN 3110, each with a C or better",
+    "expr": "FIN 3060>=C | FIN 3110>=C"
+  },
+  "FIN 3110": {
+    "text": "ACCT 2010 with a C or better; and one of the following: IE 3610 or MATH 3020 or PSYC 3090 or STAT 2300 or STAT 3090 or STAT 3300",
+    "expr": "ACCT 2010>=C & (IE 3610 | MATH 3020 | PSYC 3090 | STAT 2300 | STAT 3090 | STAT 3300)"
+  },
+  "FIN 3120": {
+    "text": "FIN 3060 or FIN 3110, each with a C or better",
+    "expr": "FIN 3060>=C | FIN 3110>=C"
+  },
+  "GC 1040": {
+    "text": "GC 1020 and GC 1050",
+    "expr": "GC 1020 & GC 1050"
+  },
+  "GC 2070": {
+    "text": "Graphic Communications major and GC 1010 and GC 1020 and GC 1040",
+    "expr": "[major:Graphic Communications] & GC 1010 & GC 1020 & GC 1040"
+  },
+  "GC 2400": {
+    "text": "GC 1020 and GC 1040",
+    "expr": "GC 1020 & GC 1040"
+  },
+  "GC 3020": {
+    "text": "COOP 1010 and GC 1020",
+    "expr": "COOP 1010 & GC 1020"
+  },
+  "GC 3400": {
+    "text": "GC 1020 and GC 1040",
+    "expr": "GC 1020 & GC 1040"
+  },
+  "GC 3460": {
+    "text": "GC 2070",
+    "expr": "GC 2070"
+  },
+  "GC 3500": {
+    "text": "GC 1040 and Graphic Communications major and consent of instructor. Preq or concurrent enrollment: COOP 2010",
+    "expr": "GC 1040 & [major:Graphic Communications] & [consent:instructor] & ~COOP 2010",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement"
+  },
+  "GC 3800": {
+    "text": "GC 3500",
+    "expr": "GC 3500"
+  },
+  "GC 4060": {
+    "text": "GC 2070 and GC 3500. Preq or concurrent enrollment: GC 3460",
+    "expr": "GC 2070 & GC 3500 & ~GC 3460",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement"
+  },
+  "GC 4400": {
+    "text": "GC 2070 and GC 3500. Preq or concurrent enrollment: GC 3460",
+    "expr": "GC 2070 & GC 3500 & ~GC 3460",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement"
+  },
+  "GC 4440": {
+    "text": "GC 3400 and GC 3500 and GC 4060 and GC 4400",
+    "expr": "GC 3400 & GC 3500 & GC 4060 & GC 4400"
+  },
+  "GC 4480": {
+    "text": "GC 3500 and GC 4060 and GC 4400 and GC 4500",
+    "expr": "GC 3500 & GC 4060 & GC 4400 & GC 4500"
+  },
+  "GC 4500": {
+    "text": "GC 3500; and either GC 4060 or GC 4400. Preq or concurrent enrollment: COOP 2020",
+    "expr": "GC 3500 & (GC 4060 | GC 4400) & ~COOP 2020",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement"
+  },
+  "GC 4800": {
+    "text": "Senior standing",
+    "expr": "[standing:senior]"
+  },
+  "LAW 3220": {
+    "text": "Junior standing",
+    "expr": "[standing:junior]"
+  },
+  "MATH 1020": {
+    "text": "Any MATH or STAT course, or a score of 620 or higher on the SAT Math section, or a score of 26 or higher on the ACT Math section, or a score of 60 or higher on the Clemson Mathematics Placement Test (CMPT)",
+    "expr": "?\"Any MATH or STAT course\" | [test:SAT Math>=620] | [test:ACT Math>=26] | [test:CMPT>=60]"
+  },
+  "MATH 1060": {
+    "text": "A score of 680 or higher on the SAT Math section, or a score of 29 or higher on the ACT Math section, or a score of 80 or higher on the Clemson Mathematics Placement Test (CMPT)",
+    "expr": "[test:SAT Math>=680] | [test:ACT Math>=29] | [test:CMPT>=80]"
+  },
+  "MATH 1080": {
+    "text": "MATH 1060 with a C or better or MATH 1070 with a C or better",
+    "expr": "MATH 1060>=C | MATH 1070>=C"
+  },
+  "MATH 2070": {
+    "text": "MATH 1020 with a C or better or MATH 1060 or MATH 1070",
+    "expr": "MATH 1020>=C | MATH 1060 | MATH 1070"
+  },
+  "MATH 2800": {
+    "text": "Any MATH or STAT course, or a score of 540 or higher on the SAT Math section, or a score of 21 or higher on the ACT Math section, or a score of 50 or higher on the Clemson Mathematics Placement Test (CMPT)",
+    "expr": "?\"Any MATH or STAT course\" | [test:SAT Math>=540] | [test:ACT Math>=21] | [test:CMPT>=50]"
+  },
+  "MATH 3020": {
+    "text": "MATH 2060 with a C or better",
+    "expr": "MATH 2060>=C"
+  },
+  "MGT 3030": {
+    "text": "MGT 2010",
+    "expr": "MGT 2010"
+  },
+  "MGT 3070": {
+    "text": "MGT 2010",
+    "expr": "MGT 2010"
+  },
+  "MGT 3100": {
+    "text": "STAT 2300",
+    "expr": "STAT 2300"
+  },
+  "MGT 3120": {
+    "text": "STAT 3090 or equivalent (IE 3610 or MATH 3020 or PSYC 3090); and MGT 2180 or equivalent (CPSC 2200)",
+    "expr": "(STAT 3090 | IE 3610 | MATH 3020 | PSYC 3090) & (MGT 2180 | CPSC 2200)",
+    "note": "\"or equivalent\" read as exactly the listed courses"
+  },
+  "MGT 3130": {
+    "text": "MGT 2180",
+    "expr": "MGT 2180"
+  },
+  "MGT 3180": {
+    "text": "MGT 2010",
+    "expr": "MGT 2010"
+  },
+  "MGT 3900": {
+    "text": "MGT 2180 or equivalent (CPSC 2200)",
+    "expr": "MGT 2180 | CPSC 2200",
+    "note": "\"or equivalent\" read as exactly the listed courses"
+  },
+  "MGT 4000": {
+    "text": "MGT 2010",
+    "expr": "MGT 2010"
+  },
+  "MGT 4150": {
+    "text": "FIN 3060 or FIN 3110; and MGT 2010; and MKT 3010; and Senior standing",
+    "expr": "(FIN 3060 | FIN 3110) & MGT 2010 & MKT 3010 & [standing:senior]"
+  },
+  "MKT 3010": {
+    "text": "ECON 2000 or ECON 2110 or ECON 2120 or any 2000-level AGRB course; and sophomore standing",
+    "expr": "(ECON 2000 | ECON 2110 | ECON 2120 | ?\"any 2000-level AGRB course\") & [standing:sophomore]"
+  },
+  "MKT 3020": {
+    "text": "MKT 3010; and one of ANTH 2010 or PSYC 2010 or SOC 2010",
+    "expr": "MKT 3010 & (ANTH 2010 | PSYC 2010 | SOC 2010)"
+  },
+  "MKT 3250": {
+    "text": "MKT 3010",
+    "expr": "MKT 3010"
+  },
+  "MKT 3310": {
+    "text": "MKT 3010 and STAT 3090",
+    "expr": "MKT 3010 & STAT 3090"
+  },
+  "MKT 3320": {
+    "text": "MKT 3010",
+    "expr": "MKT 3010"
+  },
+  "MKT 4270": {
+    "text": "MKT 3010",
+    "expr": "MKT 3010"
+  },
+  "MKT 4310": {
+    "text": "Marketing major and MKT 3010 and MKT 3310 and STAT 3090",
+    "expr": "[major:Marketing] & MKT 3010 & MKT 3310 & STAT 3090"
+  },
+  "MKT 4500": {
+    "text": "Marketing major and MKT 3010 and six credits of 4000-level marketing courses",
+    "expr": "[major:Marketing] & MKT 3010 & ?\"six credits of 4000-level marketing courses\""
+  },
+  "PCID 3040": {
+    "text": "Junior standing",
+    "expr": "[standing:junior]"
+  },
+  "PCID 3140": {
+    "text": "Junior standing",
+    "expr": "[standing:junior]"
+  },
+  "PHYS 2070": {
+    "text": "MATH 1020 or MATH 1040 or MATH 1050 or MATH 1060 or MATH 1070 or a score of 620 or higher on the SAT Math section or a score of 26 or higher on the ACT Math section or preq or concurrent enrollment in PHYS 1020",
+    "expr": "MATH 1020 | MATH 1040 | MATH 1050 | MATH 1060 | MATH 1070 | [test:SAT Math>=620] | [test:ACT Math>=26] | ~PHYS 1020"
+  },
+  "PHYS 2080": {
+    "text": "PHYS 2070",
+    "expr": "PHYS 2070"
+  },
+  "PHYS 2100": {
+    "text": "PHYS 2070 and PHYS 2090. Preq or concurrent enrollment: PHYS 2080",
+    "expr": "PHYS 2070 & PHYS 2090 & ~PHYS 2080",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement"
+  },
+  "PHYS 2210": {
+    "text": "PHYS 1220. Preq or concurrent enrollment: MATH 1080 or MATH 1110",
+    "expr": "PHYS 1220 & ~(MATH 1080 | MATH 1110)",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement"
+  },
+  "PKSC 2010": {
+    "text": "Packaging Science major or minor. Preq or concurrent enrollment: One of CH 2010 or CH 2230; and PKSC 1020",
+    "expr": "([major:Packaging Science] | [minor:Packaging Science]) & ~(CH 2010 | CH 2230) & ~PKSC 1020",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement; PKSC 1020 read as inside the concurrent-enrollment sentence (may be taken the same term) — confirm"
+  },
+  "PKSC 2020": {
+    "text": "PKSC 1020 and Packaging Science major",
+    "expr": "PKSC 1020 & [major:Packaging Science]"
+  },
+  "PKSC 2040": {
+    "text": "PKSC 1020 and PKSC 2020 and Packaging Science major",
+    "expr": "PKSC 1020 & PKSC 2020 & [major:Packaging Science]"
+  },
+  "PKSC 2060": {
+    "text": "PKSC 1020 and Packaging Science major",
+    "expr": "PKSC 1020 & [major:Packaging Science]"
+  },
+  "PKSC 2200": {
+    "text": "PKSC 1020 and Packaging Science major",
+    "expr": "PKSC 1020 & [major:Packaging Science]"
+  },
+  "PKSC 3200": {
+    "text": "Both CH 1010 and MATH 1060; or GC 2070; or PKSC 2200",
+    "expr": "(CH 1010 & MATH 1060) | GC 2070 | PKSC 2200"
+  },
+  "PKSC 4010": {
+    "text": "Packaging Science major or minor or Food Science and Human Nutrition major; and either FDSC 4170 or both PKSC 1020 and PKSC 2010",
+    "expr": "([major:Packaging Science] | [minor:Packaging Science] | [major:Food Science and Human Nutrition]) & (FDSC 4170 | (PKSC 1020 & PKSC 2010))"
+  },
+  "PKSC 4030": {
+    "text": "Packaging Science major",
+    "expr": "[major:Packaging Science]"
+  },
+  "PKSC 4040": {
+    "text": "Packaging Science major and junior standing; and one of MATH 1060 or MATH 1070; and PKSC 1020 with a grade of C or better and PKSC 2040 with a grade of C or better; and one of PHYS 1220 or PHYS 2070",
+    "expr": "[major:Packaging Science] & [standing:junior] & (MATH 1060 | MATH 1070) & PKSC 1020>=C & PKSC 2040>=C & (PHYS 1220 | PHYS 2070)"
+  },
+  "PKSC 4050": {
+    "text": "FNPS 3680",
+    "expr": "FNPS 3680"
+  },
+  "PKSC 4160": {
+    "text": "Packaging Science major; and one of CH 2010 or CH 2230; and one of PHYS 1220 or PHYS 2070; and PKSC 1020 with a grade of C or better and PKSC 2040 with a grade of C or better and PKSC 2060 with a grade of C or better",
+    "expr": "[major:Packaging Science] & (CH 2010 | CH 2230) & (PHYS 1220 | PHYS 2070) & PKSC 1020>=C & PKSC 2040>=C & PKSC 2060>=C"
+  },
+  "PKSC 4200": {
+    "text": "Packaging Science major and second semester senior standing; and PKSC 1020 with a grade of C or better and PKSC 3200 and FNPS 3680 and PKSC 4400. Preq or concurrent enrollment: PKSC 4010 and PKSC 4040 and PKSC 4160 and PKSC 4300 and PKSC 4540 and PKSC 4640",
+    "expr": "[major:Packaging Science] & [standing:second semester senior] & PKSC 1020>=C & PKSC 3200 & FNPS 3680 & PKSC 4400 & ~PKSC 4010 & ~PKSC 4040 & ~PKSC 4160 & ~PKSC 4300 & ~PKSC 4540 & ~PKSC 4640",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement; 'second semester senior standing' kept verbatim (timing floor uses 'senior')"
+  },
+  "PKSC 4300": {
+    "text": "Packaging Science major; and PKSC 1020 with a grade of C or better and PKSC 2040 with a grade of C or better",
+    "expr": "[major:Packaging Science] & PKSC 1020>=C & PKSC 2040>=C"
+  },
+  "PKSC 4400": {
+    "text": "Packaging Science major or minor; and junior standing; and PKSC 1020; and one of MATH 1060 or MATH 1070; and one of PHYS 1220 or PHYS 2070",
+    "expr": "([major:Packaging Science] | [minor:Packaging Science]) & [standing:junior] & PKSC 1020 & (MATH 1060 | MATH 1070) & (PHYS 1220 | PHYS 2070)"
+  },
+  "PKSC 4540": {
+    "text": "Packaging Science major. Preq or concurrent enrollment: PKSC 4040",
+    "expr": "[major:Packaging Science] & ~PKSC 4040",
+    "note": "separate 'Preq or concurrent enrollment' sentence read as an additional AND requirement"
+  },
+  "PKSC 4640": {
+    "text": "Packaging Science major or Food Science and Human Nutrition major; and either FDSC 4170 or all three of PKSC 1020 with a grade of C or better and PKSC 2010 with a grade of C or better and PKSC 2040 with a grade of C or better",
+    "expr": "([major:Packaging Science] | [major:Food Science and Human Nutrition]) & (FDSC 4170 | (PKSC 1020>=C & PKSC 2010>=C & PKSC 2040>=C))"
+  },
+  "PKSC 4800": {
+    "text": "PKSC 2010",
+    "expr": "PKSC 2010"
+  },
+  "PSYC 3640": {
+    "text": "PSYC 2010",
+    "expr": "PSYC 2010"
+  },
+  "PSYC 3680": {
+    "text": "PSYC 2010",
+    "expr": "PSYC 2010"
+  },
+  "STAT 2220": {
+    "text": "Any MATH or STAT course, or a score of 540 or higher on the SAT Math section, or a score of 21 or higher on the ACT Math section, or a score of 50 or higher on the Clemson Mathematics Placement Test (CMPT)",
+    "expr": "?\"Any MATH or STAT course\" | [test:SAT Math>=540] | [test:ACT Math>=21] | [test:CMPT>=50]"
+  },
+  "STAT 2300": {
+    "text": "Any MATH or STAT course, or a score of 620 or higher on the SAT Math section, or a score of 26 or higher on the ACT Math section, or a score of 65 or higher on the Clemson Mathematics Placement Test (CMPT)",
+    "expr": "?\"Any MATH or STAT course\" | [test:SAT Math>=620] | [test:ACT Math>=26] | [test:CMPT>=65]"
+  },
+  "STAT 3090": {
+    "text": "MATH 1060 or MATH 1070 or MATH 2070 or MATH 2100",
+    "expr": "MATH 1060 | MATH 1070 | MATH 2070 | MATH 2100"
+  },
+  "STAT 3300": {
+    "text": "MATH 3020 with a C or better or STAT 2300 with a C or better",
+    "expr": "MATH 3020>=C | STAT 2300>=C"
+  }
+}
