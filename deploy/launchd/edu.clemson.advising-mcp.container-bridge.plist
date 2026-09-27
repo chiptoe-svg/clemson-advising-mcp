@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Container-bridge forwarder: <container bridge gateway>:{8765,8766,8767,8011,
+  8012,10255} -> 127.0.0.1:{same}. Apple container VMs reach this host only via
+  the bridge gateway; every forwarded service stays loopback-only. Port map and
+  rebind logic: scripts/container-bridge.mjs.
+
+  Shared host plumbing for four owners (mailcal 8765, this repo 8766/8767,
+  gc_alumni 8011/8012, OneCLI 10255). Adopted from CUassistant's
+  com.cuassistant.mcp-public-bridge on 2026-09-26.
+
+  Do not edit the placeholders by hand — deploy/install.sh fills in REPO_PATH,
+  NPM_PATH and HOME_PATH. No secrets belong in this file: it is in git.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>edu.clemson.advising-mcp.container-bridge</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>NPM_PATH</string>
+    <string>run</string>
+    <string>container-bridge</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>REPO_PATH</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>HOME_PATH</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>HOME_PATH/Library/Logs/advising-mcp.container-bridge.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>HOME_PATH/Library/Logs/advising-mcp.container-bridge.err.log</string>
+</dict>
+</plist>

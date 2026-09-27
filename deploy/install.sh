@@ -1,5 +1,6 @@
 #!/bin/bash
-# Install the two MCP servers and the daily refresh job as launchd services.
+# Install the two MCP servers, the daily refresh job and the container bridge
+# as launchd services.
 #
 #   bash deploy/install.sh            # install (or re-install) and verify
 #   bash deploy/install.sh --check    # verify only, change nothing
@@ -14,7 +15,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd -P)"
 AGENTS="$HOME/Library/LaunchAgents"
-LABELS=(edu.clemson.advising-mcp.schedule edu.clemson.advising-mcp.catalog edu.clemson.advising-mcp.refresh)
+LABELS=(edu.clemson.advising-mcp.schedule edu.clemson.advising-mcp.catalog edu.clemson.advising-mcp.refresh edu.clemson.advising-mcp.container-bridge)
 MODE="${1:-install}"
 case "$MODE" in
   install|--check|--uninstall) ;;

@@ -18,6 +18,7 @@
     "mcp:schedule:http": "MCP_TRANSPORT=http tsx src/mcp-schedule.ts",
     "mcp:catalog": "tsx src/mcp-catalog.ts",
     "mcp:catalog:http": "MCP_TRANSPORT=http tsx src/mcp-catalog.ts",
+    "container-bridge": "node scripts/container-bridge.mjs",
     "clemson:refresh": "tsx scripts/clemson-refresh.ts",
     "clemson:convert": "tsx scripts/clemson-convert-snapshots.ts",
     "test": "MCP_USAGE_ANALYTICS=off node --import tsx --test --test-timeout=60000 \"test/**/*.test.ts\"",

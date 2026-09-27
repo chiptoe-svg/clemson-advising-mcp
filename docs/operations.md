@@ -355,9 +355,11 @@ looks like a code fault.
   (`MCP_*_AUTH_TOKEN`) are secrets and must be placed in `.env` by hand before
   the new servers take the production ports, or every caller on that path 401s.
 - **`lsof` can show a listener on the port while `curl 127.0.0.1:<port>`
-  returns nothing.** The container bridge (`com.cuassistant.mcp-public-bridge`)
-  listens on the bridge-gateway address on the same port numbers and forwards
-  into loopback. It is not a conflict, it is shared with other services, and it
+  returns nothing.** The container bridge (`edu.clemson.advising-mcp.container-bridge`,
+  `scripts/container-bridge.mjs`; adopted from CUassistant — now Cob_advisor —
+  on 2026-09-26) listens on the bridge-gateway address on the same port numbers
+  and forwards into loopback. It is not a conflict: it serves four owners
+  (mailcal 8765, this repo 8766/8767, gc_alumni 8011/8012, OneCLI 10255), and it
   starts forwarding to the new servers the moment they bind. Leave it alone.
   The preflight is scoped to `127.0.0.1` for exactly this reason.
 - **A count from the ledger is evidence, not a verdict.** A 5,000-call burst
