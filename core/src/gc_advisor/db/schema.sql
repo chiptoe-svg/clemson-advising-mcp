@@ -138,6 +138,18 @@ CREATE TABLE IF NOT EXISTS course (
   source_url     TEXT
 );
 
+-- Hand-reviewed prerequisite expressions (strict notation; see
+-- src/prereq-expr.ts in the repo root). One row per course, shared by every
+-- program: there is one prerequisite snapshot and Banner enforces the current
+-- rule regardless of catalog year. source_text_hash pins the exact
+-- prereq_text reviewed; a mismatch means stale, and the reader must not use it.
+CREATE TABLE IF NOT EXISTS prereq_expression (
+  code             TEXT PRIMARY KEY REFERENCES course(code),
+  expr             TEXT NOT NULL,
+  source_text_hash TEXT NOT NULL,
+  note             TEXT
+);
+
 CREATE TABLE IF NOT EXISTS source_snapshot (
   id           INTEGER PRIMARY KEY,
   url          TEXT NOT NULL,

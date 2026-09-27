@@ -70,8 +70,9 @@ step "5/8 Minors + certificates (LLM prose extraction; cache-addressed)"
 step "6/8 Requirement rules + gen-ed + academic regulations (all years)"
 "$PY" scripts/backfill_requirements.py
 
-step "7/8 Coreqs + course source URLs"
+step "7/8 Coreqs + prerequisite expressions + course source URLs"
 "$PY" scripts/backfill_coreqs.py
+"$PY" scripts/load_prereq_expressions.py
 "$PY" scripts/backfill_course_urls.py --db "$DB"
 
 step "8/8 Department packs (order-free, idempotent; refreshes bogus flags)"
