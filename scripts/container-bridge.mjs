@@ -57,6 +57,7 @@
 import net from 'net';
 import os from 'os';
 import { execFileSync } from 'child_process';
+import { pathToFileURL } from 'url';
 
 // Two cadences. A container starting the moment the gateway appears cannot
 // reach a forwarder that has not bound yet, so while any port is unbound we
@@ -167,6 +168,45 @@ function resolveGateway(now = Date.now()) {
   return gatewayFromInterfaces() ?? null;
 }
 
+/** Dotted-quad IPv4 to an unsigned 32-bit integer. */
+function ipv4ToInt(addr) {
+  return addr.split('.').reduce((n, o) => ((n << 8) | Number(o)) >>> 0, 0);
+}
+
+/**
+ * May `peer` use the bridge bound on `gateway`?
+ *
+ * Admitted: peers on the gateway's own subnet (the containers) and this host's
+ * own addresses (host-local clients). Everything else is refused. Why this is
+ * needed (2026-09-26): the macOS application firewall filters by PROGRAM and
+ * admits node on every interface, and macOS accepts packets for any of its own
+ * addresses on any interface — so a host on the campus subnet that routes
+ * 192.168.64.0/24 via this Mac could otherwise reach all six ports, in plain
+ * HTTP, including mailcal (8765) and the OneCLI credential proxy (10255).
+ *
+ * The subnet comes from the gateway interface's own netmask, never a
+ * hardcoded range: the bridge subnet has moved before (see the header). If the
+ * gateway interface is gone, only host addresses are admitted.
+ */
+export function peerAllowed(peer, gateway, ifaces = os.networkInterfaces()) {
+  const addr = (peer ?? '').replace(/^::ffff:/, '');
+  if (!isIpv4(addr)) return false;
+  let netmask = null;
+  for (const list of Object.values(ifaces)) {
+    for (const a of list ?? []) {
+      if (a.family !== 'IPv4') continue;
+      if (a.address === addr) return true; // one of this host's own addresses
+      if (a.address === gateway) netmask = a.netmask;
+    }
+  }
+  if (!netmask || !isIpv4(netmask)) return false;
+  const mask = ipv4ToInt(netmask);
+  return (ipv4ToInt(addr) & mask) === (ipv4ToInt(gateway) & mask);
+}
+
+/** Refusals are logged once per address, so a scan cannot flood the log. */
+const refusedLogged = new Set();
+
 function log(msg) {
   process.stdout.write(`[mcp-bridge] ${msg}\n`);
 }
@@ -220,6 +260,15 @@ function supervise(port) {
     }
 
     const s = net.createServer((client) => {
+      if (!peerAllowed(client.remoteAddress, host)) {
+        const who = client.remoteAddress ?? 'unknown';
+        if (!refusedLogged.has(who)) {
+          refusedLogged.add(who);
+          log(`port ${port}: refused ${who} (not on the bridge subnet or this host)`);
+        }
+        client.destroy();
+        return;
+      }
       const target = net.createConnection(port, '127.0.0.1');
       client.pipe(target);
       target.pipe(client);
@@ -257,25 +306,29 @@ function supervise(port) {
   return tick;
 }
 
-const ticks = PORTS.map((port) => supervise(port));
+// Start only when run as a program (`npm run container-bridge`), so tests can
+// import peerAllowed without opening listeners.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  const ticks = PORTS.map((port) => supervise(port));
 
-// One scheduler for all ports: fast while anything is unbound, slow otherwise.
-//
-// The timer is deliberately NOT unref'd. When the container network goes idle
-// every listener closes (the "gateway disappeared" branch), and the net.Server
-// handles are the only things keeping the event loop alive. An unref'd poll timer
-// would then let the process EXIT cleanly whenever no container is running — and
-// launchd (KeepAlive) would relaunch it, cold. That cold restart (Node boot +
-// `container network inspect`) is far longer than a container's connect-retry
-// budget, so a container spawning right after an idle period could not reach the
-// bridge-dependent, loopback-only servers (8765/8011/10255). Keeping the timer
-// ref'd makes this a proper always-on daemon that stays warm across idle periods
-// and rebinds within FAST_MS when the gateway reappears. (History: `runs=105088`
-// launchd restarts — this poller was exiting on every idle window.)
-(function schedule() {
-  const delay = unbound.size > 0 ? FAST_MS : RETRY_MS;
-  setTimeout(() => {
-    for (const tick of ticks) tick();
-    schedule();
-  }, delay);
-})();
+  // One scheduler for all ports: fast while anything is unbound, slow otherwise.
+  //
+  // The timer is deliberately NOT unref'd. When the container network goes idle
+  // every listener closes (the "gateway disappeared" branch), and the net.Server
+  // handles are the only things keeping the event loop alive. An unref'd poll timer
+  // would then let the process EXIT cleanly whenever no container is running — and
+  // launchd (KeepAlive) would relaunch it, cold. That cold restart (Node boot +
+  // `container network inspect`) is far longer than a container's connect-retry
+  // budget, so a container spawning right after an idle period could not reach the
+  // bridge-dependent, loopback-only servers (8765/8011/10255). Keeping the timer
+  // ref'd makes this a proper always-on daemon that stays warm across idle periods
+  // and rebinds within FAST_MS when the gateway reappears. (History: `runs=105088`
+  // launchd restarts — this poller was exiting on every idle window.)
+  (function schedule() {
+    const delay = unbound.size > 0 ? FAST_MS : RETRY_MS;
+    setTimeout(() => {
+      for (const tick of ticks) tick();
+      schedule();
+    }, delay);
+  })();
+}
