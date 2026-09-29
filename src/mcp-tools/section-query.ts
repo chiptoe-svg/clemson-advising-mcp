@@ -13,6 +13,7 @@ import {
   getScheduleDbMeta,
   getMeetingsForCrns,
   minsToHHMM,
+  nameWords,
 } from "../clemson-schedule-db.js";
 
 /**
@@ -33,7 +34,7 @@ export interface SectionFilters {
   term: string; // already resolved (Task 1) — engine takes codes only
   subject?: string;
   courseNumber?: string;
-  instructor?: string; // substring, case-insensitive, instructors table
+  instructor?: string; // every word must appear in one name (nameWords), instructors table
   buildingRoom?: string; // substring match on meetings building+room
   days?: string; // e.g. "TR" — every meeting day ∈ set
   excludeDays?: string[];
@@ -134,14 +135,18 @@ interface MeetingRow {
 // rules that could silently drift from these.
 // ---------------------------------------------------------------------------
 
-/** Case-insensitive substring match against any instructor name — mirrors
- * the `instructors` EXISTS clause above. */
+/** Does any instructor's name contain every word of `query` (nameWords)?
+ * Mirrors the `instructors` EXISTS clause above. */
 export function matchesInstructor(
   instructors: string[],
-  substr: string,
+  query: string,
 ): boolean {
-  const needle = substr.toLowerCase();
-  return instructors.some((name) => name.toLowerCase().includes(needle));
+  const words = nameWords(query);
+  if (words.length === 0) return false;
+  return instructors.some((name) => {
+    const lower = name.toLowerCase();
+    return words.every((w) => lower.includes(w));
+  });
 }
 
 /** Case-insensitive substring match against any meeting's "building room"
@@ -279,11 +284,21 @@ export function querySectionsEngine(
     }
 
     if (filters.instructor) {
-      conditions.push(
-        "EXISTS (SELECT 1 FROM instructors i WHERE i.crn = sections.crn " +
-          "AND i.term = sections.term AND LOWER(i.name) LIKE ?)",
-      );
-      bindings.push(`%${filters.instructor.toLowerCase()}%`);
+      // Every word must appear in ONE instructor's name (nameWords). No words
+      // at all matches nothing — never an absent condition, which would match
+      // every section.
+      const words = nameWords(filters.instructor);
+      if (words.length === 0) {
+        conditions.push("0");
+      } else {
+        conditions.push(
+          "EXISTS (SELECT 1 FROM instructors i WHERE i.crn = sections.crn " +
+            "AND i.term = sections.term AND " +
+            words.map(() => "LOWER(i.name) LIKE ?").join(" AND ") +
+            ")",
+        );
+        bindings.push(...words.map((w) => `%${w}%`));
+      }
     }
 
     if (filters.buildingRoom) {

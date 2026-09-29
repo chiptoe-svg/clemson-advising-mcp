@@ -18,7 +18,7 @@ const TMP = fs.mkdtempSync(
 process.env.STATE_DIR = TMP;
 
 const { writeScheduleDb } = await import("../src/clemson-schedule-db.ts");
-const { querySectionsEngine } =
+const { querySectionsEngine, matchesInstructor } =
   await import("../src/mcp-tools/section-query.ts");
 import type { ClemsonTermSnapshot } from "../src/clemson-classes.ts";
 import type {
@@ -661,4 +661,34 @@ test("enrollment/maxEnrollment reflect the section's own values, not a shared de
 test("snapshotDate is populated from the snapshot's fetchedAt", () => {
   const result = ok(querySectionsEngine({ term: TERM, subject: "GC" }));
   assert.equal(result.snapshotDate, "2026-07-20T01:00:00.000-04:00"); // Eastern offset (eastern-time.ts)
+});
+
+// Same word rule as get-instructor-classes (2026-09-29): every word of the
+// query must appear in an instructor's name, in any order.
+test("instructor filter: words in any order, punctuation ignored", () => {
+  for (const q of ["Jones, Bob", "jones bob"]) {
+    const result = ok(querySectionsEngine({ term: TERM, instructor: q }));
+    assert.deepEqual(crns(result.sections), ["20002"], q);
+  }
+});
+
+test("instructor filter: a query with no words matches nothing, not everything", () => {
+  const result = ok(querySectionsEngine({ term: TERM, instructor: " , " }));
+  assert.deepEqual(crns(result.sections), []);
+});
+
+test("matchesInstructor (live refresh path) uses the same word rule", () => {
+  assert.equal(
+    matchesInstructor(["Carl W Hollingsworth"], "Carl Hollingsworth"),
+    true,
+  );
+  assert.equal(
+    matchesInstructor(["Carl W Hollingsworth"], "Hollingsworth, Carl"),
+    true,
+  );
+  assert.equal(
+    matchesInstructor(["Carl W Hollingsworth"], "Carl Zzyzx"),
+    false,
+  );
+  assert.equal(matchesInstructor(["Carl W Hollingsworth"], " , "), false);
 });

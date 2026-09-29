@@ -87,6 +87,19 @@ writeScheduleDb({
       [{ name: "B Smith", email: "bsmith@clemson.edu", primary: true }],
       [{ days: "F", beginTime: "0900", endTime: "0950" }],
     ),
+    // Banner lists a middle initial; people ask for "First Last" (2026-09-29).
+    section(
+      "70006",
+      "ACCT2010",
+      [
+        {
+          name: "Carl W Hollingsworth",
+          email: "chollin@clemson.edu",
+          primary: true,
+        },
+      ],
+      [{ days: "TR", beginTime: "0930", endTime: "1045" }],
+    ),
   ],
 } as never);
 
@@ -233,4 +246,34 @@ test("half a window is an error, not a guess", async () => {
   });
   assert.equal(res.isError, true);
   assert.match((res.content[0] as { text: string }).text, /together/);
+});
+
+// Names match by WORDS, in any order: every word of the query must appear in
+// the instructor's name. Banner lists middle initials ("Carl W Hollingsworth"),
+// so a plain substring made "Carl Hollingsworth" a confident not_teaching for
+// 359 Fall 2026 instructors (observed 2026-09-29 by GC_Agent).
+test("a full name finds an instructor listed with a middle initial", async () => {
+  const b = await check({ instructors: ["Carl Hollingsworth"] });
+  const row = (b.instructors as Row[])[0] as Row & { name?: string };
+  assert.notEqual(row.status, "not_teaching");
+  assert.equal(row.status, "free");
+});
+
+test('"Last, First" and any word order resolve the same person', async () => {
+  for (const q of ["Hollingsworth, Carl", "hollingsworth carl"]) {
+    const b = await check({ instructors: [q] });
+    assert.equal((b.instructors as Row[])[0].status, "free", q);
+  }
+});
+
+test("a word that matches nobody still means not_teaching, with a hint", async () => {
+  const b = await check({ instructors: ["Carl Zzyzx"] });
+  const row = (b.instructors as Row[])[0];
+  assert.equal(row.status, "not_teaching");
+  assert.match(String(row.note), /surname|email/i);
+});
+
+test("a query with no words matches nobody, never everyone", async () => {
+  const b = await check({ instructors: [" , "] });
+  assert.equal((b.instructors as Row[])[0].status, "not_teaching");
 });

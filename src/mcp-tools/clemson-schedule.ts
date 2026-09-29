@@ -535,7 +535,7 @@ const instructorClasses: McpToolDefinition = {
       'behind "what does Chip Tonkin teach?", "I want Tonkin\'s GC 4800", ' +
       'and, with the optional day/window filter, "who has a teaching ' +
       'conflict Friday 11-12?". Each entry may be an email, a name, or ' +
-      "'Name <email>' (emails match exactly; names match by substring, and " +
+      "'Name <email>' (emails match exactly; names match when every word appears, in any order, and " +
       "an ambiguous name returns the candidates instead of guessing). Every " +
       "matched person gets their full section list with meetings. Statuses " +
       "are explicit: 'teaching' / 'not_teaching' without a filter; 'busy' " +
@@ -646,7 +646,8 @@ const instructorClasses: McpToolDefinition = {
             status: "not_teaching" as const,
             note:
               "No sections in this term's snapshot for this instructor — " +
-              "NOT the same as free; other commitments are invisible here.",
+              "NOT the same as free; other commitments are invisible here." +
+              nameMissHint(query),
           };
         }
         if (matches.length > 1) {
@@ -852,7 +853,7 @@ const teachingLoad: McpToolDefinition = {
       'each GC faculty member have this semester?". Select by subject ' +
       "(e.g. 'GC': every instructor on that subject's sections, load counted " +
       "over those sections only) and/or by instructors ('Name <email>', a " +
-      "bare email, or a name; emails match exactly, names by substring, and " +
+      "bare email, or a name; emails match exactly, names when every word appears (any order), and " +
       "an ambiguous name returns candidates instead of guessing). Two " +
       "measures, kept separate: contact_hours_weekly sums timed meeting " +
       "durations; credit_hours sums section credit hours. Sections with NO " +
@@ -947,7 +948,8 @@ const teachingLoad: McpToolDefinition = {
               note:
                 "No sections in this term's snapshot for this instructor — " +
                 "only published teaching is visible here, so this is not a " +
-                "statement about their workload elsewhere.",
+                "statement about their workload elsewhere." +
+                nameMissHint(query),
             };
           }
           if (matches.length > 1) {
@@ -1049,6 +1051,15 @@ function applyDecisions(
     };
   }
   return out;
+}
+
+/** Appended to not_teaching for a NAME query: agents read not_teaching as
+ * definitive, so say what to try before concluding (2026-09-29). */
+function nameMissHint(query: string): string {
+  return query.includes("@")
+    ? ""
+    : " Names match when every word appears (any order); if a full name " +
+        "finds nothing, try the surname alone or the email before concluding.";
 }
 
 const courseOfferings: McpToolDefinition = {

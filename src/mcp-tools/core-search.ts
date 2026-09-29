@@ -208,7 +208,8 @@ export function makeSearchClasses(
           },
           instructor: {
             type: "string",
-            description: "Faculty name substring, e.g. 'Cox'.",
+            description:
+              "Faculty name: every word must appear in the name, any order, e.g. 'Cox' or 'Carl Hollingsworth'.",
           },
           building_room: {
             type: "string",

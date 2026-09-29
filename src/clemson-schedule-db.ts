@@ -389,9 +389,28 @@ export interface InstructorMeeting {
 }
 
 /**
+ * The words of a name query: lowercased, split on anything that is not a
+ * letter or digit. A name matches when EVERY word appears in it (each as a
+ * substring, in any order), so "Carl Hollingsworth", "Hollingsworth, Carl"
+ * and "hollingsworth" all find Banner's "Carl W Hollingsworth". A plain
+ * substring missed every instructor listed with a middle initial — 359 in
+ * Fall 2026 — and reported them as not teaching (2026-09-29). A single word
+ * behaves exactly as the old substring did.
+ *
+ * Returns [] for a query with no words; callers must treat that as matching
+ * NOBODY, never as "no condition".
+ */
+export function nameWords(query: string): string[] {
+  return query
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+}
+
+/**
  * Distinct instructor identities matching a query — by exact email
- * (case-insensitive) when the query contains "@", by case-insensitive name
- * substring otherwise. Returns ALL matches so the caller can distinguish
+ * (case-insensitive) when the query contains "@", by name words otherwise
+ * (see nameWords). Returns ALL matches so the caller can distinguish
  * "one person" from "ambiguous name" instead of silently picking one.
  */
 export function matchInstructors(
@@ -400,20 +419,24 @@ export function matchInstructors(
   query: string,
 ): InstructorIdentity[] {
   const q = query.trim();
-  const rows = q.includes("@")
-    ? db
-        .prepare(
-          `SELECT DISTINCT name, email FROM instructors
-            WHERE term = ? AND LOWER(email) = LOWER(?)`,
-        )
-        .all(term, q)
-    : db
-        .prepare(
-          `SELECT DISTINCT name, email FROM instructors
-            WHERE term = ? AND LOWER(name) LIKE '%' || LOWER(?) || '%'`,
-        )
-        .all(term, q);
-  return rows as InstructorIdentity[];
+  if (q.includes("@")) {
+    return db
+      .prepare(
+        `SELECT DISTINCT name, email FROM instructors
+          WHERE term = ? AND LOWER(email) = LOWER(?)`,
+      )
+      .all(term, q) as InstructorIdentity[];
+  }
+  const words = nameWords(q);
+  if (words.length === 0) return [];
+  const clauses = words
+    .map(() => `LOWER(name) LIKE '%' || ? || '%'`)
+    .join(" AND ");
+  return db
+    .prepare(
+      `SELECT DISTINCT name, email FROM instructors WHERE term = ? AND ${clauses}`,
+    )
+    .all(term, ...words) as InstructorIdentity[];
 }
 
 /**
