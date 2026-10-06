@@ -31,6 +31,8 @@ import {
 } from "./program-args.js";
 
 export { findCoreqs, type CoreqCourse } from "./gc-coreqs.js";
+import { findCoreqs } from "./gc-coreqs.js";
+import { prerequisiteFor } from "../course-dependents.js";
 
 export const catalogYears: McpToolDefinition = {
   operation: "clemson.gc_catalog_years",
@@ -637,8 +639,11 @@ export const getCourse: McpToolDefinition = {
   tool: {
     name: "get-course",
     description:
-      "Look up ONE course's catalog entry — title, credits, and catalog " +
-      'description — by its exact code ("GC 4061", case- and ' +
+      "Look up ONE course's catalog entry — title, credits, catalog " +
+      "description, its prerequisite (prereq_text), its corequisites, and " +
+      "prerequisite_for: the courses whose prerequisite names this one " +
+      '("what is GC 3460 a prerequisite for?"), each with its own wording to ' +
+      'quote — by its exact code ("GC 4061", case- and ' +
       "spacing-insensitive). This is the CATALOG entry, not a class section: " +
       "for meeting times use the schedule server's get-sections-by-crn, and " +
       "for seats or instructors use search-classes. To find where a course " +
@@ -650,6 +655,16 @@ export const getCourse: McpToolDefinition = {
         course: {
           type: "string",
           description: 'A course code, e.g. "GC 4061" or "gc4061".',
+        },
+        include_chain: {
+          type: "boolean",
+          description:
+            "In prerequisite_for, also list courses further down the chain " +
+            "(each with depth and the course it comes through). Default false.",
+        },
+        dependents_subject: {
+          type: "string",
+          description: "Limit prerequisite_for to one subject, e.g. 'GC'.",
         },
       },
       required: ["course"],
@@ -672,6 +687,21 @@ export const getCourse: McpToolDefinition = {
         title: { type: ["string", "null"] },
         credits: { type: ["string", "null"] },
         description: { type: ["string", "null"] },
+        prereq_text: {
+          type: ["string", "null"],
+          description:
+            "The catalog's prerequisite wording, verbatim; null when none.",
+        },
+        coreqs: {
+          type: "array",
+          description: "Courses to take in the same term; absent when none.",
+        },
+        prerequisite_for: {
+          type: "object",
+          description:
+            "Courses whose prerequisite names this one: total, truncated, " +
+            "dependents[{code, title, prereq_text, depth, via?}], basis.",
+        },
       },
       required: ["code", "found"],
     },
@@ -699,25 +729,37 @@ export const getCourse: McpToolDefinition = {
     }
     try {
       const row = getCourseEntry(db, code);
-      return okJson(
-        row
-          ? {
-              code,
-              found: true,
-              title: row.title,
-              credits: row.credits,
-              description: row.description,
-              _source: "Clemson University Online Catalog (gc_advisor)",
-            }
-          : {
-              code,
-              found: false,
-              title: null,
-              credits: null,
-              description: null,
-              _source: "Clemson University Online Catalog (gc_advisor)",
-            },
-      );
+      if (row) {
+        const prereq = db
+          .prepare("SELECT prereq_text FROM course WHERE code = ?")
+          .get(code) as { prereq_text: string | null } | undefined;
+        const coreqs = findCoreqs(code);
+        return okJson({
+          code,
+          found: true,
+          title: row.title,
+          credits: row.credits,
+          description: row.description,
+          prereq_text: prereq?.prereq_text?.trim() || null,
+          ...(coreqs.length > 0 ? { coreqs } : {}),
+          prerequisite_for: prerequisiteFor(db, code, {
+            chain: args.include_chain === true,
+            subject:
+              typeof args.dependents_subject === "string"
+                ? args.dependents_subject
+                : undefined,
+          }),
+          _source: "Clemson University Online Catalog (gc_advisor)",
+        });
+      }
+      return okJson({
+        code,
+        found: false,
+        title: null,
+        credits: null,
+        description: null,
+        _source: "Clemson University Online Catalog (gc_advisor)",
+      });
     } catch (e) {
       return err(
         `GC course lookup failed: ${e instanceof Error ? e.message : String(e)}`,

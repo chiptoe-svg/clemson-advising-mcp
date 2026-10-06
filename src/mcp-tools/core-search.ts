@@ -21,7 +21,10 @@ import {
   getClemsonSectionDetails as getClemsonSectionDetailsLive,
   type ClemsonSection,
 } from "../clemson-classes.js";
-import { getGcCourse as getGcCourseLive } from "../gc-curriculum.js";
+import {
+  getGcCourse as getGcCourseLive,
+  getGcCourseDependents as getGcCourseDependentsLive,
+} from "../gc-curriculum.js";
 import { normalizeCourseCode } from "../catalog-read.js";
 import { findCoreqs as findCoreqsLive } from "./gc-coreqs.js";
 import Database from "better-sqlite3";
@@ -83,7 +86,11 @@ const CHECK_CONFLICTS_DESCRIPTION =
 
 const GET_COURSE_DETAILS_DESCRIPTION =
   "Details for one course or one section: description, prerequisites, " +
-  "corequisites, restrictions (course_code also includes credits). Pass " +
+  "corequisites, restrictions (course_code also includes credits). With " +
+  "course_code it also answers the reverse question — prerequisite_for: the " +
+  'courses whose prerequisite names this one ("what is GC 3460 a ' +
+  'prerequisite for?"), each with its own prerequisite wording to quote; ' +
+  "include_chain for everything further down. Pass " +
   "course_code (e.g. 'GC 3010') for catalog information, or crn for a " +
   "specific section. Not a search — use search-classes to find sections. " +
   "Each entry in coreqs comes from the catalog's structured corequisite " +
@@ -557,6 +564,7 @@ export interface GetCourseDetailsDeps {
   getGcCourse: typeof getGcCourseLive;
   getClemsonSectionDetails: typeof getClemsonSectionDetailsLive;
   findCoreqs: typeof findCoreqsLive;
+  getDependents: typeof getGcCourseDependentsLive;
 }
 
 export function makeGetCourseDetails(
@@ -566,6 +574,7 @@ export function makeGetCourseDetails(
   const getSectionDetails =
     deps.getClemsonSectionDetails ?? getClemsonSectionDetailsLive;
   const findCoreqs = deps.findCoreqs ?? findCoreqsLive;
+  const getDependents = deps.getDependents ?? getGcCourseDependentsLive;
   return {
     operation: "clemson.course_details",
     category: "core",
@@ -588,6 +597,18 @@ export function makeGetCourseDetails(
             description:
               "Term code (202608) or text ('Spring 2027'). Only used with crn; " +
               "defaults to the current registration term.",
+          },
+          include_chain: {
+            type: "boolean",
+            description:
+              "course_code only: in prerequisite_for, also list courses further " +
+              "down the chain (each with depth and the course it comes through). " +
+              "Default false: only courses that name this one directly.",
+          },
+          dependents_subject: {
+            type: "string",
+            description:
+              "course_code only: limit prerequisite_for to one subject, e.g. 'GC'.",
           },
         },
       },
@@ -631,6 +652,12 @@ export function makeGetCourseDetails(
           // Same convention as compactSearchResult (clemson-classes.ts):
           // absent means "none" — omit rather than including an empty array.
           if (coreqs.length > 0) body.coreqs = coreqs;
+          // Always present, even when empty: "what needs this course?" with
+          // no answer must read as zero, not as a field that was never asked.
+          body.prerequisite_for = await getDependents(courseCode, {
+            chain: args.include_chain === true,
+            subject: strOrUndef(args.dependents_subject),
+          });
           return okJson(body);
         } catch (e) {
           return err(

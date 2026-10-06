@@ -3,6 +3,7 @@
 // data. Nothing here spawns a process: the Python under core/ BUILDS the
 // database and serves as the oracle for test/catalog-read-differential.test.ts,
 // but never runs on a request path.
+import { prerequisiteFor, type DependentsResult } from "./course-dependents.js";
 import { CATALOG_DB } from "./config-mcp.js";
 import {
   getCourse as getCourseRow,
@@ -90,6 +91,14 @@ export async function getGcGenEd(year: string): Promise<unknown> {
 
 export async function getGcCourse(code: string): Promise<unknown> {
   return withCatalog((db) => getCourseRow(db, code));
+}
+
+/** What needs this course — see src/course-dependents.ts. */
+export async function getGcCourseDependents(
+  code: string,
+  opts: { chain?: boolean; subject?: string; limit?: number } = {},
+): Promise<DependentsResult> {
+  return withCatalog((db) => prerequisiteFor(db, code, opts));
 }
 
 export async function listGcCourses(
