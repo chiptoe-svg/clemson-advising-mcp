@@ -174,6 +174,12 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.registrar_requirements",
   },
+  // One major x catalog year as a graph: requirements, reviewed prerequisite
+  // rules, chain bounds, seasons, optional per-course status (2026-10-06).
+  "clemson.program_graph": {
+    backend: "external-http",
+    policyActionId: "clemson.program_graph",
+  },
 };
 
 export class McpPermissionDeniedError extends Error {
@@ -321,6 +327,7 @@ const CLEMSON_CATALOG_OPS = [
   "clemson.gc_program_requirements",
   "clemson.list_courses",
   "clemson.registrar_requirements",
+  "clemson.program_graph",
 ];
 
 export const SCOPE_OPERATIONS: Record<string, string[]> = {
@@ -356,6 +363,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.gc_program_requirements",
     "clemson.list_courses",
     "clemson.registrar_requirements",
+    "clemson.program_graph",
     "clemson.schedule_freshness",
   ],
 };

@@ -24,6 +24,7 @@ import path from "node:path";
 import YAML from "yaml";
 
 import { STATE_DIR } from "./config-mcp.js";
+import type { SeasonRollup } from "./clemson-offerings-db.js";
 
 export interface OfferingDecision {
   course: string; // normalized spaceless-uppercase, e.g. "PKSC2200"
@@ -157,4 +158,40 @@ export function decisionFor(
     ...(d.source ? { source: d.source } : {}),
     ...(d.recorded ? { recorded: d.recorded } : {}),
   };
+}
+
+/**
+ * Layer recorded decisions over the observed-history rollup. The decision
+ * OVERRIDES the label ("ruled out" / "confirmed") while the estimate stays
+ * visible as evidence; a decision about a season with no observed history
+ * still surfaces, on an explicit empty rollup rather than not at all.
+ */
+export function applyDecisions(
+  seasons: Record<string, SeasonRollup>,
+  decisions: OfferingDecision[] | undefined,
+): Record<string, SeasonRollup & { known_decision?: unknown }> {
+  if (!decisions || decisions.length === 0) return seasons;
+  const out: Record<string, SeasonRollup & { known_decision?: unknown }> = {
+    ...seasons,
+  };
+  for (const season of ["spring", "summer", "fall"]) {
+    const kd = decisionFor(decisions, season);
+    if (!kd) continue;
+    const base: SeasonRollup = out[season] ?? {
+      offered: 0,
+      observed: 0,
+      since_first_offered: null,
+      recent: { offered: 0, observed: 0 },
+      last_offered: null,
+      consecutive_missed: 0,
+      estimated_probability: null,
+      label: "no basis",
+    };
+    out[season] = {
+      ...base,
+      label: kd.expect === "not_offered" ? "ruled out" : "confirmed",
+      known_decision: kd,
+    };
+  }
+  return out;
 }

@@ -28,7 +28,7 @@ import {
 } from "../clemson-offerings-db.js";
 import {
   loadOfferingDecisions,
-  decisionFor,
+  applyDecisions,
   type OfferingDecision,
 } from "../offering-decisions.js";
 import { assertMcpOperation } from "./permissions.js";
@@ -1017,42 +1017,6 @@ const teachingLoad: McpToolDefinition = {
  * which terms were observed, so "no fall snapshot held" is distinguishable
  * from "observed a fall and the course did not run".
  */
-/**
- * Layer recorded decisions over the observed-history rollup. The decision
- * OVERRIDES the label ("ruled out" / "confirmed") while the estimate stays
- * visible as evidence; a decision about a season with no observed history
- * still surfaces, on an explicit empty rollup rather than not at all.
- */
-function applyDecisions(
-  seasons: Record<string, SeasonRollup>,
-  decisions: OfferingDecision[] | undefined,
-): Record<string, SeasonRollup & { known_decision?: unknown }> {
-  if (!decisions || decisions.length === 0) return seasons;
-  const out: Record<string, SeasonRollup & { known_decision?: unknown }> = {
-    ...seasons,
-  };
-  for (const season of ["spring", "summer", "fall"]) {
-    const kd = decisionFor(decisions, season);
-    if (!kd) continue;
-    const base: SeasonRollup = out[season] ?? {
-      offered: 0,
-      observed: 0,
-      since_first_offered: null,
-      recent: { offered: 0, observed: 0 },
-      last_offered: null,
-      consecutive_missed: 0,
-      estimated_probability: null,
-      label: "no basis",
-    };
-    out[season] = {
-      ...base,
-      label: kd.expect === "not_offered" ? "ruled out" : "confirmed",
-      known_decision: kd,
-    };
-  }
-  return out;
-}
-
 /** Appended to not_teaching for a NAME query: agents read not_teaching as
  * definitive, so say what to try before concluding (2026-09-29). */
 function nameMissHint(query: string): string {

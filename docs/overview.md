@@ -330,6 +330,22 @@ alternatives — whole alternate routes where satisfying **one** is enough. Use
 counts. A program with no audit imported returns an empty list **and says so**:
 that is absence of an import, never a degree without requirements.
 
+#### `get-program-graph`
+
+One major and catalog year as a **graph**, in one call: every requirement
+(from Degree Works when imported, else the catalog plan's slots and choices),
+every planned course with its term and its prerequisite rule as a structured
+expression, how many terms at least must precede it (prerequisite chain and
+class standing), how many courses depend on it, which seasons it usually runs,
+and the critical path — the longest prerequisite chain, to start early. Given a
+student's completed courses (optionally with grades) it adds a status per
+course: eligible (with any same-term partner), conditional (coursework done,
+a listed condition such as consent remains), not eligible, or undetermined
+(the rule's wording could not be structured — quoted verbatim). Prerequisite
+rules come from hand-reviewed expressions for the plan courses; a rule whose
+catalog text changed since review is reported, never used. It never decides
+whether a requirement is satisfied — that is Degree Works.
+
 #### `get-gen-ed`
 
 Clemson's General Education requirements for a catalog year: six categories

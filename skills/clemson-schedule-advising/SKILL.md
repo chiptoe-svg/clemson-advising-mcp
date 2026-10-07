@@ -65,6 +65,7 @@ the accepted forms — it is never reported as a term with no data.
 | `get-department-rules`      | A department's recorded decisions: slot allow/deny lists AND the official faculty roster (`faculty`, with `banner_name` join keys) | Departmental provenance, not published catalog. Scope-gated: absent from `tools/list` without the `clemson.department` grant — absence means your token lacks the scope, not that no roster exists. |
 | `get-department-doc`        | A department's advising-policy document                                                                                            | Same provenance and scope gate. Omit `department` to list known ids.                                                                                                                                |
 | `find-requirement-sections` | **The advising join** — sections that fill a named requirement slot AND are offered this term AND are prereq-eligible              | An unknown slot name returns the valid slot list inline, so retry from that list. Prereq check is AND-logic only (see below).                                                                       |
+| `get-program-graph`         | A whole degree as a graph: requirements, planned courses with structured prerequisite rules, chain bounds, seasons, critical path | One call for multi-semester planning. With `completed_courses` (grades optional, `"ACCT 2010:C"`) each course gets eligible / conditional / not_eligible / undetermined — prerequisite OR-logic and same-term rules are exact for plan courses. |
 
 Both servers also serve `list-skills` / `get-skill-docs` (catalog:
 `list-catalog-skills` / `get-catalog-skill-docs`) — that is how you are reading this. The
@@ -131,6 +132,8 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
   `completed_courses`. A real "GC 1010 **or** GC 2010" prereq can be reported
   `false` when the student has only one. Always show `prereqText` for OR-logic
   courses so the student can verify.
+  For plan courses, `get-program-graph` evaluates the reviewed rule exactly
+  (OR, same-term, grade minimums) — prefer its `status` when planning.
 - **TBA / async sections have no meeting rows.** They appear in searches but
   carry no meetings, so `check-conflicts` returns them `conflict_free` — not a
   guarantee of real compatibility.
@@ -156,4 +159,4 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
      for absence claims that stopped being true, then updates the stamp.
      (Origin: a bullet denying instructor tools outlived their arrival and
      sent live models paging search-classes instead.) -->
-<!-- limitations-reviewed-against: schedule=94b2337f1f65 catalog=75aecdf718a8 -->
+<!-- limitations-reviewed-against: schedule=94b2337f1f65 catalog=9e9979ee3ccc -->

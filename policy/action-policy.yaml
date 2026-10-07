@@ -158,6 +158,15 @@ actions:
     approval: none
     constraints:
       - public_data_only
+  # Program graph (2026-10-06): catalog plan + Degree Works requirements +
+  # reviewed prerequisite expressions + offering history. Rules only.
+  - id: clemson.program_graph
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
 
   # Departmental layer: decisions recorded by departments (departments/<id>/),
   # served only to consumers granted the clemson.department scope. Local file
