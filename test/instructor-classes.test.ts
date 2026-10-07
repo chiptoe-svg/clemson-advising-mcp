@@ -100,6 +100,21 @@ writeScheduleDb({
       ],
       [{ days: "TR", beginTime: "0930", endTime: "1045" }],
     ),
+    // Untimed sections (internships): Banner gives them NO meeting rows.
+    // Spring 2026: three of Bobby Congdon's sections vanished from this tool
+    // while get-teaching-load listed them (Cob_advisor, 2026-10-07).
+    section(
+      "70007",
+      "GC3500",
+      [{ name: "Chip Tonkin III", email: "TONKIN@CLEMSON.EDU", primary: true }],
+      [],
+    ),
+    section(
+      "70008",
+      "GC4510",
+      [{ name: "Pat Internova", email: "pinter@clemson.edu", primary: true }],
+      [],
+    ),
   ],
 } as never);
 
@@ -276,4 +291,38 @@ test("a word that matches nobody still means not_teaching, with a hint", async (
 test("a query with no words matches nobody, never everyone", async () => {
   const b = await check({ instructors: [" , "] });
   assert.equal((b.instructors as Row[])[0].status, "not_teaching");
+});
+
+// --- Untimed sections (2026-10-07) ------------------------------------------
+// A section with no meeting rows is still taught. Dropping it made the advisor
+// tell Chip "he did NOT teach GC 3500" — silence read as absence.
+
+const LIST = { days: undefined, window_start: undefined, window_end: undefined };
+type Sec = { crn: string; meetings: unknown[]; timed: boolean };
+
+test("an untimed section is listed with meetings [] and timed: false", async () => {
+  const b = await check({ instructors: ["tonkin@clemson.edu"], ...LIST });
+  const row = (b.instructors as Row[])[0] as Row & { sections: Sec[] };
+  const internship = row.sections.find((s) => s.crn === "70007");
+  assert.ok(internship, "the untimed section is in the list");
+  assert.deepEqual(internship!.meetings, []);
+  assert.equal(internship!.timed, false);
+  assert.equal(row.sections.find((s) => s.crn === "70001")!.timed, true);
+});
+
+test("someone teaching only untimed sections is teaching, with the sections", async () => {
+  const b = await check({ instructors: ["Pat Internova"], ...LIST });
+  const row = (b.instructors as Row[])[0] as Row & { sections: Sec[] };
+  assert.equal(row.status, "teaching");
+  assert.deepEqual(
+    row.sections.map((s) => s.crn),
+    ["70008"],
+  );
+});
+
+test("with a day filter, an untimed section is listed but cannot make anyone busy", async () => {
+  const b = await check({ instructors: ["pinter@clemson.edu"] });
+  const row = (b.instructors as Row[])[0] as Row & { sections: Sec[] };
+  assert.equal(row.status, "free");
+  assert.equal(row.sections.length, 1);
 });

@@ -440,6 +440,34 @@ export function matchInstructors(
 }
 
 /**
+ * Every section an instructor teaches in a term, whether or not it has
+ * meeting rows. Untimed sections (internships, independent study) have none,
+ * so a list built from meetings alone silently drops them (2026-10-07).
+ */
+export function findInstructorSections(
+  db: Database.Database,
+  term: string,
+  email: string | null,
+  name: string,
+): { crn: string; subject_course: string; section: string; title: string }[] {
+  const who = email ? "LOWER(i.email) = LOWER(?)" : "i.name = ?";
+  return db
+    .prepare(
+      `SELECT DISTINCT s.crn, s.subject_course, s.section, s.title
+         FROM instructors i
+         JOIN sections s ON s.crn = i.crn AND s.term = i.term
+        WHERE i.term = ? AND ${who}
+        ORDER BY s.crn`,
+    )
+    .all(term, email ?? name) as {
+    crn: string;
+    subject_course: string;
+    section: string;
+    title: string;
+  }[];
+}
+
+/**
  * Every meeting an instructor teaches in a term that falls on one of `days`
  * and (when a window is given) overlaps [windowStart, windowEnd) minutes.
  * A meeting with no recorded time cannot overlap a window and is excluded —

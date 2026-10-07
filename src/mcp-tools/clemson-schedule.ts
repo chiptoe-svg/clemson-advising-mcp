@@ -13,6 +13,7 @@ import {
   resolveCrns,
   matchInstructors,
   findInstructorMeetings,
+  findInstructorSections,
   teachingLoadRows,
   type TeachingLoadRow,
   findConflicts,
@@ -537,7 +538,9 @@ const instructorClasses: McpToolDefinition = {
       'conflict Friday 11-12?". Each entry may be an email, a name, or ' +
       "'Name <email>' (emails match exactly; names match when every word appears, in any order, and " +
       "an ambiguous name returns the candidates instead of guessing). Every " +
-      "matched person gets their full section list with meetings. Statuses " +
+      "matched person gets their full section list with meetings, including " +
+      "untimed sections (internships etc.: meetings [], timed: false — " +
+      "listed, but never 'busy'). Statuses " +
       "are explicit: 'teaching' / 'not_teaching' without a filter; 'busy' " +
       "(with the overlapping meetings) / 'free' with one. 'not_teaching' " +
       "means no sections in this term's snapshot — NOT the same as free, and " +
@@ -676,6 +679,7 @@ const instructorClasses: McpToolDefinition = {
             subject_course: string;
             section: string;
             title: string;
+            timed: boolean;
             meetings: {
               day: string;
               start_min: number | null;
@@ -691,8 +695,11 @@ const instructorClasses: McpToolDefinition = {
             subject_course: m2.subject_course,
             section: m2.section,
             title: m2.title,
+            timed: false,
             meetings: [],
           };
+          // Same rule as get-teaching-load: timed = has a meeting with times.
+          if (m2.start_min !== null && m2.end_min !== null) e.timed = true;
           e.meetings.push({
             day: m2.day,
             start_min: m2.start_min,
@@ -702,6 +709,11 @@ const instructorClasses: McpToolDefinition = {
           });
           byCrn.set(m2.crn, e);
         }
+        // Sections with no meeting rows never join above; list them too, or
+        // an internship reads as "doesn't teach that course" (2026-10-07).
+        for (const s2 of findInstructorSections(db, term, who.email, who.name))
+          if (!byCrn.has(s2.crn))
+            byCrn.set(s2.crn, { ...s2, timed: false, meetings: [] });
         const sections = [...byCrn.values()];
         if (!filtering) {
           return {
