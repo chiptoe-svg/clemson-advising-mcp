@@ -8,7 +8,7 @@ advising model for ten days. This test makes that drift a failing build.
 
 Static layer (default suite): parses the tool registrations out of
 CUassistant's src/mcp-tools/*.ts, applies the runtime rename layer
-(gc-skill-renames.ts, which renames the catalog server's skill tools), and
+(catalog-skill-renames.ts, which renames the catalog server's skill tools), and
 asserts every tool name referenced in this repo's skill docs is actually
 served. Also asserts every MCP operation id has a policy entry — the surface
 the 2026-08-25 final review found unguarded.
@@ -45,7 +45,7 @@ CU = Path(os.environ.get("CUASSISTANT_ROOT", str(ROOT.parent)))
 
 REQUIRED_CU_PATHS = (
     CU / "src" / "mcp-tools",
-    CU / "src" / "mcp-tools" / "gc-skill-renames.ts",
+    CU / "src" / "mcp-tools" / "catalog-skill-renames.ts",
     CU / "policy" / "action-policy.yaml",
 )
 _MISSING_CU_PATHS = [str(p) for p in REQUIRED_CU_PATHS if not p.exists()]
@@ -91,7 +91,7 @@ def registered_names() -> set[str]:
 
 
 def rename_pairs() -> list[tuple[str, str]]:
-    text = (CU / "src" / "mcp-tools" / "gc-skill-renames.ts").read_text()
+    text = (CU / "src" / "mcp-tools" / "catalog-skill-renames.ts").read_text()
     return [(m.group(1), m.group(2)) for m in RENAME_RE.finditer(text)]
 
 
@@ -132,7 +132,7 @@ def test_every_tool_name_in_skill_docs_is_actually_served():
 
 
 def test_rename_layer_sources_are_still_registered():
-    """gc-skill-renames.ts renames EXISTING registrations at startup; if the
+    """catalog-skill-renames.ts renames EXISTING registrations at startup; if the
     source name disappears the rename layer breaks at server start."""
     registered = registered_names()
     missing = [frm for frm, _ in rename_pairs() if frm not in registered]

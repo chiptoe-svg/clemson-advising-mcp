@@ -22,10 +22,11 @@ skill document alongside this one.
 | `get-program-plan` | Full degree plan for a program + catalog year (groups → items → footnotes) |
 | `get-requirement-rules` | Named requirement slots with explicit courses, advisor additions/denials, wildcards |
 | `get-gen-ed` | 6 gen-ed categories with min credits and allowed course lists; Arts and Humanities carries `subcategories` (Literature / Non-Literature) |
-| `get-course` | One course's catalog entry (title, credits, description) |
+| `get-course` | One course's catalog entry (title, credits, description, `prereq_text`, coreqs) plus `prerequisite_for` — the courses whose prerequisite names it |
+| `get-program-graph` | **Planning in one call**: a program + catalog year as a graph — requirements, planned courses with structured prerequisite rules, `min_prior_terms`, seasons, `critical_path`; with `completed_courses` a per-course status |
 | `list-courses` | Courses by subject and/or number range (current inventory) — resolves wildcard rows like `MGT @` or `ACCT 3000:3999` |
 | `get-program-requirements` | What a minor or certificate requires |
-| `get-course-details` | (schedule server) catalog info incl. prereqs/coreqs by `course_code`, or one live section by `crn` |
+| `get-course-details` | (schedule server) catalog info incl. prereqs/coreqs and `prerequisite_for` by `course_code`, or one live section by `crn` |
 
 The catalog tools take canonical **`program`** + **`catalog_year`** keys and echo
 the resolved pair back in every response — check the echo. A call with no
@@ -139,6 +140,11 @@ Three counting rules a hand walk gets wrong if applied naively:
 
 ## Prerequisite Check
 
+For a course in the student's plan, prefer `get-program-graph` (below): its
+`status` evaluates the reviewed rule exactly — OR alternatives, same-term
+("may be taken concurrently") and grade minimums — which a flat code list
+cannot. For any other course:
+
 1. Call `get-course-details` with `course_code` (format: `"MKT 3010"`).
 2. If `prereq_parsed` is non-empty, check those codes against the completed list.
 3. If `prereq_text` is set but `prereq_parsed` is empty, quote `prereq_text`
@@ -147,15 +153,36 @@ Three counting rules a hand walk gets wrong if applied naively:
 4. A `null` return means the code isn't in the DB — say so and ask the student
    to double-check the code.
 
+**The reverse question** ("what is GC 3460 a prerequisite for?") is
+`prerequisite_for` on the same response: each dependent course with its own
+prerequisite wording — quote it, because it may say the course is required,
+one of several options, or allowed in the same term. `include_chain: true`
+lists everything further down.
+
 ---
 
 ## Course Planning ("What should I take next?")
 
-1. Run a degree audit (above) to identify remaining requirements.
-2. Check prereqs for each remaining course or slot candidate.
-3. Identify what the student is **already eligible** for.
+1. Run a degree audit (above) to identify remaining requirements. What COUNTS
+   toward the degree is Degree Works (`get-degree-requirements`); the graph
+   never decides that.
+2. Call `get-program-graph` **once** with the student's `completed_courses`
+   (add grades as `"ACCT 2010:C"` when known) and `standing` if known — not a
+   per-course `get-course-details` loop. Each course gets a `status`:
+   - `eligible` — honour `take_with`: those must go in the same term.
+   - `conditional` — the coursework is done; tell the student which
+     `unresolved` conditions they must confirm (e.g. instructor consent, a
+     test score), and early.
+   - `not_eligible` — a prerequisite is missing.
+   - `undetermined` — the rule's wording could not be structured: read
+     `unresolved` / `prereq_text` verbatim; never round it to eligible.
+   Say every `assumes` item out loud ("this assumes a C or better in ACCT
+   2010"). `coreqs` go in the same term.
+3. Start `critical_path` courses early — `min_prior_terms` is a floor, not a
+   schedule. Seasons are estimates from history; a `ruled out` / `confirmed`
+   label is a recorded department decision.
 4. Suggest a next-semester slate that covers 15–16 credits, advances unmet
-   requirements, and avoids courses whose prereqs aren't cleared.
+   requirements, and avoids courses that are not eligible.
 5. Flag every slot where the student must choose, presenting options from
    `explicit_courses` / `allowed_courses` and quoting `raw_text` for
    prose-only constraints.
