@@ -26,6 +26,12 @@ import {
   type Standing,
   type StudentState,
 } from "../program-graph.js";
+import {
+  courseCodes,
+  parsePrereq,
+  requiredCodes,
+  type Expr,
+} from "../prereq-expr.js";
 import { assertMcpOperation } from "./permissions.js";
 import {
   CATALOG_YEAR_ARG_DESCRIPTION,
@@ -86,9 +92,48 @@ function compactCourse(
   };
 }
 
+/**
+ * Typed prerequisite edges, from the reviewed expressions: same_term when the
+ * rule allows the course alongside (~), required when it is on every
+ * satisfying path, one_of otherwise. Served so a renderer never needs its own
+ * parser for the notation (two parsers drift).
+ */
+function typedEdges(graph: ReturnType<typeof buildProgramGraph>) {
+  const edges: {
+    from: string;
+    to: string;
+    kind: "required" | "one_of" | "same_term";
+  }[] = [];
+  for (const c of graph.courses) {
+    if (!c.prereq) continue;
+    const e = parsePrereq(c.prereq);
+    const required = new Set(requiredCodes(e));
+    const sameTerm = new Set<string>();
+    const walk = (x: Expr): void => {
+      if (x.t === "course" && x.concurrent) sameTerm.add(x.code);
+      if (x.t === "and" || x.t === "or") x.of.forEach(walk);
+    };
+    walk(e);
+    for (const code of courseCodes(e))
+      edges.push({
+        from: code,
+        to: c.code,
+        kind: sameTerm.has(code)
+          ? "same_term"
+          : required.has(code)
+            ? "required"
+            : "one_of",
+      });
+  }
+  return edges;
+}
+
 export const programGraph: McpToolDefinition = {
   operation: "clemson.program_graph",
-  category: "curriculum-extras",
+  // Core, not a load-on-demand tail tool (Chip, 2026-10-07): in Cob_advisor's
+  // benchmark the model reached for it in 7/24 planning trials, and 10 of the
+  // misses never loaded the tail at all.
+  category: "core",
   tool: {
     name: "get-program-graph",
     description:
@@ -135,6 +180,12 @@ export const programGraph: McpToolDefinition = {
           type: "string",
           enum: [...STANDINGS],
           description: "The student's class standing, if known.",
+        },
+        include_edges: {
+          type: "boolean",
+          description:
+            "For a renderer drawing the map: also return edges[{from, to, kind}] " +
+            "with kind required / one_of / same_term. Omit when answering a student.",
         },
       },
       required: ["program", "catalog_year"],
@@ -252,6 +303,7 @@ export const programGraph: McpToolDefinition = {
 
     return okJson({
       ...graph,
+      ...(args.include_edges === true ? { edges: typedEdges(graph) } : {}),
       courses: graph.courses.map(compactCourse),
       encoding_note: COMPACT_NOTE,
       ...(ignored.length ? { ignored_completed: ignored } : {}),

@@ -83,6 +83,10 @@ export const programPlan: McpToolDefinition = {
       "carry their own rules in get-requirement-rules. To check whether " +
       "one specific course or subject is required, prefer " +
       "find-course-in-program, which searches both. " +
+      "For multi-semester planning, 'what should I take next', or what " +
+      "depends on what, call get-program-graph instead — one call with " +
+      "prerequisite rules, chains and per-course eligibility, not this plan " +
+      "plus a course-by-course get-course-details loop. " +
       "Read-only, no login. Takes program + catalog_year; get a valid year " +
       "from list-catalog-years. There is no default program.",
     inputSchema: {

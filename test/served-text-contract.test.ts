@@ -27,7 +27,11 @@ test("the catalog server names its OWN skill tools, not the schedule server's", 
     "get-catalog-skill-docs",
   ]);
   assert.match(s, /`list-catalog-skills`/);
-  assert.doesNotMatch(s, /`list-skills`|`get-skill-docs`/, "those do not exist on catalog");
+  assert.doesNotMatch(
+    s,
+    /`list-skills`|`get-skill-docs`/,
+    "those do not exist on catalog",
+  );
 });
 
 test("the schedule server names its skill tools when they are visible", () => {
@@ -37,13 +41,21 @@ test("the schedule server names its skill tools when they are visible", () => {
     "get-skill-docs",
   ]);
   assert.match(s, /`list-skills` \/ `get-skill-docs`/);
-  assert.doesNotMatch(s, /catalog-skill/, "the other server's names do not belong here");
+  assert.doesNotMatch(
+    s,
+    /catalog-skill/,
+    "the other server's names do not belong here",
+  );
 });
 
 test("department docs are served without maintainer HTML comments", () => {
   const doc = getDepartmentDoc("gc");
   assert.ok(doc, "gc department doc missing");
-  assert.doesNotMatch(doc.content, /<!--/, "maintainer notes reached the model");
+  assert.doesNotMatch(
+    doc.content,
+    /<!--/,
+    "maintainer notes reached the model",
+  );
   // The retracted rule must not reach the model even as a quotation.
   assert.doesNotMatch(doc.content, /must be in the summer/i);
 });
@@ -53,9 +65,29 @@ test("the schedule server's skill tools promise only what it serves", async () =
   // prerequisite checks...") into the schedule server's descriptions too. 8766
   // serves only clemson-schedule-advising (SCHEDULE_SKILLS); the method docs
   // are catalog-only, so a model sent to fetch them here finds nothing.
-  const { __skillTools, SCHEDULE_SKILLS } = await import("../src/mcp-tools/skills.js");
-  assert.deepEqual([...SCHEDULE_SKILLS], ["clemson-schedule-advising"], "re-check this text");
+  const { __skillTools, SCHEDULE_SKILLS } =
+    await import("../src/mcp-tools/skills.js");
+  assert.deepEqual(
+    [...SCHEDULE_SKILLS],
+    ["clemson-schedule-advising"],
+    "re-check this text",
+  );
   for (const t of [__skillTools.listSkills, __skillTools.getSkillDocs]) {
-    assert.doesNotMatch(t.tool.description ?? "", /advising method|degree audit|DegreeWorks/i, t.tool.name);
+    assert.doesNotMatch(
+      t.tool.description ?? "",
+      /advising method|degree audit|DegreeWorks/i,
+      t.tool.name,
+    );
+  }
+});
+
+test("the tools that compete with get-program-graph point to it", async () => {
+  // Cob_advisor benchmark 2026-10-07: of 14 trials that could see the graph,
+  // half still chose get-program-plan + a get-course-details loop. Their
+  // descriptions now route multi-term planning to the graph.
+  const { getCourseDetails } = await import("../src/mcp-tools/core-search.js");
+  const { programPlan } = await import("../src/mcp-tools/catalog.js");
+  for (const t of [getCourseDetails, programPlan]) {
+    assert.match(t.tool.description ?? "", /get-program-graph/, t.tool.name);
   }
 });

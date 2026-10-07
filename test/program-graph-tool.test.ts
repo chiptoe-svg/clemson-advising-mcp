@@ -111,6 +111,26 @@ test("an invalid standing is an error, not ignored", async () => {
   assert.match(res.content[0].text, /standing/);
 });
 
+// --- Typed edges for a renderer (2026-10-07) ---------------------------------
+// The advisor panel draws the map from this JSON; without typed edges it would
+// need its own parser for the prerequisite notation, and two parsers drift.
+
+test("include_edges returns typed prerequisite edges; omitted by default", async () => {
+  const plain = await call(GC);
+  assert.equal(
+    plain.body.edges,
+    undefined,
+    "the model's default call stays small",
+  );
+  const { body } = await call({ ...GC, include_edges: true });
+  const edges = body.edges as { from: string; to: string; kind: string }[];
+  const find = (from: string, to: string) =>
+    edges.find((e) => e.from === from && e.to === to)?.kind;
+  assert.equal(find("GC 3460", "GC 4060"), "same_term"); // "Preq or concurrent enrollment: GC 3460"
+  assert.equal(find("GC 2070", "GC 3460"), "required");
+  assert.equal(find("GC 4060", "GC 4500"), "one_of"); // GC 4500: GC 3500 & (GC 4060 | GC 4400)
+});
+
 // --- Hostile-review regressions (2026-10-06) --------------------------------
 
 test("an F does not complete a course, and the entry says why", async () => {

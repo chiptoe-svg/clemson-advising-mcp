@@ -90,7 +90,9 @@ const GET_COURSE_DETAILS_DESCRIPTION =
   "course_code it also answers the reverse question — prerequisite_for: the " +
   'courses whose prerequisite names this one ("what is GC 3460 a ' +
   'prerequisite for?"), each with its own prerequisite wording to quote; ' +
-  "include_chain for everything further down. Pass " +
+  "include_chain for everything further down. For planning across " +
+  "several courses or semesters, call get-program-graph (catalog server) " +
+  "once instead of this tool course by course. Pass " +
   "course_code (e.g. 'GC 3010') for catalog information, or crn for a " +
   "specific section. Not a search — use search-classes to find sections. " +
   "Each entry in coreqs comes from the catalog's structured corequisite " +
