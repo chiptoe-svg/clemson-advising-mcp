@@ -91,3 +91,16 @@ test("the tools that compete with get-program-graph point to it", async () => {
     assert.match(t.tool.description ?? "", /get-program-graph/, t.tool.name);
   }
 });
+
+test("the tools that compete with the teaching tools point to them", async () => {
+  // Cob_advisor 2026-10-07: a two-term faculty list took 27 calls (24
+  // get-course-details + 3 search-classes) and never touched a teaching tool;
+  // both sit in the scheduling tail, so the model used what was loaded.
+  const { getCourseDetails, searchClasses } =
+    await import("../src/mcp-tools/core-search.js");
+  for (const t of [getCourseDetails, searchClasses]) {
+    const d = t.tool.description ?? "";
+    assert.match(d, /get-instructor-classes/, t.tool.name);
+    assert.match(d, /get-teaching-load/, t.tool.name);
+  }
+});

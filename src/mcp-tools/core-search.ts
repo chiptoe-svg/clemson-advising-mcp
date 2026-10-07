@@ -60,6 +60,10 @@ const SEARCH_CLASSES_DESCRIPTION =
   "open_seats_only. Term is optional — defaults to the current registration term; " +
   "accepts names like 'Spring 2027' or codes. Do NOT use this to check conflicts " +
   "(check-conflicts) or to find what fits an existing schedule (find-alternatives). " +
+  "For who teaches what — one person's teaching in a term, or every " +
+  "instructor of a subject — call get-instructor-classes or " +
+  "get-teaching-load (scheduling tools) instead of listing sections " +
+  "course by course. " +
   "A result too large to list is CUT: it returns the top sections by open " +
   "seats plus a `truncated` block that states the cut in words. Never answer " +
   '"what was offered" or "how many" from a truncated page — those sections ' +
@@ -92,7 +96,12 @@ const GET_COURSE_DETAILS_DESCRIPTION =
   'prerequisite for?"), each with its own prerequisite wording to quote; ' +
   "include_chain for everything further down. For planning across " +
   "several courses or semesters, call get-program-graph (catalog server) " +
-  "once instead of this tool course by course. Pass " +
+  "once instead of this tool course by course. " +
+  "For who teaches what — one person's teaching in a term, or every " +
+  "instructor of a subject — call get-instructor-classes or " +
+  "get-teaching-load (scheduling tools) instead of listing sections " +
+  "course by course. " +
+  "Pass " +
   "course_code (e.g. 'GC 3010') for catalog information, or crn for a " +
   "specific section. Not a search — use search-classes to find sections. " +
   "Each entry in coreqs comes from the catalog's structured corequisite " +
