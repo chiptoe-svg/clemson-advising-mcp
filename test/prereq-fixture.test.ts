@@ -13,9 +13,16 @@ import { courseCodes, parsePrereq } from "../src/prereq-expr.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const db = new Database(path.join(ROOT, "core/db/catalog.db"), { readonly: true });
+// A reviewed correction that departs from the catalog wording is an explicit
+// override: exactly which codes it adds/removes, and who said so. Without one,
+// the rule's codes must equal the catalog text's codes.
+type Override = { source: string; added?: string[]; removed?: string[] };
 const fixture = JSON.parse(
   fs.readFileSync(path.join(ROOT, "core/prereqs/plan-courses.json"), "utf-8"),
-) as Record<string, { text: string; expr: string; note?: string }>;
+) as Record<
+  string,
+  { text: string; expr: string; note?: string; override?: Override }
+>;
 
 const PLAN_COURSES_WITH_TEXT = db
   .prepare(
@@ -38,13 +45,33 @@ test("every fixture expression parses", () => {
   }
 });
 
-test("no course code is dropped or invented: expression codes == codes in the source text", () => {
+test("no course code is dropped or invented: expression codes == codes in the source text, adjusted only by a declared override", () => {
   // Both sides come from the SOURCE, so neither can drift to agree with the other.
   const CODE = /\b([A-Z]{2,5}) ?(\d{4})\b/g;
   for (const [code, e] of Object.entries(fixture)) {
-    const inText = [...new Set([...e.text.matchAll(CODE)].map((m) => `${m[1]} ${m[2]}`))].sort();
+    const fromText = new Set(
+      [...e.text.matchAll(CODE)].map((m) => `${m[1]} ${m[2]}`),
+    );
+    for (const r of e.override?.removed ?? []) {
+      assert.ok(fromText.delete(r), `${code}: override removes ${r}, which the text does not name`);
+    }
+    for (const a of e.override?.added ?? []) {
+      assert.ok(!fromText.has(a), `${code}: override adds ${a}, which the text already names`);
+      fromText.add(a);
+    }
     const inExpr = [...courseCodes(parsePrereq(e.expr))].sort();
-    assert.deepEqual(inExpr, inText, code);
+    assert.deepEqual(inExpr, [...fromText].sort(), code);
+  }
+});
+
+test("every override names its source and actually changes something", () => {
+  for (const [code, e] of Object.entries(fixture)) {
+    if (!e.override) continue;
+    assert.ok(e.override.source?.trim(), `${code}: override without a source`);
+    assert.ok(
+      (e.override.added?.length ?? 0) + (e.override.removed?.length ?? 0) > 0,
+      `${code}: override changes nothing`,
+    );
   }
 });
 

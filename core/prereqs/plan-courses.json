@@ -135,7 +135,14 @@
   },
   "GC 2070": {
     "text": "Graphic Communications major and GC 1010 and GC 1020 and GC 1040",
-    "expr": "[major:Graphic Communications] & GC 1010 & GC 1020 & GC 1040"
+    "expr": "[major:Graphic Communications] & GC 1010 & GC 1020 & GC 1040 & GC 1050",
+    "note": "reviewed correction: GC 1050 is also required (not in the catalog wording)",
+    "override": {
+      "source": "Chip Tonkin (GC), prerequisite review 2026-10-06 — differs from the published catalog wording",
+      "added": [
+        "GC 1050"
+      ]
+    }
   },
   "GC 2400": {
     "text": "GC 1020 and GC 1040",
@@ -143,7 +150,14 @@
   },
   "GC 3020": {
     "text": "COOP 1010 and GC 1020",
-    "expr": "COOP 1010 & GC 1020"
+    "expr": "GC 1020",
+    "note": "reviewed correction: COOP 1010 is not required (the catalog wording lists it)",
+    "override": {
+      "source": "Chip Tonkin (GC), prerequisite review 2026-10-06 — differs from the published catalog wording",
+      "removed": [
+        "COOP 1010"
+      ]
+    }
   },
   "GC 3400": {
     "text": "GC 1020 and GC 1040",
