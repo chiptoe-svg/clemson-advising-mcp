@@ -45,6 +45,9 @@ export interface CourseFacts {
   flatPrereq: string[];
   /** course.coreq_parsed — taken TOGETHER (lecture/lab). */
   coreqs: string[];
+  /** prereq_expression.note — the reviewer's note (judgment call or a
+   *  correction to the catalog wording); shown to the reader. */
+  note: string | null;
   missing?: true;
 }
 
@@ -82,7 +85,13 @@ export interface GraphCourse {
   parse: ParseState;
   prereq_text?: string;
   coreqs?: string[];
+  /** Lower bound from the prerequisite CHAIN only. */
   min_prior_terms: number;
+  /** First term label in THIS plan that meets the course's standing rule —
+   *  plan-relative, not a credit rule (standing is credit-based). */
+  standing_floor?: string;
+  /** The reviewer's note on this rule; prereq_text is shown alongside. */
+  review_note?: string;
   required_by: number;
   one_way_into: number;
   status?: CourseStatus;
@@ -130,8 +139,14 @@ function usable(f: CourseFacts | undefined): {
   expr: Expr | null;
   parse: ParseState;
 } {
-  if (!f || f.missing || !f.prereqText || !f.prereqText.trim())
-    return { expr: null, parse: "none" };
+  if (!f) return { expr: null, parse: "none" };
+  // A course with no catalog row: its rule cannot be read (review finding 4).
+  if (f.missing) return { expr: null, parse: "unparsed" };
+  // Blank catalog text: "no prerequisite" ONLY if nothing was ever reviewed.
+  // A reviewed rule whose text went blank (a scrape failure) is stale
+  // (review finding 5).
+  if (!f.prereqText || !f.prereqText.trim())
+    return { expr: null, parse: f.expr ? "stale" : "none" };
   if (!f.expr || !f.exprHash) return { expr: null, parse: "unparsed" };
   if (f.exprHash !== sha256(f.prereqText))
     return { expr: null, parse: "stale" };
@@ -169,7 +184,7 @@ export function loadGraphInputs(
   const courses = new Map<string, CourseFacts>();
   const get = db.prepare(
     `SELECT c.code, c.title, c.prereq_text, c.prereq_parsed, c.coreq_parsed,
-            p.expr, p.source_text_hash
+            p.expr, p.source_text_hash, p.note
        FROM course c LEFT JOIN prereq_expression p ON p.code = c.code
       WHERE c.code = ?`,
   );
@@ -189,6 +204,7 @@ export function loadGraphInputs(
             coreq_parsed: string | null;
             expr: string | null;
             source_text_hash: string | null;
+            note: string | null;
           }
         | undefined;
       const facts: CourseFacts = r
@@ -204,6 +220,7 @@ export function loadGraphInputs(
             coreqs: r.coreq_parsed
               ? (JSON.parse(r.coreq_parsed) as string[])
               : [],
+            note: r.note,
           }
         : {
             code,
@@ -213,6 +230,7 @@ export function loadGraphInputs(
             exprHash: null,
             flatPrereq: [],
             coreqs: [],
+            note: null,
             missing: true,
           };
       courses.set(code, facts);
@@ -294,6 +312,7 @@ export function buildProgramGraph(
         exprHash: null,
         flatPrereq: [],
         coreqs: [],
+        note: null,
         missing: true,
       });
     }
@@ -312,12 +331,22 @@ export function buildProgramGraph(
   for (const [code, f] of facts) {
     if (f.missing) notes.push(`${code} is not in the course catalog`);
   }
+  const staleCodes = [...parsed]
+    .filter(([, u]) => u.parse === "stale")
+    .map(([c]) => c)
+    .sort();
+  if (staleCodes.length)
+    notes.push(
+      `prerequisite rules are stale (catalog wording changed since review) and NOT used — chains through them are shorter than real: ${staleCodes.join(", ")}`,
+    );
 
-  // Standing floors, from the plan's own term labels.
-  const floorOf = (code: string): number => {
+  // Standing floors, from the plan's own term labels. Plan-relative (this
+  // plan's term order, summers included), so reported as a term LABEL beside
+  // the chain bound, never folded into it (review finding 10).
+  const floorOf = (code: string): string | undefined => {
     const e = parsed.get(code)?.expr;
-    if (!e) return 0;
-    let floor = 0;
+    if (!e) return undefined;
+    let floor = -1;
     for (const v of requiredStandings(e)) {
       const word = standingWord(v);
       const idx = word
@@ -330,7 +359,7 @@ export function buildProgramGraph(
         if (!notes.includes(note)) notes.push(note);
       } else floor = Math.max(floor, idx);
     }
-    return floor;
+    return floor >= 0 ? inp.plan.groups[floor]!.label : undefined;
   };
 
   // Chain bounds: memoized DFS with cycle breaking.
@@ -346,7 +375,7 @@ export function buildProgramGraph(
     }
     onStack.add(code);
     const e = parsed.get(code)?.expr;
-    const bound = e ? Math.max(minPriorTerms(e, chainOf), floorOf(code)) : 0;
+    const bound = e ? minPriorTerms(e, chainOf) : 0;
     onStack.delete(code);
     chain.set(code, bound);
     return bound;
@@ -416,12 +445,50 @@ export function buildProgramGraph(
     }
   }
 
+  // Per-course status, memoized. A same-term ("~") partner counts as met only
+  // if the student could take IT this term — its own status — never just
+  // because the rule allows concurrency (review finding 1). A cycle reads as
+  // unknown.
+  type StatusOut = ReturnType<typeof statusFor>;
+  const statusMemo = new Map<string, StatusOut>();
+  const inProgress = new Set<string>();
+  const statusOf = (code: string): StatusOut => {
+    const known = statusMemo.get(code);
+    if (known) return known;
+    if (!student) return { status: "undetermined" };
+    const { expr, parse } = parsed.get(code) ?? {
+      expr: null,
+      parse: "unparsed" as ParseState,
+    };
+    inProgress.add(code);
+    const out = statusFor(expr, parse, inp.program, student, (partner) => {
+      if (student.completed.has(partner)) return "T";
+      if (inProgress.has(partner)) return "U";
+      const st = statusOf(partner).status;
+      return st === "eligible" || st === "conditional"
+        ? "T"
+        : st === "not_eligible"
+          ? "F"
+          : "U";
+    });
+    if (facts.get(code)?.missing && out.status === "undetermined")
+      out.unresolved = ["course not in the catalog"];
+    inProgress.delete(code);
+    statusMemo.set(code, out);
+    return out;
+  };
+
   // Course nodes: plan order first, then prerequisite-only courses by code.
   const rest = [...facts.keys()].filter((c) => !pos.order.includes(c)).sort();
   const courses: GraphCourse[] = [...pos.order, ...rest].map((code) => {
     const f = facts.get(code)!;
     const { expr, parse } = parsed.get(code)!;
     const planned = pos.plannedAt.get(code);
+    // Student-facing reviewer notes: corrections to the catalog wording and
+    // "confirm" flags (review finding 9). Notes that only record how the rule
+    // was read stay internal — they repeated on every same-term rule.
+    const shownNote =
+      f.note && /correction|confirm/i.test(f.note) ? f.note : undefined;
     const node: GraphCourse = {
       code,
       title: f.title,
@@ -430,16 +497,21 @@ export function buildProgramGraph(
       requirements: reqNamesOf.get(code) ?? [],
       prereq: expr ? renderPrereq(expr) : null,
       parse,
-      ...(parse === "partial" || parse === "unparsed" || parse === "stale"
+      ...(parse === "partial" ||
+      parse === "unparsed" ||
+      parse === "stale" ||
+      shownNote
         ? { prereq_text: f.prereqText ?? "" }
         : {}),
+      ...(shownNote ? { review_note: shownNote } : {}),
       ...(f.coreqs.length ? { coreqs: f.coreqs } : {}),
       min_prior_terms: chain.get(code) ?? 0,
+      ...(floorOf(code) ? { standing_floor: floorOf(code) } : {}),
       required_by: requiredBy.get(code) ?? 0,
       one_way_into: oneWayInto.get(code) ?? 0,
     };
     if (student && !student.completed.has(code)) {
-      Object.assign(node, statusFor(expr, parse, inp.program, student));
+      Object.assign(node, statusOf(code));
     }
     return node;
   });
@@ -557,6 +629,7 @@ function statusFor(
   parse: ParseState,
   program: string,
   student: StudentState,
+  partner: (code: string) => Tri,
 ): Pick<GraphCourse, "status" | "take_with" | "unresolved" | "assumes"> {
   if (parse === "none") return { status: "eligible" };
   if (!expr)
@@ -585,7 +658,7 @@ function statusFor(
           ? "T"
           : "F";
       }
-      return l.concurrent && opts.concurrentOk ? "T" : "F";
+      return l.concurrent && opts.concurrentOk ? partner(l.code) : "F";
     },
     cond: (c) => {
       if (c.kind === "major")
@@ -594,6 +667,18 @@ function statusFor(
           : "F";
       if (c.kind === "standing" && student.standing) {
         const want = standingWord(c.value);
+        // "second semester senior": words beyond the class word are a
+        // condition to confirm, even when the class itself matches
+        // (review finding 6).
+        const qualified = c.value
+          .toLowerCase()
+          .split(/\s+/)
+          .some((w) => w && w !== want && w !== "standing");
+        if (want && qualified) {
+          if (STANDINGS.indexOf(student.standing) < STANDINGS.indexOf(want))
+            return "F";
+          return opts.conditions === "coursework" ? "T" : "U";
+        }
         if (want)
           return STANDINGS.indexOf(student.standing) >= STANDINGS.indexOf(want)
             ? "T"
@@ -634,9 +719,15 @@ function statusFor(
       }),
     );
     if (strict !== "T") {
-      const tw = concurrentLeaves(expr).filter(
-        (c) => !student.completed.has(c),
-      );
+      const decideCtx = ctx({
+        conditions: status === "eligible" ? "full" : "coursework",
+        concurrentOk: true,
+      });
+      const strictCtx = ctx({
+        conditions: status === "eligible" ? "full" : "coursework",
+        concurrentOk: false,
+      });
+      const tw = sameTermNeeds(expr, decideCtx, strictCtx, student);
       if (tw.length) out.take_with = tw;
     }
     if (assumes.length) out.assumes = assumes;
@@ -644,11 +735,41 @@ function statusFor(
   return out;
 }
 
-function concurrentLeaves(e: Expr): string[] {
-  if (e.t === "course") return e.concurrent ? [e.code] : [];
-  if (e.t === "and" || e.t === "or")
-    return [...new Set(e.of.flatMap(concurrentLeaves))];
-  return [];
+/**
+ * The same-term courses still NEEDED (review finding 2): an OR already met
+ * without same-term help needs nothing; an OR with several viable same-term
+ * routes is ONE choice ("one of: A | B"), never a list of all of them.
+ */
+function sameTermNeeds(
+  e: Expr,
+  decide: EvalCtx,
+  strict: EvalCtx,
+  student: StudentState,
+): string[] {
+  switch (e.t) {
+    case "course":
+      return e.concurrent && !student.completed.has(e.code) ? [e.code] : [];
+    case "and":
+      return [
+        ...new Set(
+          e.of.flatMap((c) => sameTermNeeds(c, decide, strict, student)),
+        ),
+      ];
+    case "or": {
+      if (e.of.some((c) => evaluate(c, strict) === "T")) return [];
+      const viable = e.of.filter((c) => evaluate(c, decide) === "T");
+      if (viable.length === 0) return [];
+      if (viable.length === 1)
+        return sameTermNeeds(viable[0]!, decide, strict, student);
+      const routes = viable.map((c) => {
+        const needs = sameTermNeeds(c, decide, strict, student);
+        return needs.length ? needs.join(" + ") : renderPrereq(c);
+      });
+      return [`one of: ${routes.join(" | ")}`];
+    }
+    default:
+      return [];
+  }
 }
 
 // ---------------------------------------------------------------------------

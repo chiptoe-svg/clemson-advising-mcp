@@ -2,9 +2,11 @@
 
 The fixture (core/prereqs/plan-courses.json) is the source of truth; this only
 copies it in, pinning each row to the exact prereq_text it was reviewed
-against. A row whose text no longer matches the course table is REFUSED and
-reported, never loaded, so a catalog refresh can't silently pair an old parse
-with new text. Replace-all in one transaction: idempotent and rebuild-safe."""
+against. A row whose text no longer matches the course table is reported as
+stale and stored hashed against the REVIEWED text, so the reader's hash check
+marks it stale and never uses it — a catalog refresh can't silently pair an old
+parse with new text, and the "re-review this" signal is not lost.
+Replace-all in one transaction: idempotent and rebuild-safe."""
 import hashlib
 import sqlite3
 
@@ -29,8 +31,10 @@ def load_prereq_expressions(con: sqlite3.Connection, fixture: dict) -> dict:
             missing.append(code)
             continue
         if (r["prereq_text"] or "") != entry["text"]:
+            # Kept, not dropped: hashed against the text it was REVIEWED
+            # against, so the reader's hash check reports it stale (never
+            # uses it) and the "re-review this" signal survives the rebuild.
             stale.append(code)
-            continue
         rows.append((code, entry["expr"], text_hash(entry["text"]), entry.get("note")))
     with con:
         con.execute("DELETE FROM prereq_expression")
@@ -38,4 +42,4 @@ def load_prereq_expressions(con: sqlite3.Connection, fixture: dict) -> dict:
             "INSERT INTO prereq_expression (code, expr, source_text_hash, note) VALUES (?,?,?,?)",
             rows,
         )
-    return {"loaded": len(rows), "stale": stale, "missing_course": missing}
+    return {"loaded": len(rows) - len(stale), "stale": stale, "missing_course": missing}

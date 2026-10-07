@@ -178,9 +178,13 @@ lists everything further down.
      `unresolved` / `prereq_text` verbatim; never round it to eligible.
    Say every `assumes` item out loud ("this assumes a C or better in ACCT
    2010"). `coreqs` go in the same term.
-3. Start `critical_path` courses early — `min_prior_terms` is a floor, not a
-   schedule. Seasons are estimates from history; a `ruled out` / `confirmed`
-   label is a recorded department decision.
+3. Start `critical_path` courses early — `min_prior_terms` is a floor from the
+   prerequisite chain, not a schedule; `standing_floor` names the first term in
+   this plan that meets a class-standing rule (standing is credit-based, so a
+   student may reach it sooner or later). Say any `review_note` — it may be a
+   department correction to the catalog wording. Seasons are estimates from
+   history; a `ruled out` / `confirmed` label is a recorded department
+   decision.
 4. Suggest a next-semester slate that covers 15–16 credits, advances unmet
    requirements, and avoids courses that are not eligible.
 5. Flag every slot where the student must choose, presenting options from

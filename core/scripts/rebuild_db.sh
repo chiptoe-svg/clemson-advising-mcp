@@ -72,7 +72,7 @@ step "6/8 Requirement rules + gen-ed + academic regulations (all years)"
 
 step "7/8 Coreqs + prerequisite expressions + course source URLs"
 "$PY" scripts/backfill_coreqs.py
-"$PY" scripts/load_prereq_expressions.py
+"$PY" scripts/load_prereq_expressions.py || echo "!!! STALE prerequisite rules (listed above): kept but NOT used until re-reviewed in core/prereqs/plan-courses.json — rebuild continues so department packs still apply" >&2
 "$PY" scripts/backfill_course_urls.py --db "$DB"
 
 step "8/8 Department packs (order-free, idempotent; refreshes bogus flags)"

@@ -96,8 +96,10 @@ export const programGraph: McpToolDefinition = {
       "every requirement (from Degree Works when imported, else the catalog " +
       "plan's slots and choices), every planned course with its term, its " +
       "prerequisite rule as a structured expression, how many terms must come " +
-      "before it (min_prior_terms, a lower bound from prerequisites and class " +
-      "standing), and which seasons it usually runs. Pass completed_courses " +
+      "before it (min_prior_terms, a lower bound from the prerequisite chain), " +
+      "standing_floor (the first term in THIS plan that meets a class-standing " +
+      "rule), review_note (a reviewer's note or correction to the catalog " +
+      "wording — say it), and which seasons it usually runs. Pass completed_courses " +
       '(optionally with grades, "ACCT 2010:C") and standing to get a status ' +
       "per course: eligible (take_with = must be taken the same term as " +
       "these), conditional (coursework done, but the listed conditions such as " +
@@ -160,6 +162,13 @@ export const programGraph: McpToolDefinition = {
       standing = args.standing as Standing;
     }
 
+    if (
+      args.completed_courses !== undefined &&
+      !Array.isArray(args.completed_courses)
+    )
+      return err(
+        'completed_courses must be a LIST of course codes, e.g. ["GC 1010", "ACCT 2010:C"] — not one string.',
+      );
     let student: StudentState | undefined;
     const ignored: string[] = [];
     if (Array.isArray(args.completed_courses)) {
@@ -167,6 +176,10 @@ export const programGraph: McpToolDefinition = {
       for (const raw of args.completed_courses) {
         const parsed = typeof raw === "string" ? parseCompleted(raw) : null;
         if (!parsed) ignored.push(String(raw));
+        else if (parsed[1] === "F")
+          ignored.push(
+            `${String(raw).trim()} (an F does not complete the course)`,
+          );
         else completed.set(parsed[0], parsed[1]);
       }
       student = { completed, ...(standing ? { standing } : {}) };
@@ -184,12 +197,19 @@ export const programGraph: McpToolDefinition = {
     }
     let graph: ReturnType<typeof buildProgramGraph>;
     try {
-      graph = buildProgramGraph(loadGraphInputs(db, year, program), student);
+      const inputs = loadGraphInputs(db, year, program);
+      if (inputs.plan.groups.length === 0)
+        return err(
+          `"${program}" has no semester-by-semester plan in the ${year} catalog — it is likely a minor or certificate. Use get-program-requirements for what it requires.`,
+        );
+      graph = buildProgramGraph(inputs, student);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      if (/catalog year/i.test(msg))
+        return err(`${msg}. Use list-catalog-years for valid catalog years.`);
       return err(
-        /program|year/i.test(msg)
-          ? missingProgramMessage(msg)
+        /program/i.test(msg)
+          ? missingProgramMessage(` ${msg}`)
           : `Program graph failed: ${msg}`,
       );
     } finally {

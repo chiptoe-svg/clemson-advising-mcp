@@ -110,3 +110,45 @@ test("an invalid standing is an error, not ignored", async () => {
   assert.equal(res.isError, true);
   assert.match(res.content[0].text, /standing/);
 });
+
+// --- Hostile-review regressions (2026-10-06) --------------------------------
+
+test("an F does not complete a course, and the entry says why", async () => {
+  // Finding 3: "GC 1010:F" counted as completed, so GC 2070 read eligible.
+  const { body } = await call({
+    ...GC,
+    completed_courses: ["GC 1010:F", "GC 1020:F", "GC 1040:F", "GC 1050:F"],
+  });
+  const gc2070 = (body.courses as Course[]).find((c) => c.code === "GC 2070")!;
+  assert.equal(gc2070.status, "not_eligible");
+  assert.ok(
+    (body.ignored_completed as string[]).some(
+      (e) => /GC 1010:F/.test(e) && /F/.test(e),
+    ),
+  );
+});
+
+test("a minor or certificate is refused, never an empty graph", async () => {
+  // Finding 7: "Accounting Minor" returned requirements [] and courses [].
+  const { res } = await call({
+    program: "Accounting Minor",
+    catalog_year: "2026-2027",
+  });
+  assert.equal(res.isError, true);
+  assert.match(res.content[0].text, /get-program-requirements/);
+});
+
+test("completed_courses that is not a list is an error, not silently ignored", async () => {
+  // Finding 11: a comma-separated string returned no statuses and no note.
+  const { res } = await call({ ...GC, completed_courses: "GC 1010, GC 1020" });
+  assert.equal(res.isError, true);
+  assert.match(res.content[0].text, /completed_courses/);
+});
+
+test("an unknown catalog year says so, not that the program is missing", async () => {
+  // Minor 12, re-graded: the error led with "program is required".
+  const { res } = await call({ ...GC, catalog_year: "2031-2032" });
+  assert.equal(res.isError, true);
+  assert.match(res.content[0].text, /catalog year/i);
+  assert.doesNotMatch(res.content[0].text, /program is required/);
+});

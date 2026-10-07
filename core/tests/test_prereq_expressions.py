@@ -35,12 +35,18 @@ def test_loads_rows_with_hash_of_exact_text(tmp_path):
     assert row["note"] is None
 
 
-def test_refuses_a_row_whose_text_no_longer_matches(tmp_path):
+def test_a_stale_row_is_kept_pinned_to_the_reviewed_text(tmp_path):
+    # Review finding 8: deleting a stale row made the reader say "unparsed"
+    # and lost the "re-review this" signal. The row is kept, hashed against
+    # the text it was REVIEWED against, so the reader's hash check reports it
+    # stale and never uses it.
     con = _db(tmp_path)
     _course(con, "GC 3460", "GC 2070 and GC 3500")
     res = load_prereq_expressions(con, {"GC 3460": {"text": "GC 2070", "expr": "GC 2070"}})
     assert res["stale"] == ["GC 3460"] and res["loaded"] == 0
-    assert con.execute("SELECT COUNT(*) FROM prereq_expression").fetchone()[0] == 0
+    row = con.execute("SELECT source_text_hash FROM prereq_expression WHERE code='GC 3460'").fetchone()
+    assert row["source_text_hash"] == hashlib.sha256("GC 2070".encode()).hexdigest()
+    assert row["source_text_hash"] != hashlib.sha256("GC 2070 and GC 3500".encode()).hexdigest()
 
 
 def test_reports_codes_with_no_course_row(tmp_path):
