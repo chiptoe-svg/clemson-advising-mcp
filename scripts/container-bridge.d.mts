@@ -1,4 +1,4 @@
-// Types for the one export tests use; the bridge itself is plain JS run by node.
+// Types for the exports tests use; the bridge itself is plain JS run by node.
 export function peerAllowed(
   peer: string | undefined,
   gateway: string,
@@ -7,3 +7,4 @@ export function peerAllowed(
     Array<{ family: string; address: string; netmask: string }> | undefined
   >,
 ): boolean;
+export const PORTS: readonly number[];

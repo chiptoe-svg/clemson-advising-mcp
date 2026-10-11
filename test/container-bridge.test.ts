@@ -1,4 +1,4 @@
-// The container bridge forwards six loopback-only services (mailcal 8765, the
+// The container bridge forwards five loopback-only services (the
 // schedule/catalog servers, gc_alumni, the OneCLI credential proxy) onto the
 // container bridge gateway. The macOS application firewall admits node on every
 // interface, and macOS accepts packets for any of its own addresses on any
@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { peerAllowed } from "../scripts/container-bridge.mjs";
+import { PORTS, peerAllowed } from "../scripts/container-bridge.mjs";
 
 const GW = "192.168.64.1";
 const IFACES = {
@@ -49,4 +49,14 @@ test("if the gateway's interface is gone, only host addresses are admitted", () 
 test("a missing or non-IPv4 peer is refused", () => {
   assert.equal(peerAllowed(undefined, GW, IFACES), false);
   assert.equal(peerAllowed("fe80::1", GW, IFACES), false);
+});
+
+test("mailcal's plain port is not bridged; containers use the HTTPS route", () => {
+  // Owner decision 2026-10-11: since 2026-09-26 containers reach mailcal only
+  // via https://gcworkflow.clemson.edu:8443/mailcal/* (source-pinned), so a
+  // plain 8765 listener was unused credentialed surface.
+  assert.deepEqual(
+    [...PORTS].sort((a, b) => a - b),
+    [8011, 8012, 8766, 8767, 10255],
+  );
 });

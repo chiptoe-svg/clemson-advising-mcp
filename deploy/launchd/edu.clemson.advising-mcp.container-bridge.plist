@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Container-bridge forwarder: <container bridge gateway>:{8765,8766,8767,8011,
-  8012,10255} -> 127.0.0.1:{same}. Apple container VMs reach this host only via
+  Container-bridge forwarder: <container bridge gateway>:{8766,8767,8011,8012,
+  10255} -> 127.0.0.1:{same}. Apple container VMs reach this host only via
   the bridge gateway; every forwarded service stays loopback-only. Port map and
   rebind logic: scripts/container-bridge.mjs.
 
-  Shared host plumbing for four owners (mailcal 8765, this repo 8766/8767,
-  gc_alumni 8011/8012, OneCLI 10255). Adopted from CUassistant's
+  Shared host plumbing for three owners (this repo 8766/8767, gc_alumni
+  8011/8012, OneCLI 10255). mailcal's 8765 removed 2026-10-11.
+  Adopted from CUassistant's
   com.cuassistant.mcp-public-bridge on 2026-09-26.
 
   Do not edit the placeholders by hand — deploy/install.sh fills in REPO_PATH,

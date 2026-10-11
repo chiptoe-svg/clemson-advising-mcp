@@ -358,8 +358,9 @@ looks like a code fault.
   returns nothing.** The container bridge (`edu.clemson.advising-mcp.container-bridge`,
   `scripts/container-bridge.mjs`; adopted from CUassistant — now Cob_advisor —
   on 2026-09-26) listens on the bridge-gateway address on the same port numbers
-  and forwards into loopback. It is not a conflict: it serves four owners
-  (mailcal 8765, this repo 8766/8767, gc_alumni 8011/8012, OneCLI 10255), and it
+  and forwards into loopback. It is not a conflict: it serves three owners
+  (this repo 8766/8767, gc_alumni 8011/8012, OneCLI 10255; mailcal's 8765 was
+  removed 2026-10-11 — containers use the HTTPS /mailcal/ route), and it
   starts forwarding to the new servers the moment they bind. Leave it alone.
   The preflight is scoped to `127.0.0.1` for exactly this reason.
 - **A count from the ledger is evidence, not a verdict.** A 5,000-call burst

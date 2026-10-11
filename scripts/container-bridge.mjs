@@ -1,12 +1,17 @@
 /**
- * TCP forwarder: <container-bridge-gateway>:{8765,8766,8767,8011,8012,10255} → 127.0.0.1:{...}
+ * TCP forwarder: <container-bridge-gateway>:{8766,8767,8011,8012,10255} → 127.0.0.1:{...}
  *
  * OWNERSHIP (2026-09-26): moved here from CUassistant, now Cob_advisor (scripts/mcp-public-bridge.mjs,
  * launchd com.cuassistant.mcp-public-bridge) on Chip's decision: this repo is the
- * central services provider, and the bridge is shared host plumbing for four
- * owners — mailcal (8765), this repo (8766/8767), gc_alumni (8011/8012) and
- * OneCLI (10255). Installed by deploy/install.sh as
- * edu.clemson.advising-mcp.container-bridge. Logic unchanged by the move.
+ * central services provider, and the bridge is shared host plumbing for three
+ * owners — this repo (8766/8767), gc_alumni (8011/8012) and OneCLI (10255).
+ * Installed by deploy/install.sh as edu.clemson.advising-mcp.container-bridge.
+ * Logic unchanged by the move.
+ *
+ * mailcal (8765) REMOVED 2026-10-11 (owner decision): since 2026-09-26
+ * containers reach it only via the source-pinned HTTPS route
+ * https://gcworkflow.clemson.edu:8443/mailcal/*, so the plain bridge port was
+ * unused credentialed surface. Do not re-add it; use the Caddy route.
  *
  * CUassistant MCP servers (and the OneCLI credential proxy) are loopback-only by
  * design (127.0.0.1). Apple Container VMs reach the host only via the bridge
@@ -14,7 +19,6 @@
  * services to bind a non-loopback interface.
  *
  * Port map:
- *   8765  — credentialed MCP server (requires Authorization bearer)
  *   8766  — public MCP server (Clemson class schedule, requires bearer)
  *   8767  — catalog MCP server (GC curriculum/degree plan, requires bearer)
  *   8011  — gc-alumni MCP server (GC alumni outcomes, no auth)
@@ -44,8 +48,8 @@
  * reappears at a different value after a runtime upgrade.
  *
  * ── Why we never bind 0.0.0.0 ───────────────────────────────────────────────
- * 8765 is credentialed and 10255 is a credential proxy. Binding all interfaces
- * would expose both to the campus LAN. Gateway-only is the entire point of this
+ * 10255 is a credential proxy. Binding all interfaces would expose it (and the
+ * no-auth gc-alumni server on 8011) to the campus LAN. Gateway-only is the entire point of this
  * file; widening the bind would trade a connectivity bug for a security hole.
  *
  * (8766/8767 now bind 0.0.0.0 themselves, in their own processes, behind a
@@ -77,8 +81,7 @@ const DECLARED_TTL_MS = 30_000;
 // 0.0.0.0 in their own processes (verified: they LISTEN on `*:8766`/`*:8767`),
 // so the gateway address already reaches them directly — forwarding them here was
 // redundant. Bridge only what actually binds 127.0.0.1.
-const PORTS = [
-  8765, // mailcal credentialed MCP server (127.0.0.1-only)
+export const PORTS = [
   8766, // advising-mcp-schedule MCP server (renamed from -public 2026-08-30) — loopback-only since 2026-08-26 (owner decision D5); bearer required
   8767, // advising-mcp-catalog MCP server — loopback-only since 2026-08-26; bearer required
   8011, // gc-alumni MCP server (127.0.0.1-only, no auth)
@@ -145,8 +148,8 @@ function addressIsLive(addr) {
  *
  * We deliberately do NOT fall back to gatewayFromInterfaces() here. A declared
  * gateway means the container network exists but is down; binding some other
- * bridge interface instead would put 8765 (credentialed) and 10255 (the
- * credential proxy) on a network nobody chose. Waiting is the safe failure.
+ * bridge interface instead would put 10255 (the credential proxy) on a
+ * network nobody chose. Waiting is the safe failure.
  */
 let declaredCache = { value: null, at: 0 };
 
@@ -181,8 +184,8 @@ function ipv4ToInt(addr) {
  * needed (2026-09-26): the macOS application firewall filters by PROGRAM and
  * admits node on every interface, and macOS accepts packets for any of its own
  * addresses on any interface — so a host on the campus subnet that routes
- * 192.168.64.0/24 via this Mac could otherwise reach all six ports, in plain
- * HTTP, including mailcal (8765) and the OneCLI credential proxy (10255).
+ * 192.168.64.0/24 via this Mac could otherwise reach every bridged port, in
+ * plain HTTP, including the OneCLI credential proxy (10255).
  *
  * The subnet comes from the gateway interface's own netmask, never a
  * hardcoded range: the bridge subnet has moved before (see the header). If the
@@ -320,7 +323,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   // launchd (KeepAlive) would relaunch it, cold. That cold restart (Node boot +
   // `container network inspect`) is far longer than a container's connect-retry
   // budget, so a container spawning right after an idle period could not reach the
-  // bridge-dependent, loopback-only servers (8765/8011/10255). Keeping the timer
+  // bridge-dependent, loopback-only servers (8011/10255). Keeping the timer
   // ref'd makes this a proper always-on daemon that stays warm across idle periods
   // and rebinds within FAST_MS when the gateway reappears. (History: `runs=105088`
   // launchd restarts — this poller was exiting on every idle window.)
