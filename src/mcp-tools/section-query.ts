@@ -43,6 +43,7 @@ export interface SectionFilters {
   openSeatsOnly?: boolean;
   credits?: number; // within 0.01
   fitsAroundCrns?: string[]; // exclude any section whose meetings overlap these CRNs' meetings
+  excludeCrns?: string[]; // never return these (find-alternatives: the section being swapped out)
   max?: number;
   offset?: number;
 }
@@ -431,6 +432,7 @@ export function querySectionsEngine(
         if (violates) continue;
       }
 
+      if (filters.excludeCrns?.includes(row.crn)) continue;
       if (fitsAroundCrns) {
         if (fitsAroundCrns.includes(row.crn)) continue; // anchors themselves aren't candidates
         const conflict = mgs.some((cm) =>

@@ -33,6 +33,7 @@ import {
   getScheduleDbMeta,
   getMeetingsForCrns,
   findConflicts,
+  getSectionsByCrn,
 } from "../clemson-schedule-db.js";
 import {
   querySectionsEngine,
@@ -59,7 +60,8 @@ const SEARCH_CLASSES_DESCRIPTION =
   "filters: instructor, building_room, days, no_meeting_before, no_meeting_after, " +
   "open_seats_only. Term is optional — defaults to the current registration term; " +
   "accepts names like 'Spring 2027' or codes. Do NOT use this to check conflicts " +
-  "(check-conflicts) or to find what fits an existing schedule (find-alternatives). " +
+  "(check-conflicts) or to find what fits an existing schedule, including a " +
+  "replacement when swapping out a section (find-alternatives). " +
   "For who teaches what — one person's teaching in a term, or every " +
   "instructor of a subject — call get-instructor-classes or " +
   "get-teaching-load (scheduling tools) instead of listing sections " +
@@ -74,7 +76,11 @@ const SEARCH_CLASSES_DESCRIPTION =
 
 const FIND_ALTERNATIVES_DESCRIPTION =
   "Find sections that fit around a student's existing schedule without time " +
-  "conflicts. Requires current_crns — the CRNs the student is keeping. Optional: " +
+  'conflicts — including to SWAP or REPLACE a section ("swap out X", ' +
+  '"drop X for something else"). Requires current_crns — the CRNs the ' +
+  "student is KEEPING, not the one being dropped. For a swap, also pass " +
+  "replacing_crn: the dropped section's subject and credit hours become the " +
+  "default filters, and it is never offered back. Optional: replacing_crn, " +
   "subject, credits, days, no_meeting_before, no_meeting_after, exclude_days, " +
   "open_seats_only. Returns options ready to present side by side. Term is " +
   "optional — defaults to the current registration term. When many fit, the " +
@@ -398,6 +404,13 @@ export const findAlternatives: McpToolDefinition = {
           description:
             "CRNs the student is keeping — candidates must not conflict with these.",
         },
+        replacing_crn: {
+          type: "string",
+          description:
+            "For a swap: the CRN being dropped. Its subject and credit hours " +
+            "become the defaults (subject/credits override), and it is never " +
+            "returned. Do not also list it in current_crns.",
+        },
         subject: {
           type: "string",
           description: "Subject abbreviation, e.g. CPSC.",
@@ -446,19 +459,70 @@ export const findAlternatives: McpToolDefinition = {
       return err("current_crns is required — the CRNs the student is keeping.");
     }
 
+    // A swap: the dropped section supplies default filters and is excluded.
+    let replacing:
+      | {
+          crn: string;
+          subject_course: string;
+          applied: { subject?: string; credits?: number };
+          note?: string;
+        }
+      | undefined;
+    let subject = strOrUndef(args.subject);
+    let credits = typeof args.credits === "number" ? args.credits : undefined;
+    let keepers = currentCrns;
+    const replacingCrn = strOrUndef(args.replacing_crn)?.trim();
+    if (replacingCrn) {
+      const db = openScheduleDb(resolved.term);
+      if (!db) return err(`No schedule snapshot for term ${resolved.term}.`);
+      let dropped;
+      try {
+        dropped = getSectionsByCrn(db, resolved.term, [replacingCrn])
+          .sections[0];
+      } finally {
+        db.close();
+      }
+      if (!dropped)
+        return err(
+          `replacing_crn ${replacingCrn} is not a section in term ${resolved.term}.`,
+        );
+      subject ??= /^[A-Z]+/.exec(dropped.subject_course)?.[0];
+      credits ??= dropped.credit_hours ?? undefined;
+      replacing = {
+        crn: replacingCrn,
+        subject_course: dropped.subject_course,
+        applied: {
+          ...(subject !== undefined ? { subject } : {}),
+          ...(credits !== undefined ? { credits } : {}),
+        },
+      };
+      if (keepers.includes(replacingCrn)) {
+        keepers = keepers.filter((c) => c !== replacingCrn);
+        replacing.note =
+          `${replacingCrn} was removed from current_crns: it is the section ` +
+          "being dropped, so its time slot is free.";
+        if (keepers.length === 0)
+          return err(
+            "current_crns has nothing left once replacing_crn is removed — " +
+              "pass the CRNs the student is keeping.",
+          );
+      }
+    }
+
     const engineResult = querySectionsEngine({
       term: resolved.term,
-      subject: strOrUndef(args.subject),
-      credits: typeof args.credits === "number" ? args.credits : undefined,
+      subject,
+      credits,
       days: strOrUndef(args.days),
       excludeDays: strArrOrUndef(args.exclude_days),
       noMeetingBefore: strOrUndef(args.no_meeting_before),
       noMeetingAfter: strOrUndef(args.no_meeting_after),
       openSeatsOnly: Boolean(args.open_seats_only),
-      fitsAroundCrns: currentCrns,
+      fitsAroundCrns: keepers,
+      excludeCrns: replacingCrn ? [replacingCrn] : undefined,
     });
     if ("error" in engineResult) return err(engineResult.error);
-    return okJson(engineResult);
+    return okJson(replacing ? { ...engineResult, replacing } : engineResult);
   },
 };
 
