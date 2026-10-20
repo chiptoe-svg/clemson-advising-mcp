@@ -33,6 +33,11 @@ import {
 export { findCoreqs, type CoreqCourse } from "./gc-coreqs.js";
 import { findCoreqs } from "./gc-coreqs.js";
 import { prerequisiteFor } from "../course-dependents.js";
+import {
+  REVIEW_FIELDS_NOTE,
+  reviewFields,
+  reviewedRules,
+} from "../reviewed-prereq.js";
 
 export const catalogYears: McpToolDefinition = {
   operation: "clemson.gc_catalog_years",
@@ -652,7 +657,9 @@ export const getCourse: McpToolDefinition = {
       "for meeting times use the schedule server's get-sections-by-crn, and " +
       "for seats or instructors use search-classes. To find where a course " +
       "appears in a program's " +
-      "requirements, use find-course-in-program. Read-only, no login.",
+      "requirements, use find-course-in-program. " +
+      REVIEW_FIELDS_NOTE +
+      " Read-only, no login.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -695,6 +702,16 @@ export const getCourse: McpToolDefinition = {
           type: ["string", "null"],
           description:
             "The catalog's prerequisite wording, verbatim; null when none.",
+        },
+        review_note: {
+          type: "string",
+          description:
+            "A reviewer's correction or judgment call on prereq_text; absent when none. Say it to the student.",
+        },
+        reviewed_prereq: {
+          type: "string",
+          description:
+            "The reviewed rule (& all, | any, ~ same term) when review_note is present — use it over prereq_text.",
         },
         coreqs: {
           type: "array",
@@ -745,6 +762,7 @@ export const getCourse: McpToolDefinition = {
           credits: row.credits,
           description: row.description,
           prereq_text: prereq?.prereq_text?.trim() || null,
+          ...reviewFields(reviewedRules(db), code),
           ...(coreqs.length > 0 ? { coreqs } : {}),
           prerequisite_for: prerequisiteFor(db, code, {
             chain: args.include_chain === true,

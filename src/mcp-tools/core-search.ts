@@ -45,6 +45,7 @@ import {
   UNTIMED_FILTER_NOTE,
 } from "./section-query.js";
 import { resolveTerm } from "../term-resolve.js";
+import { REVIEW_FIELDS_NOTE, reviewFieldsFor } from "../reviewed-prereq.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
@@ -112,7 +113,8 @@ const GET_COURSE_DETAILS_DESCRIPTION =
   "specific section. Not a search — use search-classes to find sections. " +
   "Each entry in coreqs comes from the catalog's structured corequisite " +
   "field (source 'catalog_coreq'); a course with none listed returns an " +
-  "empty coreqs list — do not infer one.";
+  "empty coreqs list — do not infer one. " +
+  REVIEW_FIELDS_NOTE;
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -727,6 +729,9 @@ export function makeGetCourseDetails(
           // Same convention as compactSearchResult (clemson-classes.ts):
           // absent means "none" — omit rather than including an empty array.
           if (coreqs.length > 0) body.coreqs = coreqs;
+          // A reviewer's correction to the catalog wording travels with it
+          // (GC 2070 went 0/4 when only the graph carried it, 2026-10-20).
+          Object.assign(body, reviewFieldsFor([courseCode]).get(courseCode));
           // Always present, even when empty: "what needs this course?" with
           // no answer must read as zero, not as a field that was never asked.
           body.prerequisite_for = await getDependents(courseCode, {
@@ -764,7 +769,8 @@ export const getCourseDetails: McpToolDefinition = makeGetCourseDetails();
 
 const GET_COURSE_FACTS_DESCRIPTION =
   "Catalog facts for MANY courses in one call (up to 200 codes, normalized, " +
-  "duplicates collapsed): credits, title, prereq_text, prereq_parsed, " +
+  "duplicates collapsed): credits, title, prereq_text (plus review_note / " +
+  "reviewed_prereq where a reviewer corrected it — use those), prereq_parsed, " +
   "coreq_parsed, and the structured coreqs pairing — the get-course-details " +
   "catalog fields a degree audit needs, batch-shaped: pass every course of " +
   "a plan at once. Three-state per entry: found true with the facts; found " +
@@ -843,6 +849,7 @@ export function makeGetCourseFacts(
         return err(`Not course codes: ${bad.join(", ")} — e.g. "GC 3400".`);
       try {
         const courses: Record<string, unknown>[] = [];
+        const reviews = reviewFieldsFor(codes);
         for (const code of codes) {
           const c = (await getCourse(code)) as Record<string, unknown> | null;
           if (c === null || c === undefined) {
@@ -857,6 +864,7 @@ export function makeGetCourseFacts(
             prereq_text: c.prereq_text ?? null,
             prereq_parsed: c.prereq_parsed ?? null,
             coreq_parsed: c.coreq_parsed ?? null,
+            ...reviews.get(code),
           };
           // Same convention as get-course-details: absent means "none listed".
           const coreqs = findCoreqs(code);
