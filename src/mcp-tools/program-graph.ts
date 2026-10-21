@@ -23,6 +23,7 @@ import {
 import {
   buildProgramGraph,
   loadGraphInputs,
+  type ProgramGraph,
   type Standing,
   type StudentState,
 } from "../program-graph.js";
@@ -128,6 +129,123 @@ function typedEdges(graph: ReturnType<typeof buildProgramGraph>) {
   return edges;
 }
 
+export function parseStudentArgs(
+  args: Record<string, unknown>,
+): { student?: StudentState; ignored: string[] } | { error: string } {
+  let standing: Standing | undefined;
+  if (args.standing !== undefined) {
+    if (
+      typeof args.standing !== "string" ||
+      !STANDINGS.includes(args.standing as Standing)
+    )
+      return { error: `standing must be one of: ${STANDINGS.join(", ")}.` };
+    standing = args.standing as Standing;
+  }
+  if (
+    args.completed_courses !== undefined &&
+    !Array.isArray(args.completed_courses)
+  )
+    return {
+      error:
+        'completed_courses must be a LIST of course codes, e.g. ["GC 1010", "ACCT 2010:C"] — not one string.',
+    };
+  const ignored: string[] = [];
+  if (Array.isArray(args.completed_courses)) {
+    const completed = new Map<string, string | null>();
+    for (const raw of args.completed_courses) {
+      const parsed = typeof raw === "string" ? parseCompleted(raw) : null;
+      if (!parsed) ignored.push(String(raw));
+      else if (parsed[1] === "F")
+        ignored.push(
+          `${String(raw).trim()} (an F does not complete the course)`,
+        );
+      else completed.set(parsed[0], parsed[1]);
+    }
+    return {
+      student: { completed, ...(standing ? { standing } : {}) },
+      ignored,
+    };
+  }
+  if (standing) return { student: { completed: new Map(), standing }, ignored };
+  return { ignored };
+}
+
+export function loadProgramGraph(
+  program: string,
+  year: string,
+  student?: StudentState,
+): { graph: ProgramGraph; planTerms: string[] } | { error: string } {
+  let db: InstanceType<typeof Database>;
+  try {
+    db = new Database(CATALOG_DB, { readonly: true, fileMustExist: true });
+  } catch {
+    return {
+      error:
+        "Could not open the Clemson catalog database. This is NOT the same as the program not existing.",
+    };
+  }
+  try {
+    const inputs = loadGraphInputs(db, year, program);
+    if (inputs.plan.groups.length === 0)
+      return {
+        error: `"${program}" has no semester-by-semester plan in the ${year} catalog — it is likely a minor or certificate. Use get-program-requirements for what it requires.`,
+      };
+    return {
+      graph: buildProgramGraph(inputs, student),
+      planTerms: inputs.plan.groups.map((g) => g.label),
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/catalog year/i.test(msg))
+      return {
+        error: `${msg}. Use list-catalog-years for valid catalog years.`,
+      };
+    return {
+      error: /program/i.test(msg)
+        ? missingProgramMessage(` ${msg}`)
+        : `Program graph failed: ${msg}`,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Season labels from observed offering history, with recorded department
+ * decisions applied — the same composition as get-course-offerings. Absent
+ * history is an error the caller reports, never "not offered".
+ */
+export function seasonLabelsFor(
+  codes: string[],
+): { labels: Map<string, Record<string, string>> } | { error: string } {
+  try {
+    const decisions = loadOfferingDecisions();
+    const odb = openOfferingsDb();
+    try {
+      const observed = observedTerms(odb);
+      if (observed.length === 0)
+        throw new Error("no schedule snapshots are held");
+      const key = (c: string) => c.replace(/\s+/g, "").toUpperCase();
+      const per = offeringsFor(odb, codes.map(key));
+      const labels = new Map<string, Record<string, string>>();
+      for (const c of codes) {
+        const seasons = applyDecisions(
+          seasonRollup(observed, per.get(key(c)) ?? []),
+          decisions.get(key(c)),
+        );
+        const l: Record<string, string> = {};
+        for (const [season, r] of Object.entries(seasons)) l[season] = r.label;
+        labels.set(c, l);
+      }
+      return { labels };
+    } finally {
+      odb.close();
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export const programGraph: McpToolDefinition = {
   operation: "clemson.program_graph",
   // Core, not a load-on-demand tail tool (Chip, 2026-10-07): in Cob_advisor's
@@ -203,110 +321,27 @@ export const programGraph: McpToolDefinition = {
     const year = resolveCatalogYearArg(args);
     if (!year) return err("catalog_year is required (see list-catalog-years)");
 
-    let standing: Standing | undefined;
-    if (args.standing !== undefined) {
-      if (
-        typeof args.standing !== "string" ||
-        !STANDINGS.includes(args.standing as Standing)
-      )
-        return err(`standing must be one of: ${STANDINGS.join(", ")}.`);
-      standing = args.standing as Standing;
-    }
+    const sa = parseStudentArgs(args);
+    if ("error" in sa) return err(sa.error);
+    const loaded = loadProgramGraph(program, year, sa.student);
+    if ("error" in loaded) return err(loaded.error);
+    const { graph } = loaded;
 
-    if (
-      args.completed_courses !== undefined &&
-      !Array.isArray(args.completed_courses)
-    )
-      return err(
-        'completed_courses must be a LIST of course codes, e.g. ["GC 1010", "ACCT 2010:C"] — not one string.',
-      );
-    let student: StudentState | undefined;
-    const ignored: string[] = [];
-    if (Array.isArray(args.completed_courses)) {
-      const completed = new Map<string, string | null>();
-      for (const raw of args.completed_courses) {
-        const parsed = typeof raw === "string" ? parseCompleted(raw) : null;
-        if (!parsed) ignored.push(String(raw));
-        else if (parsed[1] === "F")
-          ignored.push(
-            `${String(raw).trim()} (an F does not complete the course)`,
-          );
-        else completed.set(parsed[0], parsed[1]);
-      }
-      student = { completed, ...(standing ? { standing } : {}) };
-    } else if (standing) {
-      student = { completed: new Map(), standing };
-    }
-
-    let db: InstanceType<typeof Database>;
-    try {
-      db = new Database(CATALOG_DB, { readonly: true, fileMustExist: true });
-    } catch {
-      return err(
-        "Could not open the Clemson catalog database. This is NOT the same as the program not existing.",
-      );
-    }
-    let graph: ReturnType<typeof buildProgramGraph>;
-    try {
-      const inputs = loadGraphInputs(db, year, program);
-      if (inputs.plan.groups.length === 0)
-        return err(
-          `"${program}" has no semester-by-semester plan in the ${year} catalog — it is likely a minor or certificate. Use get-program-requirements for what it requires.`,
+    const s = seasonLabelsFor(graph.courses.map((c) => c.code));
+    if ("error" in s)
+      graph.notes.push(`offering history unavailable: ${s.error}`);
+    else
+      for (const c of graph.courses)
+        (c as unknown as Record<string, unknown>).seasons = s.labels.get(
+          c.code,
         );
-      graph = buildProgramGraph(inputs, student);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (/catalog year/i.test(msg))
-        return err(`${msg}. Use list-catalog-years for valid catalog years.`);
-      return err(
-        /program/i.test(msg)
-          ? missingProgramMessage(` ${msg}`)
-          : `Program graph failed: ${msg}`,
-      );
-    } finally {
-      db.close();
-    }
-
-    // Seasons from observed offering history, with recorded department
-    // decisions applied — the same composition as get-course-offerings. Absent
-    // history is reported, never turned into "not offered".
-    try {
-      const decisions = loadOfferingDecisions();
-      const odb = openOfferingsDb();
-      try {
-        const observed = observedTerms(odb);
-        if (observed.length === 0)
-          throw new Error("no schedule snapshots are held");
-        const key = (c: string) => c.replace(/\s+/g, "").toUpperCase();
-        const per = offeringsFor(
-          odb,
-          graph.courses.map((c) => key(c.code)),
-        );
-        for (const c of graph.courses) {
-          const seasons = applyDecisions(
-            seasonRollup(observed, per.get(key(c.code)) ?? []),
-            decisions.get(key(c.code)),
-          );
-          const labels: Record<string, string> = {};
-          for (const [season, r] of Object.entries(seasons))
-            labels[season] = r.label;
-          (c as unknown as Record<string, unknown>).seasons = labels;
-        }
-      } finally {
-        odb.close();
-      }
-    } catch (e) {
-      graph.notes.push(
-        `offering history unavailable: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
 
     return okJson({
       ...graph,
       ...(args.include_edges === true ? { edges: typedEdges(graph) } : {}),
       courses: graph.courses.map(compactCourse),
       encoding_note: COMPACT_NOTE,
-      ...(ignored.length ? { ignored_completed: ignored } : {}),
+      ...(sa.ignored.length ? { ignored_completed: sa.ignored } : {}),
     });
   },
 };
