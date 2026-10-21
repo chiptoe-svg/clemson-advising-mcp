@@ -24,6 +24,7 @@ skill document alongside this one.
 | `get-gen-ed` | 6 gen-ed categories with min credits and allowed course lists; Arts and Humanities carries `subcategories` (Literature / Non-Literature) |
 | `get-course` | One course's catalog entry (title, credits, description, `prereq_text`, coreqs) plus `prerequisite_for` — the courses whose prerequisite names it |
 | `get-program-graph` | **Planning in one call**: a program + catalog year as a graph — requirements, planned courses with structured prerequisite rules, `min_prior_terms`, seasons, `critical_path`; with `completed_courses` a per-course status |
+| `what-if-plan` | **Plan changes, computed**: delay or move a course, skip a term — which courses move, to when, why, and whether graduation slips |
 | `list-courses` | Courses by subject and/or number range (current inventory) — resolves wildcard rows like `MGT @` or `ACCT 3000:3999` |
 | `get-program-requirements` | What a minor or certificate requires |
 | `get-course-details` | (schedule server) catalog info incl. prereqs/coreqs and `prerequisite_for` by `course_code`, or one live section by `crn` |
@@ -178,16 +179,21 @@ lists everything further down.
      `unresolved` / `prereq_text` verbatim; never round it to eligible.
    Say every `assumes` item out loud ("this assumes a C or better in ACCT
    2010"). `coreqs` go in the same term.
-3. Start `critical_path` courses early — `min_prior_terms` is a floor from the
+3. "Can X wait?" — read X's `slack` (terms it can slip; 0 = it cannot).
+   "What if he delays X / takes a co-op term / takes X earlier?" — call
+   `what-if-plan` and quote its `verdict` and `caveat`. Do not derive slip
+   from `critical_path` yourself: off the critical path is not the same as
+   free to slip, because seasons and the last term also decide it.
+4. Start `critical_path` courses early — `min_prior_terms` is a floor from the
    prerequisite chain, not a schedule; `standing_floor` names the first term in
    this plan that meets a class-standing rule (standing is credit-based, so a
    student may reach it sooner or later). Say any `review_note` — it may be a
    department correction to the catalog wording. Seasons are estimates from
    history; a `ruled out` / `confirmed` label is a recorded department
    decision.
-4. Suggest a next-semester slate that covers 15–16 credits, advances unmet
+5. Suggest a next-semester slate that covers 15–16 credits, advances unmet
    requirements, and avoids courses that are not eligible.
-5. Flag every slot where the student must choose, presenting options from
+6. Flag every slot where the student must choose, presenting options from
    `explicit_courses` / `allowed_courses` and quoting `raw_text` for
    prose-only constraints.
 

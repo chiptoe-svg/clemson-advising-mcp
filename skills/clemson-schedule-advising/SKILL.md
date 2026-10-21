@@ -66,6 +66,7 @@ the accepted forms — it is never reported as a term with no data.
 | `get-department-doc`        | A department's advising-policy document                                                                                            | Same provenance and scope gate. Omit `department` to list known ids.                                                                                                                                |
 | `find-requirement-sections` | **The advising join** — sections that fill a named requirement slot AND are offered this term AND are prereq-eligible              | An unknown slot name returns the valid slot list inline, so retry from that list. Prereq check is AND-logic only (see below).                                                                       |
 | `get-program-graph`         | A whole degree as a graph: requirements, planned courses with structured prerequisite rules, chain bounds, seasons, critical path | One call for multi-semester planning. With `completed_courses` (grades optional, `"ACCT 2010:C"`) each course gets eligible / conditional / not_eligible / undetermined — prerequisite OR-logic and same-term rules are exact for plan courses. |
+| `what-if-plan`              | "What happens if…": a course moved later/earlier, a term skipped — courses that move, verdict, caveat | Use instead of deriving it from the graph. `delay_terms` counts fall/spring terms ("the following fall" from a fall term = 2). For "can this wait?", `slack` on get-program-graph already answers. |
 
 Both servers also serve `list-skills` / `get-skill-docs` (catalog:
 `list-catalog-skills` / `get-catalog-skill-docs`) — that is how you are reading this. The
@@ -159,4 +160,4 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
      for absence claims that stopped being true, then updates the stamp.
      (Origin: a bullet denying instructor tools outlived their arrival and
      sent live models paging search-classes instead.) -->
-<!-- limitations-reviewed-against: schedule=94b2337f1f65 catalog=9e9979ee3ccc -->
+<!-- limitations-reviewed-against: schedule=94b2337f1f65 catalog=d24fd4653cfc -->

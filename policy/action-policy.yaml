@@ -167,6 +167,15 @@ actions:
     approval: none
     constraints:
       - public_data_only
+  # What-if-plan (2026-10-20): moves courses or skips a term and pushes what
+  # prerequisites force, from the same rules-only data as program_graph.
+  - id: clemson.plan_whatif
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
 
   # Departmental layer: decisions recorded by departments (departments/<id>/),
   # served only to consumers granted the clemson.department scope. Local file

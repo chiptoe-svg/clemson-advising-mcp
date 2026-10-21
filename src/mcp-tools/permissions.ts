@@ -180,6 +180,12 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.program_graph",
   },
+  // "What happens to graduation if the plan changes?" computed from the
+  // program graph (2026-10-20). Same data as program_graph; read-only.
+  "clemson.plan_whatif": {
+    backend: "external-http",
+    policyActionId: "clemson.plan_whatif",
+  },
 };
 
 export class McpPermissionDeniedError extends Error {
@@ -328,6 +334,7 @@ const CLEMSON_CATALOG_OPS = [
   "clemson.list_courses",
   "clemson.registrar_requirements",
   "clemson.program_graph",
+  "clemson.plan_whatif",
 ];
 
 export const SCOPE_OPERATIONS: Record<string, string[]> = {
@@ -364,6 +371,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.list_courses",
     "clemson.registrar_requirements",
     "clemson.program_graph",
+    "clemson.plan_whatif",
     "clemson.schedule_freshness",
   ],
 };

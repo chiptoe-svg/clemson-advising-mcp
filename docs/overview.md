@@ -337,7 +337,7 @@ One major and catalog year as a **graph**, in one call: every requirement
 every planned course with its term and its prerequisite rule as a structured
 expression, how many terms at least must precede it (prerequisite chain and
 class standing), how many courses depend on it, which seasons it usually runs,
-and the critical path — the longest prerequisite chain, to start early. Given a
+and the critical path — the longest prerequisite chain, to start early. Each planned course also carries its slack: how many terms it can slip before graduation does. Given a
 student's completed courses (optionally with grades) it adds a status per
 course: eligible (with any same-term partner), conditional (coursework done,
 a listed condition such as consent remains), not eligible, or undetermined
@@ -345,6 +345,19 @@ a listed condition such as consent remains), not eligible, or undetermined
 rules come from hand-reviewed expressions for the plan courses; a rule whose
 catalog text changed since review is reported, never used. It never decides
 whether a requirement is satisfied — that is Degree Works.
+
+#### `what-if-plan`
+
+"What happens to graduation if the plan changes?" — computed, so the model
+quotes an answer instead of deriving one. The changes are a short list: move a
+course later or earlier (a retake is a move), or skip a term (a co-op, study
+abroad, a term off). It keeps corequisites together, pushes every later course
+whose prerequisites force it (skipping terms a course is not usually offered),
+and reports any prerequisite an earlier move breaks. It returns whether
+graduation slips, each course that moves (from, to, why) and a verdict
+sentence. It is measured against the published plan's term order: it does not
+check course load, offerings are history rather than a promise, and Degree
+Works still decides what counts.
 
 #### `get-gen-ed`
 

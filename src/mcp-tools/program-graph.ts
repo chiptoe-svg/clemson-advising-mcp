@@ -274,9 +274,11 @@ export const programGraph: McpToolDefinition = {
       "student). assumes lists grade minimums taken as met because no grade " +
       "was given. coreqs must be taken in the same term. required_by counts " +
       "courses that need this one; one_way_into counts courses where it is " +
-      "only one option. Use this FIRST for multi-semester planning, 'what " +
-      "should I take next', or 'what happens if I delay X' — instead of " +
-      "calling get-course-details course by course. critical_path is the " +
+      "only one option. slack = how many terms a planned course can slip " +
+      "before graduation does. Use this FIRST for multi-semester planning or " +
+      "'what should I take next' — instead of calling get-course-details " +
+      "course by course. For 'what if he delays X / takes a term off / takes " +
+      "X earlier', call what-if-plan: it computes the answer. critical_path is the " +
       "longest prerequisite chain; start it early. Prerequisite expressions: " +
       "& = all, | = any, ~ = may be taken the same term, >=C = minimum grade, " +
       '[standing:junior] etc. are conditions to confirm, ?"..." is a clause ' +

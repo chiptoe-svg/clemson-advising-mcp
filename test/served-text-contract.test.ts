@@ -104,3 +104,11 @@ test("the tools that compete with the teaching tools point to them", async () =>
     assert.match(d, /get-teaching-load/, t.tool.name);
   }
 });
+
+test("get-program-graph routes what-if questions to what-if-plan and explains slack", async () => {
+  // T8b 2026-10-20: models given the graph misread it (Spark 1/8, 27B 5/8).
+  const { programGraph } = await import("../src/mcp-tools/program-graph.js");
+  const d = programGraph.tool.description ?? "";
+  assert.match(d, /what-if-plan/);
+  assert.match(d, /slack/);
+});
