@@ -74,7 +74,7 @@ const COMPACT_NOTE =
   "parse absent = complete; planned absent = not in the plan (reached only as " +
   "a prerequisite). Which requirement a course satisfies: see requirements[].courses." +
   " slack = fall/spring terms it can slip before graduation does (4 = 4+); " +
-  "absent for completed, choice and unplanned courses.";
+  "absent for completed, choice and unplanned courses, or if not computable.";
 
 function compactCourse(
   c: ReturnType<typeof buildProgramGraph>["courses"][number],
@@ -348,13 +348,15 @@ export const programGraph: McpToolDefinition = {
     const done = new Set(sa.student?.completed.keys() ?? []);
     for (const c of graph.courses) {
       if (!c.planned || c.choice || done.has(c.code)) continue;
-      (c as unknown as Record<string, unknown>).slack = slackTerms(
+      const slack = slackTerms(
         graph,
         loaded.planTerms,
         c.code,
         done,
         seasonMap,
       );
+      if (slack !== undefined)
+        (c as unknown as Record<string, unknown>).slack = slack;
     }
 
     return okJson({

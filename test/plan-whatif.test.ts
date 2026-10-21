@@ -394,3 +394,140 @@ test("T8b on real data: delaying GC 3400 two terms does not slip graduation", ()
     db.close();
   }
 });
+
+// --- Final hostile review fixes (2026-10-21) ---------------------------------
+
+const fallOnly: SeasonLabels = {
+  fall: "very likely",
+  spring: "very unlikely",
+  summer: "very unlikely",
+};
+
+test("review 1: changing both members of a corequisite pair keeps them together, in either order", () => {
+  // BIOL 1030 + BIOL 1050 each one term later put the lab two terms later.
+  for (const changes of [
+    [
+      { course: "D", delayTerms: 1 },
+      { course: "DL", delayTerms: 1 },
+    ],
+    [
+      { course: "DL", delayTerms: 1 },
+      { course: "D", delayTerms: 1 },
+    ],
+  ]) {
+    const m = moved(run(BASE(), changes));
+    assert.equal(m.D, "Junior/Second Semester", JSON.stringify(changes));
+    assert.equal(m.DL, "Junior/Second Semester", JSON.stringify(changes));
+  }
+});
+
+test("review 2: a corequisite carried along must be offered in the term it lands", () => {
+  // BIOL 1060 (fall: very unlikely) was dragged into a fall term with BIOL 1040.
+  const seasons = new Map<string, SeasonLabels>([["DL", fallOnly]]);
+  const bothSpringOff = new Map<string, SeasonLabels>([
+    [
+      "DL",
+      { fall: "very unlikely", spring: "very likely", summer: "very unlikely" },
+    ],
+  ]);
+  const r = run(BASE(), [{ course: "D", delayTerms: 2 }], {
+    seasons: bothSpringOff,
+  });
+  // D wants Senior/First (fall); DL is spring-only, so the pair goes together
+  // to the first term both can use: Senior/Second.
+  assert.equal(moved(r).D, "Senior/Second Semester");
+  assert.equal(moved(r).DL, "Senior/Second Semester");
+  assert.ok(seasons); // fallOnly fixture used below
+});
+
+test("review 3: move_to a later term the course cannot use is an error, not a silent relabel", () => {
+  assert.throws(
+    () => run(BASE(), [{ course: "D", moveTo: "Junior/Summer" }]),
+    /cannot move to Junior\/Summer/,
+  );
+  assert.throws(
+    () =>
+      run(BASE(), [
+        { skipTerm: "Senior/First Semester" },
+        { course: "D", moveTo: "Senior/First Semester" },
+      ]),
+    /cannot move to Senior\/First Semester/,
+  );
+  const seasons = new Map<string, SeasonLabels>([["D", fallOnly]]);
+  assert.throws(
+    () =>
+      run(BASE(), [{ course: "D", moveTo: "Junior/Second Semester" }], {
+        seasons,
+      }),
+    /not usually offered in spring/,
+  );
+});
+
+test("review 4: moving earlier than a class-standing rule allows is reported", () => {
+  const g = BASE();
+  g.courses.push(
+    course("S", "Senior/Second Semester", null, {
+      standing_floor: "Senior/First Semester",
+    }),
+  );
+  const r = run(g, [{ course: "S", moveTo: "Junior/First Semester" }]);
+  assert.ok(
+    r.prereq_problems.some((p) => /standing/.test(p.problem)),
+    JSON.stringify(r.prereq_problems),
+  );
+  assert.match(r.verdict, /not possible as asked/i);
+});
+
+test("review 5: a plan that never reaches a senior year has no graduation to slip", () => {
+  const g = graph([course("F", "Pre-Business Freshman/First Semester")]);
+  const terms = [
+    "Pre-Business Freshman/First Semester",
+    "Pre-Business Freshman/Second Semester",
+  ];
+  assert.throws(
+    () => run(g, [{ course: "F", delayTerms: 1 }], { terms }),
+    /does not reach/,
+  );
+  assert.equal(slackTerms(g, terms, code("F"), none), undefined);
+});
+
+test("review 6: a course not offered recently does not sink the answer; the assumption is stated", () => {
+  // ENGL 3040 (fall/spring unlikely, summer uncertain) made Accounting
+  // 2024-2025 what-ifs throw and gave it a false slack of 0.
+  const seasons = new Map<string, SeasonLabels>([
+    ["E", { fall: "unlikely", spring: "unlikely", summer: "uncertain" }],
+  ]);
+  const r = run(BASE(), [{ course: "D", delayTerms: 2 }], { seasons });
+  assert.equal(moved(r).E, "Senior/Second Semester");
+  assert.ok(
+    r.assumptions.some(
+      (a) => /E/.test(a) && /not been offered recently/.test(a),
+    ),
+    JSON.stringify(r.assumptions),
+  );
+});
+
+test("review 6: slack is absent, never 0, when the engine cannot answer", () => {
+  const g = graph([
+    course("X", "Junior/First Semester", "Y"),
+    course("Y", "Junior/Second Semester", "X"),
+  ]);
+  assert.equal(slackTerms(g, TERMS, code("X"), none), undefined);
+});
+
+test("review 7: the quoted verdict says why a course jumped further, and names an uncertain season", () => {
+  const off = run(BASE(), [{ course: "D", delayTerms: 1 }], {
+    seasons: new Map([["D", fallOnly]]),
+  });
+  assert.equal(moved(off).D, "Senior/First Semester");
+  assert.match(off.verdict, /not usually offered in spring/);
+  const risky = run(BASE(), [{ course: "D", delayTerms: 1 }], {
+    seasons: new Map([
+      [
+        "D",
+        { fall: "very likely", spring: "uncertain", summer: "very unlikely" },
+      ],
+    ]),
+  });
+  assert.match(risky.verdict, /uncertain/);
+});
