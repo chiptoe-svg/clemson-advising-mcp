@@ -310,10 +310,7 @@ export function whatIf(
         return { at: -Infinity };
     }
   };
-  const parsed = new Map<string, Expr>();
-  for (const c of graph.courses)
-    if (c.prereq && (c.parse === "complete" || c.parse === "partial"))
-      parsed.set(c.code, parsePrereq(c.prereq));
+  const parsed = parsedRules(graph);
 
   let changed = true;
   let rounds = 0;
@@ -460,6 +457,22 @@ export function slackTerms(
     }
   }
   return cap;
+}
+
+/** Parsed rules per graph, cached: slackTerms runs whatIf up to 4 times per
+ *  course, and re-parsing every rule each time tripled get-program-graph's
+ *  time (2.7 -> 7.4 ms on GC BS). */
+const parseCache = new WeakMap<ProgramGraph, Map<string, Expr>>();
+function parsedRules(graph: ProgramGraph): Map<string, Expr> {
+  let m = parseCache.get(graph);
+  if (!m) {
+    m = new Map();
+    for (const c of graph.courses)
+      if (c.prereq && (c.parse === "complete" || c.parse === "partial"))
+        m.set(c.code, parsePrereq(c.prereq));
+    parseCache.set(graph, m);
+  }
+  return m;
 }
 
 function courseLeaves(e: Expr): string[] {

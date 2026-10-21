@@ -33,6 +33,7 @@ import {
   requiredCodes,
   type Expr,
 } from "../prereq-expr.js";
+import { slackTerms, type SeasonLabels } from "../plan-whatif.js";
 import { assertMcpOperation } from "./permissions.js";
 import {
   CATALOG_YEAR_ARG_DESCRIPTION,
@@ -71,7 +72,9 @@ function parseCompleted(raw: string): [string, string | null] | null {
 const COMPACT_NOTE =
   "Course fields omitted when default: required_by / one_way_into absent = 0; " +
   "parse absent = complete; planned absent = not in the plan (reached only as " +
-  "a prerequisite). Which requirement a course satisfies: see requirements[].courses.";
+  "a prerequisite). Which requirement a course satisfies: see requirements[].courses." +
+  " slack = fall/spring terms it can slip before graduation does (4 = 4+); " +
+  "absent for completed, choice and unplanned courses.";
 
 function compactCourse(
   c: ReturnType<typeof buildProgramGraph>["courses"][number],
@@ -335,6 +338,22 @@ export const programGraph: McpToolDefinition = {
         (c as unknown as Record<string, unknown>).seasons = s.labels.get(
           c.code,
         );
+
+    // How long each planned course can wait, from the what-if engine with the
+    // same seasons. A course whose slack cannot be computed simply has none.
+    const seasonMap =
+      "error" in s ? undefined : (s.labels as Map<string, SeasonLabels>);
+    const done = new Set(sa.student?.completed.keys() ?? []);
+    for (const c of graph.courses) {
+      if (!c.planned || c.choice || done.has(c.code)) continue;
+      (c as unknown as Record<string, unknown>).slack = slackTerms(
+        graph,
+        loaded.planTerms,
+        c.code,
+        done,
+        seasonMap,
+      );
+    }
 
     return okJson({
       ...graph,

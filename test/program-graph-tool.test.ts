@@ -172,3 +172,26 @@ test("an unknown catalog year says so, not that the program is missing", async (
   assert.match(res.content[0].text, /catalog year/i);
   assert.doesNotMatch(res.content[0].text, /program is required/);
 });
+
+// --- slack (2026-10-20) -------------------------------------------------------
+// "Can this wait?" as one number per course, computed by the what-if engine:
+// how many fall/spring terms it can slip before graduation does (4 = 4+).
+
+test("slack: the last critical-path course has none; GC 3400 can wait two terms", async () => {
+  const { body } = await call(GC);
+  const find = (code: string) =>
+    (body.courses as (Course & { slack?: number })[]).find(
+      (c) => c.code === code,
+    )!;
+  assert.equal(find("GC 4480").slack, 0);
+  assert.ok(find("GC 3400").slack! >= 2, JSON.stringify(find("GC 3400")));
+  assert.match(body.encoding_note, /slack/);
+});
+
+test("slack is absent for completed courses", async () => {
+  const { body } = await call({ ...GC, completed_courses: ["GC 1020"] });
+  const c = (body.courses as (Course & { slack?: number })[]).find(
+    (x) => x.code === "GC 1020",
+  )!;
+  assert.equal(c.slack, undefined);
+});
