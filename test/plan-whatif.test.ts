@@ -9,6 +9,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import Database from "better-sqlite3";
+
+import { CATALOG_DB } from "../src/config-mcp.ts";
+import { buildProgramGraph, loadGraphInputs } from "../src/program-graph.ts";
+
 import {
   labelOf,
   slackTerms,
@@ -361,4 +366,31 @@ test("slack: terms a course can slip before graduation does (cap 4)", () => {
   assert.equal(slack("E"), 1); // Senior/First -> Senior/Second only
   assert.equal(slack("D"), 2); // a third term pushes E past the end
   assert.equal(slack("A"), 4); // 4 = four or more
+});
+
+// Cob_advisor's T8b on the committed catalog.db: GC 3400 Junior fall -> the
+// following fall (2 regular terms). Hand-checked 2026-10-20: GC 3400 is off
+// the critical path; its only plan dependent is GC 4440, which moves Senior
+// fall -> Senior spring.
+test("T8b on real data: delaying GC 3400 two terms does not slip graduation", () => {
+  const db = new Database(CATALOG_DB, { readonly: true, fileMustExist: true });
+  try {
+    const inp = loadGraphInputs(db, "2026-2027", "Graphic Communications, BS");
+    const g = buildProgramGraph(inp);
+    const r = whatIf(
+      g,
+      inp.plan.groups.map((x) => x.label),
+      {
+        changes: [{ course: "GC 3400", delayTerms: 2 }],
+        completed: new Set(),
+      },
+    );
+    const m = Object.fromEntries(r.moves.map((x) => [x.code, x.to]));
+    assert.deepEqual(r.on_critical_path, []);
+    assert.equal(m["GC 3400"], "Senior/First Semester");
+    assert.equal(m["GC 4440"], "Senior/Second Semester");
+    assert.equal(r.slips_graduation, false);
+  } finally {
+    db.close();
+  }
 });
