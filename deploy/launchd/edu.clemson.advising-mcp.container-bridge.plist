@@ -31,6 +31,13 @@
 
   <key>EnvironmentVariables</key>
   <dict>
+    <!-- Trust OpenSSL's CA bundle (Homebrew openssl@3/cert.pem), not Node's
+         compiled-in roots. 2026-10-21: node 22.22.2's bundled store still
+         trusts the compromised "emSign ECC Root CA - G3" (removed upstream
+         in 22.23.4); the Homebrew bundle does not. Drop this once node@22
+         is at 22.23.4 or later. -->
+    <key>NODE_OPTIONS</key>
+    <string>--use-openssl-ca</string>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>HOME</key>
