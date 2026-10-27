@@ -380,10 +380,12 @@ export function makeSearchClasses(
         // back as a PARTIAL RESULT asking for a narrower query.
         const MAX_PAGES = 20;
         const got: ClemsonSection[] = [];
+        const totals = new Set<number>();
         let result: Awaited<ReturnType<typeof live>> = null;
         for (let i = 0; i < MAX_PAGES; i++) {
           result = await live(500, got.length);
           if (result === null) return unavailable;
+          totals.add(result.totalCount);
           got.push(...result.sections);
           if (got.length >= result.totalCount || result.sections.length === 0)
             break;
@@ -391,13 +393,15 @@ export function makeSearchClasses(
         if (result === null || got.length < result.totalCount)
           return unavailable;
 
-        // Pages come from separate Banner sessions, so a row can repeat on
-        // one page and another be skipped while the row count still reaches
-        // totalCount (hostile review, 2026-10-27). Keep one copy per CRN, and
-        // count the fetch complete only when the distinct CRNs add up.
+        // Pages come from separate Banner sessions, so they can disagree: a
+        // row repeated on one page and another skipped while the row count
+        // still reaches totalCount, or a section dropped between pages that
+        // shifts the offsets (hostile review, 2026-10-27). Keep one copy per
+        // CRN; the fetch is complete only when every page reported the same
+        // total and the distinct CRNs reach it.
         const fetched = [...new Map(got.map((s) => [s.crn, s])).values()];
-        const complete =
-          !args.open_seats_only && fetched.length >= result.totalCount;
+        const whole = totals.size === 1 && fetched.length >= result.totalCount;
+        const complete = !args.open_seats_only && whole;
 
         // Write the whole fetch (before the client-side filters) back into
         // the snapshot, so the next non-refresh answer agrees with this one.
@@ -415,6 +419,9 @@ export function makeSearchClasses(
             log.warn("search-classes write-back threw", { err: String(e) });
           }
         }
+        // A fetch known to be short is an error, never a list with sections
+        // silently missing.
+        if (!whole) return unavailable;
 
         let sections = toEngineSections(fetched);
         if (instructorFilter) {

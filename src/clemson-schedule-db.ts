@@ -4,6 +4,7 @@
 // Schema: sections + meetings (per-day interval rows) + instructors + meta.
 // Atomic write: write to <term>.db.tmp, fs.renameSync to <term>.db.
 // Conflict check works directly on the meetings table via interval overlap.
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import Database from "better-sqlite3";
@@ -259,18 +260,37 @@ function removeSqliteFiles(file: string): void {
     fs.rmSync(file + ext, { force: true });
 }
 
+/** Copies (and journals) a killed write left behind. Only stale ones: a fresh
+ *  copy may be another writer's, mid-write. */
+const STALE_SLICE_COPY_MS = 10 * 60 * 1000;
+function sweepStaleSliceCopies(live: string): void {
+  const dir = path.dirname(live);
+  const prefix = `${path.basename(live)}.slice-tmp`;
+  for (const f of fs.readdirSync(dir)) {
+    if (!f.startsWith(prefix)) continue;
+    const full = path.join(dir, f);
+    try {
+      if (Date.now() - fs.statSync(full).mtimeMs > STALE_SLICE_COPY_MS)
+        fs.rmSync(full, { force: true });
+    } catch {
+      /* raced with its owner: theirs to clean */
+    }
+  }
+}
+
 /**
  * Write a live fetch back into the term's snapshot (2026-10-27: a refresh
  * showed GC 3450 at 2:00 and the next snapshot answer in the same chat showed
  * the morning's 3:30).
  *
- * The live file is never opened for writing: the slice is applied to a copy,
- * which is renamed over it, exactly as the nightly full write does. A write
- * killed part-way leaves only the copy (cleared by the next write), never a
- * journal beside the live file — the hostile review of the in-place version
- * reproduced readers failing on such a journal, and the next nightly file
- * being silently rolled back by it. A concurrent nightly can win the rename
- * and drop this update; that is a lost refresh, never corruption.
+ * The live file is never opened for writing: the slice is applied to this
+ * write's own copy, which is renamed over it, exactly as the nightly full
+ * write does. A write killed part-way leaves only its copy (swept once stale),
+ * never a journal beside the live file — the hostile review of the in-place
+ * version reproduced readers failing on such a journal, and the next nightly
+ * file being silently rolled back by it. If the file was replaced between the
+ * copy and the rename (a nightly), this write is dropped so the nightly
+ * stands; a nightly that renames after this write simply supersedes it.
  *
  * A complete fetch replaces its slice, dropping sections Banner no longer
  * lists. An incomplete one (Banner-side filters such as open seats only, or
@@ -294,10 +314,13 @@ export function writeScheduleSlice(
     return false;
   const p = scheduleDbPath(term);
   if (!fs.existsSync(p)) return false;
-  const tmp = `${p}.slice-tmp`;
+  // Each write its own copy: a name shared across processes let concurrent
+  // writers delete and rename each other's copies (hostile review, round 2).
+  const tmp = `${p}.slice-tmp-${process.pid}-${crypto.randomBytes(4).toString("hex")}`;
   const unique = [...new Map(sections.map((s) => [s.crn, s])).values()];
   try {
-    removeSqliteFiles(tmp); // a killed earlier write's leftovers
+    sweepStaleSliceCopies(p);
+    const ino = fs.statSync(p).ino;
     fs.copyFileSync(p, tmp);
     const db = new Database(tmp, { fileMustExist: true });
     try {
@@ -337,6 +360,15 @@ export function writeScheduleSlice(
       })();
     } finally {
       db.close();
+    }
+    // A nightly that replaced the file since the copy was taken wins: renaming
+    // this pre-nightly copy over it would throw the whole refresh away.
+    if (fs.statSync(p).ino !== ino) {
+      log.warn("clemson schedule slice dropped: snapshot replaced meanwhile", {
+        term,
+        slice: sliceKey(slice),
+      });
+      return false;
     }
     fs.renameSync(tmp, p);
     log.info("clemson schedule slice written", {

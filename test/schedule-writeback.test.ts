@@ -305,13 +305,21 @@ test("the live file is replaced by rename, never written in place", () => {
     assert.equal(fs.existsSync(p + ext), false, ext);
 });
 
-test("leftovers of a crashed earlier write are cleared, never replayed", () => {
+test("stale leftovers of a killed write are swept; another writer's fresh copy is left alone", () => {
   const p = scheduleDbPath(TERM);
-  for (const f of fs.readdirSync(path.dirname(p)))
-    if (f.startsWith(`${TERM}.db.`)) fs.rmSync(path.join(path.dirname(p), f));
-  const tmp = `${p}.slice-tmp`;
-  fs.writeFileSync(tmp, "junk from a killed write");
-  fs.writeFileSync(`${tmp}-journal`, "junk journal");
+  const dir = path.dirname(p);
+  const old = Date.now() / 1000 - 3600;
+  const stale = [
+    `${p}.slice-tmp`,
+    `${p}.slice-tmp-1-dead`,
+    `${p}.slice-tmp-1-dead-journal`,
+  ];
+  for (const f of stale) {
+    fs.writeFileSync(f, "junk from a killed write");
+    fs.utimesSync(f, old, old);
+  }
+  const fresh = `${p}.slice-tmp-2-live`;
+  fs.writeFileSync(fresh, "another writer, mid-write");
   assert.ok(
     writeScheduleSlice(
       TERM,
@@ -321,8 +329,65 @@ test("leftovers of a crashed earlier write are cleared, never replayed", () => {
     ),
   );
   assert.deepEqual(crnsOf(), ["16071", "300"]);
-  assert.equal(fs.existsSync(tmp), false);
-  assert.equal(fs.existsSync(`${tmp}-journal`), false);
+  for (const f of stale) assert.equal(fs.existsSync(f), false, f);
+  assert.equal(fs.existsSync(fresh), true);
+  fs.rmSync(fresh);
+  assert.deepEqual(
+    fs.readdirSync(dir).filter((f) => f.includes(".slice-tmp")),
+    [],
+  );
+});
+
+// Round 2, finding 1: a nightly that lands between the copy and the rename
+// must not be overwritten by the pre-nightly copy.
+test("a nightly rewrite during the slice write wins; the slice write is refused", () => {
+  const realCopy = fs.copyFileSync;
+  fs.copyFileSync = ((src: fs.PathLike, dest: fs.PathLike) => {
+    realCopy(src, dest);
+    fs.copyFileSync = realCopy;
+    writeScheduleDb({
+      term: TERM,
+      termDescription: "Spring 2027",
+      fetchedAt: "2026-10-28T09:00:00.000Z",
+      sectionCount: 1,
+      sections: [sec("900", "ENGL1010", "MW", "0800", "0850", "100")],
+    });
+  }) as typeof fs.copyFileSync;
+  try {
+    const ok = writeScheduleSlice(
+      TERM,
+      { subject: "GC", complete: true },
+      [sec("16071", "GC3450", "TR", "1400", "1515")],
+      "2026-10-27T21:20:00.000Z",
+    );
+    assert.equal(ok, false);
+  } finally {
+    fs.copyFileSync = realCopy;
+  }
+  assert.deepEqual(crnsOf(), ["900"]); // the nightly's file stands
+});
+
+// Round 2, finding 2: a section removed from Banner between pages shifts the
+// offsets; a fetch whose pages disagree on the total is not complete.
+test("search-classes: pages that disagree on the total answer with an error and delete nothing", async () => {
+  const pages: [number, Section[]][] = [
+    [2, [sec("16071", "GC3450", "TR", "1400", "1515")]],
+    [1, [sec("400", "GC2000", "F", "0800", "0850")]],
+  ];
+  let call = 0;
+  const tool = makeSearchClasses({
+    searchLive: async (): Promise<ClemsonSearchResult> => {
+      const [totalCount, sections] = pages[call++] ?? [0, []];
+      return { totalCount, sections, snapshotDate: null, scope: "live" };
+    },
+  });
+  const res = (await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+  })) as { isError?: boolean };
+  assert.equal(res.isError, true);
+  assert.ok(crnsOf().includes("100"), "GC1010 still listed by Banner, kept");
 });
 
 // I2: pages from separate Banner sessions can repeat one row and skip another
@@ -341,13 +406,14 @@ test("search-classes: a repeated row across pages neither deletes the skipped se
       scope: "live",
     }),
   });
-  const body = json(
-    await tool.handler({ term: "Spring 2027", subject: "GC", refresh: true }),
-  );
-  assert.deepEqual(body.sections.map((s: { crn: string }) => s.crn).sort(), [
-    "100",
-    "16071",
-  ]);
+  const res = (await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+  })) as { isError?: boolean };
+  // Round 2, finding 4: a fetch known to be short is an error, never a list
+  // with a section silently missing.
+  assert.equal(res.isError, true);
   assert.deepEqual(crnsOf(), ["100", "16071", "300"]); // nothing deleted
   assert.deepEqual(meetingsOf("16071"), ["R840", "T840"]); // updated, not doubled
 });
@@ -487,7 +553,7 @@ test("a REAL hot journal left by a killed write is cleared, not replayed into th
   const { spawnSync } = await import("node:child_process");
   const { createRequire } = await import("node:module");
   const p = scheduleDbPath(TERM);
-  const tmp = `${p}.slice-tmp`;
+  const tmp = `${p}.slice-tmp-1-killed`;
   // A killed writer: a different database at the copy's path, a big change
   // spilled to disk under a one-page cache, then SIGKILL mid-transaction.
   const bsql = createRequire(import.meta.url).resolve("better-sqlite3");
@@ -506,6 +572,8 @@ test("a REAL hot journal left by a killed write is cleared, not replayed into th
   );
   assert.equal(child.signal, "SIGKILL");
   assert.ok(fs.existsSync(`${tmp}-journal`), "the kill left a hot journal");
+  const old = Date.now() / 1000 - 3600;
+  for (const f of [tmp, `${tmp}-journal`]) fs.utimesSync(f, old, old);
   assert.ok(
     writeScheduleSlice(
       TERM,
@@ -516,6 +584,7 @@ test("a REAL hot journal left by a killed write is cleared, not replayed into th
   );
   assert.deepEqual(crnsOf(), ["16071", "300"]);
   assert.deepEqual(meetingsOf("16071"), ["R840", "T840"]);
+  assert.equal(fs.existsSync(`${tmp}-journal`), false, "swept");
   const db = new Database(p, { readonly: true });
   assert.equal(db.pragma("integrity_check", { simple: true }), "ok");
   db.close();
