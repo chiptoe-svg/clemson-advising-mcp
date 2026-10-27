@@ -83,15 +83,22 @@ export function reviewFields(
   return r?.note ? { review_note: r.note, reviewed_prereq: r.expr } : {};
 }
 
+type ReviewFieldSet = {
+  prereq_expr?: string;
+  review_note?: string;
+  reviewed_prereq?: string;
+};
+
 /** reviewFields for callers without a catalog handle (the schedule server's
- *  course tools). An unreadable catalog adds nothing — never an error. */
+ *  course tools). An unreadable catalog adds nothing — never an error.
+ *  `expr` also adds prereq_expr — the reviewed rule for EVERY course that has
+ *  a current one, note or not — for structured readers such as the advisor's
+ *  graduation planner (get-course-facts; 2026-10-27). */
 export function reviewFieldsFor(
   codes: string[],
-): Map<string, { review_note?: string; reviewed_prereq?: string }> {
-  const out = new Map<
-    string,
-    { review_note?: string; reviewed_prereq?: string }
-  >();
+  opts: { expr?: boolean } = {},
+): Map<string, ReviewFieldSet> {
+  const out = new Map<string, ReviewFieldSet>();
   let db: Database.Database;
   try {
     db = new Database(CATALOG_DB, { readonly: true, fileMustExist: true });
@@ -100,7 +107,13 @@ export function reviewFieldsFor(
   }
   try {
     const rules = reviewedRules(db);
-    for (const c of codes) out.set(c, reviewFields(rules, c));
+    for (const c of codes) {
+      const r = rules.get(c);
+      out.set(c, {
+        ...(opts.expr && r ? { prereq_expr: r.expr } : {}),
+        ...reviewFields(rules, c),
+      });
+    }
   } finally {
     db.close();
   }

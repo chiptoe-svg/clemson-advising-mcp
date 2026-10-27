@@ -88,3 +88,34 @@ test("both servers give the same reverse answer", async () => {
   const b = await body(getCourseDetails, { course_code: "GC 1050" });
   assert.deepEqual(a.prerequisite_for, b.prerequisite_for);
 });
+
+// --- prereq_expr on get-course-facts (2026-10-27) ----------------------------
+// The advisor's graduation planner reads get-course-facts and had to guess a
+// rule's structure from prereq_text; it gives up on any rule mixing "and" with
+// "or" (373 catalog rules), so GC 4500 reached it as "undetermined". Every
+// course with a current reviewed rule now carries the structured expression,
+// whether or not the reviewer left a note worth telling the student.
+
+test("get-course-facts: prereq_expr for every reviewed rule, note or not", async () => {
+  const b = await body(getCourseFacts, {
+    courses: ["GC 4500", "GC 2070", "GC 2990"],
+  });
+  const by = Object.fromEntries(
+    (b.courses as { code: string }[]).map((c) => [c.code, c]),
+  ) as Record<
+    string,
+    { prereq_expr?: string; review_note?: string; reviewed_prereq?: string }
+  >;
+  // A rule with no shown note: expression only, no correction fields.
+  assert.equal(
+    by["GC 4500"].prereq_expr,
+    "GC 3500 & (GC 4060 | GC 4400) & ~COOP 2020",
+  );
+  assert.equal(by["GC 4500"].review_note, undefined);
+  assert.equal(by["GC 4500"].reviewed_prereq, undefined);
+  // A correction: the expression AND the fields that tell the student.
+  assert.match(by["GC 2070"].prereq_expr ?? "", /GC 1050/);
+  assert.match(by["GC 2070"].review_note ?? "", /GC 1050/);
+  // No reviewed rule: absent, so the caller falls back to prereq_text.
+  assert.equal(by["GC 2990"].prereq_expr, undefined);
+});

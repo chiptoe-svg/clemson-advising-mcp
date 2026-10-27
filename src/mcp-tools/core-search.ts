@@ -770,7 +770,10 @@ export const getCourseDetails: McpToolDefinition = makeGetCourseDetails();
 const GET_COURSE_FACTS_DESCRIPTION =
   "Catalog facts for MANY courses in one call (up to 200 codes, normalized, " +
   "duplicates collapsed): credits, title, prereq_text (plus review_note / " +
-  "reviewed_prereq where a reviewer corrected it — use those), prereq_parsed, " +
+  "reviewed_prereq where a reviewer corrected it — use those), prereq_expr " +
+  "(the hand-reviewed rule as a structured expression — & all, | any, ~ same " +
+  'term, >=C grade, [cond:value], ?"text" — for every course that has one; ' +
+  "absent: read prereq_text), prereq_parsed, " +
   "coreq_parsed, and the structured coreqs pairing — the get-course-details " +
   "catalog fields a degree audit needs, batch-shaped: pass every course of " +
   "a plan at once. Three-state per entry: found true with the facts; found " +
@@ -849,7 +852,7 @@ export function makeGetCourseFacts(
         return err(`Not course codes: ${bad.join(", ")} — e.g. "GC 3400".`);
       try {
         const courses: Record<string, unknown>[] = [];
-        const reviews = reviewFieldsFor(codes);
+        const reviews = reviewFieldsFor(codes, { expr: true });
         for (const code of codes) {
           const c = (await getCourse(code)) as Record<string, unknown> | null;
           if (c === null || c === undefined) {
