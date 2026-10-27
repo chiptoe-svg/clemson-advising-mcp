@@ -283,3 +283,240 @@ test("search-classes: a filtered refresh writes the whole fetched subject, not j
   assert.deepEqual(crnsOf(), ["100", "16071", "300"]);
   assert.deepEqual(meetingsOf("16071"), ["R840", "T840"]);
 });
+
+// --- hostile review 2026-10-27 -------------------------------------------------
+// C1: an in-place write killed mid-transaction left a hot -journal beside the
+// live file: readers failed, and the next nightly file was silently rolled
+// back. The live file must only ever be replaced by rename.
+
+test("the live file is replaced by rename, never written in place", () => {
+  const p = scheduleDbPath(TERM);
+  const before = fs.statSync(p).ino;
+  assert.ok(
+    writeScheduleSlice(
+      TERM,
+      { subject: "GC", complete: true },
+      [sec("16071", "GC3450", "TR", "1400", "1515")],
+      "2026-10-27T21:20:00.000Z",
+    ),
+  );
+  assert.notEqual(fs.statSync(p).ino, before);
+  for (const ext of ["-journal", "-wal", "-shm"])
+    assert.equal(fs.existsSync(p + ext), false, ext);
+});
+
+test("leftovers of a crashed earlier write are cleared, never replayed", () => {
+  const p = scheduleDbPath(TERM);
+  for (const f of fs.readdirSync(path.dirname(p)))
+    if (f.startsWith(`${TERM}.db.`)) fs.rmSync(path.join(path.dirname(p), f));
+  const tmp = `${p}.slice-tmp`;
+  fs.writeFileSync(tmp, "junk from a killed write");
+  fs.writeFileSync(`${tmp}-journal`, "junk journal");
+  assert.ok(
+    writeScheduleSlice(
+      TERM,
+      { subject: "GC", complete: true },
+      [sec("16071", "GC3450", "TR", "1400", "1515")],
+      "2026-10-27T21:20:00.000Z",
+    ),
+  );
+  assert.deepEqual(crnsOf(), ["16071", "300"]);
+  assert.equal(fs.existsSync(tmp), false);
+  assert.equal(fs.existsSync(`${tmp}-journal`), false);
+});
+
+// I2: pages from separate Banner sessions can repeat one row and skip another
+// while the row count still reaches totalCount.
+
+test("search-classes: a repeated row across pages neither deletes the skipped section nor doubles meetings", async () => {
+  const A = sec("100", "GC1010", "MW", "0900", "0950");
+  const B = sec("16071", "GC3450", "TR", "1400", "1515");
+  const pages = [[A, B], [B]];
+  let call = 0;
+  const tool = makeSearchClasses({
+    searchLive: async (): Promise<ClemsonSearchResult> => ({
+      totalCount: 3,
+      sections: pages[call++] ?? [],
+      snapshotDate: null,
+      scope: "live",
+    }),
+  });
+  const body = json(
+    await tool.handler({ term: "Spring 2027", subject: "GC", refresh: true }),
+  );
+  assert.deepEqual(body.sections.map((s: { crn: string }) => s.crn).sort(), [
+    "100",
+    "16071",
+  ]);
+  assert.deepEqual(crnsOf(), ["100", "16071", "300"]); // nothing deleted
+  assert.deepEqual(meetingsOf("16071"), ["R840", "T840"]); // updated, not doubled
+});
+
+test("a duplicate CRN in one write does not double its meetings", () => {
+  const B = sec("16071", "GC3450", "TR", "1400", "1515");
+  assert.ok(
+    writeScheduleSlice(
+      TERM,
+      { subject: "GC", complete: false },
+      [B, B],
+      "2026-10-27T21:20:00.000Z",
+    ),
+  );
+  assert.deepEqual(meetingsOf("16071"), ["R840", "T840"]);
+});
+
+// Guards the review's mutations showed were untested.
+
+test("a complete GC write leaves a GCX subject alone", () => {
+  assert.ok(
+    writeScheduleSlice(
+      TERM,
+      { subject: "GCX", complete: true },
+      [sec("500", "GCX1000", "F", "0800", "0850")],
+      "2026-10-27T21:20:00.000Z",
+    ),
+  );
+  assert.ok(
+    writeScheduleSlice(
+      TERM,
+      { subject: "GC", complete: true },
+      [sec("16071", "GC3450", "TR", "1400", "1515")],
+      "2026-10-27T21:21:00.000Z",
+    ),
+  );
+  assert.deepEqual(crnsOf(), ["16071", "300", "500"]);
+});
+
+test("a section from another term is refused", () => {
+  const ok = writeScheduleSlice(
+    TERM,
+    { subject: "GC", complete: true },
+    [{ ...sec("16071", "GC3450", "TR", "1400", "1515"), term: "202608" }],
+    "2026-10-27T21:20:00.000Z",
+  );
+  assert.equal(ok, false);
+  assert.deepEqual(meetingsOf("16071"), ["R930", "T930"]);
+});
+
+test("an archived snapshot without part_of_term is refused", () => {
+  const db = new Database(scheduleDbPath(TERM));
+  db.exec("ALTER TABLE sections DROP COLUMN part_of_term");
+  db.close();
+  const ok = writeScheduleSlice(
+    TERM,
+    { subject: "GC", complete: true },
+    [sec("16071", "GC3450", "TR", "1400", "1515")],
+    "2026-10-27T21:20:00.000Z",
+  );
+  assert.equal(ok, false);
+  assert.deepEqual(crnsOf(), ["100", "16071", "300"]);
+});
+
+test("a lowercase course letter still writes back (1990h is GC1990H)", () => {
+  assert.ok(
+    writeScheduleSlice(
+      TERM,
+      { subject: "gc", courseNumber: "1990h", complete: true },
+      [sec("700", "GC1990H", "F", "0800", "0850")],
+      "2026-10-27T21:20:00.000Z",
+    ),
+  );
+  assert.deepEqual(crnsOf(), ["100", "16071", "300", "700"]);
+});
+
+test("search-classes: a course-number-only refresh answers and writes nothing", async () => {
+  let wrote = false;
+  const tool = makeSearchClasses({
+    searchLive: liveOf([sec("16071", "GC3450", "TR", "1400", "1515")]),
+    writeBack: () => {
+      wrote = true;
+      return true;
+    },
+  });
+  const body = json(
+    await tool.handler({
+      term: "Spring 2027",
+      course_number: "3450",
+      refresh: true,
+    }),
+  );
+  assert.equal(body.totalCount, 1);
+  assert.equal(wrote, false);
+});
+
+test("search-classes: a throwing write-back never fails the search", async () => {
+  const tool = makeSearchClasses({
+    searchLive: liveOf([sec("16071", "GC3450", "TR", "1400", "1515")]),
+    writeBack: () => {
+      throw new Error("boom");
+    },
+  });
+  const body = json(
+    await tool.handler({ term: "Spring 2027", subject: "GC", refresh: true }),
+  );
+  assert.equal(body.totalCount, 1);
+});
+
+test("search-classes: after a refresh, the snapshot answer carries the refresh time", async () => {
+  const tool = makeSearchClasses({
+    searchLive: liveOf([
+      sec("100", "GC1010", "MW", "0900", "0950"),
+      sec("16071", "GC3450", "TR", "1400", "1515"),
+    ]),
+  });
+  await tool.handler({ term: "Spring 2027", subject: "GC", refresh: true });
+  const body = json(await tool.handler({ term: "Spring 2027", subject: "GC" }));
+  assert.doesNotMatch(body.snapshotDate, /T05:01/);
+});
+
+test("a GC write carrying a GCX section is refused (the digit after the subject)", () => {
+  const ok = writeScheduleSlice(
+    TERM,
+    { subject: "GC", complete: true },
+    [
+      sec("16071", "GC3450", "TR", "1400", "1515"),
+      sec("500", "GCX1000", "F", "0800", "0850"),
+    ],
+    "2026-10-27T21:20:00.000Z",
+  );
+  assert.equal(ok, false);
+  assert.deepEqual(crnsOf(), ["100", "16071", "300"]);
+});
+
+test("a REAL hot journal left by a killed write is cleared, not replayed into the new copy", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { createRequire } = await import("node:module");
+  const p = scheduleDbPath(TERM);
+  const tmp = `${p}.slice-tmp`;
+  // A killed writer: a different database at the copy's path, a big change
+  // spilled to disk under a one-page cache, then SIGKILL mid-transaction.
+  const bsql = createRequire(import.meta.url).resolve("better-sqlite3");
+  const child = spawnSync(
+    process.execPath,
+    [
+      "-e",
+      `const D=require(${JSON.stringify(bsql)});const db=new D(${JSON.stringify(tmp)});
+       db.exec("CREATE TABLE junk(x TEXT)");
+       db.pragma("cache_size=1");
+       db.exec("BEGIN");
+       for(let i=0;i<3000;i++)db.prepare("INSERT INTO junk VALUES (?)").run("x".repeat(500));
+       process.kill(process.pid,"SIGKILL");`,
+    ],
+    { stdio: "ignore" },
+  );
+  assert.equal(child.signal, "SIGKILL");
+  assert.ok(fs.existsSync(`${tmp}-journal`), "the kill left a hot journal");
+  assert.ok(
+    writeScheduleSlice(
+      TERM,
+      { subject: "GC", complete: true },
+      [sec("16071", "GC3450", "TR", "1400", "1515")],
+      "2026-10-27T21:20:00.000Z",
+    ),
+  );
+  assert.deepEqual(crnsOf(), ["16071", "300"]);
+  assert.deepEqual(meetingsOf("16071"), ["R840", "T840"]);
+  const db = new Database(p, { readonly: true });
+  assert.equal(db.pragma("integrity_check", { simple: true }), "ok");
+  db.close();
+});

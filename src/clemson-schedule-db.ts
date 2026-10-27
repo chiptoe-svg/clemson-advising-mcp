@@ -243,30 +243,43 @@ export interface ScheduleSlice {
 }
 
 function sliceKey(slice: ScheduleSlice): string {
-  return `${slice.subject.toUpperCase()}${slice.courseNumber ?? ""}`;
+  return `${slice.subject.toUpperCase()}${(slice.courseNumber ?? "").toUpperCase()}`;
 }
 
 function inSlice(subjectCourse: string, slice: ScheduleSlice): boolean {
   const subject = slice.subject.toUpperCase();
   return slice.courseNumber
-    ? subjectCourse === `${subject}${slice.courseNumber}`
+    ? subjectCourse === sliceKey(slice)
     : subjectCourse.startsWith(subject) &&
         /^[0-9]/.test(subjectCourse.slice(subject.length));
 }
 
+function removeSqliteFiles(file: string): void {
+  for (const ext of ["", "-journal", "-wal", "-shm"])
+    fs.rmSync(file + ext, { force: true });
+}
+
 /**
- * Write a live fetch back into the term's snapshot, in ONE transaction, so a
- * reader sees the slice old or new, never a mix (2026-10-27: a refresh showed
- * GC 3450 at 2:00 and the next snapshot answer showed the morning's 3:30).
+ * Write a live fetch back into the term's snapshot (2026-10-27: a refresh
+ * showed GC 3450 at 2:00 and the next snapshot answer in the same chat showed
+ * the morning's 3:30).
+ *
+ * The live file is never opened for writing: the slice is applied to a copy,
+ * which is renamed over it, exactly as the nightly full write does. A write
+ * killed part-way leaves only the copy (cleared by the next write), never a
+ * journal beside the live file — the hostile review of the in-place version
+ * reproduced readers failing on such a journal, and the next nightly file
+ * being silently rolled back by it. A concurrent nightly can win the rename
+ * and drop this update; that is a lost refresh, never corruption.
  *
  * A complete fetch replaces its slice, dropping sections Banner no longer
- * lists. An incomplete one (Banner-side filters such as open seats only)
- * only replaces the sections it holds and deletes nothing else. Refused —
- * false, nothing written — when there is no snapshot file to update (a
- * slice must never pose as a whole term), when the fetch is empty, when any
- * section falls outside the slice or the term, or when the file predates part_of_term
- * (archived terms are frozen). The nightly full write is unchanged and
- * supersedes all of this.
+ * lists. An incomplete one (Banner-side filters such as open seats only, or
+ * pages that did not add up) only replaces the sections it holds and deletes
+ * nothing else. Duplicate CRNs keep the last copy. Refused — false, nothing
+ * written — when there is no snapshot file to update (a slice must never pose
+ * as a whole term), when the fetch is empty, when any section falls outside
+ * the slice or the term, or when the file predates part_of_term (archived
+ * terms are frozen).
  */
 export function writeScheduleSlice(
   term: string,
@@ -281,53 +294,56 @@ export function writeScheduleSlice(
     return false;
   const p = scheduleDbPath(term);
   if (!fs.existsSync(p)) return false;
-  let db: Database.Database;
+  const tmp = `${p}.slice-tmp`;
+  const unique = [...new Map(sections.map((s) => [s.crn, s])).values()];
   try {
-    db = new Database(p, { fileMustExist: true });
-  } catch (err) {
-    log.warn("clemson schedule slice open failed", { term, err: String(err) });
-    return false;
-  }
-  try {
-    db.pragma("busy_timeout = 5000");
-    if (!snapshotHasColumn(db, "part_of_term")) return false;
-    const subject = slice.subject.toUpperCase();
-    const match = slice.courseNumber
-      ? { sql: "subject_course = ?", arg: `${subject}${slice.courseNumber}` }
-      : { sql: "subject_course GLOB ?", arg: `${subject}[0-9]*` };
-    const crns = new Set(sections.map((s) => s.crn));
-    db.transaction(() => {
-      db.exec(
-        "CREATE TABLE IF NOT EXISTS slice_fetched (slice TEXT PRIMARY KEY, fetched_at TEXT NOT NULL)",
-      );
-      const gone = slice.complete
-        ? (
-            db
-              .prepare(
-                `SELECT crn FROM sections WHERE term = ? AND ${match.sql}`,
-              )
-              .all(term, match.arg) as { crn: string }[]
-          ).map((r) => r.crn)
-        : [];
-      const del = [
-        "DELETE FROM meetings WHERE crn = ? AND term = ?",
-        "DELETE FROM instructors WHERE crn = ? AND term = ?",
-        "DELETE FROM sections WHERE crn = ? AND term = ?",
-      ].map((q) => db.prepare(q));
-      for (const crn of new Set([...gone, ...crns]))
-        for (const d of del) d.run(crn, term);
-      insertSections(db, term, sections);
-      if (slice.complete)
-        db.prepare("INSERT OR REPLACE INTO slice_fetched VALUES (?, ?)").run(
-          sliceKey(slice),
-          fetchedAt,
+    removeSqliteFiles(tmp); // a killed earlier write's leftovers
+    fs.copyFileSync(p, tmp);
+    const db = new Database(tmp, { fileMustExist: true });
+    try {
+      if (!snapshotHasColumn(db, "part_of_term")) return false;
+      const match = slice.courseNumber
+        ? { sql: "subject_course = ?", arg: sliceKey(slice) }
+        : {
+            sql: "subject_course GLOB ?",
+            arg: `${slice.subject.toUpperCase()}[0-9]*`,
+          };
+      db.transaction(() => {
+        db.exec(
+          "CREATE TABLE IF NOT EXISTS slice_fetched (slice TEXT PRIMARY KEY, fetched_at TEXT NOT NULL)",
         );
-    })();
+        const gone = slice.complete
+          ? (
+              db
+                .prepare(
+                  `SELECT crn FROM sections WHERE term = ? AND ${match.sql}`,
+                )
+                .all(term, match.arg) as { crn: string }[]
+            ).map((r) => r.crn)
+          : [];
+        const del = [
+          "DELETE FROM meetings WHERE crn = ? AND term = ?",
+          "DELETE FROM instructors WHERE crn = ? AND term = ?",
+          "DELETE FROM sections WHERE crn = ? AND term = ?",
+        ].map((q) => db.prepare(q));
+        for (const crn of new Set([...gone, ...unique.map((s) => s.crn)]))
+          for (const d of del) d.run(crn, term);
+        insertSections(db, term, unique);
+        if (slice.complete)
+          db.prepare("INSERT OR REPLACE INTO slice_fetched VALUES (?, ?)").run(
+            sliceKey(slice),
+            fetchedAt,
+          );
+      })();
+    } finally {
+      db.close();
+    }
+    fs.renameSync(tmp, p);
     log.info("clemson schedule slice written", {
       term,
       slice: sliceKey(slice),
       complete: slice.complete,
-      sections: sections.length,
+      sections: unique.length,
     });
     return true;
   } catch (err) {
@@ -338,7 +354,7 @@ export function writeScheduleSlice(
     });
     return false;
   } finally {
-    db.close();
+    removeSqliteFiles(tmp); // gone after a rename; cleared after a refusal
   }
 }
 

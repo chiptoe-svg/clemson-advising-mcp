@@ -47,6 +47,7 @@ import {
   type EngineMeeting,
   UNTIMED_FILTER_NOTE,
 } from "./section-query.js";
+import { log } from "../log.js";
 import { resolveTerm } from "../term-resolve.js";
 import { REVIEW_FIELDS_NOTE, reviewFieldsFor } from "../reviewed-prereq.js";
 import { assertMcpOperation } from "./permissions.js";
@@ -390,25 +391,32 @@ export function makeSearchClasses(
         if (result === null || got.length < result.totalCount)
           return unavailable;
 
+        // Pages come from separate Banner sessions, so a row can repeat on
+        // one page and another be skipped while the row count still reaches
+        // totalCount (hostile review, 2026-10-27). Keep one copy per CRN, and
+        // count the fetch complete only when the distinct CRNs add up.
+        const fetched = [...new Map(got.map((s) => [s.crn, s])).values()];
+        const complete =
+          !args.open_seats_only && fetched.length >= result.totalCount;
+
         // Write the whole fetch (before the client-side filters) back into
         // the snapshot, so the next non-refresh answer agrees with this one.
-        // Open-seats-only is filtered by Banner, so it is not the complete
-        // slice: it updates what it got and deletes nothing. A failed write
-        // is logged by writeScheduleSlice and never fails the search.
+        // An incomplete fetch updates what it got and deletes nothing. A
+        // failed write never fails the search.
         if (subject) {
-          writeBack(
-            term,
-            {
-              subject,
-              courseNumber,
-              complete: !args.open_seats_only,
-            },
-            got,
-            new Date().toISOString(),
-          );
+          try {
+            writeBack(
+              term,
+              { subject, courseNumber, complete },
+              fetched,
+              new Date().toISOString(),
+            );
+          } catch (e) {
+            log.warn("search-classes write-back threw", { err: String(e) });
+          }
         }
 
-        let sections = toEngineSections(got);
+        let sections = toEngineSections(fetched);
         if (instructorFilter) {
           sections = sections.filter((s) =>
             matchesInstructor(s.instructors, instructorFilter),
