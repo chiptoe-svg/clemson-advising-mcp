@@ -505,6 +505,46 @@ test("search-classes: refresh:true still needs a subject or course_number", asyn
   assert.match(errText(res), /subject or course_number/);
 });
 
+// 2026-10-27: Banner returned the first 50 of 87 Spring 2027 GC sections and
+// the room filter ran on those 50 alone, so "Godfrey 205, T/Th" came back
+// empty while GC 4441-002 met there 2:00–4:45. A filtered live search must
+// see every page before filtering.
+test("search-classes: refresh:true with a filter pages through every Banner page", async () => {
+  const all = Array.from({ length: 87 }, (_, i) =>
+    section({
+      crn: String(50000 + i),
+      subjectCourse: "GC1010",
+      meetings: [
+        i === 70
+          ? meeting("TR", "1400", "1645", "Godfrey Hall", "205")
+          : meeting("MW", "0900", "0950"),
+      ],
+    }),
+  );
+  const searchLive = async (p: {
+    offset?: number;
+  }): Promise<ClemsonSearchResult> => {
+    const off = p.offset ?? 0;
+    return {
+      totalCount: all.length,
+      sections: all.slice(off, off + 50), // Banner's page, whatever max says
+      snapshotDate: null,
+      scope: "live",
+    };
+  };
+  const tool = makeSearchClasses({ searchLive });
+  const body = json(
+    await tool.handler({
+      term: "Spring 2027",
+      subject: "GC",
+      refresh: true,
+      building_room: "Godfrey 205",
+      days: "TR",
+    }),
+  );
+  assert.deepEqual(crns(body.sections), ["50070"]);
+});
+
 test("search-classes: refresh:true building_room matches word by word", async () => {
   const liveSections = [
     section({

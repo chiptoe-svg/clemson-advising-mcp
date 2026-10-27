@@ -309,20 +309,31 @@ export function makeSearchClasses(
       }
 
       if (args.refresh === true) {
-        const result = await searchLive({
-          term,
-          subject,
-          courseNumber,
-          openOnly: Boolean(args.open_seats_only),
-          max: numOrUndef(args.max),
-          offset: numOrUndef(args.offset),
-          refresh: true,
-        });
-        if (result === null) {
-          return err(
-            "Clemson class search unavailable — Banner did not return data after retries. Try again shortly.",
-          );
-        }
+        const instructorFilter = strOrUndef(args.instructor);
+        const buildingRoomFilter = strOrUndef(args.building_room);
+        const daysFilter = strOrUndef(args.days);
+        const noMeetingBeforeFilter = strOrUndef(args.no_meeting_before);
+        const noMeetingAfterFilter = strOrUndef(args.no_meeting_after);
+        const filtered = Boolean(
+          instructorFilter ||
+          buildingRoomFilter ||
+          daysFilter ||
+          noMeetingBeforeFilter ||
+          noMeetingAfterFilter,
+        );
+        const live = (max?: number, offset?: number) =>
+          searchLive({
+            term,
+            subject,
+            courseNumber,
+            openOnly: Boolean(args.open_seats_only),
+            max,
+            offset,
+            refresh: true,
+          });
+        const unavailable = err(
+          "Clemson class search unavailable — Banner did not return data after retries. Try again shortly.",
+        );
 
         // Banner's live search has no instructor/building_room/days/
         // no_meeting_before/no_meeting_after params — it only scopes by
@@ -331,15 +342,30 @@ export function makeSearchClasses(
         // semantics querySectionsEngine uses (matchesInstructor/
         // matchesBuildingRoom/matchesDayTimeFilters in section-query.ts), so
         // refresh:true can't silently return unfiltered results a caller
-        // believes are scoped. totalCount is recomputed post-filter —
-        // Banner's count describes the pre-filter page, not what's actually
-        // returned.
+        // believes are scoped. A filter runs on EVERY page Banner has, never
+        // one page (2026-10-27: 50 of 87 GC sections hid Godfrey 205), and a
+        // scan that can't finish is an error, never a short list.
+        // totalCount is recomputed post-filter.
+        let result: Awaited<ReturnType<typeof live>>;
+        if (!filtered) {
+          result = await live(numOrUndef(args.max), numOrUndef(args.offset));
+          if (result === null) return unavailable;
+        } else {
+          const MAX_PAGES = 20;
+          const got: NonNullable<typeof result>["sections"] = [];
+          let page: Awaited<ReturnType<typeof live>> = null;
+          for (let i = 0; i < MAX_PAGES; i++) {
+            page = await live(500, got.length);
+            if (page === null) return unavailable;
+            got.push(...page.sections);
+            if (got.length >= page.totalCount || page.sections.length === 0)
+              break;
+          }
+          if (page === null || got.length < page.totalCount) return unavailable;
+          result = { ...page, totalCount: got.length, sections: got };
+        }
+
         let sections = toEngineSections(result.sections);
-        const instructorFilter = strOrUndef(args.instructor);
-        const buildingRoomFilter = strOrUndef(args.building_room);
-        const daysFilter = strOrUndef(args.days);
-        const noMeetingBeforeFilter = strOrUndef(args.no_meeting_before);
-        const noMeetingAfterFilter = strOrUndef(args.no_meeting_after);
         if (instructorFilter) {
           sections = sections.filter((s) =>
             matchesInstructor(s.instructors, instructorFilter),
