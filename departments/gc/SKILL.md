@@ -87,6 +87,10 @@ when a student is eligible for them.
   alongside the internship (official limit); the department **prefers 3**.
   The internship's own registrations (GC 3500/4500 + COOP) don't count toward
   that.
+- **No 4-credit GC lab course in an internship term:** a student on an
+  internship cannot also take a 4-credit GC course with a lab (GC 1040, 2070,
+  3400, 4060, 4070, 4400, 4440). 3-credit GC courses with a lab (e.g. GC
+  2400, 3460, 4480) are allowed.
 - Only **one** may be remote/hybrid (and that is discouraged).
 - **At most ONE of the two may be in summer.** This is a constraint across
   the PAIR, not a term restriction on either course: GC 3500 and GC 4500 may
