@@ -206,6 +206,39 @@ export interface SearchClassesDeps {
   searchLive: typeof searchClemsonClassesLive;
 }
 
+// An empty search is not proof of absence (2026-10-27: "Godfrey 205 — no T/Th
+// sections at all" was an empty result reported as fact). Say so, and echo the
+// filters that ran so the model can see which one was too narrow.
+const ABSENCE_NOTE =
+  "No sections matched these filters. This is not evidence that none exist: " +
+  "check the filter values (building_room matches every word, e.g. " +
+  "'Godfrey 205'; days use MTWRF), widen one filter, or try refresh: true " +
+  "before saying there are none.";
+
+function withAbsenceNote<T extends { totalCount: number }>(
+  result: T,
+  term: string,
+  args: Record<string, unknown>,
+): T | (T & { note: string; filters_applied: Record<string, unknown> }) {
+  if (result.totalCount !== 0) return result;
+  const filters_applied: Record<string, unknown> = { term };
+  for (const k of [
+    "subject",
+    "course_number",
+    "instructor",
+    "building_room",
+    "days",
+    "no_meeting_before",
+    "no_meeting_after",
+    "open_seats_only",
+    "refresh",
+  ]) {
+    if (args[k] !== undefined && args[k] !== "" && args[k] !== false)
+      filters_applied[k] = args[k];
+  }
+  return { ...result, note: ABSENCE_NOTE, filters_applied };
+}
+
 export function makeSearchClasses(
   deps: Partial<SearchClassesDeps> = {},
 ): McpToolDefinition {
@@ -376,14 +409,20 @@ export function makeSearchClasses(
         }
 
         sections.sort((a, b) => b.seatsAvailable - a.seatsAvailable);
-        return okJson({
-          ...pageOrNarrow(sections, {
-            max: numOrUndef(args.max),
-            offset: numOrUndef(args.offset),
-          }),
-          snapshotDate: result.snapshotDate,
-          scope: result.scope,
-        });
+        return okJson(
+          withAbsenceNote(
+            {
+              ...pageOrNarrow(sections, {
+                max: numOrUndef(args.max),
+                offset: numOrUndef(args.offset),
+              }),
+              snapshotDate: result.snapshotDate,
+              scope: result.scope,
+            },
+            term,
+            args,
+          ),
+        );
       }
 
       const engineResult = querySectionsEngine({
@@ -400,7 +439,7 @@ export function makeSearchClasses(
         offset: numOrUndef(args.offset),
       });
       if ("error" in engineResult) return err(engineResult.error);
-      return okJson(engineResult);
+      return okJson(withAbsenceNote(engineResult, term, args));
     },
   };
 }

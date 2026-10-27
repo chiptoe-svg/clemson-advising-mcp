@@ -579,6 +579,63 @@ test("search-classes: refresh:true with too many matches says PARTIAL RESULT and
   assert.equal(body.scope, "live");
 });
 
+// An empty result is not proof of absence (2026-10-27: "Godfrey 205 — no
+// T/Th sections at all" came from an empty search). Say so, and echo the
+// filters that ran so the too-narrow one is visible.
+test("search-classes: no matches carries a note and the filters applied", async () => {
+  const body = json(
+    await searchClasses.handler({
+      term: "Spring 2027",
+      subject: "GC",
+      building_room: "Nowhere 999",
+      days: "TR",
+    }),
+  );
+  assert.equal(body.totalCount, 0);
+  assert.match(body.note, /not evidence that none exist/);
+  assert.deepEqual(body.filters_applied, {
+    term: "202701",
+    subject: "GC",
+    building_room: "Nowhere 999",
+    days: "TR",
+  });
+});
+
+test("search-classes: refresh:true no matches carries the note too", async () => {
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: 1,
+    sections: [
+      section({
+        crn: "40099",
+        subjectCourse: "GC1010",
+        meetings: [meeting("MW", "0900", "0950")],
+      }),
+    ],
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive });
+  const body = json(
+    await tool.handler({
+      term: "Spring 2027",
+      subject: "GC",
+      days: "TR",
+      refresh: true,
+    }),
+  );
+  assert.equal(body.totalCount, 0);
+  assert.match(body.note, /not evidence that none exist/);
+  assert.equal(body.filters_applied.refresh, true);
+});
+
+test("search-classes: a non-empty result has no absence note", async () => {
+  const body = json(
+    await searchClasses.handler({ term: "Spring 2027", subject: "GC" }),
+  );
+  assert.ok(body.totalCount > 0);
+  assert.equal(body.note, undefined);
+});
+
 test("search-classes: refresh:true building_room matches word by word", async () => {
   const liveSections = [
     section({
