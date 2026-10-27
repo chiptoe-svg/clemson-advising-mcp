@@ -545,6 +545,40 @@ test("search-classes: refresh:true with a filter pages through every Banner page
   assert.deepEqual(crns(body.sections), ["50070"]);
 });
 
+// Too many to list is said out loud on the live path too, exactly as the
+// snapshot path says it: a short page plus a PARTIAL RESULT note. Before, a
+// live search returned Banner's first 50 of 87 with nothing marking the cut.
+test("search-classes: refresh:true with too many matches says PARTIAL RESULT and asks to narrow", async () => {
+  const all = Array.from({ length: 87 }, (_, i) =>
+    section({
+      crn: String(60000 + i),
+      subjectCourse: "GC1010",
+      meetings: [meeting("MW", "0900", "0950")],
+    }),
+  );
+  const searchLive = async (p: {
+    offset?: number;
+  }): Promise<ClemsonSearchResult> => {
+    const off = p.offset ?? 0;
+    return {
+      totalCount: all.length,
+      sections: all.slice(off, off + 50),
+      snapshotDate: null,
+      scope: "live",
+    };
+  };
+  const tool = makeSearchClasses({ searchLive });
+  const body = json(
+    await tool.handler({ term: "Spring 2027", subject: "GC", refresh: true }),
+  );
+  assert.equal(body.totalCount, 87);
+  assert.equal(body.truncated?.total, 87);
+  assert.match(body.truncated?.note ?? "", /PARTIAL RESULT/);
+  assert.match(body.truncated?.note ?? "", /narrow the query/);
+  assert.ok(body.sections.length < 87);
+  assert.equal(body.scope, "live");
+});
+
 test("search-classes: refresh:true building_room matches word by word", async () => {
   const liveSections = [
     section({

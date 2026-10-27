@@ -40,6 +40,7 @@ import {
   matchesInstructor,
   matchesBuildingRoom,
   namesRoom,
+  pageOrNarrow,
   matchesDayTimeFilters,
   type EngineSection,
   type EngineMeeting,
@@ -314,13 +315,6 @@ export function makeSearchClasses(
         const daysFilter = strOrUndef(args.days);
         const noMeetingBeforeFilter = strOrUndef(args.no_meeting_before);
         const noMeetingAfterFilter = strOrUndef(args.no_meeting_after);
-        const filtered = Boolean(
-          instructorFilter ||
-          buildingRoomFilter ||
-          daysFilter ||
-          noMeetingBeforeFilter ||
-          noMeetingAfterFilter,
-        );
         const live = (max?: number, offset?: number) =>
           searchLive({
             term,
@@ -342,30 +336,25 @@ export function makeSearchClasses(
         // semantics querySectionsEngine uses (matchesInstructor/
         // matchesBuildingRoom/matchesDayTimeFilters in section-query.ts), so
         // refresh:true can't silently return unfiltered results a caller
-        // believes are scoped. A filter runs on EVERY page Banner has, never
-        // one page (2026-10-27: 50 of 87 GC sections hid Godfrey 205), and a
-        // scan that can't finish is an error, never a short list.
-        // totalCount is recomputed post-filter.
-        let result: Awaited<ReturnType<typeof live>>;
-        if (!filtered) {
-          result = await live(numOrUndef(args.max), numOrUndef(args.offset));
+        // believes are scoped. Filters run on EVERY page Banner has, never one
+        // page (2026-10-27: 50 of 87 GC sections hid Godfrey 205); a scan that
+        // can't finish is an error, never a short list; and the result goes
+        // through the snapshot path's pageOrNarrow, so too many matches come
+        // back as a PARTIAL RESULT asking for a narrower query.
+        const MAX_PAGES = 20;
+        const got: ClemsonSection[] = [];
+        let result: Awaited<ReturnType<typeof live>> = null;
+        for (let i = 0; i < MAX_PAGES; i++) {
+          result = await live(500, got.length);
           if (result === null) return unavailable;
-        } else {
-          const MAX_PAGES = 20;
-          const got: NonNullable<typeof result>["sections"] = [];
-          let page: Awaited<ReturnType<typeof live>> = null;
-          for (let i = 0; i < MAX_PAGES; i++) {
-            page = await live(500, got.length);
-            if (page === null) return unavailable;
-            got.push(...page.sections);
-            if (got.length >= page.totalCount || page.sections.length === 0)
-              break;
-          }
-          if (page === null || got.length < page.totalCount) return unavailable;
-          result = { ...page, totalCount: got.length, sections: got };
+          got.push(...result.sections);
+          if (got.length >= result.totalCount || result.sections.length === 0)
+            break;
         }
+        if (result === null || got.length < result.totalCount)
+          return unavailable;
 
-        let sections = toEngineSections(result.sections);
+        let sections = toEngineSections(got);
         if (instructorFilter) {
           sections = sections.filter((s) =>
             matchesInstructor(s.instructors, instructorFilter),
@@ -386,11 +375,14 @@ export function makeSearchClasses(
           );
         }
 
+        sections.sort((a, b) => b.seatsAvailable - a.seatsAvailable);
         return okJson({
-          totalCount: sections.length,
+          ...pageOrNarrow(sections, {
+            max: numOrUndef(args.max),
+            offset: numOrUndef(args.offset),
+          }),
           snapshotDate: result.snapshotDate,
           scope: result.scope,
-          sections,
         });
       }
 

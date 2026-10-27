@@ -81,7 +81,7 @@ export interface EngineResult {
   totalCount: number;
   sections: EngineSection[];
   /** Present ONLY when the result was cut. Its `note` says so in words —
-   *  see the truncation branch in querySectionsEngine for why a count alone
+   *  see the truncation branch in pageOrNarrow for why a count alone
    *  proved insufficient. */
   truncated?: {
     shown: number;
@@ -487,62 +487,74 @@ export function querySectionsEngine(
       });
     }
 
-    // Most-open sections first — matches find-sections-by-schedule.
-    matched.sort((a, b) => b.seatsAvailable - a.seatsAvailable);
-
-    const totalCount = matched.length;
-
-    if (totalCount > NARROW_THRESHOLD) {
-      const bySubject = new Map<string, number>();
-      for (const m of matched) {
-        const subj = m.subjectCourse.match(/^[A-Za-z]+/)?.[0] ?? "?";
-        bySubject.set(subj, (bySubject.get(subj) ?? 0) + 1);
-      }
-      const by_subject = [...bySubject.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 12)
-        .map(([subject, count]) => [subject, count]);
-      const shown = matched.slice(0, TOP_PAGE_WHEN_NARROWING);
-      return {
-        totalCount,
-        sections: shown,
-        // Say it in words, not only in a count a reader has to compare.
-        // needsNarrowing carried the numbers already and was still read as a
-        // complete answer: asked for Summer 2026's GC 4000-level courses, a
-        // model got this page, filtered it, found the two zero-credit
-        // internships that float to the top on open seats, and reported them
-        // as the whole list — 2 of 18 (2026-09-08). Naming the bias matters as
-        // much as naming the cut: a sample ordered by open seats is the
-        // EMPTIEST sections, so it is not representative of what ran, and is
-        // exactly inverted for demand questions.
-        truncated: {
-          shown: shown.length,
-          total: totalCount,
-          ordered_by: "seats_available desc",
-          note:
-            `PARTIAL RESULT: showing ${shown.length} of ${totalCount} matching ` +
-            "sections, chosen as the ones with the MOST OPEN SEATS. This is " +
-            "not a complete list and not a representative sample — the " +
-            "fullest sections are the ones missing. Do NOT answer " +
-            '"what was offered", "how many", or any demand question from ' +
-            "this page. To get everything, either narrow the query " +
-            "(course_number, days, instructor) or page with offset until you " +
-            `have all ${totalCount}.`,
-        },
-        needsNarrowing: {
-          total: totalCount,
-          bySubject: Object.fromEntries(by_subject),
-        },
-        snapshotDate: meta.fetchedAt,
-      };
-    }
-
-    const offset = filters.offset ?? 0;
-    const max = Math.min(Math.max(filters.max ?? 50, 1), 500);
-    const page = matched.slice(offset, offset + max);
-
-    return { totalCount, sections: page, snapshotDate: meta.fetchedAt };
+    return {
+      ...pageOrNarrow(matched, filters),
+      snapshotDate: meta.fetchedAt,
+    };
   } finally {
     db.close();
   }
+}
+
+/** The sections to return for a full match list: all of them (paged by
+ *  offset/max) when few, else the most-open page with a PARTIAL RESULT note
+ *  that asks for a narrower query. Shared by the snapshot engine and
+ *  search-classes' live path so a cut list is flagged the same way on both. */
+export function pageOrNarrow(
+  matched: EngineSection[],
+  paging: { offset?: number; max?: number },
+): Omit<EngineResult, "snapshotDate"> {
+  // Most-open sections first — matches find-sections-by-schedule.
+  matched.sort((a, b) => b.seatsAvailable - a.seatsAvailable);
+
+  const totalCount = matched.length;
+
+  if (totalCount > NARROW_THRESHOLD) {
+    const bySubject = new Map<string, number>();
+    for (const m of matched) {
+      const subj = m.subjectCourse.match(/^[A-Za-z]+/)?.[0] ?? "?";
+      bySubject.set(subj, (bySubject.get(subj) ?? 0) + 1);
+    }
+    const by_subject = [...bySubject.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([subject, count]) => [subject, count]);
+    const shown = matched.slice(0, TOP_PAGE_WHEN_NARROWING);
+    return {
+      totalCount,
+      sections: shown,
+      // Say it in words, not only in a count a reader has to compare.
+      // needsNarrowing carried the numbers already and was still read as a
+      // complete answer: asked for Summer 2026's GC 4000-level courses, a
+      // model got this page, filtered it, found the two zero-credit
+      // internships that float to the top on open seats, and reported them
+      // as the whole list — 2 of 18 (2026-09-08). Naming the bias matters as
+      // much as naming the cut: a sample ordered by open seats is the
+      // EMPTIEST sections, so it is not representative of what ran, and is
+      // exactly inverted for demand questions.
+      truncated: {
+        shown: shown.length,
+        total: totalCount,
+        ordered_by: "seats_available desc",
+        note:
+          `PARTIAL RESULT: showing ${shown.length} of ${totalCount} matching ` +
+          "sections, chosen as the ones with the MOST OPEN SEATS. This is " +
+          "not a complete list and not a representative sample — the " +
+          "fullest sections are the ones missing. Do NOT answer " +
+          '"what was offered", "how many", or any demand question from ' +
+          "this page. To get everything, either narrow the query " +
+          "(course_number, days, instructor) or page with offset until you " +
+          `have all ${totalCount}.`,
+      },
+      needsNarrowing: {
+        total: totalCount,
+        bySubject: Object.fromEntries(by_subject),
+      },
+    };
+  }
+
+  const offset = paging.offset ?? 0;
+  const max = Math.min(Math.max(paging.max ?? 50, 1), 500);
+  const page = matched.slice(offset, offset + max);
+  return { totalCount, sections: page };
 }
