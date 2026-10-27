@@ -471,6 +471,71 @@ test("search-classes: missing subject AND course_number returns the redirect err
   assert.match(errText(res), /subject or course_number is required/);
 });
 
+// "What is in Godfrey 201 on T/Th?" (2026-10-27): a room is a small enough
+// scope on its own; a bare building name is not.
+test("search-classes: a room needs no subject — building_room 'Lee 100' alone", async () => {
+  const body = json(
+    await searchClasses.handler({
+      term: "Spring 2027",
+      building_room: "Lee 100",
+      days: "TR",
+    }),
+  );
+  assert.ok(crns(body.sections).includes("30012"), JSON.stringify(body));
+  assert.ok(
+    !crns(body.sections).includes("30001"),
+    "MWF section excluded by days",
+  );
+});
+
+test("search-classes: a building alone still needs a subject", async () => {
+  const res = await searchClasses.handler({
+    term: "Spring 2027",
+    building_room: "Lee Hall",
+  });
+  assert.match(errText(res), /subject or course_number is required/);
+});
+
+test("search-classes: refresh:true still needs a subject or course_number", async () => {
+  const res = await searchClasses.handler({
+    term: "Spring 2027",
+    building_room: "Lee 100",
+    refresh: true,
+  });
+  assert.match(errText(res), /subject or course_number/);
+});
+
+test("search-classes: refresh:true building_room matches word by word", async () => {
+  const liveSections = [
+    section({
+      crn: "40012",
+      subjectCourse: "GC1010",
+      meetings: [meeting("TR", "0930", "1020", "Godfrey Hall", "201")],
+    }),
+    section({
+      crn: "40013",
+      subjectCourse: "GC1010",
+      meetings: [meeting("TR", "0930", "1020", "Godfrey Hall", "205")],
+    }),
+  ];
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: liveSections.length,
+    sections: liveSections,
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive });
+  const body = json(
+    await tool.handler({
+      term: "Spring 2027",
+      subject: "GC",
+      refresh: true,
+      building_room: "Godfrey 201",
+    }),
+  );
+  assert.deepEqual(crns(body.sections), ["40012"]);
+});
+
 // ---------------------------------------------------------------------------
 // find-alternatives: fits-around filtering + missing discriminator
 // ---------------------------------------------------------------------------

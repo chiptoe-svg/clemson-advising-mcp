@@ -150,7 +150,9 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
   For programs whose rules it does not cover, use `search-classes` with course
   codes from `get-program-plan` or `get-program-requirements`.
 - **No standalone room tools.** Rooms are the `building_room` filter on
-  `search-classes`; there is no "free blocks for a room" call. (Instructor
+  `search-classes`. A room alone is enough (`building_room: "Godfrey 201"`,
+  plus `days` if asked) to list what meets there; there is no "free blocks
+  for a room" call, so read the gaps off that list. (Instructor
   tools DO exist — `get-instructor-classes` and `get-teaching-load` above; an
   earlier version of this document said otherwise.)
 

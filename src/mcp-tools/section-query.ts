@@ -35,7 +35,7 @@ export interface SectionFilters {
   subject?: string;
   courseNumber?: string;
   instructor?: string; // every word must appear in one name (nameWords), instructors table
-  buildingRoom?: string; // substring match on meetings building+room
+  buildingRoom?: string; // every word must appear in one meeting's building+room
   days?: string; // e.g. "TR" — every meeting day ∈ set
   excludeDays?: string[];
   noMeetingBefore?: string; // "HHMM"
@@ -150,17 +150,25 @@ export function matchesInstructor(
   });
 }
 
-/** Case-insensitive substring match against any meeting's "building room"
- * (space-joined, missing side blank) — mirrors the `meetings` EXISTS clause
- * above exactly, including the null-coalescing-to-empty-string behavior. */
+/** Does any ONE meeting's "building room" (space-joined, missing side blank)
+ * contain every word of `query` (nameWords)? Mirrors the `meetings` EXISTS
+ * clause above exactly, including the null-coalescing-to-empty-string behavior. */
 export function matchesBuildingRoom(
   meetings: EngineMeeting[],
-  substr: string,
+  query: string,
 ): boolean {
-  const needle = substr.toLowerCase();
-  return meetings.some((m) =>
-    `${m.building ?? ""} ${m.room ?? ""}`.toLowerCase().includes(needle),
-  );
+  const words = nameWords(query);
+  if (words.length === 0) return false;
+  return meetings.some((m) => {
+    const hay = `${m.building ?? ""} ${m.room ?? ""}`.toLowerCase();
+    return words.every((w) => hay.includes(w));
+  });
+}
+
+/** A building_room query that names a room (a word with a digit, e.g.
+ *  "Godfrey 201") is scope enough on its own; a bare building is not. */
+export function namesRoom(query: string | undefined): boolean {
+  return nameWords(query ?? "").some((w) => /\d/.test(w));
 }
 
 export function hhmmToMins(t: string): number | null {
@@ -303,12 +311,25 @@ export function querySectionsEngine(
     }
 
     if (filters.buildingRoom) {
-      conditions.push(
-        "EXISTS (SELECT 1 FROM meetings m WHERE m.crn = sections.crn " +
-          "AND m.term = sections.term AND " +
-          "LOWER(COALESCE(m.building,'') || ' ' || COALESCE(m.room,'')) LIKE ?)",
-      );
-      bindings.push(`%${filters.buildingRoom.toLowerCase()}%`);
+      // Every word must appear in ONE meeting's "building room", so
+      // "Godfrey 201" finds Godfrey Hall 201. No words matches nothing.
+      const words = nameWords(filters.buildingRoom);
+      if (words.length === 0) {
+        conditions.push("0");
+      } else {
+        conditions.push(
+          "EXISTS (SELECT 1 FROM meetings m WHERE m.crn = sections.crn " +
+            "AND m.term = sections.term AND " +
+            words
+              .map(
+                () =>
+                  "LOWER(COALESCE(m.building,'') || ' ' || COALESCE(m.room,'')) LIKE ?",
+              )
+              .join(" AND ") +
+            ")",
+        );
+        bindings.push(...words.map((w) => `%${w}%`));
+      }
     }
 
     const where = conditions.join(" AND ");

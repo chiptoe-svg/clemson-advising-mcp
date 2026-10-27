@@ -39,6 +39,7 @@ import {
   querySectionsEngine,
   matchesInstructor,
   matchesBuildingRoom,
+  namesRoom,
   matchesDayTimeFilters,
   type EngineSection,
   type EngineMeeting,
@@ -57,7 +58,8 @@ import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
 // ---------------------------------------------------------------------------
 
 const SEARCH_CLASSES_DESCRIPTION =
-  "Search Clemson class sections by subject and/or course number. Optional " +
+  "Search Clemson class sections by subject and/or course number, or by " +
+  "room (building_room 'Godfrey 201' alone: what meets in that room). Optional " +
   "filters: instructor, building_room, days, no_meeting_before, no_meeting_after, " +
   "open_seats_only. Term is optional — defaults to the current registration term; " +
   "accepts names like 'Spring 2027' or codes. Do NOT use this to check conflicts " +
@@ -239,7 +241,10 @@ export function makeSearchClasses(
           },
           building_room: {
             type: "string",
-            description: "Building and/or room substring, e.g. 'Godfrey 205'.",
+            description:
+              "Building and/or room: every word must appear, any order, e.g. " +
+              "'Godfrey 201'. A room (a word with a number) needs no subject: " +
+              "'Godfrey 201' alone lists everything in that room.",
           },
           days: {
             type: "string",
@@ -292,11 +297,14 @@ export function makeSearchClasses(
 
       const subject = strOrUndef(args.subject);
       const courseNumber = strOrUndef(args.course_number);
-      if (!subject && !courseNumber) {
+      const roomScope =
+        !args.refresh && namesRoom(strOrUndef(args.building_room));
+      if (!subject && !courseNumber && !roomScope) {
         return err(
           "subject or course_number is required to scope the search (e.g. " +
             "subject: 'CPSC') — an unscoped whole-term search is not " +
-            "supported; add a subject and/or course_number.",
+            "supported; add a subject and/or course_number, or name a room " +
+            "in building_room (e.g. 'Godfrey 201'; not with refresh).",
         );
       }
 

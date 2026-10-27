@@ -496,6 +496,15 @@ test("buildingRoom filter matches on room number too", () => {
   assert.deepEqual(crns(result.sections), ["20002"]);
 });
 
+// "Godfrey 201" must find Godfrey Hall 201 (2026-10-27: the advisor asked
+// for "Godfrey 201" and a plain substring of "godfrey hall 201" missed it).
+test("buildingRoom filter: every word must appear, so 'Barre 200' finds Barre Hall 200", () => {
+  const result = ok(
+    querySectionsEngine({ term: TERM, buildingRoom: "Barre 200" }),
+  );
+  assert.deepEqual(crns(result.sections), ["20002"]);
+});
+
 test("days filter: MW section fits within MWF, T section does not", () => {
   const result = ok(
     querySectionsEngine({ term: TERM, subject: "GC", days: "MWF" }),
