@@ -91,10 +91,10 @@ when a student is eligible for them.
   in spring, fall, or summer. A plan that happens to show both internships in
   summer is one possible arrangement, not the rule.
 - **GC 4060 or GC 4400 before the 2nd** internship.
-- **1st internship:** register **GC 3500 + COOP 1010**.
-- **2nd internship:** register **GC 4500 + COOP 2010**.
-  (Source lists both course pairs under "first"; the confirmed reading is
-  1st = GC 3500 + COOP 1010, 2nd = GC 4500 + COOP 2010.)
+- **1st internship:** register **GC 3500 + COOP 2010**.
+- **2nd internship:** register **GC 4500 + COOP 2020**.
+  (The catalog settles the pairing: GC 3500 takes COOP 2010 and GC 4500
+  takes COOP 2020 as prerequisite or concurrent enrollment.)
 - **Finish the 2nd internship before GC 4440 / 4480 / 4800.**
 - Non-standard internships (not done before) need advisor approval; if not
   obvious, a **faculty vote**.
