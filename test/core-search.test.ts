@@ -41,6 +41,9 @@ import type {
 } from "../src/clemson-classes.ts";
 
 const TERM = "202701"; // Spring 2027
+// Refresh tests here share one fixture snapshot; keep their live results out
+// of it. Write-back has its own isolated tests (schedule-writeback.test.ts).
+const noWriteBack = () => false;
 
 function meeting(
   days: string,
@@ -282,7 +285,7 @@ test("search-classes: refresh:true maps live enrollment/maxEnrollment through to
     snapshotDate: null,
     scope: "live",
   });
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
 
   const res = await tool.handler({
     term: "Spring 2027",
@@ -316,7 +319,7 @@ test("search-classes: refresh:true post-filters live results by instructor", asy
     snapshotDate: null,
     scope: "live",
   });
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
 
   const res = await tool.handler({
     term: "Spring 2027",
@@ -349,7 +352,7 @@ test("search-classes: refresh:true post-filters live results by building_room", 
     snapshotDate: null,
     scope: "live",
   });
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
 
   const res = await tool.handler({
     term: "Spring 2027",
@@ -381,7 +384,7 @@ test("search-classes: refresh:true post-filters live results by days (every meet
     snapshotDate: null,
     scope: "live",
   });
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
 
   const res = await tool.handler({
     term: "Spring 2027",
@@ -413,7 +416,7 @@ test("search-classes: refresh:true post-filters live results by no_meeting_befor
     snapshotDate: null,
     scope: "live",
   });
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
 
   const res = await tool.handler({
     term: "Spring 2027",
@@ -445,7 +448,7 @@ test("search-classes: refresh:true post-filters live results by no_meeting_after
     snapshotDate: null,
     scope: "live",
   });
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
 
   const res = await tool.handler({
     term: "Spring 2027",
@@ -532,7 +535,7 @@ test("search-classes: refresh:true with a filter pages through every Banner page
       scope: "live",
     };
   };
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
   const body = json(
     await tool.handler({
       term: "Spring 2027",
@@ -567,7 +570,7 @@ test("search-classes: refresh:true with too many matches says PARTIAL RESULT and
       scope: "live",
     };
   };
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
   const body = json(
     await tool.handler({ term: "Spring 2027", subject: "GC", refresh: true }),
   );
@@ -614,7 +617,7 @@ test("search-classes: refresh:true no matches carries the note too", async () =>
     snapshotDate: null,
     scope: "live",
   });
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
   const body = json(
     await tool.handler({
       term: "Spring 2027",
@@ -655,7 +658,7 @@ test("search-classes: refresh:true building_room matches word by word", async ()
     snapshotDate: null,
     scope: "live",
   });
-  const tool = makeSearchClasses({ searchLive });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
   const body = json(
     await tool.handler({
       term: "Spring 2027",

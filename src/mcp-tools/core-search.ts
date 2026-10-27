@@ -34,6 +34,7 @@ import {
   getMeetingsForCrns,
   findConflicts,
   getSectionsByCrn,
+  writeScheduleSlice,
 } from "../clemson-schedule-db.js";
 import {
   querySectionsEngine,
@@ -204,6 +205,7 @@ function findMissingCrns(
 /** Injectable for tests — defaults to the real live-Banner search. */
 export interface SearchClassesDeps {
   searchLive: typeof searchClemsonClassesLive;
+  writeBack?: typeof writeScheduleSlice;
 }
 
 // An empty search is not proof of absence (2026-10-27: "Godfrey 205 — no T/Th
@@ -243,6 +245,7 @@ export function makeSearchClasses(
   deps: Partial<SearchClassesDeps> = {},
 ): McpToolDefinition {
   const searchLive = deps.searchLive ?? searchClemsonClassesLive;
+  const writeBack = deps.writeBack ?? writeScheduleSlice;
   return {
     operation: "clemson.search_classes",
     category: "core",
@@ -386,6 +389,24 @@ export function makeSearchClasses(
         }
         if (result === null || got.length < result.totalCount)
           return unavailable;
+
+        // Write the whole fetch (before the client-side filters) back into
+        // the snapshot, so the next non-refresh answer agrees with this one.
+        // Open-seats-only is filtered by Banner, so it is not the complete
+        // slice: it updates what it got and deletes nothing. A failed write
+        // is logged by writeScheduleSlice and never fails the search.
+        if (subject) {
+          writeBack(
+            term,
+            {
+              subject,
+              courseNumber,
+              complete: !args.open_seats_only,
+            },
+            got,
+            new Date().toISOString(),
+          );
+        }
 
         let sections = toEngineSections(got);
         if (instructorFilter) {

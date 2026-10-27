@@ -11,6 +11,7 @@ import {
   snapshotHasColumn,
   openScheduleDb,
   getScheduleDbMeta,
+  sliceFetchedAt,
   getMeetingsForCrns,
   minsToHHMM,
   nameWords,
@@ -260,6 +261,11 @@ export function querySectionsEngine(
 
   try {
     const meta = getScheduleDbMeta(db);
+    // A subject (or course) refreshed live since the full write reports its
+    // own, later time; anything wider reports the file's (the oldest data).
+    const snapshotDate =
+      sliceFetchedAt(db, filters.subject, filters.courseNumber) ??
+      meta.fetchedAt;
 
     // -------------------------------------------------------------------
     // SQL bounding filters — narrow the candidate section rows first.
@@ -345,7 +351,7 @@ export function querySectionsEngine(
       .all(...bindings) as SectionRow[];
 
     if (rows.length === 0) {
-      return { totalCount: 0, sections: [], snapshotDate: meta.fetchedAt };
+      return { totalCount: 0, sections: [], snapshotDate };
     }
 
     const crns = rows.map((r) => r.crn);
@@ -489,7 +495,7 @@ export function querySectionsEngine(
 
     return {
       ...pageOrNarrow(matched, filters),
-      snapshotDate: meta.fetchedAt,
+      snapshotDate,
     };
   } finally {
     db.close();

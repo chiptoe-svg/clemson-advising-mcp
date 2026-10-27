@@ -120,6 +120,78 @@ export function minsToHHMM(m: number): string {
 // Write
 // ---------------------------------------------------------------------------
 
+/** Insert sections with their meetings and instructors. The caller owns the
+ *  transaction. Shared by the full write and the slice write-back, so both
+ *  store a section the same way. */
+function insertSections(
+  db: Database.Database,
+  term: string,
+  sections: readonly ClemsonSection[],
+): void {
+  const insertSection = db.prepare(`
+    INSERT OR REPLACE INTO sections
+      (crn, term, subject_course, section, title, campus, schedule_type,
+       instructional_method, part_of_term, credit_hours, enrollment,
+       max_enrollment, seats_available, wait_count, wait_capacity, open)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `);
+  const insertMeeting = db.prepare(`
+    INSERT INTO meetings (crn, term, day, start_min, end_min, building, room, type)
+    VALUES (?,?,?,?,?,?,?,?)
+  `);
+  const insertInstructor = db.prepare(`
+    INSERT OR REPLACE INTO instructors (crn, term, name, email, primary_i)
+    VALUES (?,?,?,?,?)
+  `);
+  for (const s of sections) {
+    insertSection.run(
+      s.crn,
+      term,
+      s.subjectCourse,
+      s.section,
+      s.title,
+      s.campus,
+      s.scheduleType,
+      s.instructionalMethod,
+      s.partOfTerm ?? null,
+      s.creditHours,
+      s.enrollment,
+      s.maxEnrollment,
+      s.seatsAvailable,
+      s.waitCount,
+      s.waitCapacity,
+      s.open ? 1 : 0,
+    );
+    for (const m of s.meetings) {
+      if (!m.beginTime || !m.endTime) continue;
+      const startMin = hhmMToMins(m.beginTime);
+      const endMin = hhmMToMins(m.endTime);
+      if (startMin === null || endMin === null) continue;
+      for (const day of [...m.days]) {
+        insertMeeting.run(
+          s.crn,
+          term,
+          day,
+          startMin,
+          endMin,
+          m.building,
+          m.room,
+          m.type,
+        );
+      }
+    }
+    for (const inst of s.instructors) {
+      insertInstructor.run(
+        s.crn,
+        term,
+        inst.name,
+        inst.email,
+        inst.primary ? 1 : 0,
+      );
+    }
+  }
+}
+
 /**
  * Write a term snapshot atomically (tmp + rename). Returns false — and leaves
  * whatever was on disk untouched — when the write fails. Callers MUST check it:
@@ -142,72 +214,7 @@ export function writeScheduleDb(snap: ClemsonTermSnapshot): boolean {
       setMeta.run("fetched_at", snap.fetchedAt);
       setMeta.run("term_description", snap.termDescription);
 
-      const insertSection = db.prepare(`
-        INSERT OR REPLACE INTO sections
-          (crn, term, subject_course, section, title, campus, schedule_type,
-           instructional_method, part_of_term, credit_hours, enrollment,
-           max_enrollment, seats_available, wait_count, wait_capacity, open)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `);
-      const insertMeeting = db.prepare(`
-        INSERT INTO meetings (crn, term, day, start_min, end_min, building, room, type)
-        VALUES (?,?,?,?,?,?,?,?)
-      `);
-      const insertInstructor = db.prepare(`
-        INSERT OR REPLACE INTO instructors (crn, term, name, email, primary_i)
-        VALUES (?,?,?,?,?)
-      `);
-
-      const writeAll = db.transaction(() => {
-        for (const s of snap.sections) {
-          insertSection.run(
-            s.crn,
-            snap.term,
-            s.subjectCourse,
-            s.section,
-            s.title,
-            s.campus,
-            s.scheduleType,
-            s.instructionalMethod,
-            s.partOfTerm ?? null,
-            s.creditHours,
-            s.enrollment,
-            s.maxEnrollment,
-            s.seatsAvailable,
-            s.waitCount,
-            s.waitCapacity,
-            s.open ? 1 : 0,
-          );
-          for (const m of s.meetings) {
-            if (!m.beginTime || !m.endTime) continue;
-            const startMin = hhmMToMins(m.beginTime);
-            const endMin = hhmMToMins(m.endTime);
-            if (startMin === null || endMin === null) continue;
-            for (const day of [...m.days]) {
-              insertMeeting.run(
-                s.crn,
-                snap.term,
-                day,
-                startMin,
-                endMin,
-                m.building,
-                m.room,
-                m.type,
-              );
-            }
-          }
-          for (const inst of s.instructors) {
-            insertInstructor.run(
-              s.crn,
-              snap.term,
-              inst.name,
-              inst.email,
-              inst.primary ? 1 : 0,
-            );
-          }
-        }
-      });
-      writeAll();
+      db.transaction(() => insertSections(db, snap.term, snap.sections))();
     } finally {
       db.close();
     }
@@ -223,6 +230,138 @@ export function writeScheduleDb(snap: ClemsonTermSnapshot): boolean {
       err: String(err),
     });
     return false;
+  }
+}
+
+/** What a live fetch covered: a subject (e.g. "GC") or one course of it
+ *  ("GC" + "3450"). `complete` means the fetch holds every section Banner has
+ *  for that slice — only then may sections missing from it be deleted. */
+export interface ScheduleSlice {
+  subject: string;
+  courseNumber?: string;
+  complete: boolean;
+}
+
+function sliceKey(slice: ScheduleSlice): string {
+  return `${slice.subject.toUpperCase()}${slice.courseNumber ?? ""}`;
+}
+
+function inSlice(subjectCourse: string, slice: ScheduleSlice): boolean {
+  const subject = slice.subject.toUpperCase();
+  return slice.courseNumber
+    ? subjectCourse === `${subject}${slice.courseNumber}`
+    : subjectCourse.startsWith(subject) &&
+        /^[0-9]/.test(subjectCourse.slice(subject.length));
+}
+
+/**
+ * Write a live fetch back into the term's snapshot, in ONE transaction, so a
+ * reader sees the slice old or new, never a mix (2026-10-27: a refresh showed
+ * GC 3450 at 2:00 and the next snapshot answer showed the morning's 3:30).
+ *
+ * A complete fetch replaces its slice, dropping sections Banner no longer
+ * lists. An incomplete one (Banner-side filters such as open seats only)
+ * only replaces the sections it holds and deletes nothing else. Refused —
+ * false, nothing written — when there is no snapshot file to update (a
+ * slice must never pose as a whole term), when the fetch is empty, when any
+ * section falls outside the slice or the term, or when the file predates part_of_term
+ * (archived terms are frozen). The nightly full write is unchanged and
+ * supersedes all of this.
+ */
+export function writeScheduleSlice(
+  term: string,
+  slice: ScheduleSlice,
+  sections: readonly ClemsonSection[],
+  fetchedAt: string,
+): boolean {
+  if (!isTermCode(term) || sections.length === 0) return false;
+  if (
+    !sections.every((s) => s.term === term && inSlice(s.subjectCourse, slice))
+  )
+    return false;
+  const p = scheduleDbPath(term);
+  if (!fs.existsSync(p)) return false;
+  let db: Database.Database;
+  try {
+    db = new Database(p, { fileMustExist: true });
+  } catch (err) {
+    log.warn("clemson schedule slice open failed", { term, err: String(err) });
+    return false;
+  }
+  try {
+    db.pragma("busy_timeout = 5000");
+    if (!snapshotHasColumn(db, "part_of_term")) return false;
+    const subject = slice.subject.toUpperCase();
+    const match = slice.courseNumber
+      ? { sql: "subject_course = ?", arg: `${subject}${slice.courseNumber}` }
+      : { sql: "subject_course GLOB ?", arg: `${subject}[0-9]*` };
+    const crns = new Set(sections.map((s) => s.crn));
+    db.transaction(() => {
+      db.exec(
+        "CREATE TABLE IF NOT EXISTS slice_fetched (slice TEXT PRIMARY KEY, fetched_at TEXT NOT NULL)",
+      );
+      const gone = slice.complete
+        ? (
+            db
+              .prepare(
+                `SELECT crn FROM sections WHERE term = ? AND ${match.sql}`,
+              )
+              .all(term, match.arg) as { crn: string }[]
+          ).map((r) => r.crn)
+        : [];
+      const del = [
+        "DELETE FROM meetings WHERE crn = ? AND term = ?",
+        "DELETE FROM instructors WHERE crn = ? AND term = ?",
+        "DELETE FROM sections WHERE crn = ? AND term = ?",
+      ].map((q) => db.prepare(q));
+      for (const crn of new Set([...gone, ...crns]))
+        for (const d of del) d.run(crn, term);
+      insertSections(db, term, sections);
+      if (slice.complete)
+        db.prepare("INSERT OR REPLACE INTO slice_fetched VALUES (?, ?)").run(
+          sliceKey(slice),
+          fetchedAt,
+        );
+    })();
+    log.info("clemson schedule slice written", {
+      term,
+      slice: sliceKey(slice),
+      complete: slice.complete,
+      sections: sections.length,
+    });
+    return true;
+  } catch (err) {
+    log.warn("clemson schedule slice write failed", {
+      term,
+      slice: sliceKey(slice),
+      err: String(err),
+    });
+    return false;
+  } finally {
+    db.close();
+  }
+}
+
+/** When a query's slice was last refreshed live, if later than the file:
+ *  the subject's time for a subject query; the course's or the subject's,
+ *  whichever is later, for a course query. Null when none is recorded. */
+export function sliceFetchedAt(
+  db: Database.Database,
+  subject: string | undefined,
+  courseNumber: string | undefined,
+): string | null {
+  if (!subject) return null;
+  const keys = [subject.toUpperCase()];
+  if (courseNumber) keys.push(`${subject.toUpperCase()}${courseNumber}`);
+  try {
+    const row = db
+      .prepare(
+        `SELECT MAX(fetched_at) t FROM slice_fetched WHERE slice IN (${keys.map(() => "?").join(",")})`,
+      )
+      .get(...keys) as { t: string | null } | undefined;
+    return row?.t ? toEasternIso(row.t) : null;
+  } catch {
+    return null; // no slice_fetched table: never refreshed since the full write
   }
 }
 
