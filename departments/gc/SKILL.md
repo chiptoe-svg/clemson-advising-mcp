@@ -83,6 +83,10 @@ when a student is eligible for them.
 **Requirements**
 
 - Paid **and** full-time.
+- **Light load in an internship term:** at most **6 credits** of other courses
+  alongside the internship (official limit); the department **prefers 3**.
+  The internship's own registrations (GC 3500/4500 + COOP) don't count toward
+  that.
 - Only **one** may be remote/hybrid (and that is discouraged).
 - **At most ONE of the two may be in summer.** This is a constraint across
   the PAIR, not a term restriction on either course: GC 3500 and GC 4500 may
