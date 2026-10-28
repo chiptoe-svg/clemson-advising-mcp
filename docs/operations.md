@@ -236,8 +236,16 @@ servers keep answering, confidently, from an old snapshot. See
 npm run clemson:refresh
 ```
 
-`deploy/install.sh` installs this as a launchd job at 05:00 daily
-(`edu.clemson.advising-mcp.refresh`). Every tool that reads schedule data
+`deploy/install.sh` installs this as a launchd job
+(`edu.clemson.advising-mcp.refresh`) that fires at 05:00 and hourly
+08:00–17:00. The first run of each Eastern day is the nightly: every live
+term. Inside a registration window listed in
+`deploy/registration-windows.json` (term + inclusive start/end dates), only
+that term is refreshed, and weekday firings 08:00–17:00 refresh it too —
+which is also what stops the current semester for the window. Every other
+firing logs its plan and exits. A nightly that fails is retried by the next
+firing; `state/clemson/last-nightly` records the last good one. Every tool
+that reads schedule data
 reports a `data as of` timestamp, so a client can see staleness — but only a
 client that looks.
 

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Daily Banner class-schedule refresh.
+  Banner class-schedule refresh: the nightly, plus hourly weekday refreshes of
+  the registering term during a registration window.
 
   This job is what stands between the service and its most common failure mode:
   the servers keep answering, confidently, from a snapshot that stopped being
@@ -8,7 +9,7 @@
   is hard to notice. Alert on snapshot age, not on this job's exit status.
 
   New terms are discovered automatically from Banner; "(View Only)" terms are
-  skipped. Placeholders are filled in by deploy/install.sh.
+  skipped. Inside a registration window only the window's term is refreshed. Placeholders are filled in by deploy/install.sh.
 
   It does NOT rebuild the curriculum catalog, which changes annually and is
   built elsewhere — see docs/operations.md, "Deploying to a new box".
@@ -44,11 +45,25 @@
     <string>HOME_PATH</string>
   </dict>
 
+  <!-- 05:00 and hourly 08:00-17:00, every day. scripts/clemson-refresh.ts
+       (src/refresh-plan.ts) decides what each firing does: the first run of
+       the Eastern day is the nightly; inside a registration window
+       (deploy/registration-windows.json) weekday firings refresh that term;
+       any other firing exits at once. -->
   <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key><integer>5</integer>
-    <key>Minute</key><integer>0</integer>
-  </dict>
+  <array>
+    <dict><key>Hour</key><integer>5</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>10</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>11</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>13</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>15</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>16</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>17</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
 
   <key>RunAtLoad</key>
   <false/>
