@@ -47,6 +47,7 @@ import {
   type EngineMeeting,
   UNTIMED_FILTER_NOTE,
 } from "./section-query.js";
+import { toEasternIso } from "../eastern-time.js";
 import { log } from "../log.js";
 import { resolveTerm } from "../term-resolve.js";
 import { REVIEW_FIELDS_NOTE, reviewFieldsFor } from "../reviewed-prereq.js";
@@ -219,10 +220,22 @@ const ABSENCE_NOTE =
   "'Godfrey 205'; days use MTWRF), widen one filter, or try refresh: true " +
   "before saying there are none.";
 
-function withAbsenceNote<T extends { totalCount: number }>(
+// Filters Banner never sees: a live 0 under one of these is still only "none
+// matched", so it keeps the hedge.
+const NARROWING_ARGS = [
+  "instructor",
+  "building_room",
+  "days",
+  "no_meeting_before",
+  "no_meeting_after",
+  "open_seats_only",
+];
+
+function withAbsenceNote<T extends { totalCount: number; scope?: string }>(
   result: T,
   term: string,
   args: Record<string, unknown>,
+  termName?: string,
 ): T | (T & { note: string; filters_applied: Record<string, unknown> }) {
   if (result.totalCount !== 0) return result;
   const filters_applied: Record<string, unknown> = { term };
@@ -239,6 +252,26 @@ function withAbsenceNote<T extends { totalCount: number }>(
   ]) {
     if (args[k] !== undefined && args[k] !== "" && args[k] !== false)
       filters_applied[k] = args[k];
+  }
+  // A live 0 with no client-side filter is Banner's own answer, confirmed
+  // against a term that answers (searchClemsonClasses' control): say it
+  // plainly, so a real "not offered" is not hedged (Cob_advisor 2026-10-28).
+  const narrowed = NARROWING_ARGS.some(
+    (k) => args[k] !== undefined && args[k] !== "" && args[k] !== false,
+  );
+  if (result.scope === "live" && !narrowed) {
+    const subject = strOrUndef(args.subject)?.toUpperCase();
+    const number = strOrUndef(args.course_number);
+    const what =
+      subject && number
+        ? `${subject} ${number}`
+        : (subject ?? `course number ${number}`);
+    const at = toEasternIso(new Date().toISOString()).slice(11, 16);
+    return {
+      ...result,
+      note: `Banner lists no ${termName ?? term} sections of ${what} (live, checked ${at} ET).`,
+      filters_applied,
+    };
   }
   return { ...result, note: ABSENCE_NOTE, filters_applied };
 }
@@ -459,6 +492,7 @@ export function makeSearchClasses(
             },
             term,
             args,
+            resolved.termName,
           ),
         );
       }

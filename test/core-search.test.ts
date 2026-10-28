@@ -606,7 +606,7 @@ test("search-classes: no matches carries a note and the filters applied", async 
 
 // A course with no sections live is 0 with the absence note, not an outage
 // error (Cob_advisor 2026-10-28: GC 2510, 4070, ... all said "unavailable").
-test("search-classes: refresh:true with Banner's genuine 0 answers 0 with the note", async () => {
+test("search-classes: a live, unfiltered 0 says plainly that Banner lists none", async () => {
   const searchLive = async (): Promise<ClemsonSearchResult> => ({
     totalCount: 0,
     sections: [],
@@ -614,13 +614,45 @@ test("search-classes: refresh:true with Banner's genuine 0 answers 0 with the no
     scope: "live",
   });
   const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
-  const res = await tool.handler({
-    term: "Spring 2027",
-    subject: "GC",
-    course_number: "2510",
-    refresh: true,
+  const body = json(
+    await tool.handler({
+      term: "Spring 2027",
+      subject: "GC",
+      course_number: "2510",
+      refresh: true,
+    }),
+  );
+  assert.equal(body.totalCount, 0);
+  assert.match(
+    body.note,
+    /^Banner lists no Spring 2027 sections of GC 2510 \(live, checked /,
+  );
+  assert.doesNotMatch(body.note, /not evidence/);
+});
+
+test("search-classes: a live 0 under a client-side filter still hedges", async () => {
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: 1,
+    sections: [
+      section({
+        crn: "40098",
+        subjectCourse: "GC2510",
+        meetings: [meeting("MW", "0900", "0950")],
+      }),
+    ],
+    snapshotDate: null,
+    scope: "live",
   });
-  const body = json(res);
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
+  const body = json(
+    await tool.handler({
+      term: "Spring 2027",
+      subject: "GC",
+      course_number: "2510",
+      days: "TR",
+      refresh: true,
+    }),
+  );
   assert.equal(body.totalCount, 0);
   assert.match(body.note, /not evidence that none exist/);
 });
