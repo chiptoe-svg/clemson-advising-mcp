@@ -75,8 +75,9 @@ const SEARCH_CLASSES_DESCRIPTION =
   "A result too large to list is CUT: it returns the top sections by open " +
   "seats plus a `truncated` block that states the cut in words. Never answer " +
   '"what was offered" or "how many" from a truncated page — those sections ' +
-  "are the emptiest ones, not a sample; narrow the query or page with " +
-  'offset. Sections carry part_of_term verbatim ("1" full term, "H1"/' +
+  "are the emptiest ones, not a sample; narrow the query or page " +
+  "(offset: 0, then the next offset each page gives; max up to 500). " +
+  'Sections carry part_of_term verbatim ("1" full term, "H1"/' +
   '\"H2\" Summer 1/2, \"MMA\"..\"MMD\" mini-mesters; null on snapshots ' +
   "taken before 2026-09-08).";
 
@@ -312,7 +313,8 @@ export function makeSearchClasses(
           },
           offset: {
             type: "integer",
-            description: "Page offset for paging (default 0).",
+            description:
+              "Page offset. Giving it pages through every match (most open seats first) instead of the narrowed top page; each cut page names the next offset.",
           },
           refresh: {
             type: "boolean",

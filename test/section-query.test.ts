@@ -626,6 +626,28 @@ test("needsNarrowing envelope: >15 matches returns top page + total + bySubject"
   assert.deepEqual(subjectKeys, ["GC", "MATH", "CPSC", "ENGL"]);
 });
 
+// Paging past a truncated page must move (Cob_advisor 2026-10-28: offset
+// 0/12/84 all returned the same top 12, so a model obeying "page with
+// offset" looped forever). An explicit offset pages; no offset narrows.
+test("an explicit offset pages through all matches, most-open first", () => {
+  const p1 = ok(querySectionsEngine({ term: NARROW_TERM, offset: 0, max: 10 }));
+  const p2 = ok(
+    querySectionsEngine({ term: NARROW_TERM, offset: 10, max: 10 }),
+  );
+  assert.equal(p1.totalCount, 18);
+  assert.equal(p1.sections.length, 10);
+  assert.equal(p2.sections.length, 8);
+  const all = [...p1.sections, ...p2.sections].map((x) => x.crn);
+  assert.equal(new Set(all).size, 18, "every match exactly once");
+  assert.match(p1.truncated?.note ?? "", /offset: 10/);
+  assert.equal(p2.truncated, undefined, "last page is not cut");
+});
+
+test("the truncation note points at a paging call that works", () => {
+  const r = ok(querySectionsEngine({ term: NARROW_TERM }));
+  assert.match(r.truncated?.note ?? "", /offset: 0/);
+});
+
 test("needsNarrowing does not trip once narrowed below the threshold", () => {
   const result = ok(querySectionsEngine({ term: NARROW_TERM, subject: "GC" }));
   assert.equal(result.totalCount, 6);

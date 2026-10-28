@@ -515,7 +515,10 @@ export function pageOrNarrow(
 
   const totalCount = matched.length;
 
-  if (totalCount > NARROW_THRESHOLD) {
+  // No offset and too many: the narrowing envelope. An explicit offset is a
+  // paging call and must move (2026-10-28: offset 0/12/84 all returned the
+  // same top 12, so a model obeying "page with offset" looped).
+  if (totalCount > NARROW_THRESHOLD && paging.offset === undefined) {
     const bySubject = new Map<string, number>();
     for (const m of matched) {
       const subj = m.subjectCourse.match(/^[A-Za-z]+/)?.[0] ?? "?";
@@ -549,8 +552,9 @@ export function pageOrNarrow(
           "fullest sections are the ones missing. Do NOT answer " +
           '"what was offered", "how many", or any demand question from ' +
           "this page. To get everything, either narrow the query " +
-          "(course_number, days, instructor) or page with offset until you " +
-          `have all ${totalCount}.`,
+          "(course_number, days, instructor) or page: call again with " +
+          "offset: 0 (and max up to 500), then the next offset each page " +
+          `gives, until you have all ${totalCount}.`,
       },
       needsNarrowing: {
         total: totalCount,
@@ -562,5 +566,19 @@ export function pageOrNarrow(
   const offset = paging.offset ?? 0;
   const max = Math.min(Math.max(paging.max ?? 50, 1), 500);
   const page = matched.slice(offset, offset + max);
-  return { totalCount, sections: page };
+  const next = offset + page.length;
+  if (next >= totalCount) return { totalCount, sections: page };
+  return {
+    totalCount,
+    sections: page,
+    truncated: {
+      shown: page.length,
+      total: totalCount,
+      ordered_by: "seats_available desc",
+      note:
+        `PAGE: sections ${offset + 1}–${next} of ${totalCount}, most open ` +
+        `seats first. Not the whole list: call again with offset: ${next} ` +
+        `for the next page, until you have all ${totalCount}.`,
+    },
+  };
 }

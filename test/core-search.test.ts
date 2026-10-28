@@ -604,6 +604,27 @@ test("search-classes: no matches carries a note and the filters applied", async 
   });
 });
 
+// A course with no sections live is 0 with the absence note, not an outage
+// error (Cob_advisor 2026-10-28: GC 2510, 4070, ... all said "unavailable").
+test("search-classes: refresh:true with Banner's genuine 0 answers 0 with the note", async () => {
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: 0,
+    sections: [],
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
+  const res = await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    course_number: "2510",
+    refresh: true,
+  });
+  const body = json(res);
+  assert.equal(body.totalCount, 0);
+  assert.match(body.note, /not evidence that none exist/);
+});
+
 test("search-classes: refresh:true no matches carries the note too", async () => {
   const searchLive = async (): Promise<ClemsonSearchResult> => ({
     totalCount: 1,

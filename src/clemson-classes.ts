@@ -345,6 +345,19 @@ async function runSearch(
   };
 }
 
+/** Does a fresh session see any section in this term? The control that
+ *  separates "this query matches nothing" from "the term never bound". */
+async function termAnswers(term: string): Promise<boolean> {
+  try {
+    const jar = await openSession(term);
+    if (!jar) return false;
+    const r = await runSearch(jar, { term, max: 1 });
+    return (r?.totalCount ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function searchClemsonClasses(
   params: ClemsonSearchParams,
 ): Promise<ClemsonSearchResult | null> {
@@ -385,8 +398,18 @@ export async function searchClemsonClasses(
           await sleep(400);
           continue;
         }
-        // All retries exhausted with 0: return null so the MCP returns an
-        // explicit error rather than an empty list the caller might treat as fact.
+        // All retries exhausted with 0. Banner says totalCount 0 both for a
+        // cold session and for a query that really matches nothing — every
+        // course with no sections read as "Banner unavailable" (2026-10-28).
+        // A term-wide search on a fresh session tells them apart: if the term
+        // answers, the session binds and this query's 0 is real.
+        if (await termAnswers(params.term))
+          return {
+            totalCount: 0,
+            sections: [],
+            snapshotDate: null,
+            scope: "live",
+          };
         return null;
       }
       return { ...result, snapshotDate: null, scope: "live" };
