@@ -189,7 +189,19 @@ by open seats plus a `needsNarrowing` summary. Snapshot.
 Given `fixed_crns` (already committed) and `candidate_crns` (options), returns
 which candidates can be added without conflicts — each candidate checked
 against every fixed CRN and every other candidate — with details of the
-conflicts for the rest. Snapshot.
+conflicts for the rest. Because candidates are checked against each other,
+alternative sections of one course rule each other out — for "which sections
+of A and B fit together", use `find-section-combinations`. Snapshot.
+
+#### `find-section-combinations`
+
+One section per group (a course code, or a list of alternative CRNs) such that
+nothing overlaps, around optional `fixed_crns` and `busy` blocks (work hours,
+or a hypothetical meeting time). Sections of one group are never compared with
+each other. Returns the combination count, up to 20 combinations, and, when
+there are none, `blocking`: the course emptied by fixed/busy times, the pair
+of courses with no compatible sections, or that no choice fits all at once.
+Snapshot; seats are not considered.
 
 #### `get-sections-by-crn`
 

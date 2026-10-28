@@ -107,6 +107,10 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.find_conflict_free_schedule",
   },
+  "clemson.find_section_combinations": {
+    backend: "external-http",
+    policyActionId: "clemson.find_section_combinations",
+  },
   "clemson.find_requirement_sections": {
     backend: "external-http",
     policyActionId: "clemson.find_requirement_sections",
@@ -312,6 +316,7 @@ const CLEMSON_SCHEDULE_OPS = [
   "clemson.course_details",
   "clemson.course_facts",
   "clemson.find_conflict_free_schedule",
+  "clemson.find_section_combinations",
   "clemson.sections_by_crn",
   "clemson.resolve_crns",
   "clemson.instructor_classes",
@@ -353,6 +358,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.course_details",
     "clemson.course_facts",
     "clemson.find_conflict_free_schedule",
+    "clemson.find_section_combinations",
     "clemson.sections_by_crn",
     "clemson.resolve_crns",
     "clemson.instructor_classes",

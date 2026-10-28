@@ -59,7 +59,7 @@ wording governs.
 - **Paired (lecture+lab) courses:** always verify **both** halves have open
   seats and don't conflict, by driving the section tools
   (`find-requirement-sections`, `get-course-details`, `check-conflicts`,
-  `find-conflict-free-schedule`).
+  `find-section-combinations`).
 - Surface **counterfactuals** ("move the lab to the MW section and X fits").
 
 ## Lab co-requisite Pairs

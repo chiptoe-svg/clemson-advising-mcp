@@ -266,6 +266,14 @@ actions:
     constraints:
       - public_data_only
 
+  - id: clemson.find_section_combinations
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
   - id: clemson.find_requirement_sections
     surface: external_read
     risk: low

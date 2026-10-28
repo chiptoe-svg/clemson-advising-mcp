@@ -18,7 +18,14 @@ import {
   type TeachingLoadRow,
   findConflicts,
   type ConflictPair,
+  type SnapshotSection,
+  minsToHHMM,
 } from "../clemson-schedule-db.js";
+import {
+  searchCombinations,
+  type CombinationMeeting,
+  type CombinationSection,
+} from "../section-combinations.js";
 import { enrollmentHistory } from "../clemson-enrollment-history.js";
 import {
   openOfferingsDb,
@@ -48,7 +55,11 @@ const findConflictFree: McpToolDefinition = {
       "consider), returns which candidates can be added without time conflicts. " +
       "Each candidate is checked against every fixed CRN and against every " +
       "other candidate. Returns conflict_free candidates and details of any " +
-      "conflicts for the rest. Reads the daily Banner snapshot. Do not use " +
+      "conflicts for the rest. Because candidates are checked against EACH " +
+      "OTHER, alternative sections of one course rule each other out: it " +
+      "cannot answer 'which sections of A and B fit together' — an empty " +
+      "result there does NOT mean impossible. Use find-section-combinations " +
+      "for that. Reads the daily Banner snapshot. Do not use " +
       "this just to check a short, already-chosen CRN list — use " +
       "check-conflicts for that.",
     inputSchema: {
@@ -135,6 +146,325 @@ const findConflictFree: McpToolDefinition = {
         fixed_crns: fixedCrns,
         candidates: results,
         conflict_free: results.filter((r) => r.conflict_free).map((r) => r.crn),
+      });
+    } finally {
+      db.close();
+    }
+  },
+};
+
+// find-section-combinations (2026-10-28). find-conflict-free-schedule checks
+// every candidate against every other, so alternative sections of one course
+// rule each other out and "which sections of A and B fit together" came back
+// empty — read by the advisor as "impossible". Here each group is one need
+// with alternative sections, and a zero always carries its reason.
+const MAX_GROUPS = 8;
+const MAX_BUSY = 10;
+const DAY_ORDER = "MTWRFSU";
+
+/** "MW 1115–1400 Godfrey 205; F 0900–0950 Online" */
+function describeMeetings(s: SnapshotSection): string {
+  const byKey = new Map<string, string[]>();
+  for (const m of s.meetings) {
+    if (m.start_min == null || m.end_min == null) continue;
+    const where = [m.building, m.room].filter(Boolean).join(" ");
+    const key = `${minsToHHMM(m.start_min)}–${minsToHHMM(m.end_min)}${where ? " " + where : ""}`;
+    byKey.set(key, [...(byKey.get(key) ?? []), m.day]);
+  }
+  if (byKey.size === 0) return "no meeting time (TBA/online)";
+  return [...byKey]
+    .map(
+      ([key, days]) =>
+        `${[...new Set(days)].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b)).join("")} ${key}`,
+    )
+    .join("; ");
+}
+
+function toCombination(s: SnapshotSection): CombinationSection {
+  return {
+    crn: s.crn,
+    meetings: s.meetings
+      .filter((m) => m.start_min != null && m.end_min != null)
+      .map((m) => ({ day: m.day, startMin: m.start_min!, endMin: m.end_min! })),
+  };
+}
+
+function hhmmToMins(t: string): number | null {
+  if (!/^\d{4}$/.test(t)) return null;
+  const h = Number(t.slice(0, 2));
+  const m = Number(t.slice(2));
+  return h < 24 && m < 60 ? h * 60 + m : null;
+}
+
+const findSectionCombinations: McpToolDefinition = {
+  operation: "clemson.find_section_combinations",
+  category: "scheduling",
+  tool: {
+    name: "find-section-combinations",
+    description:
+      "Which sections of several courses can be taken TOGETHER: pick one " +
+      "section per group so nothing overlaps. Each group is one course (or a " +
+      "list of alternative CRNs); sections in the same group are alternatives " +
+      "and are never compared with each other. Optional fixed_crns (already " +
+      "registered) and busy blocks (work hours, or a HYPOTHETICAL meeting time " +
+      "such as a course proposed to move) remove the sections they overlap. " +
+      "Returns every conflict-free combination (count, up to 20 listed) and, " +
+      "when there are none, `blocking` — the reason: a course emptied by the " +
+      "fixed/busy times, two courses with no compatible pair, or no choice " +
+      "fitting all at once. Use this for every 'can these fit together / is " +
+      "there a conflict-free combination' question, especially before saying " +
+      "no. Reads the daily Banner snapshot; seats are not considered.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        term: {
+          type: "string",
+          description:
+            'Term: a code (202701) or a name ("Spring 2027"). Defaults to the current registration term.',
+        },
+        fixed_crns: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "CRNs already locked in; every pick must fit around them.",
+        },
+        groups: {
+          type: "array",
+          description: `One entry per course needed (1–${MAX_GROUPS}). One section is chosen from each.`,
+          items: {
+            type: "object",
+            properties: {
+              course: {
+                type: "string",
+                description:
+                  'A course code ("GC 4061"): all its sections in the term.',
+              },
+              crns: {
+                type: "array",
+                items: { type: "string" },
+                description: "Alternative CRNs instead of a course code.",
+              },
+              label: {
+                type: "string",
+                description: "Optional name for the group.",
+              },
+            },
+          },
+        },
+        busy: {
+          type: "array",
+          description: `Times no section may overlap (up to ${MAX_BUSY}).`,
+          items: {
+            type: "object",
+            properties: {
+              days: {
+                type: "string",
+                description:
+                  'Day letters from MTWRFSU, R = Thursday, e.g. "MW" or "TR".',
+              },
+              start: {
+                type: "string",
+                description: "24-hour HHMM, e.g. 1415.",
+              },
+              end: { type: "string", description: "24-hour HHMM, e.g. 1700." },
+              label: {
+                type: "string",
+                description: 'e.g. "GC 3401 (proposed)" or "work".',
+              },
+            },
+            required: ["days", "start", "end"],
+          },
+        },
+      },
+      required: ["groups"],
+    },
+  },
+  async handler(args) {
+    try {
+      assertMcpOperation("clemson.find_section_combinations");
+    } catch (e) {
+      return permissionErr(e);
+    }
+    const rawGroups = args.groups;
+    if (
+      !Array.isArray(rawGroups) ||
+      rawGroups.length === 0 ||
+      rawGroups.length > MAX_GROUPS
+    )
+      return err(`groups must be a list of 1–${MAX_GROUPS} entries`);
+    const fixedCrns = args.fixed_crns ?? [];
+    if (
+      !Array.isArray(fixedCrns) ||
+      !fixedCrns.every((c) => typeof c === "string")
+    )
+      return err("fixed_crns must be a list of CRN strings");
+    const rawBusy = args.busy ?? [];
+    if (!Array.isArray(rawBusy) || rawBusy.length > MAX_BUSY)
+      return err(`busy must be a list of at most ${MAX_BUSY} blocks`);
+
+    const busy: { label: string; meetings: CombinationMeeting[] }[] = [];
+    for (const [i, b] of rawBusy.entries()) {
+      const x = (b ?? {}) as Record<string, unknown>;
+      const days = String(x.days ?? "").toUpperCase();
+      const start = hhmmToMins(String(x.start ?? ""));
+      const end = hhmmToMins(String(x.end ?? ""));
+      if (!/^[MTWRFSU]+$/.test(days))
+        return err(
+          `busy[${i}].days must use the letters MTWRFSU (R = Thursday)`,
+        );
+      if (start == null || end == null || start >= end)
+        return err(
+          `busy[${i}] needs start and end as 24-hour HHMM, start before end`,
+        );
+      busy.push({
+        label:
+          typeof x.label === "string" && x.label
+            ? x.label
+            : `busy ${days} ${x.start}–${x.end}`,
+        meetings: [...new Set(days)].map((day) => ({
+          day,
+          startMin: start,
+          endMin: end,
+        })),
+      });
+    }
+
+    const groupSpecs: { label: string; course?: string; crns?: string[] }[] =
+      [];
+    for (const [i, g] of rawGroups.entries()) {
+      const x = (g ?? {}) as Record<string, unknown>;
+      const hasCourse = typeof x.course === "string" && x.course.trim() !== "";
+      const hasCrns =
+        Array.isArray(x.crns) &&
+        x.crns.length > 0 &&
+        x.crns.every((c) => typeof c === "string");
+      if (hasCourse === hasCrns)
+        return err(
+          `groups[${i}] needs exactly one of course or a non-empty crns list`,
+        );
+      const course = hasCourse
+        ? (x.course as string)
+            .trim()
+            .toUpperCase()
+            .replace(/^([A-Z]+)\s*(\d)/, "$1 $2")
+        : undefined;
+      groupSpecs.push({
+        label:
+          typeof x.label === "string" && x.label
+            ? x.label
+            : (course ?? `group ${i + 1}`),
+        course,
+        crns: hasCrns ? (x.crns as string[]) : undefined,
+      });
+    }
+
+    const resolved = resolveTerm(
+      typeof args.term === "string" ? args.term : undefined,
+    );
+    if ("error" in resolved) return err(resolved.error);
+    const { term } = resolved;
+    const db = openScheduleDb(term);
+    if (!db)
+      return err(
+        `No snapshot available for term ${term}. Run the daily refresh or try again after 05:00.`,
+      );
+    try {
+      const courseStmt = db.prepare(
+        `SELECT crn FROM sections
+          WHERE term = ? AND UPPER(REPLACE(subject_course, ' ', '')) = ?
+          ORDER BY section`,
+      );
+      const notes: string[] = [];
+      const groupCrns = groupSpecs.map((g) => {
+        if (g.crns) return [...new Set(g.crns)];
+        const rows = courseStmt.all(term, g.course!.replace(/\s+/g, "")) as {
+          crn: string;
+        }[];
+        if (rows.length === 0)
+          notes.push(`The ${term} snapshot lists no sections of ${g.course}.`);
+        return rows.map((r) => r.crn);
+      });
+
+      const { sections, notFound } = getSectionsByCrn(db, term, [
+        ...fixedCrns,
+        ...groupCrns.flat(),
+      ]);
+      const byCrn = new Map(sections.map((s) => [s.crn, s]));
+      if (notFound.length > 0)
+        notes.push(
+          `Not in the ${term} snapshot (left out): ${notFound.join(", ")}.`,
+        );
+
+      const fixed = fixedCrns
+        .filter((c) => byCrn.has(c))
+        .map((c) => byCrn.get(c)!);
+      for (const c of findConflicts(
+        getMeetingsForCrns(
+          db,
+          term,
+          fixed.map((s) => s.crn),
+        ),
+      ))
+        notes.push(
+          `Fixed CRNs ${c.crn_a} and ${c.crn_b} already overlap each other (${c.day} ${c.overlap_start}–${c.overlap_end}).`,
+        );
+
+      const groups = groupSpecs.map((g, i) => ({
+        label: g.label,
+        sections: groupCrns[i]!.filter((c) => byCrn.has(c)).map((c) =>
+          toCombination(byCrn.get(c)!),
+        ),
+      }));
+      const tba = groups
+        .flatMap((g) => g.sections)
+        .filter((s) => s.meetings.length === 0)
+        .map((s) => s.crn);
+      if (tba.length > 0)
+        notes.push(
+          `No meeting time (TBA/online), so they fit anything — not a guarantee: ${[...new Set(tba)].join(", ")}.`,
+        );
+
+      const r = searchCombinations({
+        groups,
+        fixed: fixed.map(toCombination),
+        busy,
+      });
+      if (!r.complete)
+        notes.push(
+          "SEARCH INCOMPLETE: too many sections to check every combination. " +
+            "The count is a lower bound; narrow the groups (fewer CRNs) or add fixed CRNs.",
+        );
+
+      const shown = new Set([
+        ...fixed.map((s) => s.crn),
+        ...groups.flatMap((g) => g.sections.map((s) => s.crn)),
+      ]);
+      return okJson({
+        term,
+        snapshot_date: getScheduleDbMeta(db).fetchedAt,
+        fixed_crns: fixed.map((s) => s.crn),
+        busy: busy.map((b) => b.label),
+        combination_count: r.count,
+        count_capped: r.countCapped,
+        search_complete: r.complete,
+        combinations: r.combinations,
+        blocking: r.blocking,
+        groups: r.groups,
+        sections: Object.fromEntries(
+          [...shown].map((c) => {
+            const s = byCrn.get(c)!;
+            return [
+              c,
+              {
+                course: s.subject_course.replace(/^([A-Z]+)(\d)/, "$1 $2"),
+                section: s.section,
+                title: s.title,
+                meets: describeMeetings(s),
+              },
+            ];
+          }),
+        ),
+        notes,
       });
     } finally {
       db.close();
@@ -1325,6 +1655,7 @@ export const __schedTools = {
   teachingLoad,
   courseOfferings,
   findConflictFree,
+  findSectionCombinations,
   scheduleFreshness,
   sectionsByCrn,
   resolveCrns: resolveCrnsTool,
@@ -1333,6 +1664,7 @@ export const __schedTools = {
 
 registerTools([
   findConflictFree,
+  findSectionCombinations,
   scheduleFreshness,
   sectionsByCrn,
   resolveCrnsTool,

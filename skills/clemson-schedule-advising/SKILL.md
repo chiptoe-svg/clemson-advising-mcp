@@ -38,7 +38,8 @@ the accepted forms — it is never reported as a term with no data.
 | `get-course-facts`           | Catalog facts for MANY courses at once (<=200): credits, title, prereq text+parse, coreq parse, structured coreqs | Batch every course of a plan into ONE call instead of looping `get-course-details`. `found: false` = the catalog has no such course (an absence, not an outage; outages error the whole call). Course rows are the current inventory, not catalog-year-pinned. |
 | `check-conflicts`             | Find time-overlapping pairs in a set of CRNs, or test `candidate_crns` against a fixed set                             | TBA/online sections (no meeting time) come back in `conflict_free` because there is no time to conflict — that is not a real compatibility guarantee.                                                                                                                                                                  |
 | `find-alternatives`           | Sections that fit around a schedule the student is keeping, given `current_crns`                                       | Candidates are checked against every CRN in `current_crns`; it does not dedupe candidates against each other — pair with `check-conflicts` when assembling more than one new section.                                                                                                                                  |
-| `find-conflict-free-schedule` | Which candidate CRNs fit around already-fixed CRNs, checked pairwise both ways                                         | Answers "what combination works", not "what exists".                                                                                                                                                                                                                                                                   |
+| `find-conflict-free-schedule` | Which candidate CRNs fit around already-fixed CRNs, every candidate checked against every other candidate          | Alternative sections of one course rule each other out here, so it CANNOT answer "which sections of A and B fit together" — an empty result is not "impossible". Use `find-section-combinations` for that.                                                                                                       |
+| `find-section-combinations`   | One section per course (`groups`) that fit together, around `fixed_crns` and `busy` blocks (work hours, a proposed meeting time) | Sections in one group are alternatives, never compared. Every conflict-free combination (count, 20 listed); a zero carries `blocking` — the reason. Any "can these fit / no combination works" answer, above all a NO, comes from this tool even when the sections are already in the conversation. `search_complete: false` means the count is a lower bound. Seats are not considered. |
 | `get-sections-by-crn`         | Confirm CRNs you already have: authoritative rows and meetings straight from the snapshot                              | `not_found` is the load-bearing half — it means the snapshot was read and has no such CRN. `has_snapshot: false` means nothing was checked, and `not_found` is then empty rather than listing every CRN as fake.                                                                                                       |
 | `resolve-crns`                | Get CRNs for course + section pairs, for schedule data that carries no CRNs                                            | Results align **by index** with the input. A null means no single match — none, or several. It never guesses between candidates.                                                                                                                                                                                       |
 | `get-instructor-classes`      | Everything each listed instructor teaches; optional day/window filter for teaching conflicts                           | Statuses are explicit: `teaching`/`not_teaching` unfiltered, `busy`/`free` filtered. `not_teaching` is NOT free — the snapshot sees only teaching. Emails match exactly; ambiguous names return candidates.                                                                                                            |
@@ -89,6 +90,12 @@ any CRN needing full detail.
 Collect CRNs (`search-classes` / `find-requirement-sections`) →
 `check-conflicts { crns }`.
 
+**Which sections of A and B (and C…) can be taken together? / What if X moved?**
+`find-section-combinations { groups: [{course: "GC 4061"}, {course: "GC 4401"}], fixed_crns, busy }`
+— one group per course; a hypothetical meeting or a work shift goes in `busy`
+(`{days: "MW", start: "1415", end: "1700", label}`, R = Thursday). Never reason
+the pairings out by hand, and never answer "no" without this tool's `blocking`.
+
 **Verify a schedule someone gave you**
 `get-sections-by-crn { term, crns }` — check `not_found` before believing any
 CRN a person or a model produced. If the schedule names courses and sections but
@@ -136,12 +143,14 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
   For plan courses, `get-program-graph` evaluates the reviewed rule exactly
   (OR, same-term, grade minimums) — prefer its `status` when planning.
 - **TBA / async sections have no meeting rows.** They appear in searches but
-  carry no meetings, so `check-conflicts` returns them `conflict_free` — not a
+  carry no meetings, so `check-conflicts` returns them `conflict_free` (and
+  `find-section-combinations` fits them anywhere, with a note) — not a
   guarantee of real compatibility.
 - **Snapshot lag.** The schedule snapshot refreshes ~05:00; seat counts can be
   ~24h old. Fine for "what are the sections?"; for "is there a seat right now?"
-  use `search-classes { refresh: true }` (scoped first). `find-requirement-sections`
-  and `find-alternatives` have no live-refresh option — only `search-classes` does.
+  use `search-classes { refresh: true }` (scoped first). `find-requirement-sections`,
+  `find-alternatives` and `find-section-combinations` have no live-refresh
+  option — only `search-classes` does.
 - **Day ordering is MTWRFSU.** Meeting days are always Monday-first: M T W R F S
   U (S = Saturday, U = Sunday). A MWF class is `"MWF"`, never `"FMW"`.
 - **`find-requirement-sections` needs both data sets.** It joins the Banner
@@ -162,4 +171,4 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
      for absence claims that stopped being true, then updates the stamp.
      (Origin: a bullet denying instructor tools outlived their arrival and
      sent live models paging search-classes instead.) -->
-<!-- limitations-reviewed-against: schedule=94b2337f1f65 catalog=d24fd4653cfc -->
+<!-- limitations-reviewed-against: schedule=ad5d85bcadae catalog=d24fd4653cfc -->

@@ -280,7 +280,7 @@ college. Workflow only — nothing for the advisor to data-enter.
 
 `get-program-plan` / `get-requirement-rules` (find unmet + eligible) →
 `find-requirement-sections` (candidate sections) → `check-conflicts` /
-`find-conflict-free-schedule` (fit) → for paired lecture/lab courses, confirm
+`find-section-combinations` (fit: one section per course, together) → for paired lecture/lab courses, confirm
 both halves via `get-course-details` (`crn`, one per half). The advisor course
 list rides on each rule as `advisor_courses` / `advisor_denies` — read it live.
 
