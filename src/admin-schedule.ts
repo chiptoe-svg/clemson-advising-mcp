@@ -300,7 +300,7 @@ export type ProblemKind =
   | "group_clash"
   | "room_too_small"
   | "room_too_small_for_expected"
-  | "room_oversized"
+  | "meets_together"
   | "room_unknown"
   | "no_meeting_time";
 
@@ -447,48 +447,66 @@ export function checkDraft(
       const roomClash = mine.find((a) =>
         theirs.some((b) => a.place && a.place === b.place && overlap(a, b)),
       );
-      if (roomClash)
-        add(
-          s.id,
-          "room_double_booked",
-          `${roomClash.place!.replace("|", " ")} also holds ${describe(t)}`,
-          [t.id],
-        );
       const shared = [...who(t)].filter((x) => myWho.has(x));
-      if (
-        shared.length > 0 &&
-        mine.some((a) => theirs.some((b) => overlap(a, b)))
-      )
+      const timeOverlap = mine.some((a) => theirs.some((b) => overlap(a, b)));
+      if (roomClash && shared.length > 0)
+        // One person can't teach two classes in one room at once: this is
+        // almost certainly one class listed twice (GC 1990/2990/3990/4990)
+        // with slightly different meeting patterns. Shown, not alarmed.
         add(
           s.id,
-          "instructor_double_booked",
-          `${shared.join(", ")} also teaches ${describe(t)}`,
+          "meets_together",
+          `${roomClash.place!.replace("|", " ")} with ${describe(t)}, same instructor — probably one class listed twice`,
           [t.id],
         );
+      else {
+        if (roomClash)
+          add(
+            s.id,
+            "room_double_booked",
+            `${roomClash.place!.replace("|", " ")} also holds ${describe(t)}`,
+            [t.id],
+          );
+        if (shared.length > 0 && timeOverlap)
+          add(
+            s.id,
+            "instructor_double_booked",
+            `${shared.join(", ")} also teaches ${describe(t)}`,
+            [t.id],
+          );
+      }
     }
 
     for (const { o, iv: theirs } of otherIv) {
       const roomClash = mine.find((a) =>
         theirs.some((b) => a.place && a.place === b.place && overlap(a, b)),
       );
-      if (roomClash)
-        add(
-          s.id,
-          "room_used_by_other_department",
-          `${roomClash.place!.replace("|", " ")} is booked by ${describe(o)}`,
-        );
       const shared = o.instructors
         .map((i) => canon(i, aliases))
         .filter((x) => myWho.has(x));
-      if (
-        shared.length > 0 &&
-        mine.some((a) => theirs.some((b) => overlap(a, b)))
-      )
+      if (roomClash && shared.length > 0)
         add(
           s.id,
-          "instructor_double_booked",
-          `${shared.join(", ")} teaches ${describe(o)}`,
+          "meets_together",
+          `${roomClash.place!.replace("|", " ")} with ${describe(o)}, same instructor — probably one class listed twice`,
         );
+      else {
+        if (roomClash)
+          add(
+            s.id,
+            "room_used_by_other_department",
+            `${roomClash.place!.replace("|", " ")} is booked by ${describe(o)}`,
+          );
+        if (
+          shared.length > 0 &&
+          mine.some((a) => theirs.some((b) => overlap(a, b)))
+        )
+          add(
+            s.id,
+            "instructor_double_booked",
+            `${shared.join(", ")} teaches ${describe(o)}`,
+          );
+      }
     }
 
     const capacity = roomCapacity(s.building, s.room);
@@ -505,14 +523,6 @@ export function checkDraft(
           s.id,
           "room_too_small_for_expected",
           `${s.building} ${s.room} seats ${capacity}; about ${expected} students are expected`,
-        );
-      // Only with a known expected size: a big room for a small class keeps
-      // the big room from a class that needs it.
-      if (expected != null && expected > 0 && capacity > 2 * expected)
-        add(
-          s.id,
-          "room_oversized",
-          `${s.building} ${s.room} seats ${capacity} for about ${expected} students`,
         );
     }
   }

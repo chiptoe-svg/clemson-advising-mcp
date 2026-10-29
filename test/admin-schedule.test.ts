@@ -476,7 +476,7 @@ test("a room too small for the expected size is its own problem", () => {
   assert.deepEqual(kinds(r, "a"), ["room_too_small_for_expected"]);
 });
 
-test("a room more than twice the class it holds is flagged as oversized", () => {
+test("a larger room than the class needs is not a problem (Chip, 2026-10-28)", () => {
   const r = A.checkDraft(
     [{ ...d("a", "GC 3400", [TRm], "201", [], 30), expected: 12 }],
     base8,
@@ -484,15 +484,29 @@ test("a room more than twice the class it holds is flagged as oversized", () => 
     [],
     aliases8,
   );
-  assert.deepEqual(kinds(r, "a"), ["room_oversized"]);
-  const ok = A.checkDraft(
-    [{ ...d("a", "GC 3400", [TRm], "201", [], 60), expected: 45 }],
+  assert.deepEqual(kinds(r, "a"), []);
+});
+
+test("same room, same instructor, overlapping: meets together, not a double booking", () => {
+  // GC 1990/2990/3990/4990 are one special-projects class listed per level;
+  // a slightly different meeting pattern keeps them from stacking exactly.
+  const r = A.checkDraft(
+    [
+      d("s1", "GC 1990", [{ days: "MF", start: "1115", end: "1250" }], "202", [
+        "cn@clemson.edu",
+      ]),
+      d("s2", "GC 4990", [{ days: "F", start: "1115", end: "1250" }], "202", [
+        "cn@clemson.edu",
+      ]),
+    ],
     base8,
     "GC",
     [],
     aliases8,
   );
-  assert.deepEqual(kinds(ok, "a"), []);
+  assert.deepEqual(kinds(r, "s1"), ["meets_together"]);
+  assert.deepEqual(kinds(r, "s2"), ["meets_together"]);
+  assert.match(r.problems[0]!.detail, /one class listed twice/);
 });
 
 test("free rooms for an expected size: big enough, closest fit first", () => {
@@ -536,7 +550,14 @@ test("I-1: a draft id equal to another department's CRN does not borrow its time
   // MATH 1010 is CRN 3003 in base8 (F 0800). A draft section reusing id "3003"
   // (a CRN from another term) must not lend MATH its meetings.
   const r = A.checkDraft(
-    [d("3003", "GC 3400", [{ days: "MWF", start: "0800", end: "0850" }], "201")],
+    [
+      d(
+        "3003",
+        "GC 3400",
+        [{ days: "MWF", start: "0800", end: "0850" }],
+        "201",
+      ),
+    ],
     base8,
     "GC",
     [group("fresh", ["GC 3400"], ["MATH 1010"])],
@@ -565,7 +586,9 @@ test("I-3: with a draft, the placed course's other sections still hold their roo
     instructors: [],
     preferredBuilding: "Godfrey Hall",
   });
-  const tr = r.slots.find((s) => s.meetings[0]!.days === "TR" && s.meetings[0]!.start === "0930");
+  const tr = r.slots.find(
+    (s) => s.meetings[0]!.days === "TR" && s.meetings[0]!.start === "0930",
+  );
   assert.ok(!tr || !tr.rooms.some((x) => x.room === "201"));
 });
 
@@ -601,6 +624,28 @@ test("I-5: a cross-listed partner in another subject is not 'another department'
   const db3 = openScheduleDb("202305")!;
   const b3 = A.loadBaseSections(db3, "202305");
   const draft = A.stackSections(b3.filter((s) => s.subject === "GC"));
-  const r = A.checkDraft(draft, b3, "GC", [], A.loadInstructorAliases(db3, "202305"));
+  const r = A.checkDraft(
+    draft,
+    b3,
+    "GC",
+    [],
+    A.loadInstructorAliases(db3, "202305"),
+  );
   assert.deepEqual(r.problems, []);
+});
+
+test("an other-department section in the same room with the same instructor meets together", () => {
+  // PRTM 4540 (base8) is TR 0930–1045 in Godfrey 101, taught by Other Person.
+  const r = A.checkDraft(
+    [
+      d("a", "GC 4540", [{ days: "T", start: "0930", end: "1100" }], "101", [
+        "Other Person",
+      ]),
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), ["meets_together"]);
 });

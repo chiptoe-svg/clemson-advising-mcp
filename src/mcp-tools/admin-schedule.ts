@@ -24,6 +24,7 @@ import {
   type DraftMeeting,
   type DraftSection,
 } from "../admin-schedule.js";
+import { capacityOverrides } from "../clemson-room-capacity.js";
 import { getScheduleDbMeta, openScheduleDb } from "../clemson-schedule-db.js";
 import { listCourseGroups, loadSavedGroups } from "../course-groups.js";
 import { listSnapshotTerms, parseTermCode } from "../term-resolve.js";
@@ -293,9 +294,12 @@ const checkDraftTool: McpToolDefinition = {
       "twice in the draft, a room another department uses then, an " +
       "instructor booked twice (including their teaching in other " +
       "departments), a room smaller than the seat cap or than the expected " +
-      "class size, a room more than twice the expected size, and course groups " +
+      "class size, and course groups " +
       "(courses students take together) with NO workable combination of one " +
-      "section each. Re-run after every change. Problems carry the draft " +
+      "section each. Sections sharing a room AND an instructor at once are " +
+      "reported as meets_together (probably one class listed twice), not as " +
+      "double bookings. Room capacities include department overrides " +
+      "(state/room-capacity-overrides.yaml). Re-run after every change. Problems carry the draft " +
       "section's id. Build the draft from get-department-draft.",
     inputSchema: {
       type: "object" as const,
@@ -362,7 +366,11 @@ const checkDraftTool: McpToolDefinition = {
         note:
           (r.problems.length === 0
             ? "No problems found in the checks listed. "
-            : "") + FREE_NOTE,
+            : "") +
+          (capacityOverrides().error
+            ? `Room capacity overrides were NOT applied: ${capacityOverrides().error}. `
+            : "") +
+          FREE_NOTE,
       });
     } finally {
       base.db.close();
