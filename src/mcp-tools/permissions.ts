@@ -314,11 +314,20 @@ const CLEMSON_SCHEDULE_OPS = [
   "clemson.find_section_combinations",
   "clemson.sections_by_crn",
   "clemson.resolve_crns",
-  "clemson.instructor_classes",
-  "clemson.teaching_load",
   "clemson.course_offerings",
-  "clemson.enrollment_history",
   "clemson.schedule_freshness",
+];
+
+// Department planning (2026-10-28): teaching load, instructor schedules,
+// enrollment history — off the student advisor's surface, where a short
+// tool list keeps small models accurate. course_offerings is asked by
+// students AND planners, so it is the one operation in two scopes. Not part
+// of the broad `clemson` scope, like clemson.department.
+export const CLEMSON_ADMIN_OPS = [
+  "clemson.teaching_load",
+  "clemson.instructor_classes",
+  "clemson.enrollment_history",
+  "clemson.course_offerings",
 ];
 
 const CLEMSON_CATALOG_OPS = [
@@ -345,6 +354,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
   // clemson.catalog (student-facing tokens carry that) nor of the legacy
   // broad `clemson` scope — only this token or an unscoped consumer sees it.
   "clemson.department": ["clemson.department_rules", "clemson.department_docs"],
+  "clemson.admin": CLEMSON_ADMIN_OPS,
   clemson: [
     "clemson.list_terms",
     "clemson.search_classes",
@@ -355,10 +365,7 @@ export const SCOPE_OPERATIONS: Record<string, string[]> = {
     "clemson.find_section_combinations",
     "clemson.sections_by_crn",
     "clemson.resolve_crns",
-    "clemson.instructor_classes",
-    "clemson.teaching_load",
     "clemson.course_offerings",
-    "clemson.enrollment_history",
     "clemson.gc_catalog_years",
     "clemson.gc_program_plan",
     "clemson.gc_requirement_rules",

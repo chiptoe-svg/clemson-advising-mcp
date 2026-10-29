@@ -6,6 +6,7 @@
 //   npm run mcp:pair -- --server catalog --id claude-code
 //   npm run mcp:pair -- --server schedule  --list
 //   npm run mcp:pair -- --server schedule  --revoke claude-code
+//   npm run mcp:pair -- --server schedule  --set-scopes claude-code --scopes clemson.schedule,clemson.admin
 //
 // The raw token is printed ONCE and never stored — only its sha256 hash goes
 // into state/mcp-consumers-<server>.json (0600). Losing it means minting a new
@@ -66,6 +67,7 @@ if (has("list")) {
     for (const c of consumers) {
       process.stdout.write(
         `${c.id}\tcreated=${c.created_at}` +
+          `\tscopes=${c.scopes ? c.scopes.join(",") : "ALL"}` +
           `\tlast_seen=${c.last_seen_at ?? "never"}${c.note ? `\t${c.note}` : ""}\n`,
       );
     }
@@ -86,10 +88,6 @@ if (revokeId) {
   process.exit(0);
 }
 
-// --- mint -------------------------------------------------------------------
-const id = flag("id");
-if (!id) fail("--id <agent> is required");
-
 // Optional scopes: comma-separated, validated against the scope vocabulary.
 // No --scopes = full access to every exposed tool (the advisor's shape);
 // scoped = the consumer sees ONLY those tools in tools/list. Example:
@@ -106,6 +104,29 @@ if (scopes) {
   const unknown = scopes.filter((s) => !isValidScopeToken(s));
   if (unknown.length > 0) fail(`unknown scope(s): ${unknown.join(", ")}`);
 }
+
+// --- set scopes (2026-10-28) -----------------------------------------------
+// Change an existing consumer's scopes without rotating its token, e.g.
+//   --set-scopes advisor --scopes clemson.schedule
+// The token hash is kept; the change takes effect on the next request.
+const setScopesId = flag("set-scopes");
+if (setScopesId) {
+  if (!scopes) fail("--set-scopes needs --scopes a,b");
+  if (!consumers.some((c) => c.id === setScopesId))
+    fail(`no consumer '${setScopesId}' on ${registry}`);
+  saveConsumers(
+    consumers.map((c) => (c.id === setScopesId ? { ...c, scopes } : c)),
+    registry,
+  );
+  process.stdout.write(
+    `scopes for '${setScopesId}' on ${registry}: ${scopes.join(", ")}; effective on the next request\n`,
+  );
+  process.exit(0);
+}
+
+// --- mint -------------------------------------------------------------------
+const id = flag("id");
+if (!id) fail("--id <agent> is required");
 
 if (consumers.some((c) => c.id === id)) {
   fail(

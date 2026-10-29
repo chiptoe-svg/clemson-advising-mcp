@@ -748,7 +748,7 @@ function hhmmToMin(v: unknown): number | null {
  */
 const instructorClasses: McpToolDefinition = {
   operation: "clemson.instructor_classes",
-  category: "scheduling",
+  category: "admin",
   tool: {
     name: "get-instructor-classes",
     description:
@@ -1075,7 +1075,7 @@ function aggregateLoad(rows: TeachingLoadRow[]) {
  */
 const teachingLoad: McpToolDefinition = {
   operation: "clemson.teaching_load",
-  category: "scheduling",
+  category: "admin",
   tool: {
     name: "get-teaching-load",
     description:
@@ -1385,7 +1385,7 @@ const courseOfferings: McpToolDefinition = {
  */
 const enrollmentHistoryTool: McpToolDefinition = {
   operation: "clemson.enrollment_history",
-  category: "scheduling",
+  category: "admin",
   tool: {
     name: "get-course-enrollment-history",
     description:

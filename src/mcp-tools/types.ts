@@ -7,7 +7,8 @@ import { McpPermissionDeniedError } from "./permissions.js";
  * "core" is always shown; "curriculum-extras" and "meta" are progressively
  * de-emphasized by consumers (e.g. the advisor's derived tool catalogue).
  */
-export type ToolCategory = "core" | "curriculum-extras" | "scheduling" | "meta";
+export type ToolCategory =
+  "core" | "curriculum-extras" | "scheduling" | "meta" | "admin";
 
 /** _meta key `registerTools` stamps onto every tool's `Tool._meta`. */
 export const TOOL_CATEGORY_META_KEY = "cuassistant/category";

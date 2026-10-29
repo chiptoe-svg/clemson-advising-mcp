@@ -119,7 +119,11 @@ test("every recognized scope carries the skill-document tools", () => {
   // the skill reported the server had none. They are shared guidance, not
   // data, so they ride along with ANY recognized scope rather than living
   // inside the partitioned data scopes.
-  for (const sc of ["clemson.schedule", "clemson.catalog", "clemson.department"]) {
+  for (const sc of [
+    "clemson.schedule",
+    "clemson.catalog",
+    "clemson.department",
+  ]) {
     const ops = expandScopes([sc]);
     for (const op of BASELINE_OPERATIONS) {
       assert.ok(ops.has(op), `${sc} must grant ${op}`);
@@ -132,4 +136,41 @@ test("an unrecognized scope still grants nothing, baseline included", () => {
   // granting the baseline here but nothing there, the two implementations
   // would disagree about the same token.
   assert.equal(expandScopes(["clemson.shcedule"]).size, 0);
+});
+
+// --- clemson.admin (2026-10-28) ---------------------------------------------
+//
+// Department-planning tools leave the student advisor's surface: a small
+// tool list keeps the advisor's models accurate. get-course-offerings is
+// asked by students AND by planners, so it sits in both scopes — the one
+// declared overlap.
+const MOVED = [
+  "clemson.teaching_load",
+  "clemson.instructor_classes",
+  "clemson.enrollment_history",
+];
+
+test("clemson.admin carries the moved department tools", () => {
+  const admin = expandScopes(["clemson.admin"]);
+  for (const op of [...MOVED, "clemson.course_offerings"])
+    assert.ok(admin.has(op), op);
+});
+
+test("a schedule-only key no longer sees the moved tools", () => {
+  const schedule = expandScopes(["clemson.schedule"]);
+  for (const op of MOVED) assert.equal(schedule.has(op), false, op);
+  assert.ok(schedule.has("clemson.course_offerings"));
+});
+
+test("schedule and admin overlap only on course_offerings", () => {
+  const schedule = new Set(SCOPE_OPERATIONS["clemson.schedule"]);
+  assert.deepEqual(
+    (SCOPE_OPERATIONS["clemson.admin"] ?? []).filter((op) => schedule.has(op)),
+    ["clemson.course_offerings"],
+  );
+});
+
+test("admin operations are not part of the broad clemson scope", () => {
+  const broad = new Set(SCOPE_OPERATIONS["clemson"]);
+  for (const op of MOVED) assert.equal(broad.has(op), false, op);
 });
