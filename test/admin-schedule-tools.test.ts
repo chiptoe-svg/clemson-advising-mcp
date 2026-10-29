@@ -188,3 +188,21 @@ test("expected size: rollover carries it, the check reads it, slots default to i
   ).body;
   assert.equal(dflt.expected_size, gc3400.expected);
 });
+
+test("I-2: duplicate draft ids are rejected, not silently merged", async () => {
+  const sec1 = {
+    id: "a",
+    course: "GC 3400",
+    meetings: [{ days: "MW", start: "0900", end: "0950" }],
+    building: "Godfrey Hall",
+    room: "202",
+    instructors: [],
+    cap: 20,
+  };
+  const r = await call("checkDraft", {
+    target_term: "Fall 2026",
+    draft: [sec1, { ...sec1, course: "GC 4060" }],
+  });
+  assert.equal(r.res.isError, true);
+  assert.match(r.res.content[0]!.text, /duplicate id "a"/);
+});

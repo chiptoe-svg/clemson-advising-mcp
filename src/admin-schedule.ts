@@ -260,6 +260,30 @@ export function stackSections<T extends DraftSection>(
   return out;
 }
 
+/**
+ * The base term's sections outside `subject` — other departments' fixed
+ * commitments — minus any that meet together with one of the subject's own
+ * sections (a cross-listing like GC 4900 with PKSC 4900): those move with
+ * the subject's section, so they are not someone else's booking.
+ */
+export function othersOf(
+  base: readonly BaseSection[],
+  subject: string,
+): BaseSection[] {
+  const subj = subject.toUpperCase();
+  const own = new Set(
+    base
+      .filter((b) => b.subject === subj)
+      .map(stackKey)
+      .filter((k): k is string => k !== null),
+  );
+  return base.filter((b) => {
+    if (b.subject === subj) return false;
+    const k = stackKey(b);
+    return !k || !own.has(k);
+  });
+}
+
 // --- Draft checks -------------------------------------------------------------
 
 export interface CourseGroup {
@@ -377,7 +401,7 @@ export function checkDraft(
     missing: string[];
   }[];
 } {
-  const others = base.filter((b) => b.subject !== subject.toUpperCase());
+  const others = othersOf(base, subject);
   const iv = new Map(draft.map((s) => [s.id, intervals(s)]));
   const otherIv = others.map((o) => ({ o, iv: intervals(o) }));
   const who = (s: DraftSection) =>
@@ -517,12 +541,16 @@ export function checkDraft(
       .map((n) => n.label);
     if (present.length < 2)
       return { name: g.name, combinations: null, missing };
+    // Draft sections are keyed by their id; base sections by a "base:" CRN,
+    // since a draft id (a CRN from another term) can equal one of them.
+    const draftSet = new Set<DraftSection>(draft);
+    const key = (x: DraftSection) => (draftSet.has(x) ? x.id : `base:${x.id}`);
     const r = searchCombinations({
       groups: present.map((n) => ({
         label: n.label,
-        sections: n.sections.map((s) => ({
-          crn: s.id,
-          meetings: iv.get(s.id) ?? intervals(s),
+        sections: n.sections.map((x) => ({
+          crn: key(x),
+          meetings: draftSet.has(x) ? iv.get(x.id)! : intervals(x),
         })),
       })),
       fixed: [],
@@ -530,17 +558,16 @@ export function checkDraft(
     });
     if (r.count === 0 && r.complete) {
       const why = r.blocking.map((b) => b.reason).join("; ");
-      const draftIds = new Set(draft.map((s) => s.id));
-      for (const n of present)
-        for (const s of n.sections.filter((x) => draftIds.has(x.id)))
-          add(
-            s.id,
-            "group_clash",
-            `group "${g.name}": ${why}`,
-            present
-              .flatMap((p) => p.sections.map((x) => x.id))
-              .filter((x) => x !== s.id && draftIds.has(x)),
-          );
+      const inDraft = present.flatMap((p) =>
+        p.sections.filter((x) => draftSet.has(x)),
+      );
+      for (const x of inDraft)
+        add(
+          x.id,
+          "group_clash",
+          `group "${g.name}": ${why}`,
+          inDraft.filter((y) => y !== x).map((y) => y.id),
+        );
     }
     return { name: g.name, combinations: r.complete ? r.count : null, missing };
   });
@@ -603,8 +630,7 @@ function occupants(
   subject: string | undefined,
 ): DraftSection[] {
   if (!draft) return [...base];
-  const subj = subject?.toUpperCase();
-  return [...base.filter((b) => !subj || b.subject !== subj), ...draft];
+  return [...(subject ? othersOf(base, subject) : base), ...draft];
 }
 
 /**
@@ -687,7 +713,10 @@ export function findSlots(args: {
   base: readonly BaseSection[];
   draft: readonly DraftSection[] | null;
   subject: string;
-  avoidCourses: string[];
+  avoidCourses?: string[];
+  /** Needs to keep workable, each a list of alternative courses (from a
+   *  course group); avoidCourses are added as single-course needs. */
+  avoidNeeds?: string[][];
   instructors: string[];
   preferredBuilding: string;
   minCapacity?: number;
@@ -701,16 +730,21 @@ export function findSlots(args: {
 }): { slots: SlotOption[]; patternsUsed: DraftMeeting[][] } {
   const aliases = args.aliases ?? new Map<string, string>();
   const patterns = args.patterns ?? standardPatterns(args.base);
-  const self = args.course ? displayCourse(args.course) : null;
+  // Without a draft, the placed course's base sections are what's being
+  // moved. With a draft, the draft already says where its sections are.
+  const self = args.course && !args.draft ? displayCourse(args.course) : null;
   const pool = occupants(args.base, args.draft, args.subject).filter(
     (s) => !self || !courseCodes(s).includes(self),
   );
-  const avoid = args.avoidCourses.map(displayCourse);
-  const avoidGroups = avoid
-    .map((code) => ({
-      label: code,
+  const needs = [
+    ...(args.avoidNeeds ?? []).map((n) => n.map(displayCourse)),
+    ...(args.avoidCourses ?? []).map((c) => [displayCourse(c)]),
+  ];
+  const avoidGroups = needs
+    .map((codes) => ({
+      label: codes.join("/"),
       sections: pool
-        .filter((s) => courseCodes(s).includes(code))
+        .filter((s) => courseCodes(s).some((c) => codes.includes(c)))
         .map((s) => ({ crn: s.id, meetings: intervals(s) })),
     }))
     .filter((g) => g.sections.length > 0);

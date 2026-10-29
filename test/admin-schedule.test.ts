@@ -530,3 +530,77 @@ test("the course being placed does not block its own current room", () => {
   const tr = r.slots.find((s) => s.meetings[0]!.days === "TR")!;
   assert.ok(tr.rooms.some((x) => x.room === "201"));
 });
+
+// --- final-review fixes ----------------------------------------------------------
+test("I-1: a draft id equal to another department's CRN does not borrow its times", () => {
+  // MATH 1010 is CRN 3003 in base8 (F 0800). A draft section reusing id "3003"
+  // (a CRN from another term) must not lend MATH its meetings.
+  const r = A.checkDraft(
+    [d("3003", "GC 3400", [{ days: "MWF", start: "0800", end: "0850" }], "201")],
+    base8,
+    "GC",
+    [group("fresh", ["GC 3400"], ["MATH 1010"])],
+    aliases8,
+  );
+  assert.equal(r.groupsChecked[0]!.combinations, 0);
+  assert.deepEqual(kinds(r, "3003"), ["group_clash"]);
+  const moved = A.checkDraft(
+    [d("3003", "GC 3400", [{ days: "TR", start: "0800", end: "0850" }], "201")],
+    base8,
+    "GC",
+    [group("fresh", ["GC 3400"], ["MATH 1010"])],
+    aliases8,
+  );
+  assert.equal(moved.groupsChecked[0]!.combinations, 1);
+});
+
+test("I-3: with a draft, the placed course's other sections still hold their rooms", () => {
+  const draft = [d("k1", "GC 3400", [TRm], "201")];
+  const r = A.findSlots({
+    base: base5,
+    draft,
+    subject: "GC",
+    course: "GC 3400",
+    avoidCourses: [],
+    instructors: [],
+    preferredBuilding: "Godfrey Hall",
+  });
+  const tr = r.slots.find((s) => s.meetings[0]!.days === "TR" && s.meetings[0]!.start === "0930");
+  assert.ok(!tr || !tr.rooms.some((x) => x.room === "201"));
+});
+
+test("I-4: an avoid need with alternatives keeps all of them", () => {
+  // Need {GC 4061 or MATH 1010}: GC 4061 is MW 1115–1400, MATH 1010 is
+  // MW 1300–1350 (base5). A MW 1115 slot clashes with both → blocked; with
+  // only the first alternative considered, the same holds — so use a slot
+  // that clashes with GC 4061 only: MW 1115 overlaps MATH too. Instead check
+  // that a pattern clashing with GC 4061 but not MATH survives.
+  const r = A.findSlots({
+    base: base5,
+    draft: null,
+    subject: "GC",
+    avoidNeeds: [["GC 4061", "MATH 1010"]],
+    instructors: [],
+    preferredBuilding: "Godfrey Hall",
+    patterns: [[{ days: "MW", start: "1115", end: "1225" }]],
+  });
+  assert.equal(r.slots.length, 1, "MATH 1010 at 1300 is still takeable");
+});
+
+test("I-5: a cross-listed partner in another subject is not 'another department'", () => {
+  writeScheduleDb(
+    snapshot("202305", [
+      sec("6001", "GC4900", "001", [{ ...TR, room: "202" }], {
+        instructor: { name: "Cross Lister", email: "cl@clemson.edu" },
+      }),
+      sec("6002", "PKSC4900", "001", [{ ...TR, room: "202" }], {
+        instructor: { name: "Cross Lister", email: "cl@clemson.edu" },
+      }),
+    ]) as never,
+  );
+  const db3 = openScheduleDb("202305")!;
+  const b3 = A.loadBaseSections(db3, "202305");
+  const draft = A.stackSections(b3.filter((s) => s.subject === "GC"));
+  const r = A.checkDraft(draft, b3, "GC", [], A.loadInstructorAliases(db3, "202305"));
+  assert.deepEqual(r.problems, []);
+});

@@ -100,6 +100,10 @@ const scopes = scopesRaw
       .map((s) => s.trim())
       .filter(Boolean)
   : undefined;
+// An empty list would store scopes: [] — which grants EVERY tool (a typo
+// meant to narrow access would widen it). Refuse it.
+if (scopesRaw !== undefined && (!scopes || scopes.length === 0))
+  fail("--scopes needs at least one scope");
 if (scopes) {
   const unknown = scopes.filter((s) => !isValidScopeToken(s));
   if (unknown.length > 0) fail(`unknown scope(s): ${unknown.join(", ")}`);

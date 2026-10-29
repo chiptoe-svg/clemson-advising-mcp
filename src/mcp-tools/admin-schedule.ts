@@ -119,6 +119,8 @@ function parseDraft(raw: unknown): DraftSection[] | string {
     const x = (r ?? {}) as Record<string, unknown>;
     if (typeof x.id !== "string" || !x.id)
       return `draft[${i}] needs an id the page can match problems back to`;
+    if (out.some((o) => o.id === x.id))
+      return `draft[${i}] has a duplicate id "${x.id}" — every section needs its own id (a copied block keeps its source's id)`;
     if (typeof x.course !== "string" || !x.course)
       return `draft[${i}] needs a course, e.g. "GC 3400"`;
     const meetings: DraftMeeting[] = [];
