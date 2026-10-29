@@ -467,11 +467,19 @@ export function checkDraft(
   const groupsChecked = groups.map((g) => {
     const needs = g.needs.map((alts) => {
       const codes = alts.map(displayCourse);
+      const inDraft = draft.filter((s) =>
+        courseCodes(s).some((c) => codes.includes(c)),
+      );
+      // A course outside the subject (MKT 3010 in a GC group) isn't in the
+      // draft: its base-term sections are the fixed times students face.
       return {
         label: codes.join("/"),
-        sections: draft.filter((s) =>
-          courseCodes(s).some((c) => codes.includes(c)),
-        ),
+        sections:
+          inDraft.length > 0
+            ? inDraft
+            : others.filter((s) =>
+                courseCodes(s).some((c) => codes.includes(c)),
+              ),
       };
     });
     const present = needs.filter((n) => n.sections.length > 0);
@@ -485,7 +493,7 @@ export function checkDraft(
         label: n.label,
         sections: n.sections.map((s) => ({
           crn: s.id,
-          meetings: iv.get(s.id)!,
+          meetings: iv.get(s.id) ?? intervals(s),
         })),
       })),
       fixed: [],
@@ -493,15 +501,16 @@ export function checkDraft(
     });
     if (r.count === 0 && r.complete) {
       const why = r.blocking.map((b) => b.reason).join("; ");
+      const draftIds = new Set(draft.map((s) => s.id));
       for (const n of present)
-        for (const s of n.sections)
+        for (const s of n.sections.filter((x) => draftIds.has(x.id)))
           add(
             s.id,
             "group_clash",
             `group "${g.name}": ${why}`,
             present
               .flatMap((p) => p.sections.map((x) => x.id))
-              .filter((x) => x !== s.id),
+              .filter((x) => x !== s.id && draftIds.has(x)),
           );
     }
     return { name: g.name, combinations: r.complete ? r.count : null, missing };

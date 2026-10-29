@@ -326,15 +326,33 @@ test("group courses missing from the draft are listed; under two present, not ch
 writeScheduleDb(
   snapshot("202605", [
     sec("4001", "GC3400", "001", [TR], { cap: 40 }),
-    sec("4002", "ENGL1030", "001", [{ ...TR, building: "Daniel Hall", room: "100" }]),
-    sec("4003", "ENGL1030", "002", [{ ...TR, building: "Daniel Hall", room: "101" }]),
-    sec("4004", "GC4061", "001", [{ days: "MW", begin: "1115", end: "1400", room: "101C" }], {
-      instructor: { name: "Lab Lead", email: "lab@clemson.edu" },
-    }),
+    sec("4002", "ENGL1030", "001", [
+      { ...TR, building: "Daniel Hall", room: "100" },
+    ]),
+    sec("4003", "ENGL1030", "002", [
+      { ...TR, building: "Daniel Hall", room: "101" },
+    ]),
+    sec(
+      "4004",
+      "GC4061",
+      "001",
+      [{ days: "MW", begin: "1115", end: "1400", room: "101C" }],
+      {
+        instructor: { name: "Lab Lead", email: "lab@clemson.edu" },
+      },
+    ),
     sec("4005", "GC2400", "001", [{ ...TR, room: "205" }], {
       instructor: { name: "Busy Person", email: "busy@clemson.edu" },
     }),
-    sec("4006", "MATH1010", "001", [{ days: "MW", begin: "1300", end: "1350", building: "Martin Hall", room: "M1" }]),
+    sec("4006", "MATH1010", "001", [
+      {
+        days: "MW",
+        begin: "1300",
+        end: "1350",
+        building: "Martin Hall",
+        room: "M1",
+      },
+    ]),
   ]) as never,
 );
 const db5 = openScheduleDb("202605")!;
@@ -350,9 +368,14 @@ test("standard patterns: most common first", () => {
 });
 
 test("free rooms: booked rooms are out, the preferred building comes first", () => {
-  const rooms = A.freeRooms(base5, null, [{ days: "TR", start: "0930", end: "1045" }], {
-    building: "Godfrey Hall",
-  });
+  const rooms = A.freeRooms(
+    base5,
+    null,
+    [{ days: "TR", start: "0930", end: "1045" }],
+    {
+      building: "Godfrey Hall",
+    },
+  );
   const names = rooms.map((r) => `${r.building} ${r.room}`);
   assert.ok(!names.includes("Godfrey Hall 201"));
   assert.ok(!names.includes("Daniel Hall 100"));
@@ -381,7 +404,9 @@ test("slots avoid the group's courses and report instructors", () => {
     instructors: ["busy@clemson.edu"],
     preferredBuilding: "Godfrey Hall",
   });
-  const keys = r.slots.map((s) => s.meetings.map((m) => `${m.days} ${m.start}`).join(","));
+  const keys = r.slots.map((s) =>
+    s.meetings.map((m) => `${m.days} ${m.start}`).join(","),
+  );
   assert.ok(!keys.includes("MW 1115"), "overlaps the only GC 4061 section");
   assert.ok(!keys.includes("MW 1300"), "overlaps GC 4061 at 1300 too");
   const tr = r.slots.find((s) => s.meetings[0]!.days === "TR")!;
@@ -402,6 +427,23 @@ test("a course with two sections only blocks a slot when both clash", () => {
     instructors: [],
     preferredBuilding: "Godfrey Hall",
   });
-  const keys = r.slots.map((s) => s.meetings.map((m) => `${m.days} ${m.start}`).join(","));
+  const keys = r.slots.map((s) =>
+    s.meetings.map((m) => `${m.days} ${m.start}`).join(","),
+  );
   assert.ok(keys.includes("MW 1115") && keys.includes("TR 0930"));
+});
+
+test("a group's other-department course comes from the base term, not 'missing'", () => {
+  // MATH 1010 (base 202608: F 0800–0850, Martin Hall) is in the group but
+  // not in the GC draft. A GC section on F 0800 now has no workable pairing.
+  const r = A.checkDraft(
+    [d("a", "GC 3400", [{ days: "MWF", start: "0800", end: "0850" }], "201")],
+    base8,
+    "GC",
+    [group("fresh", ["GC 3400"], ["MATH 1010"])],
+    aliases8,
+  );
+  assert.deepEqual(r.groupsChecked[0]!.missing, []);
+  assert.equal(r.groupsChecked[0]!.combinations, 0);
+  assert.deepEqual(kinds(r, "a"), ["group_clash"]);
 });
