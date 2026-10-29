@@ -16,6 +16,7 @@ import type Database from "better-sqlite3";
 
 import { roomCapacity } from "./clemson-room-capacity.js";
 import { minsToHHMM } from "./clemson-schedule-db.js";
+import type { InstructorPreference } from "./instructor-preferences.js";
 import { searchCombinations } from "./section-combinations.js";
 
 export interface DraftMeeting {
@@ -302,7 +303,16 @@ export type ProblemKind =
   | "room_too_small_for_expected"
   | "meets_together"
   | "room_unknown"
-  | "no_meeting_time";
+  | "no_meeting_time"
+  | "instructor_preference"
+  | "room_need";
+
+/** A course's room needs (check-schedule-draft `courses`): allowed rooms as
+ *  "Building Room", and/or a minimum seat count. */
+export interface RoomNeed {
+  rooms?: string[];
+  minSize?: number;
+}
 
 export interface Problem {
   id: string;
@@ -377,6 +387,12 @@ function canon(who: string, aliases: ReadonlyMap<string, string>): string {
   return k.includes("@") ? k : (aliases.get(k) ?? k);
 }
 
+/** "Godfrey Hall 101C" → "godfrey hall|101c", the lowercased place key. */
+function roomKey(name: string): string {
+  const m = /^(.*\S)\s+(\S+)$/.exec(name.trim());
+  return (m ? `${m[1]}|${m[2]}` : name.trim()).toLowerCase();
+}
+
 function courseCodes(s: DraftSection): string[] {
   return s.course.split(" / ").map((c) => displayCourse(c));
 }
@@ -393,6 +409,12 @@ export function checkDraft(
   subject: string,
   groups: readonly CourseGroup[],
   aliases: ReadonlyMap<string, string> = new Map(),
+  extra: {
+    preferences?: ReadonlyMap<string, InstructorPreference>;
+    /** Keyed by course code ("GC 4061"); a stacked block meets all of its
+     *  courses' needs. */
+    roomNeeds?: ReadonlyMap<string, RoomNeed>;
+  } = {},
 ): {
   problems: Problem[];
   groupsChecked: {
@@ -422,6 +444,27 @@ export function checkDraft(
     } else list.push({ id, kind, detail, with: [...w] });
     found.set(id, list);
   };
+
+  // Preferences keyed by canonical identity, so a file naming someone by
+  // name matches a draft naming them by email (and the reverse).
+  const prefs = new Map(
+    [...(extra.preferences ?? [])].map(([k, p]) => [
+      canon(k, aliases),
+      { who: k, p },
+    ]),
+  );
+  for (const [key, { who: name, p }] of prefs) {
+    if (p.maxSections === undefined) continue;
+    const theirs = draft.filter((s) => who(s).has(key));
+    if (theirs.length > p.maxSections)
+      for (const s of theirs)
+        add(
+          s.id,
+          "instructor_preference",
+          `${name} teaches ${theirs.length} sections in this draft; their limit is ${p.maxSections}`,
+          theirs.filter((t) => t !== s).map((t) => t.id),
+        );
+  }
 
   for (const s of draft) {
     const mine = iv.get(s.id)!;
@@ -507,6 +550,62 @@ export function checkDraft(
             `${shared.join(", ")} teaches ${describe(o)}`,
           );
       }
+    }
+
+    for (const key of myWho) {
+      const hit = prefs.get(key);
+      if (!hit) continue;
+      const { who: name, p } = hit;
+      for (const m of s.meetings) {
+        const days = [...m.days].filter((x) => p.avoidDays?.includes(x));
+        if (days.length > 0)
+          add(
+            s.id,
+            "instructor_preference",
+            `${name} avoids ${p.avoidDays}; ${describe(s)} meets ${days.join("")}`,
+          );
+        if (p.notBefore && hhmmToMins(m.start) < hhmmToMins(p.notBefore))
+          add(
+            s.id,
+            "instructor_preference",
+            `${name} prefers nothing before ${p.notBefore}; ${describe(s)} starts at ${m.start}`,
+          );
+        if (p.notAfter && hhmmToMins(m.end) > hhmmToMins(p.notAfter))
+          add(
+            s.id,
+            "instructor_preference",
+            `${name} prefers nothing after ${p.notAfter}; ${describe(s)} ends at ${m.end}`,
+          );
+      }
+    }
+
+    const places = [
+      ...new Set(mine.map((m) => m.place).filter((x): x is string => !!x)),
+    ];
+    for (const code of courseCodes(s)) {
+      const need = extra.roomNeeds?.get(code);
+      if (!need) continue;
+      if (need.rooms && need.rooms.length > 0) {
+        const allowed = new Set(need.rooms.map(roomKey));
+        for (const place of places)
+          if (!allowed.has(place.toLowerCase()))
+            add(
+              s.id,
+              "room_need",
+              `${place.replace("|", " ")} is not one of ${code}'s rooms (${need.rooms.join(", ")})`,
+            );
+      }
+      if (need.minSize !== undefined)
+        for (const place of places) {
+          const [b, r] = place.split("|") as [string, string];
+          const seats = roomCapacity(b, r);
+          if (seats != null && seats < need.minSize)
+            add(
+              s.id,
+              "room_need",
+              `${b} ${r} seats ${seats}; ${code} needs at least ${need.minSize}`,
+            );
+        }
     }
 
     const capacity = roomCapacity(s.building, s.room);

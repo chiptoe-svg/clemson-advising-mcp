@@ -23,10 +23,15 @@ import {
   type CourseGroup,
   type DraftMeeting,
   type DraftSection,
+  type RoomNeed,
 } from "../admin-schedule.js";
 import { capacityOverrides } from "../clemson-room-capacity.js";
 import { getScheduleDbMeta, openScheduleDb } from "../clemson-schedule-db.js";
 import { listCourseGroups, loadSavedGroups } from "../course-groups.js";
+import {
+  loadInstructorPreferences,
+  type InstructorPreference,
+} from "../instructor-preferences.js";
 import { listSnapshotTerms, parseTermCode } from "../term-resolve.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
@@ -150,6 +155,37 @@ function parseDraft(raw: unknown): DraftSection[] | string {
       cap: typeof x.cap === "number" ? x.cap : null,
       expected: typeof x.expected === "number" ? x.expected : null,
     });
+  }
+  return out;
+}
+
+/** check-schedule-draft `courses`: per-course room needs, keyed by course. */
+function parseCourses(raw: unknown): Map<string, RoomNeed> | string {
+  const out = new Map<string, RoomNeed>();
+  if (raw === undefined) return out;
+  if (!Array.isArray(raw))
+    return "courses must be a list of {course, rooms?, min_size?}";
+  for (const [i, r] of raw.entries()) {
+    const x = (r ?? {}) as Record<string, unknown>;
+    if (typeof x.course !== "string" || !x.course.trim())
+      return `courses[${i}] needs a course, e.g. "GC 4061"`;
+    const need: RoomNeed = {};
+    if (x.rooms !== undefined) {
+      if (
+        !Array.isArray(x.rooms) ||
+        !x.rooms.every(
+          (v) => typeof v === "string" && /^\S.*\s+\S+$/.test(v.trim()),
+        )
+      )
+        return `courses[${i}].rooms must be a list of "Building Room", e.g. ["Godfrey Hall 101C"]`;
+      need.rooms = (x.rooms as string[]).map((v) => v.trim());
+    }
+    if (x.min_size !== undefined) {
+      if (typeof x.min_size !== "number" || !(x.min_size > 0))
+        return `courses[${i}].min_size must be a positive number of seats`;
+      need.minSize = x.min_size;
+    }
+    out.set(displayCourse(x.course.trim()), need);
   }
   return out;
 }
@@ -299,7 +335,10 @@ const checkDraftTool: McpToolDefinition = {
       "section each. Sections sharing a room AND an instructor at once are " +
       "reported as meets_together (probably one class listed twice), not as " +
       "double bookings. Room capacities include department overrides " +
-      "(state/room-capacity-overrides.yaml). Re-run after every change. Problems carry the draft " +
+      "(state/room-capacity-overrides.yaml). Instructor preferences " +
+      "(state/instructor-preferences.yaml: days to avoid, not before/after, " +
+      "max sections) and per-course room needs (`courses`) are reported as " +
+      "instructor_preference and room_need. Re-run after every change. Problems carry the draft " +
       "section's id. Build the draft from get-department-draft.",
     inputSchema: {
       type: "object" as const,
@@ -325,6 +364,12 @@ const checkDraftTool: McpToolDefinition = {
             "Program whose catalog-plan groups a group NAME may refer to (see list-course-groups).",
         },
         catalog_year: { type: "string", description: "Default: newest." },
+        courses: {
+          type: "array",
+          description:
+            'Room needs per course: {course, rooms?:["Godfrey Hall 101C"], min_size?}. A section outside its course\'s rooms, or in a room seating fewer than min_size, is a room_need problem.',
+          items: { type: "object" },
+        },
       },
       required: ["target_term", "draft"],
     },
@@ -334,6 +379,14 @@ const checkDraftTool: McpToolDefinition = {
     if (denied) return denied;
     const draft = parseDraft(args.draft);
     if (typeof draft === "string") return err(draft);
+    const roomNeeds = parseCourses(args.courses);
+    if (typeof roomNeeds === "string") return err(roomNeeds);
+    let preferences: Map<string, InstructorPreference>;
+    try {
+      preferences = loadInstructorPreferences();
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
     let groups: CourseGroup[] | string;
     try {
       groups = await resolveGroups(
@@ -354,6 +407,7 @@ const checkDraftTool: McpToolDefinition = {
         subjectOf(args.subject),
         groups,
         loadInstructorAliases(base.db, base.term),
+        { preferences, roomNeeds },
       );
       return okJson({
         base_term: base.term,
@@ -369,6 +423,9 @@ const checkDraftTool: McpToolDefinition = {
             : "") +
           (capacityOverrides().error
             ? `Room capacity overrides were NOT applied: ${capacityOverrides().error}. `
+            : "") +
+          (preferences.size > 0
+            ? `Checked preferences for ${preferences.size} instructor${preferences.size === 1 ? "" : "s"}. `
             : "") +
           FREE_NOTE,
       });
@@ -418,6 +475,12 @@ const findSlotsTool: McpToolDefinition = {
         },
         subject: { type: "string" },
         draft: { type: "array", items: { type: "object" } },
+        exclude_ids: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Draft section ids to leave out, e.g. the section being moved, so its own room and instructor count as free. Needs draft.",
+        },
       },
       required: ["target_term", "course"],
     },
@@ -433,6 +496,22 @@ const findSlotsTool: McpToolDefinition = {
       const d = parseDraft(args.draft);
       if (typeof d === "string") return err(d);
       draft = d;
+    }
+    let excluded: string[] = [];
+    if (args.exclude_ids !== undefined) {
+      if (
+        !Array.isArray(args.exclude_ids) ||
+        !args.exclude_ids.every((x) => typeof x === "string")
+      )
+        return err("exclude_ids must be a list of draft section ids");
+      if (!draft) return err("exclude_ids needs a draft to leave them out of");
+      excluded = args.exclude_ids as string[];
+      const unknown = excluded.filter((x) => !draft!.some((s) => s.id === x));
+      if (unknown.length > 0)
+        return err(
+          `exclude_ids not in the draft: ${unknown.map((x) => `"${x}"`).join(", ")}`,
+        );
+      draft = draft.filter((s) => !excluded.includes(s.id));
     }
     let avoid = Array.isArray(args.avoid_courses)
       ? args.avoid_courses.map((c) => displayCourse(String(c)))
@@ -496,6 +575,7 @@ const findSlotsTool: McpToolDefinition = {
         course,
         expected_size: expectedSize ?? null,
         avoided: avoid,
+        ...(excluded.length > 0 ? { excluded } : {}),
         slot_count: r.slots.length,
         slots: r.slots.slice(0, MAX_SLOTS),
         patterns_considered: r.patternsUsed.length,

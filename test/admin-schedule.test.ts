@@ -649,3 +649,118 @@ test("an other-department section in the same room with the same instructor meet
   );
   assert.deepEqual(kinds(r, "a"), ["meets_together"]);
 });
+
+// --- Instructor preferences and room needs (2026-10-29) -----------------------
+// Cob_advisor's page computes no rules itself, so a hand move that breaks a
+// preference or a room need gets a badge only if the checker reports it.
+
+test("an instructor preference broken by a meeting is reported, matched by name or email", () => {
+  const preferences = new Map([
+    ["Lee One", { avoidDays: "F", notBefore: "0900", notAfter: "1700" }],
+  ]);
+  const r = A.checkDraft(
+    [
+      // Friday: breaks avoid_days. Draft names her by email, file by name.
+      d("fri", "GC 3400", [{ days: "MWF", start: "1010", end: "1100" }], "201", [
+        "lone@clemson.edu",
+      ]),
+      d("early", "GC 4060", [{ days: "TR", start: "0800", end: "0915" }], "202", [
+        "Lee One",
+      ]),
+      d("late", "GC 4070", [{ days: "TR", start: "1630", end: "1745" }], "202", [
+        "Lee One",
+      ]),
+      d("fine", "GC 4080", [{ days: "TR", start: "1100", end: "1215" }], "202", [
+        "Lee One",
+      ]),
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+    { preferences },
+  );
+  assert.deepEqual(kinds(r, "fri"), ["instructor_preference"]);
+  assert.match(r.problems.find((p) => p.id === "fri")!.detail, /Lee One.*F/);
+  assert.match(r.problems.find((p) => p.id === "early")!.detail, /before 0900/);
+  assert.match(r.problems.find((p) => p.id === "late")!.detail, /after 1700/);
+  assert.deepEqual(kinds(r, "fine"), []);
+});
+
+test("an instructor over max_sections: every one of their sections is flagged, naming the others", () => {
+  const preferences = new Map([["Kim Two", { maxSections: 1 }]]);
+  const r = A.checkDraft(
+    [
+      d("a", "GC 3400", [TRm], "201", ["Kim Two"]),
+      d("b", "GC 4060", [MW], "205", ["kim two"]),
+      d("c", "GC 4999", [], null, ["Kim Two"]), // untimed still counts
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+    { preferences },
+  );
+  const a = r.problems.find((p) => p.id === "a" && p.kind === "instructor_preference")!;
+  assert.match(a.detail, /3 sections.*limit is 1/);
+  assert.deepEqual(a.with.sort(), ["b", "c"]);
+  assert.ok(kinds(r, "c").includes("instructor_preference"));
+});
+
+test("no preferences given: no preference problems", () => {
+  const r = A.checkDraft(
+    [d("a", "GC 3400", [{ days: "F", start: "0700", end: "0750" }], "201", ["Kim Two"])],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), []);
+});
+
+test("a room need: a section outside its allowed rooms or below min size is reported", () => {
+  const roomNeeds = new Map([
+    ["GC 4061", { rooms: ["Godfrey Hall 101C"] }],
+    ["GC 6400", { minSize: 70 }], // applies to a stacked GC 4400 / GC 6400 block
+  ]);
+  const r = A.checkDraft(
+    [
+      d("lab-wrong", "GC 4061", [MW], "201"),
+      d("lab-right", "GC 4061", [TRm], "101C"),
+      d("small", "GC 4400 / GC 6400", [{ days: "F", start: "1300", end: "1350" }], "201"),
+      d("no-need", "GC 3400", [{ days: "F", start: "1400", end: "1450" }], "201"),
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+    { roomNeeds },
+  );
+  assert.deepEqual(kinds(r, "lab-wrong"), ["room_need"]);
+  assert.match(r.problems.find((p) => p.id === "lab-wrong")!.detail, /Godfrey Hall 101C/);
+  assert.deepEqual(kinds(r, "lab-right"), []);
+  assert.deepEqual(kinds(r, "small"), ["room_need"]);
+  assert.match(r.problems.find((p) => p.id === "small")!.detail, /seats 60.*70/);
+  assert.deepEqual(kinds(r, "no-need"), []);
+});
+
+test("a per-meeting room counts for room needs", () => {
+  const roomNeeds = new Map([["GC 4061", { rooms: ["Godfrey Hall 101C"] }]]);
+  const r = A.checkDraft(
+    [
+      {
+        ...d("lab", "GC 4061", [], "101C"),
+        meetings: [
+          { days: "M", start: "1115", end: "1400" },
+          { days: "W", start: "1115", end: "1400", building: "Godfrey Hall", room: "201" },
+        ],
+      },
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+    { roomNeeds },
+  );
+  assert.deepEqual(kinds(r, "lab"), ["room_need"]);
+});

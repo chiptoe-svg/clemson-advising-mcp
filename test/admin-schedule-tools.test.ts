@@ -206,3 +206,87 @@ test("I-2: duplicate draft ids are rejected, not silently merged", async () => {
   assert.equal(r.res.isError, true);
   assert.match(r.res.content[0]!.text, /duplicate id "a"/);
 });
+
+// --- Preferences, room needs, exclude_ids (2026-10-29) -------------------------
+
+test("check: course room needs and the preferences file are reported", async () => {
+  const roll = (await call("rollover", { term: "202608" })).body;
+  const prefs = path.join(STATE, "instructor-preferences.yaml");
+  fs.writeFileSync(prefs, 'instructors:\n  "Lab Lead":\n    not_before: "1200"\n');
+  try {
+    const { res, body } = await call("checkDraft", {
+      target_term: "Fall 2027",
+      draft: roll.sections,
+      courses: [{ course: "GC 3400", rooms: ["Godfrey Hall 101C"] }],
+    });
+    assert.equal(res.isError, undefined, res.content[0]!.text);
+    const byKind = (k: string) =>
+      body.problems.filter((p: { kind: string }) => p.kind === k);
+    assert.equal(byKind("room_need").length, 1);
+    // GC 4061 meets MW 1115: before Lab Lead's 1200.
+    assert.match(byKind("instructor_preference")[0].detail, /before 1200/);
+    assert.match(body.note, /preferences for 1 instructor/);
+  } finally {
+    fs.rmSync(prefs);
+  }
+});
+
+test("check: a malformed preferences file or courses entry is an error, not ignored", async () => {
+  const roll = (await call("rollover", { term: "202608" })).body;
+  const prefs = path.join(STATE, "instructor-preferences.yaml");
+  fs.writeFileSync(prefs, 'instructors:\n  "Lab Lead":\n    avoid_days: "Fridays"\n');
+  try {
+    const { res } = await call("checkDraft", {
+      target_term: "Fall 2027",
+      draft: roll.sections,
+    });
+    assert.equal(res.isError, true);
+    assert.match(res.content[0]!.text, /instructor preferences unreadable/);
+  } finally {
+    fs.rmSync(prefs);
+  }
+  for (const courses of [
+    "GC 3400",
+    [{ rooms: ["Godfrey Hall 201"] }],
+    [{ course: "GC 3400", rooms: "Godfrey Hall 201" }],
+    [{ course: "GC 3400", rooms: ["Godfrey"] }],
+    [{ course: "GC 3400", min_size: -3 }],
+  ]) {
+    const { res } = await call("checkDraft", {
+      target_term: "Fall 2027",
+      draft: roll.sections,
+      courses,
+    });
+    assert.equal(res.isError, true, JSON.stringify(courses));
+  }
+});
+
+test("find slots: exclude_ids lets a section's own room and instructor count as free", async () => {
+  const roll = (await call("rollover", { term: "202608" })).body;
+  const block = roll.sections.find((s: { course: string }) => s.course === "GC 3400");
+  const args = {
+    target_term: "Fall 2027",
+    course: "GC 3400",
+    draft: roll.sections,
+    instructors: ["pexample@clemson.edu"],
+  };
+  const atTR = (b: { slots: { meetings: { days: string; start: string }[]; rooms: { room: string }[]; instructorsFree: string[] }[] }) =>
+    b.slots.find((s) => s.meetings[0]!.days === "TR" && s.meetings[0]!.start === "0930");
+  const kept = atTR((await call("findSlots", args)).body);
+  assert.ok(!kept || !kept.rooms.some((r) => r.room === "201"));
+  const moved = (await call("findSlots", { ...args, exclude_ids: [block.id] })).body;
+  const slot = atTR(moved)!;
+  assert.ok(slot, JSON.stringify(moved.slots.map((s: { meetings: unknown }) => s.meetings)));
+  assert.ok(slot.rooms.some((r) => r.room === "201"));
+  assert.deepEqual(slot.instructorsFree, ["pexample@clemson.edu"]);
+  assert.deepEqual(moved.excluded, [block.id]);
+
+  for (const bad of [
+    { ...args, exclude_ids: ["nope"] },
+    { ...args, draft: undefined, exclude_ids: [block.id] },
+    { ...args, exclude_ids: block.id },
+  ]) {
+    const { res } = await call("findSlots", bad);
+    assert.equal(res.isError, true, JSON.stringify(bad.exclude_ids));
+  }
+});

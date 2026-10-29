@@ -318,14 +318,18 @@ bookings. Room capacities include department overrides from
 apply everywhere a capacity is shown. A group's courses
 from other departments are taken from the base term. Each section's
 `expected` size defaults (in the rollover) to its base-term enrollment plus
-waitlist; a forecast can replace it.
+waitlist; a forecast can replace it. Instructor preferences from
+`state/instructor-preferences.yaml` (days to avoid, not before, not after,
+max sections) are reported as `instructor_preference`; per-course room needs
+passed as `courses` (allowed rooms, minimum size) as `room_need`.
 
 #### `find-offering-slots`
 
 Standard meeting patterns (the base term's most common) where a course keeps
 the courses students take with it workable, each with its free rooms
 (preferred building first, default Godfrey Hall) and which given
-instructors are free or busy.
+instructors are free or busy. `exclude_ids` leaves draft sections out — the
+section being moved — so its own room and instructor count as free.
 
 #### `find-free-rooms`
 
