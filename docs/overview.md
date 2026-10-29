@@ -184,15 +184,6 @@ without time conflicts, with optional subject, credits, days, time-of-day,
 excluded-day, and open-seats filters. When many fit, returns the top sections
 by open seats plus a `needsNarrowing` summary. Snapshot.
 
-#### `find-conflict-free-schedule`
-
-Given `fixed_crns` (already committed) and `candidate_crns` (options), returns
-which candidates can be added without conflicts — each candidate checked
-against every fixed CRN and every other candidate — with details of the
-conflicts for the rest. Because candidates are checked against each other,
-alternative sections of one course rule each other out — for "which sections
-of A and B fit together", use `find-section-combinations`. Snapshot.
-
 #### `find-section-combinations`
 
 One section per group (a course code, or a list of alternative CRNs) such that

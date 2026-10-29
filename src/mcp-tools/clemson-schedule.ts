@@ -43,118 +43,8 @@ import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
 
-const findConflictFree: McpToolDefinition = {
-  operation: "clemson.find_conflict_free_schedule",
-  // A scheduling primitive, not curriculum: its own on-demand category so the
-  // model doesn't have to load "curriculum-extras" to build a schedule.
-  category: "scheduling",
-  tool: {
-    name: "find-conflict-free-schedule",
-    description:
-      "Given fixed CRNs (already committed) and candidate CRNs (options to " +
-      "consider), returns which candidates can be added without time conflicts. " +
-      "Each candidate is checked against every fixed CRN and against every " +
-      "other candidate. Returns conflict_free candidates and details of any " +
-      "conflicts for the rest. Because candidates are checked against EACH " +
-      "OTHER, alternative sections of one course rule each other out: it " +
-      "cannot answer 'which sections of A and B fit together' — an empty " +
-      "result there does NOT mean impossible. Use find-section-combinations " +
-      "for that. Reads the daily Banner snapshot. Do not use " +
-      "this just to check a short, already-chosen CRN list — use " +
-      "check-conflicts for that.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        term: {
-          type: "string",
-          description:
-            'Term: a code (202608) or a name ("Fall 2026"). Defaults to the current registration term.',
-        },
-        fixed_crns: {
-          type: "array",
-          items: { type: "string" },
-          description: "CRNs already locked in the schedule.",
-        },
-        candidate_crns: {
-          type: "array",
-          items: { type: "string" },
-          description: "CRNs to evaluate.",
-        },
-      },
-      required: ["term", "fixed_crns", "candidate_crns"],
-    },
-  },
-  async handler(args) {
-    try {
-      assertMcpOperation("clemson.find_conflict_free_schedule");
-    } catch (e) {
-      return permissionErr(e);
-    }
-    const fixedCrns = args.fixed_crns as string[] | undefined;
-    const candidateCrns = args.candidate_crns as string[] | undefined;
-    if (
-      !Array.isArray(fixedCrns) ||
-      !Array.isArray(candidateCrns) ||
-      candidateCrns.length === 0
-    )
-      return err(
-        "term, fixed_crns, and a non-empty candidate_crns array are required",
-      );
-    // This tool cannot answer without a snapshot, so the full resolver: it
-    // names the available terms rather than failing bare.
-    const resolved = resolveTerm(
-      typeof args.term === "string" ? args.term : undefined,
-    );
-    if ("error" in resolved) return err(resolved.error);
-    const { term } = resolved;
-
-    const db = openScheduleDb(term);
-    if (!db)
-      return err(
-        `No snapshot available for term ${term}. Run the daily refresh or try again after 05:00.`,
-      );
-    try {
-      const allCrns = [...new Set([...fixedCrns, ...candidateCrns])];
-      const meetings = getMeetingsForCrns(db, term, allCrns);
-      const allConflicts = findConflicts(meetings);
-
-      const fixedSet = new Set(fixedCrns);
-
-      type CandidateResult = {
-        crn: string;
-        conflict_free: boolean;
-        conflicts: ConflictPair[];
-      };
-
-      const results: CandidateResult[] = candidateCrns.map((crn) => {
-        const conflicts = allConflicts.filter(
-          (c) =>
-            (c.crn_a === crn || c.crn_b === crn) &&
-            (c.crn_a !== crn ||
-              fixedSet.has(c.crn_b) ||
-              candidateCrns.includes(c.crn_b)) &&
-            (c.crn_b !== crn ||
-              fixedSet.has(c.crn_a) ||
-              candidateCrns.includes(c.crn_a)),
-        );
-        return { crn, conflict_free: conflicts.length === 0, conflicts };
-      });
-
-      return okJson({
-        term,
-        snapshot_date: getScheduleDbMeta(db).fetchedAt,
-        fixed_crns: fixedCrns,
-        candidates: results,
-        conflict_free: results.filter((r) => r.conflict_free).map((r) => r.crn),
-      });
-    } finally {
-      db.close();
-    }
-  },
-};
-
-// find-section-combinations (2026-10-28). find-conflict-free-schedule checks
-// every candidate against every other, so alternative sections of one course
+// find-section-combinations (2026-10-28). find-conflict-free-schedule (retired the
+// same day) checked every candidate against every other, so alternative sections of one course
 // rule each other out and "which sections of A and B fit together" came back
 // empty — read by the advisor as "impossible". Here each group is one need
 // with alternative sections, and a zero always carries its reason.
@@ -1654,7 +1544,6 @@ export const __schedTools = {
   instructorClasses,
   teachingLoad,
   courseOfferings,
-  findConflictFree,
   findSectionCombinations,
   scheduleFreshness,
   sectionsByCrn,
@@ -1663,7 +1552,6 @@ export const __schedTools = {
 };
 
 registerTools([
-  findConflictFree,
   findSectionCombinations,
   scheduleFreshness,
   sectionsByCrn,

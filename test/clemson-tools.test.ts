@@ -12,7 +12,7 @@ import {
 // conflicts, get-course-details) lives in test/core-search.test.ts; find-
 // requirement-sections' handler behavior lives in
 // test/find-requirement-sections.test.ts — this file only covers the
-// surviving-as-is tools (list-clemson-terms, find-conflict-free-schedule)
+// surviving-as-is tools (list-clemson-terms)
 // plus the policy-gate wiring shared across the whole clemson surface.
 
 test("clemson public tools are exposed", () => {
@@ -22,7 +22,7 @@ test("clemson public tools are exposed", () => {
   assert.equal(isMcpOperationExposed("clemson.check_conflicts"), true);
   assert.equal(isMcpOperationExposed("clemson.course_details"), true);
   assert.equal(
-    isMcpOperationExposed("clemson.find_conflict_free_schedule"),
+    isMcpOperationExposed("clemson.find_section_combinations"),
     true,
   );
   assert.equal(
@@ -47,6 +47,13 @@ test("removed operations are no longer in the allow-list", () => {
     false,
   );
   assert.equal(isMcpOperationExposed("clemson.gc_course"), false);
+  // Retired 2026-10-28: it checked candidates against each other, so a
+  // course's alternative sections ruled each other out and "which sections of
+  // A and B fit" came back empty. find-section-combinations replaces it.
+  assert.equal(
+    isMcpOperationExposed("clemson.find_conflict_free_schedule"),
+    false,
+  );
 });
 
 test("clemson tools pass the policy gate", () => {
@@ -79,8 +86,8 @@ test("schedule conflict tools pass the policy gate", () => {
     }),
   );
   assert.doesNotThrow(() =>
-    assertMcpOperation("clemson.find_conflict_free_schedule", {
-      input: { term: "202608", fixed_crns: [], candidate_crns: ["80001"] },
+    assertMcpOperation("clemson.find_section_combinations", {
+      input: { term: "202608", groups: [{ crns: ["80001"] }] },
     }),
   );
   assert.doesNotThrow(() =>

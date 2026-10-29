@@ -114,11 +114,10 @@ test('get-schedule-freshness accepts "Fall 2026"', async () => {
   assert.equal(b.term, "202608");
 });
 
-test('find-conflict-free-schedule accepts "Fall 2026"', async () => {
-  const res = await __schedTools.findConflictFree.handler({
+test('find-section-combinations accepts "Fall 2026"', async () => {
+  const res = await __schedTools.findSectionCombinations.handler({
     term: "Fall 2026",
-    fixed_crns: ["80773"],
-    candidate_crns: ["80773"],
+    groups: [{ crns: ["80773"] }],
   });
   assert.equal(res.isError, undefined, JSON.stringify(res));
 });

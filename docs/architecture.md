@@ -61,7 +61,7 @@ restarted, revoked, or taken down without touching the other.
 ### Tool inventory
 
 **Schedule (8766)** — `list-clemson-terms`, `search-classes`, `get-course-details`,
-`get-course-facts`, `check-conflicts`, `find-conflict-free-schedule`, `find-section-combinations`, `find-alternatives`,
+`get-course-facts`, `check-conflicts`, `find-section-combinations`, `find-alternatives`,
 `get-schedule-freshness`, `get-sections-by-crn`, `resolve-crns`,
 `get-instructor-classes`, `get-teaching-load`, `get-course-offerings`,
 `get-course-enrollment-history`, `list-skills`,

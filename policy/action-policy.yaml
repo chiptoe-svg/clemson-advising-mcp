@@ -258,14 +258,6 @@ actions:
     constraints:
       - public_data_only
 
-  - id: clemson.find_conflict_free_schedule
-    surface: external_read
-    risk: low
-    reversibility: read_only
-    approval: none
-    constraints:
-      - public_data_only
-
   - id: clemson.find_section_combinations
     surface: external_read
     risk: low
