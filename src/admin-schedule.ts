@@ -37,9 +37,16 @@ export interface DraftSection {
   room: string | null;
   instructors: string[]; // emails when known, else names
   cap: number | null;
+  /**
+   * Expected class size — what the room must actually hold. Rollover sets it
+   * to the base term's enrollment plus waitlist (demand, not the seat limit);
+   * a forecast can replace it later. Absent = unknown.
+   */
+  expected?: number | null;
 }
 
 export interface BaseSection extends DraftSection {
+  expected: number;
   subject: string;
   title: string;
   enrollment: number;
@@ -192,6 +199,7 @@ export function loadBaseSections(
       room,
       instructors: instBy.get(r.crn) ?? [],
       cap: r.max_enrollment,
+      expected: r.enrollment + r.wait_count,
       subject: course.split(" ")[0]!,
       title: r.title,
       enrollment: r.enrollment,
@@ -244,6 +252,8 @@ export function stackSections<T extends DraftSection>(
       into.cap == null || s.cap == null
         ? (into.cap ?? s.cap)
         : into.cap + s.cap;
+    if (into.expected != null || s.expected != null)
+      into.expected = (into.expected ?? 0) + (s.expected ?? 0);
     if (s.course !== into.course && !into.course.includes(s.course))
       into.course = `${into.course} / ${s.course}`;
   }
@@ -265,6 +275,8 @@ export type ProblemKind =
   | "instructor_double_booked"
   | "group_clash"
   | "room_too_small"
+  | "room_too_small_for_expected"
+  | "room_oversized"
   | "room_unknown"
   | "no_meeting_time";
 
@@ -456,12 +468,29 @@ export function checkDraft(
     }
 
     const capacity = roomCapacity(s.building, s.room);
-    if (capacity != null && s.cap != null && s.cap > capacity)
-      add(
-        s.id,
-        "room_too_small",
-        `${s.building} ${s.room} seats ${capacity}; the section caps at ${s.cap}`,
-      );
+    if (capacity != null) {
+      const expected = s.expected ?? null;
+      if (s.cap != null && s.cap > capacity)
+        add(
+          s.id,
+          "room_too_small",
+          `${s.building} ${s.room} seats ${capacity}; the section caps at ${s.cap}`,
+        );
+      else if (expected != null && expected > capacity)
+        add(
+          s.id,
+          "room_too_small_for_expected",
+          `${s.building} ${s.room} seats ${capacity}; about ${expected} students are expected`,
+        );
+      // Only with a known expected size: a big room for a small class keeps
+      // the big room from a class that needs it.
+      if (expected != null && expected > 0 && capacity > 2 * expected)
+        add(
+          s.id,
+          "room_oversized",
+          `${s.building} ${s.room} seats ${capacity} for about ${expected} students`,
+        );
+    }
   }
 
   const groupsChecked = groups.map((g) => {
@@ -586,7 +615,13 @@ export function freeRooms(
   base: readonly BaseSection[],
   draft: readonly DraftSection[] | null,
   meetings: readonly DraftMeeting[],
-  opts: { building?: string; minCapacity?: number; subject?: string } = {},
+  opts: {
+    building?: string;
+    minCapacity?: number;
+    subject?: string;
+    /** A course whose own sections are being moved, so free their rooms. */
+    ignoreCourse?: string;
+  } = {},
 ): FreeRoom[] {
   const known = new Map<string, FreeRoom>();
   for (const s of base)
@@ -611,9 +646,12 @@ export function freeRooms(
     cap: null,
   });
   const busy = new Set<string>();
-  for (const s of occupants(base, draft, opts.subject))
+  const ignore = opts.ignoreCourse ? displayCourse(opts.ignoreCourse) : null;
+  for (const s of occupants(base, draft, opts.subject)) {
+    if (ignore && courseCodes(s).includes(ignore)) continue;
     for (const iv of intervals(s))
       if (iv.place && want.some((w) => overlap(w, iv))) busy.add(iv.place);
+  }
   const pref = opts.building?.toLowerCase();
   return [...known.entries()]
     .filter(([place]) => !busy.has(place))
@@ -653,12 +691,20 @@ export function findSlots(args: {
   instructors: string[];
   preferredBuilding: string;
   minCapacity?: number;
+  /** Rooms must hold this many (combined with minCapacity, the larger wins). */
+  expectedSize?: number;
+  /** The course being placed: its own current sections don't occupy rooms
+   *  or instructors, since they are what is being moved. */
+  course?: string;
   patterns?: DraftMeeting[][];
   aliases?: ReadonlyMap<string, string>;
 }): { slots: SlotOption[]; patternsUsed: DraftMeeting[][] } {
   const aliases = args.aliases ?? new Map<string, string>();
   const patterns = args.patterns ?? standardPatterns(args.base);
-  const pool = occupants(args.base, args.draft, args.subject);
+  const self = args.course ? displayCourse(args.course) : null;
+  const pool = occupants(args.base, args.draft, args.subject).filter(
+    (s) => !self || !courseCodes(s).includes(self),
+  );
   const avoid = args.avoidCourses.map(displayCourse);
   const avoidGroups = avoid
     .map((code) => ({
@@ -692,8 +738,10 @@ export function findSlots(args: {
     }
     const rooms = freeRooms(args.base, args.draft, meetings, {
       building: args.preferredBuilding,
-      minCapacity: args.minCapacity,
+      minCapacity:
+        Math.max(args.minCapacity ?? 0, args.expectedSize ?? 0) || undefined,
       subject: args.subject,
+      ignoreCourse: self ?? undefined,
     });
     if (rooms.length === 0) continue;
     const busy = args.instructors.filter((who) => {

@@ -145,6 +145,7 @@ function parseDraft(raw: unknown): DraftSection[] | string {
         ? x.instructors.map(String)
         : [],
       cap: typeof x.cap === "number" ? x.cap : null,
+      expected: typeof x.expected === "number" ? x.expected : null,
     });
   }
   return out;
@@ -229,7 +230,8 @@ const rollover: McpToolDefinition = {
       "the starting calendar for planning a future semester (roll the same " +
       "semester of last year forward). Every section, never truncated: " +
       "course, days/times, room and its capacity, instructors, seat cap, " +
-      "enrollment and waitlist. Cross-listed sections that meet together " +
+      "enrollment and waitlist, and `expected` (enrollment + waitlist: the " +
+      "class size a room must hold). Cross-listed sections that meet together " +
       "(honors pairs, 4xxx/6xxx pairs) come back as ONE entry with combined " +
       "caps; keep them as one when you send the draft to check-schedule-draft.",
     inputSchema: {
@@ -288,7 +290,8 @@ const checkDraftTool: McpToolDefinition = {
       "exist in Banner yet) and list problems per section: a room booked " +
       "twice in the draft, a room another department uses then, an " +
       "instructor booked twice (including their teaching in other " +
-      "departments), a room smaller than the seat cap, and course groups " +
+      "departments), a room smaller than the seat cap or than the expected " +
+      "class size, a room more than twice the expected size, and course groups " +
       "(courses students take together) with NO workable combination of one " +
       "section each. Re-run after every change. Problems carry the draft " +
       "section's id. Build the draft from get-department-draft.",
@@ -301,7 +304,7 @@ const checkDraftTool: McpToolDefinition = {
         draft: {
           type: "array",
           description:
-            "Sections: {id, course, meetings:[{days,start,end}], building, room, instructors:[email or name], cap}.",
+            "Sections: {id, course, meetings:[{days,start,end}], building, room, instructors:[email or name], cap, expected}. expected = students expected (rollover: last enrollment + waitlist).",
           items: { type: "object" },
         },
         groups: {
@@ -374,7 +377,8 @@ const findSlotsTool: McpToolDefinition = {
       "Where could a course be scheduled? Returns standard meeting patterns " +
       "(the base term's most common ones) that keep the courses students " +
       "take with it workable, each with the rooms free then (preferred " +
-      "building first, default Godfrey Hall) and which of the given " +
+      "building first, default Godfrey Hall; rooms hold expected_size, " +
+      "closest fit first) and which of the given " +
       "instructors are free or busy. Pass the courses to avoid directly or " +
       "as a course group; pass a draft to check against a schedule being " +
       "built instead of the base term's own.",
@@ -397,6 +401,11 @@ const findSlotsTool: McpToolDefinition = {
         instructors: { type: "array", items: { type: "string" } },
         building: { type: "string", description: 'Default "Godfrey Hall".' },
         min_capacity: { type: "number" },
+        expected_size: {
+          type: "number",
+          description:
+            "Students expected in the section; rooms must hold this many. Default: the course's largest base-term section demand (enrollment + waitlist).",
+        },
         subject: { type: "string" },
         draft: { type: "array", items: { type: "object" } },
       },
@@ -444,7 +453,18 @@ const findSlotsTool: McpToolDefinition = {
         return err(
           `${course} has no sections in base term ${base.term}${draft ? " or the draft" : ""}. Check the code, or pass base_term.`,
         );
+      const expectedSize =
+        typeof args.expected_size === "number"
+          ? args.expected_size
+          : Math.max(
+              0,
+              ...stackSections(sections)
+                .filter((s) => s.course.split(" / ").includes(course))
+                .map((s) => s.expected ?? 0),
+            ) || undefined;
       const r = findSlots({
+        course,
+        expectedSize,
         base: sections,
         draft,
         subject: subjectOf(args.subject),
@@ -464,6 +484,7 @@ const findSlotsTool: McpToolDefinition = {
         base_reason: base.reason,
         snapshot_date: getScheduleDbMeta(base.db).fetchedAt,
         course,
+        expected_size: expectedSize ?? null,
         avoided: avoid,
         slot_count: r.slots.length,
         slots: r.slots.slice(0, MAX_SLOTS),

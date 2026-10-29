@@ -447,3 +447,86 @@ test("a group's other-department course comes from the base term, not 'missing'"
   assert.equal(r.groupsChecked[0]!.combinations, 0);
   assert.deepEqual(kinds(r, "a"), ["group_clash"]);
 });
+
+// --- expected class size and room matching (Chip, 2026-10-28) -------------------
+test("base sections carry an expected size: enrollment plus waitlist, summed when stacked", () => {
+  writeScheduleDb(
+    snapshot("202405", [
+      {
+        ...sec("5001", "GC3400", "001", [TR], { cap: 40, enrollment: 35 }),
+        waitCount: 4,
+      },
+      sec("5002", "GC3400", "002", [TR], { cap: 2, enrollment: 2 }),
+    ]) as never,
+  );
+  const b = A.loadBaseSections(openScheduleDb("202405")!, "202405");
+  assert.equal(b.find((s) => s.crns[0] === "5001")!.expected, 39);
+  assert.equal(A.stackSections(b)[0]!.expected, 41);
+});
+
+test("a room too small for the expected size is its own problem", () => {
+  // Godfrey Hall 201 seats 60: cap 50 fits, expected 70 does not.
+  const r = A.checkDraft(
+    [{ ...d("a", "GC 3400", [TRm], "201", [], 50), expected: 70 }],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), ["room_too_small_for_expected"]);
+});
+
+test("a room more than twice the class it holds is flagged as oversized", () => {
+  const r = A.checkDraft(
+    [{ ...d("a", "GC 3400", [TRm], "201", [], 30), expected: 12 }],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), ["room_oversized"]);
+  const ok = A.checkDraft(
+    [{ ...d("a", "GC 3400", [TRm], "201", [], 60), expected: 45 }],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(ok, "a"), []);
+});
+
+test("free rooms for an expected size: big enough, closest fit first", () => {
+  const rooms = A.freeRooms(
+    base5,
+    null,
+    [{ days: "MW", start: "0800", end: "0850" }],
+    {
+      building: "Godfrey Hall",
+      minCapacity: 21,
+    },
+  );
+  for (const r of rooms) assert.ok(r.capacity != null && r.capacity >= 21);
+  const caps = rooms
+    .filter((r) => r.building === "Godfrey Hall")
+    .map((r) => r.capacity!);
+  assert.deepEqual(
+    caps,
+    [...caps].sort((a, b) => a - b),
+  );
+});
+
+test("the course being placed does not block its own current room", () => {
+  // GC 3400 holds Godfrey 201 on TR in the base; placing GC 3400 itself,
+  // TR 0930 in 201 is open to it.
+  const r = A.findSlots({
+    base: base5,
+    draft: null,
+    subject: "GC",
+    course: "GC 3400",
+    avoidCourses: [],
+    instructors: [],
+    preferredBuilding: "Godfrey Hall",
+  });
+  const tr = r.slots.find((s) => s.meetings[0]!.days === "TR")!;
+  assert.ok(tr.rooms.some((x) => x.room === "201"));
+});

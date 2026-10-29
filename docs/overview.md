@@ -309,8 +309,12 @@ pairs) are one entry with combined caps.
 
 Problems in a proposed schedule, per draft section: a room booked twice,
 a room another department uses then, an instructor booked twice (including
-other-department teaching), a room smaller than the seat cap, and course
-groups with no workable combination of one section each.
+other-department teaching), a room smaller than the seat cap or than the
+expected class size, a room more than twice the expected size, and course
+groups with no workable combination of one section each. A group's courses
+from other departments are taken from the base term. Each section's
+`expected` size defaults (in the rollover) to its base-term enrollment plus
+waitlist; a forecast can replace it.
 
 #### `find-offering-slots`
 

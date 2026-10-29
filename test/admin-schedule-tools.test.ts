@@ -21,8 +21,8 @@ const TR = { days: "TR", begin: "0930", end: "1045" };
 const MW = { days: "MW", begin: "1115", end: "1400" };
 writeScheduleDb(
   snapshot("202608", [
-    sec("1001", "GC3400", "001", [TR], { cap: 40 }),
-    sec("1002", "GC3400", "002", [TR], { cap: 2 }),
+    sec("1001", "GC3400", "001", [TR], { cap: 40, enrollment: 30 }),
+    sec("1002", "GC3400", "002", [TR], { cap: 2, enrollment: 2 }),
     sec("1003", "GC4061", "001", [{ ...MW, room: "101C" }], {
       instructor: { name: "Lab Lead", email: "lab@clemson.edu" },
     }),
@@ -153,4 +153,38 @@ test("the admin tools are admin-category and outside the schedule scope", () => 
     assert.equal(schedule.has(op), false, op);
     assert.equal(admin.has(op), true, op);
   }
+});
+
+test("expected size: rollover carries it, the check reads it, slots default to it", async () => {
+  const roll = (await call("rollover", { term: "202608" })).body;
+  const gc3400 = roll.sections.find(
+    (s: { course: string }) => s.course === "GC 3400",
+  );
+  assert.equal(gc3400.expected, 32);
+  const draft = roll.sections.map((s: Record<string, unknown>) =>
+    s.course === "GC 3400" ? { ...s, cap: 40, expected: 70 } : s,
+  );
+  const chk = (await call("checkDraft", { target_term: "Fall 2026", draft }))
+    .body;
+  assert.ok(
+    chk.problems.some(
+      (p: { kind: string }) => p.kind === "room_too_small_for_expected",
+    ),
+    JSON.stringify(chk.problems),
+  );
+  const slots = (
+    await call("findSlots", {
+      target_term: "Fall 2026",
+      course: "GC 3400",
+      expected_size: 50,
+    })
+  ).body;
+  assert.equal(slots.expected_size, 50);
+  for (const s of slots.slots)
+    for (const r of s.rooms)
+      assert.ok(r.capacity >= 50, `${r.building} ${r.room}`);
+  const dflt = (
+    await call("findSlots", { target_term: "Fall 2026", course: "GC 3400" })
+  ).body;
+  assert.equal(dflt.expected_size, gc3400.expected);
 });
