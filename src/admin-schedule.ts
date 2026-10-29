@@ -16,6 +16,7 @@ import type Database from "better-sqlite3";
 
 import { roomCapacity } from "./clemson-room-capacity.js";
 import { minsToHHMM } from "./clemson-schedule-db.js";
+import { searchCombinations } from "./section-combinations.js";
 
 export interface DraftMeeting {
   days: string; // MTWRFSU, R = Thursday
@@ -247,4 +248,267 @@ export function stackSections<T extends DraftSection>(
       into.course = `${into.course} / ${s.course}`;
   }
   return out;
+}
+
+// --- Draft checks -------------------------------------------------------------
+
+export interface CourseGroup {
+  name: string;
+  needs: string[][]; // each need = alternative course codes ("GC 3400")
+  unresolved: string[]; // plan placeholders ("Elective"), informational
+  source: "generated" | "saved";
+}
+
+export type ProblemKind =
+  | "room_double_booked"
+  | "room_used_by_other_department"
+  | "instructor_double_booked"
+  | "group_clash"
+  | "room_too_small"
+  | "room_unknown"
+  | "no_meeting_time";
+
+export interface Problem {
+  id: string;
+  kind: ProblemKind;
+  detail: string;
+  with: string[];
+}
+
+interface Interval {
+  day: string;
+  startMin: number;
+  endMin: number;
+  place: string | null; // "Building|Room", null for a placeholder
+}
+
+export function hhmmToMins(t: string): number {
+  return Number(t.slice(0, 2)) * 60 + Number(t.slice(2));
+}
+
+function intervals(s: DraftSection): Interval[] {
+  const out: Interval[] = [];
+  for (const m of s.meetings) {
+    const building = m.building !== undefined ? m.building : s.building;
+    const room = m.room !== undefined ? m.room : s.room;
+    const place = isPlaceholderRoom(building, room)
+      ? null
+      : `${building}|${room}`;
+    for (const day of m.days)
+      out.push({
+        day,
+        startMin: hhmmToMins(m.start),
+        endMin: hhmmToMins(m.end),
+        place,
+      });
+  }
+  return out;
+}
+
+function overlap(a: Interval, b: Interval): boolean {
+  return a.day === b.day && a.startMin < b.endMin && b.startMin < a.endMin;
+}
+
+function describe(s: DraftSection): string {
+  const when = s.meetings
+    .map((m) => `${m.days} ${m.start}–${m.end}`)
+    .join(", ");
+  return `${s.course}-${s.sections.join("/")}${when ? ` (${when})` : ""}`;
+}
+
+/**
+ * Name → email for every instructor the base term lists with both, so a
+ * draft naming someone by email still matches a record that has only their
+ * name (and the reverse).
+ */
+export function loadInstructorAliases(
+  db: Database.Database,
+  term: string,
+): Map<string, string> {
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT name, email FROM instructors
+        WHERE term = ? AND email IS NOT NULL AND email != ''`,
+    )
+    .all(term) as { name: string; email: string }[];
+  return new Map(
+    rows.map((r) => [r.name.trim().toLowerCase(), r.email.toLowerCase()]),
+  );
+}
+
+function canon(who: string, aliases: ReadonlyMap<string, string>): string {
+  const k = who.trim().toLowerCase();
+  return k.includes("@") ? k : (aliases.get(k) ?? k);
+}
+
+function courseCodes(s: DraftSection): string[] {
+  return s.course.split(" / ").map((c) => displayCourse(c));
+}
+
+/**
+ * Problems in a draft schedule, per draft section. "Others" are the base
+ * term's sections outside `subject`: their rooms and their instructors'
+ * teaching are fixed commitments. The base term's own `subject` sections are
+ * what the draft replaces, so they are ignored. Callers stack the draft.
+ */
+export function checkDraft(
+  draft: readonly DraftSection[],
+  base: readonly BaseSection[],
+  subject: string,
+  groups: readonly CourseGroup[],
+  aliases: ReadonlyMap<string, string> = new Map(),
+): {
+  problems: Problem[];
+  groupsChecked: {
+    name: string;
+    combinations: number | null;
+    missing: string[];
+  }[];
+} {
+  const others = base.filter((b) => b.subject !== subject.toUpperCase());
+  const iv = new Map(draft.map((s) => [s.id, intervals(s)]));
+  const otherIv = others.map((o) => ({ o, iv: intervals(o) }));
+  const who = (s: DraftSection) =>
+    new Set(s.instructors.map((i) => canon(i, aliases)));
+
+  const found = new Map<string, Problem[]>();
+  const add = (
+    id: string,
+    kind: ProblemKind,
+    detail: string,
+    w: string[] = [],
+  ) => {
+    const list = found.get(id) ?? [];
+    const same = list.find((p) => p.kind === kind);
+    if (same) {
+      for (const x of w) if (!same.with.includes(x)) same.with.push(x);
+      if (!same.detail.includes(detail)) same.detail += `; ${detail}`;
+    } else list.push({ id, kind, detail, with: [...w] });
+    found.set(id, list);
+  };
+
+  for (const s of draft) {
+    const mine = iv.get(s.id)!;
+    if (s.meetings.length === 0) {
+      add(
+        s.id,
+        "no_meeting_time",
+        `${describe(s)} has no meeting time, so nothing was checked for it`,
+      );
+      continue;
+    }
+    if (mine.every((m) => m.place === null))
+      add(
+        s.id,
+        "room_unknown",
+        `${describe(s)} has no real room, so rooms were not checked`,
+      );
+    const myWho = who(s);
+
+    for (const t of draft) {
+      if (t.id === s.id) continue;
+      const theirs = iv.get(t.id)!;
+      const roomClash = mine.find((a) =>
+        theirs.some((b) => a.place && a.place === b.place && overlap(a, b)),
+      );
+      if (roomClash)
+        add(
+          s.id,
+          "room_double_booked",
+          `${roomClash.place!.replace("|", " ")} also holds ${describe(t)}`,
+          [t.id],
+        );
+      const shared = [...who(t)].filter((x) => myWho.has(x));
+      if (
+        shared.length > 0 &&
+        mine.some((a) => theirs.some((b) => overlap(a, b)))
+      )
+        add(
+          s.id,
+          "instructor_double_booked",
+          `${shared.join(", ")} also teaches ${describe(t)}`,
+          [t.id],
+        );
+    }
+
+    for (const { o, iv: theirs } of otherIv) {
+      const roomClash = mine.find((a) =>
+        theirs.some((b) => a.place && a.place === b.place && overlap(a, b)),
+      );
+      if (roomClash)
+        add(
+          s.id,
+          "room_used_by_other_department",
+          `${roomClash.place!.replace("|", " ")} is booked by ${describe(o)}`,
+        );
+      const shared = o.instructors
+        .map((i) => canon(i, aliases))
+        .filter((x) => myWho.has(x));
+      if (
+        shared.length > 0 &&
+        mine.some((a) => theirs.some((b) => overlap(a, b)))
+      )
+        add(
+          s.id,
+          "instructor_double_booked",
+          `${shared.join(", ")} teaches ${describe(o)}`,
+        );
+    }
+
+    const capacity = roomCapacity(s.building, s.room);
+    if (capacity != null && s.cap != null && s.cap > capacity)
+      add(
+        s.id,
+        "room_too_small",
+        `${s.building} ${s.room} seats ${capacity}; the section caps at ${s.cap}`,
+      );
+  }
+
+  const groupsChecked = groups.map((g) => {
+    const needs = g.needs.map((alts) => {
+      const codes = alts.map(displayCourse);
+      return {
+        label: codes.join("/"),
+        sections: draft.filter((s) =>
+          courseCodes(s).some((c) => codes.includes(c)),
+        ),
+      };
+    });
+    const present = needs.filter((n) => n.sections.length > 0);
+    const missing = needs
+      .filter((n) => n.sections.length === 0)
+      .map((n) => n.label);
+    if (present.length < 2)
+      return { name: g.name, combinations: null, missing };
+    const r = searchCombinations({
+      groups: present.map((n) => ({
+        label: n.label,
+        sections: n.sections.map((s) => ({
+          crn: s.id,
+          meetings: iv.get(s.id)!,
+        })),
+      })),
+      fixed: [],
+      busy: [],
+    });
+    if (r.count === 0 && r.complete) {
+      const why = r.blocking.map((b) => b.reason).join("; ");
+      for (const n of present)
+        for (const s of n.sections)
+          add(
+            s.id,
+            "group_clash",
+            `group "${g.name}": ${why}`,
+            present
+              .flatMap((p) => p.sections.map((x) => x.id))
+              .filter((x) => x !== s.id),
+          );
+    }
+    return { name: g.name, combinations: r.complete ? r.count : null, missing };
+  });
+
+  return {
+    problems: draft.flatMap((s) => found.get(s.id) ?? []),
+    groupsChecked,
+  };
 }

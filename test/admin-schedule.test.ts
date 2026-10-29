@@ -118,3 +118,206 @@ test("a snapshot without part_of_term still loads", async () => {
   const d = openScheduleDb("202501")!;
   assert.equal(A.loadBaseSections(d, "202501").length, 1);
 });
+
+// --- checkDraft (Task 3) ------------------------------------------------------
+// A second base term: other departments' bookings and teaching that a GC draft
+// must not land on.
+writeScheduleDb(
+  snapshot("202608", [
+    sec("3001", "GC2070", "001", [{ days: "MW", begin: "1115", end: "1400" }], {
+      instructor: { name: "Lee One", email: "lone@clemson.edu" },
+    }),
+    sec("3002", "PRTM4540", "001", [{ ...TR, room: "101" }], {
+      instructor: { name: "Other Person", email: null },
+    }),
+    sec(
+      "3003",
+      "MATH1010",
+      "001",
+      [
+        {
+          days: "F",
+          begin: "0800",
+          end: "0850",
+          building: "Martin Hall",
+          room: "M102",
+        },
+      ],
+      { instructor: { name: "Lee One", email: null } },
+    ),
+  ]) as never,
+);
+const db8 = openScheduleDb("202608")!;
+const base8 = A.loadBaseSections(db8, "202608");
+const aliases8 = A.loadInstructorAliases(db8, "202608");
+
+const d = (
+  id: string,
+  course: string,
+  meetings: { days: string; start: string; end: string }[],
+  room: string | null,
+  instructors: string[] = [],
+  cap: number | null = 20,
+): import("../src/admin-schedule.ts").DraftSection => ({
+  id,
+  course,
+  sections: ["001"],
+  crns: [],
+  meetings,
+  building: room ? "Godfrey Hall" : null,
+  room,
+  instructors,
+  cap,
+});
+const MW = { days: "MW", start: "1115", end: "1400" };
+const TRm = { days: "TR", start: "0930", end: "1045" };
+const kinds = (r: ReturnType<typeof A.checkDraft>, id: string) =>
+  r.problems.filter((p) => p.id === id).map((p) => p.kind);
+
+test("two draft sections in one room at one time: both flagged, each naming the other", () => {
+  const r = A.checkDraft(
+    [d("a", "GC 3400", [TRm], "201"), d("b", "GC 4060", [TRm], "201")],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), ["room_double_booked"]);
+  assert.deepEqual(r.problems.find((p) => p.id === "a")!.with, ["b"]);
+  assert.deepEqual(kinds(r, "b"), ["room_double_booked"]);
+});
+
+test("a draft section on another department's booking is flagged", () => {
+  const r = A.checkDraft(
+    [d("a", "GC 3400", [TRm], "101")],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), ["room_used_by_other_department"]);
+  assert.match(r.problems[0]!.detail, /PRTM 4540/);
+});
+
+test("the base term's own GC sections are not 'others' — the draft replaces them", () => {
+  const r = A.checkDraft(
+    [d("a", "GC 3400", [MW], "201")],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(r.problems, []);
+});
+
+test("an instructor in two overlapping draft sections is flagged", () => {
+  const r = A.checkDraft(
+    [
+      d("a", "GC 3400", [TRm], "201", ["Kim Two"]),
+      d("b", "GC 4060", [TRm], "205", ["kim two"]),
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), ["instructor_double_booked"]);
+});
+
+test("an instructor's non-GC teaching counts, matched by email or name", () => {
+  // Draft names the instructor by email; the MATH record has only the name.
+  const r = A.checkDraft(
+    [
+      d("a", "GC 3400", [{ days: "MWF", start: "0800", end: "0850" }], "201", [
+        "lone@clemson.edu",
+      ]),
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), ["instructor_double_booked"]);
+  assert.match(r.problems[0]!.detail, /MATH 1010/);
+});
+
+test("a room smaller than the seat cap is flagged; unknown capacity is not", () => {
+  const cap = A.checkDraft(
+    [d("a", "GC 3400", [TRm], "201", [], 500)],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(cap, "a"), ["room_too_small"]);
+  const unknown = A.checkDraft(
+    [{ ...d("a", "GC 3400", [TRm], "999", [], 500), building: "Nowhere Hall" }],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(unknown, "a"), []);
+});
+
+const group = (name: string, ...needs: string[][]) => ({
+  name,
+  needs,
+  unresolved: [],
+  source: "saved" as const,
+});
+
+test("a course group with no workable combination is a group clash", () => {
+  const r = A.checkDraft(
+    [d("x1", "GC 4061", [MW], "101C"), d("y1", "GC 4401", [MW], "100A")],
+    base8,
+    "GC",
+    [group("labs", ["GC 4061"], ["GC 4401"])],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "x1"), ["group_clash"]);
+  assert.deepEqual(kinds(r, "y1"), ["group_clash"]);
+  assert.match(r.problems[0]!.detail, /labs/);
+  assert.equal(r.groupsChecked[0]!.combinations, 0);
+});
+
+test("one workable combination clears the group", () => {
+  const r = A.checkDraft(
+    [
+      d("x1", "GC 4061", [MW], "101C"),
+      d("x2", "GC 4061", [TRm], "101C"),
+      d("y1", "GC 4401", [MW], "100A"),
+    ],
+    base8,
+    "GC",
+    [group("labs", ["GC 4061"], ["GC 4401"])],
+    aliases8,
+  );
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.groupsChecked[0]!.combinations, 1);
+});
+
+test("no meeting time and no room are reported, never dropped", () => {
+  const r = A.checkDraft(
+    [d("a", "GC 3400", [], "201"), d("b", "GC 4061", [MW], null)],
+    base8,
+    "GC",
+    [group("g", ["GC 3400"], ["GC 4061"])],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), ["no_meeting_time"]);
+  assert.deepEqual(kinds(r, "b"), ["room_unknown"]);
+});
+
+test("group courses missing from the draft are listed; under two present, not checked", () => {
+  const r = A.checkDraft(
+    [d("a", "GC 4061", [MW], "101C")],
+    base8,
+    "GC",
+    [group("g", ["GC 4061"], ["GC 4800"])],
+    aliases8,
+  );
+  assert.deepEqual(r.groupsChecked[0]!.missing, ["GC 4800"]);
+  assert.equal(r.groupsChecked[0]!.combinations, null);
+  assert.deepEqual(r.problems, []);
+});
