@@ -512,3 +512,195 @@ export function checkDraft(
     groupsChecked,
   };
 }
+
+// --- Patterns, free rooms, slots ---------------------------------------------
+
+function patternKey(meetings: readonly DraftMeeting[]): string {
+  return meetings
+    .map((m) => `${m.days} ${m.start}-${m.end}`)
+    .sort()
+    .join(",");
+}
+
+/**
+ * The base term's most common meeting patterns (each a whole set of meetings,
+ * e.g. MW 1115–1400), counted over sections in real rooms. Derived from the
+ * data rather than a hard-coded list, so it follows Clemson's actual grid.
+ */
+export function standardPatterns(
+  base: readonly BaseSection[],
+  limit = 12,
+): DraftMeeting[][] {
+  const counts = new Map<string, { n: number; meetings: DraftMeeting[] }>();
+  for (const s of base) {
+    if (s.meetings.length === 0 || isPlaceholderRoom(s.building, s.room))
+      continue;
+    const meetings = s.meetings.map(({ days, start, end }) => ({
+      days,
+      start,
+      end,
+    }));
+    const key = patternKey(meetings);
+    const e = counts.get(key) ?? { n: 0, meetings };
+    e.n++;
+    counts.set(key, e);
+  }
+  return [...counts.values()]
+    .sort((a, b) => b.n - a.n)
+    .slice(0, limit)
+    .map((e) => e.meetings);
+}
+
+export interface FreeRoom {
+  building: string;
+  room: string;
+  capacity: number | null;
+}
+
+/** The sections that hold rooms and instructors: the draft replaces the
+ *  subject's own base sections when one is given. */
+function occupants(
+  base: readonly BaseSection[],
+  draft: readonly DraftSection[] | null,
+  subject: string | undefined,
+): DraftSection[] {
+  if (!draft) return [...base];
+  const subj = subject?.toUpperCase();
+  return [...base.filter((b) => !subj || b.subject !== subj), ...draft];
+}
+
+/**
+ * Rooms with no class booked in the window. "Rooms" are the real rooms the
+ * base term's meetings use — a room no class used is invisible here.
+ */
+export function freeRooms(
+  base: readonly BaseSection[],
+  draft: readonly DraftSection[] | null,
+  meetings: readonly DraftMeeting[],
+  opts: { building?: string; minCapacity?: number; subject?: string } = {},
+): FreeRoom[] {
+  const known = new Map<string, FreeRoom>();
+  for (const s of base)
+    for (const iv of intervals(s))
+      if (iv.place && !known.has(iv.place)) {
+        const [building, room] = iv.place.split("|") as [string, string];
+        known.set(iv.place, {
+          building,
+          room,
+          capacity: roomCapacity(building, room),
+        });
+      }
+  const want = intervals({
+    id: "",
+    course: "",
+    sections: [],
+    crns: [],
+    meetings: [...meetings],
+    building: null,
+    room: null,
+    instructors: [],
+    cap: null,
+  });
+  const busy = new Set<string>();
+  for (const s of occupants(base, draft, opts.subject))
+    for (const iv of intervals(s))
+      if (iv.place && want.some((w) => overlap(w, iv))) busy.add(iv.place);
+  const pref = opts.building?.toLowerCase();
+  return [...known.entries()]
+    .filter(([place]) => !busy.has(place))
+    .map(([, r]) => r)
+    .filter(
+      (r) =>
+        opts.minCapacity == null ||
+        (r.capacity != null && r.capacity >= opts.minCapacity),
+    )
+    .sort(
+      (a, b) =>
+        Number(b.building.toLowerCase() === pref) -
+          Number(a.building.toLowerCase() === pref) ||
+        (a.capacity ?? Infinity) - (b.capacity ?? Infinity) ||
+        `${a.building} ${a.room}`.localeCompare(`${b.building} ${b.room}`),
+    );
+}
+
+export interface SlotOption {
+  meetings: DraftMeeting[];
+  rooms: FreeRoom[];
+  instructorsFree: string[];
+  instructorsBusy: string[];
+}
+
+/**
+ * Meeting patterns a course could take without breaking the courses students
+ * take with it: a pattern survives when some choice of one section of each
+ * avoid-course still fits around it (searchCombinations), and at least one
+ * room is free. Instructors are split into free and busy for each slot.
+ */
+export function findSlots(args: {
+  base: readonly BaseSection[];
+  draft: readonly DraftSection[] | null;
+  subject: string;
+  avoidCourses: string[];
+  instructors: string[];
+  preferredBuilding: string;
+  minCapacity?: number;
+  patterns?: DraftMeeting[][];
+  aliases?: ReadonlyMap<string, string>;
+}): { slots: SlotOption[]; patternsUsed: DraftMeeting[][] } {
+  const aliases = args.aliases ?? new Map<string, string>();
+  const patterns = args.patterns ?? standardPatterns(args.base);
+  const pool = occupants(args.base, args.draft, args.subject);
+  const avoid = args.avoidCourses.map(displayCourse);
+  const avoidGroups = avoid
+    .map((code) => ({
+      label: code,
+      sections: pool
+        .filter((s) => courseCodes(s).includes(code))
+        .map((s) => ({ crn: s.id, meetings: intervals(s) })),
+    }))
+    .filter((g) => g.sections.length > 0);
+
+  const slots: SlotOption[] = [];
+  for (const meetings of patterns) {
+    const slotIv = intervals({
+      id: "slot",
+      course: "",
+      sections: [],
+      crns: [],
+      meetings,
+      building: null,
+      room: null,
+      instructors: [],
+      cap: null,
+    });
+    if (avoidGroups.length > 0) {
+      const r = searchCombinations({
+        groups: avoidGroups,
+        fixed: [],
+        busy: [{ label: "this slot", meetings: slotIv }],
+      });
+      if (r.count === 0) continue;
+    }
+    const rooms = freeRooms(args.base, args.draft, meetings, {
+      building: args.preferredBuilding,
+      minCapacity: args.minCapacity,
+      subject: args.subject,
+    });
+    if (rooms.length === 0) continue;
+    const busy = args.instructors.filter((who) => {
+      const k = canon(who, aliases);
+      return pool.some(
+        (s) =>
+          s.instructors.some((i) => canon(i, aliases) === k) &&
+          intervals(s).some((a) => slotIv.some((b) => overlap(a, b))),
+      );
+    });
+    slots.push({
+      meetings,
+      rooms,
+      instructorsFree: args.instructors.filter((w) => !busy.includes(w)),
+      instructorsBusy: busy,
+    });
+  }
+  return { slots, patternsUsed: patterns };
+}

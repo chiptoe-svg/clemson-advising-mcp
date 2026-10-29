@@ -321,3 +321,87 @@ test("group courses missing from the draft are listed; under two present, not ch
   assert.equal(r.groupsChecked[0]!.combinations, null);
   assert.deepEqual(r.problems, []);
 });
+
+// --- patterns, free rooms, slots (Task 4) -------------------------------------
+writeScheduleDb(
+  snapshot("202605", [
+    sec("4001", "GC3400", "001", [TR], { cap: 40 }),
+    sec("4002", "ENGL1030", "001", [{ ...TR, building: "Daniel Hall", room: "100" }]),
+    sec("4003", "ENGL1030", "002", [{ ...TR, building: "Daniel Hall", room: "101" }]),
+    sec("4004", "GC4061", "001", [{ days: "MW", begin: "1115", end: "1400", room: "101C" }], {
+      instructor: { name: "Lab Lead", email: "lab@clemson.edu" },
+    }),
+    sec("4005", "GC2400", "001", [{ ...TR, room: "205" }], {
+      instructor: { name: "Busy Person", email: "busy@clemson.edu" },
+    }),
+    sec("4006", "MATH1010", "001", [{ days: "MW", begin: "1300", end: "1350", building: "Martin Hall", room: "M1" }]),
+  ]) as never,
+);
+const db5 = openScheduleDb("202605")!;
+const base5 = A.loadBaseSections(db5, "202605");
+
+test("standard patterns: most common first", () => {
+  const p = A.standardPatterns(base5);
+  assert.deepEqual(
+    p[0]!.map((m) => [m.days, m.start, m.end]),
+    [["TR", "0930", "1045"]],
+  );
+  assert.ok(p.some((x) => x[0]!.days === "MW" && x[0]!.start === "1115"));
+});
+
+test("free rooms: booked rooms are out, the preferred building comes first", () => {
+  const rooms = A.freeRooms(base5, null, [{ days: "TR", start: "0930", end: "1045" }], {
+    building: "Godfrey Hall",
+  });
+  const names = rooms.map((r) => `${r.building} ${r.room}`);
+  assert.ok(!names.includes("Godfrey Hall 201"));
+  assert.ok(!names.includes("Daniel Hall 100"));
+  assert.ok(names.includes("Godfrey Hall 101C"));
+  assert.ok(names.includes("Martin Hall M1"));
+  assert.equal(rooms[0]!.building, "Godfrey Hall");
+});
+
+test("with a draft, the subject's base sections give way to the draft", () => {
+  // The draft moves GC 3400 out of Godfrey 201 on TR, so 201 is free then.
+  const rooms = A.freeRooms(
+    base5,
+    [d("a", "GC 3400", [MW], "201")],
+    [{ days: "TR", start: "0930", end: "1045" }],
+    { subject: "GC" },
+  );
+  assert.ok(rooms.some((r) => r.room === "201"));
+});
+
+test("slots avoid the group's courses and report instructors", () => {
+  const r = A.findSlots({
+    base: base5,
+    draft: null,
+    subject: "GC",
+    avoidCourses: ["GC 4061"],
+    instructors: ["busy@clemson.edu"],
+    preferredBuilding: "Godfrey Hall",
+  });
+  const keys = r.slots.map((s) => s.meetings.map((m) => `${m.days} ${m.start}`).join(","));
+  assert.ok(!keys.includes("MW 1115"), "overlaps the only GC 4061 section");
+  assert.ok(!keys.includes("MW 1300"), "overlaps GC 4061 at 1300 too");
+  const tr = r.slots.find((s) => s.meetings[0]!.days === "TR")!;
+  assert.deepEqual(tr.instructorsBusy, ["busy@clemson.edu"]);
+  assert.ok(tr.rooms.length > 0);
+});
+
+test("a course with two sections only blocks a slot when both clash", () => {
+  const draft = [
+    d("x1", "GC 4061", [MW], "101C"),
+    d("x2", "GC 4061", [TRm], "101C"),
+  ];
+  const r = A.findSlots({
+    base: base5,
+    draft,
+    subject: "GC",
+    avoidCourses: ["GC 4061"],
+    instructors: [],
+    preferredBuilding: "Godfrey Hall",
+  });
+  const keys = r.slots.map((s) => s.meetings.map((m) => `${m.days} ${m.start}`).join(","));
+  assert.ok(keys.includes("MW 1115") && keys.includes("TR 0930"));
+});
