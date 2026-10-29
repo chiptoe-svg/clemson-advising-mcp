@@ -266,6 +266,46 @@ actions:
     constraints:
       - public_data_only
 
+  - id: clemson.admin_rollover
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
+  - id: clemson.admin_check_draft
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
+  - id: clemson.admin_find_slots
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
+  - id: clemson.admin_free_rooms
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
+  - id: clemson.admin_course_groups
+    surface: external_read
+    risk: low
+    reversibility: read_only
+    approval: none
+    constraints:
+      - public_data_only
+
   - id: clemson.find_requirement_sections
     surface: external_read
     risk: low

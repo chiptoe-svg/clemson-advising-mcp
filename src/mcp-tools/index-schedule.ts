@@ -6,3 +6,4 @@ import "./clemson-classes.js";
 import "./clemson-schedule.js";
 import "./core-search.js";
 import "./skills.js";
+import "./admin-schedule.js";

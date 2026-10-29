@@ -285,6 +285,51 @@ known — every other tool defaults its own term. Live.
 List the skill documents this server serves (name and description), and fetch
 one by name. This server serves exactly one: `clemson-schedule-advising`.
 
+**Admin tools (scope `clemson.admin`).**
+
+For building a department's semester schedule, not for advising students:
+the student advisor's key does not carry them, which keeps its tool list
+short. `get-teaching-load`, `get-instructor-classes` and
+`get-course-enrollment-history` (above) are in this scope too, and
+`get-course-offerings` is in both. Each answer names its base term — the
+snapshot other departments' room use and instructors' teaching come from:
+the target term's own when Banner has published it, else the same season a
+year earlier, or whatever `base_term` says. "Free" means only that no class
+is booked; Banner does not show events or exams.
+
+#### `get-department-draft`
+
+A department's whole schedule for one term as an editable draft — the
+starting calendar when rolling last year's semester forward. Every section,
+never truncated, with room capacity, instructors, seat cap, enrollment and
+waitlist. Cross-listed sections that meet together (honors pairs, 4xxx/6xxx
+pairs) are one entry with combined caps.
+
+#### `check-schedule-draft`
+
+Problems in a proposed schedule, per draft section: a room booked twice,
+a room another department uses then, an instructor booked twice (including
+other-department teaching), a room smaller than the seat cap, and course
+groups with no workable combination of one section each.
+
+#### `find-offering-slots`
+
+Standard meeting patterns (the base term's most common) where a course keeps
+the courses students take with it workable, each with its free rooms
+(preferred building first, default Godfrey Hall) and which given
+instructors are free or busy.
+
+#### `find-free-rooms`
+
+Rooms with no class booked in a window, with capacity, the preferred
+building first.
+
+#### `list-course-groups`
+
+The courses students take together, one group per semester of a program's
+catalog plan with corequisite labs added, plus department-saved groups from
+`state/course-groups.yaml`, which override a generated group of the same name.
+
 ### Catalog server — `advising-mcp-catalog`, port 8767
 
 Program names are the registrar's, exactly as the catalog spells them

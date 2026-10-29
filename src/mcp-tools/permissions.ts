@@ -107,6 +107,26 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.find_section_combinations",
   },
+  "clemson.admin_rollover": {
+    backend: "external-http",
+    policyActionId: "clemson.admin_rollover",
+  },
+  "clemson.admin_check_draft": {
+    backend: "external-http",
+    policyActionId: "clemson.admin_check_draft",
+  },
+  "clemson.admin_find_slots": {
+    backend: "external-http",
+    policyActionId: "clemson.admin_find_slots",
+  },
+  "clemson.admin_free_rooms": {
+    backend: "external-http",
+    policyActionId: "clemson.admin_free_rooms",
+  },
+  "clemson.admin_course_groups": {
+    backend: "external-http",
+    policyActionId: "clemson.admin_course_groups",
+  },
   "clemson.find_requirement_sections": {
     backend: "external-http",
     policyActionId: "clemson.find_requirement_sections",
@@ -328,6 +348,11 @@ export const CLEMSON_ADMIN_OPS = [
   "clemson.instructor_classes",
   "clemson.enrollment_history",
   "clemson.course_offerings",
+  "clemson.admin_rollover",
+  "clemson.admin_check_draft",
+  "clemson.admin_find_slots",
+  "clemson.admin_free_rooms",
+  "clemson.admin_course_groups",
 ];
 
 const CLEMSON_CATALOG_OPS = [

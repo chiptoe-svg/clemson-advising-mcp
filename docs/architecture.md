@@ -65,7 +65,9 @@ restarted, revoked, or taken down without touching the other.
 `get-schedule-freshness`, `get-sections-by-crn`, `resolve-crns`,
 `get-instructor-classes`, `get-teaching-load`, `get-course-offerings`,
 `get-course-enrollment-history`, `list-skills`,
-`get-skill-docs`
+`get-skill-docs`; admin scope (`clemson.admin`): `get-department-draft`,
+`check-schedule-draft`, `find-offering-slots`, `find-free-rooms`,
+`list-course-groups`
 
 **Catalog (8767)** — `list-catalog-years`, `get-program-plan`,
 `get-requirement-rules`, `get-gen-ed`, `get-program-requirements`,

@@ -96,4 +96,9 @@ const PUBLIC_ONLY = new Set([
   "get-teaching-load",
   "get-course-offerings",
   "get-course-enrollment-history",
+  "get-department-draft",
+  "check-schedule-draft",
+  "find-offering-slots",
+  "find-free-rooms",
+  "list-course-groups",
 ]);

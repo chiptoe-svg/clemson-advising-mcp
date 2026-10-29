@@ -41,10 +41,10 @@ the accepted forms — it is never reported as a term with no data.
 | `find-section-combinations`   | One section per course (`groups`) that fit together, around `fixed_crns` and `busy` blocks (work hours, a proposed meeting time) | Sections in one group are alternatives, never compared. Every conflict-free combination (count, 20 listed); a zero carries `blocking` — the reason. Any "can these fit / no combination works" answer, above all a NO, comes from this tool even when the sections are already in the conversation. `search_complete: false` means the count is a lower bound. Seats are not considered. |
 | `get-sections-by-crn`         | Confirm CRNs you already have: authoritative rows and meetings straight from the snapshot                              | `not_found` is the load-bearing half — it means the snapshot was read and has no such CRN. `has_snapshot: false` means nothing was checked, and `not_found` is then empty rather than listing every CRN as fake.                                                                                                       |
 | `resolve-crns`                | Get CRNs for course + section pairs, for schedule data that carries no CRNs                                            | Results align **by index** with the input. A null means no single match — none, or several. It never guesses between candidates.                                                                                                                                                                                       |
-| `get-instructor-classes`      | Everything each listed instructor teaches; optional day/window filter for teaching conflicts                           | Statuses are explicit: `teaching`/`not_teaching` unfiltered, `busy`/`free` filtered. `not_teaching` is NOT free — the snapshot sees only teaching. Emails match exactly; ambiguous names return candidates.                                                                                                            |
-| `get-teaching-load`           | Weekly contact hours + credit hours per instructor — by subject (e.g. `GC`), instructor list, or both                  | Two measures, never conflated. `untimed_sections` is reported separately — a contact-hour total never hides an online/arranged section. Co-taught sections attribute fully to each listed instructor; with a subject, load OUTSIDE that subject is not counted (the response's `scope` says so).                       |
+| `get-instructor-classes` (admin scope)      | Everything each listed instructor teaches; optional day/window filter for teaching conflicts                           | Statuses are explicit: `teaching`/`not_teaching` unfiltered, `busy`/`free` filtered. `not_teaching` is NOT free — the snapshot sees only teaching. Emails match exactly; ambiguous names return candidates.                                                                                                            |
+| `get-teaching-load` (admin scope)           | Weekly contact hours + credit hours per instructor — by subject (e.g. `GC`), instructor list, or both                  | Two measures, never conflated. `untimed_sections` is reported separately — a contact-hour total never hides an online/arranged section. Co-taught sections attribute fully to each listed instructor; with a subject, load OUTSIDE that subject is not counted (the response's `scope` says so).                       |
 | `get-course-offerings`        | Which terms each course ran (counts) + per-season evidence and `estimated_probability` with label — offering patterns | Read `observed_terms` FIRST: an unobserved term is UNKNOWN, never "not offered"; observed-but-absent means it did not run that term. Old course codes keep their history. Batch all of a plan's courses into one call. Quote `estimated_probability` to a student only as an estimate from history — the registrar has promised nothing. EXCEPTION: a season with `known_decision` (label `ruled out`/`confirmed`) is a recorded departmental decision and overrides the estimate — give THAT as the answer, citing its note/source.                                                                                    |
-| `get-course-enrollment-history` | ENROLLMENT + capacity per course per term (<=200 courses, <=50 terms) — demand and capacity planning | Batch the whole question into ONE call; the sibling `get-course-offerings` has counts but no enrollment. CHECK each observed term's `status`: `pre_term` means the snapshot predates the term, so its numbers are registration-in-progress, NOT comparable demand — charting them beside `final` terms invents a cliff. `fill_rate` above 1.0 is real (labs run over cap). Unobserved term = unknown, never zero demand. |
+| `get-course-enrollment-history` (admin scope) | ENROLLMENT + capacity per course per term (<=200 courses, <=50 terms) — demand and capacity planning | Batch the whole question into ONE call; the sibling `get-course-offerings` has counts but no enrollment. CHECK each observed term's `status`: `pre_term` means the snapshot predates the term, so its numbers are registration-in-progress, NOT comparable demand — charting them beside `final` terms invents a cliff. `fill_rate` above 1.0 is real (labs run over cap). Unobserved term = unknown, never zero demand. |
 | `get-schedule-freshness`      | How old the snapshot is for a term                                                                                     | Ask before trusting seat counts. `has_snapshot: false` means that term has not been ingested — it does not mean the term does not exist.                                                                                                                                                                               |
 | `list-clemson-terms`          | Banner term codes                                                                                                      | Rarely needed — the search tools default their own term.                                                                                                                                                                                                                                                               |
 
@@ -105,7 +105,7 @@ no CRNs, `resolve-crns` first.
 an unknown `requirement` returns the valid slot list inline, so this is usually
 one call, two at most. Then `check-conflicts` against anything already fixed.
 
-**Who teaches a subject / who is teaching but NOT on the department's roster**
+**Who teaches a subject / who is teaching but NOT on the department's roster** (admin scope)
 `get-teaching-load { subject }` lists EVERYONE on that subject's sections this
 term (names, emails, load); `get-department-rules { department }` `.faculty` is
 the official roster. The set difference is the answer. Two calls — never page
@@ -119,7 +119,8 @@ offerings" when eighteen sections ran. Cross the two servers instead, in two
 calls that cannot truncate:
 `list-courses { subject: "GC", number_min: 4000, number_max: 4999 }` (catalog)
 → `get-course-enrollment-history { courses: <those codes>, terms: [<term>] }`
-(schedule; use `get-course-offerings` if you only need whether it ran). The
+(schedule, admin scope; on an advising key, or if you only need whether it
+ran, use `get-course-offerings`). The
 first gives every catalogued course at that level, the second says which
 actually ran, how many sections, and how full. The same shape answers "every
 course in a subject" — never page `search-classes` for inventory questions.
@@ -157,12 +158,15 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
   opened term before the daily refresh) errors — retry after the next refresh.
   For programs whose rules it does not cover, use `search-classes` with course
   codes from `get-program-plan` or `get-program-requirements`.
-- **No standalone room tools.** Rooms are the `building_room` filter on
-  `search-classes`. A room alone is enough (`building_room: "Godfrey 201"`,
-  plus `days` if asked) to list what meets there; there is no "free blocks
-  for a room" call, so read the gaps off that list. (Instructor
-  tools DO exist — `get-instructor-classes` and `get-teaching-load` above; an
-  earlier version of this document said otherwise.)
+- **No standalone room tools on the advising surface.** Rooms are the
+  `building_room` filter on `search-classes`. A room alone is enough
+  (`building_room: "Godfrey 201"`, plus `days` if asked) to list what meets
+  there; read the gaps off that list. Free-room and slot finding
+  (`find-free-rooms`, `find-offering-slots`) exist only for keys holding the
+  admin scope — they are department-scheduling tools, not advising ones.
+  (Instructor tools DO exist — `get-instructor-classes` and
+  `get-teaching-load` above — but also only for admin-scope keys; on an
+  advising key, `search-classes` with `instructor` answers "who teaches X".)
 
 <!-- The stamp below pairs the Known-limitations section with the toolsets it
      was written against. When a tool is added, removed, or renamed, the
@@ -170,4 +174,4 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
      for absence claims that stopped being true, then updates the stamp.
      (Origin: a bullet denying instructor tools outlived their arrival and
      sent live models paging search-classes instead.) -->
-<!-- limitations-reviewed-against: schedule=da1680ce4f1d catalog=d24fd4653cfc -->
+<!-- limitations-reviewed-against: schedule=f545ca53b727 catalog=d24fd4653cfc -->
