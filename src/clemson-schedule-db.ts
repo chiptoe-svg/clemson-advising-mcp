@@ -423,7 +423,16 @@ export function backfillBannerFields(
   term: string,
   fields: ReadonlyMap<string, BackfillFields>,
 ):
-  | { ok: true; labeled: number; creditsChanged: number; unknownCrns: number }
+  | {
+      ok: true;
+      labeled: number;
+      creditsChanged: number;
+      unknownCrns: number;
+      /** Snapshot CRNs the fetch lacked: their labels stay unknown. */
+      missingFromFetch: number;
+      /** Whether the snapshot now claims every label (missingFromFetch 0). */
+      recorded: boolean;
+    }
   | { ok: false; reason: string } {
   if (!isTermCode(term)) return { ok: false, reason: "not a term code" };
   const p = scheduleDbPath(term);
@@ -437,6 +446,7 @@ export function backfillBannerFields(
     let labeled = 0;
     let creditsChanged = 0;
     let unknownCrns = 0;
+    let missingFromFetch = 0;
     try {
       db.transaction(() => {
         if (!snapshotHasColumn(db, "cross_list"))
@@ -458,10 +468,16 @@ export function backfillBannerFields(
           if (f.crossList) labeled++;
           if (row.credit_hours !== f.creditHours) creditsChanged++;
         }
-        db.prepare("INSERT OR REPLACE INTO meta VALUES (?, ?)").run(
-          "cross_list",
-          "recorded",
-        );
+        const crns = db
+          .prepare("SELECT crn FROM sections WHERE term = ?")
+          .all(term) as { crn: string }[];
+        missingFromFetch = crns.filter((r) => !fields.has(r.crn)).length;
+        // Labels are claimed only when every section's came from Banner.
+        if (missingFromFetch === 0)
+          db.prepare("INSERT OR REPLACE INTO meta VALUES (?, ?)").run(
+            "cross_list",
+            "recorded",
+          );
       })();
     } finally {
       db.close();
@@ -474,7 +490,14 @@ export function backfillBannerFields(
       labeled,
       creditsChanged,
     });
-    return { ok: true, labeled, creditsChanged, unknownCrns };
+    return {
+      ok: true,
+      labeled,
+      creditsChanged,
+      unknownCrns,
+      missingFromFetch,
+      recorded: missingFromFetch === 0,
+    };
   } catch (err) {
     return { ok: false, reason: String(err) };
   } finally {

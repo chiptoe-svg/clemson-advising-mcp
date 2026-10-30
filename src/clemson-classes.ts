@@ -558,7 +558,12 @@ function sleep(ms: number): Promise<void> {
 const PAGE_SIZE = 500;
 const MAX_PAGES = 40;
 
-type PagedResult = { sections: ClemsonSection[]; complete: boolean };
+type PagedResult = {
+  sections: ClemsonSection[];
+  complete: boolean;
+  /** Banner's totalCount from the last page read (0 if none). */
+  totalCount: number;
+};
 
 async function fetchSectionsPaged(
   term: string,
@@ -605,10 +610,12 @@ async function fetchSectionsPaged(
         cold = true;
         break;
       }
-      totalCount = res.totalCount;
+      // The largest count Banner reported: a failed page later in the scan
+      // answers 0, which must not erase what page 0 said.
+      totalCount = Math.max(totalCount, res.totalCount);
       out.push(...res.sections);
       if (out.length >= res.totalCount || res.sections.length === 0) {
-        return { sections: out, complete: true };
+        return { sections: out, complete: true, totalCount };
       }
       await sleep(pageDelayMs);
     }
@@ -638,7 +645,7 @@ async function fetchSectionsPaged(
       totalCount,
       pages: Math.ceil(out.length / PAGE_SIZE),
     });
-    return { sections: out, complete: false };
+    return { sections: out, complete: false, totalCount };
   }
   log.warn("clemson scan: all attempts exhausted", { term, subject, attempts });
   return null;
@@ -722,6 +729,7 @@ export async function refreshClemsonSnapshot(
 export const BACKFILL_PAGE_DELAY_MS = 4000;
 export async function fetchBackfillFields(
   term: string,
+  pageDelayMs = BACKFILL_PAGE_DELAY_MS,
 ): Promise<Map<
   string,
   { crossList: string | null; creditHours: number | null }
@@ -731,9 +739,12 @@ export async function fetchBackfillFields(
     undefined,
     undefined,
     2,
-    BACKFILL_PAGE_DELAY_MS,
+    pageDelayMs,
   );
-  if (!fetched?.complete) return null;
+  // "complete" also covers an empty page mid-scan; for a backfill that
+  // claims every label, only a scan reaching Banner's own count will do.
+  if (!fetched?.complete || fetched.sections.length < fetched.totalCount)
+    return null;
   return new Map(
     fetched.sections.map((s) => [
       s.crn,

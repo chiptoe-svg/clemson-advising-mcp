@@ -168,6 +168,8 @@ test("backfill sets labels and corrects credits; every other value stays as reco
     labeled: 2,
     creditsChanged: 1,
     unknownCrns: 1,
+    missingFromFetch: 0,
+    recorded: true,
   });
   const db = new Database(scheduleDbPath("202508"), { readonly: true });
   assert.deepEqual(
@@ -253,4 +255,46 @@ test("sections in DIFFERENT Banner groups are not an unlabeled pair", () => {
   assert.ok(!sameClass(k("GC 4400", "GC3"), k("GC 6400", "GC7")));
   // One labeled, one not: not an "unlabeled pair" either.
   assert.ok(!isUnlabeledGradPair(k("GC 4400", "GC3"), k("GC 6400", null)));
+});
+
+test("a fetch that misses snapshot sections fills what it has but claims no labels", () => {
+  oldSnapshot("202405");
+  const r = backfillBannerFields(
+    "202405",
+    new Map([["1", { crossList: "GC3", creditHours: 4 }]]),
+  );
+  assert.equal(r.ok, true);
+  assert.equal(r.ok && r.missingFromFetch, 2);
+  assert.equal(r.ok && r.recorded, false);
+  const db = new Database(scheduleDbPath("202405"), { readonly: true });
+  assert.equal(crossListRecorded(db), false);
+  db.close();
+});
+
+test("fetchBackfillFields refuses a scan that stopped short of Banner's total", async () => {
+  const { fetchBackfillFields } = await import("../src/clemson-classes.ts");
+  const real = globalThis.fetch;
+  let page = 0;
+  globalThis.fetch = (async (url: string) => {
+    const u = String(url);
+    if (u.includes("searchResults/searchResults")) {
+      const body =
+        page++ === 0
+          ? {
+              totalCount: 1000,
+              data: Array.from({ length: 500 }, (_, i) => ({
+                courseReferenceNumber: String(i),
+                subjectCourse: "GC1010",
+              })),
+            }
+          : { success: false, totalCount: 0, data: null };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+  try {
+    assert.equal(await fetchBackfillFields("202601", 0), null);
+  } finally {
+    globalThis.fetch = real;
+  }
 });
