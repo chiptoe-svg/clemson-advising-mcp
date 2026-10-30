@@ -19,6 +19,7 @@ import {
   loadBaseSections,
   loadInstructorAliases,
   findConflicts,
+  hasCrossListLabels,
   stackSections,
   displayCourse,
   type CourseGroup,
@@ -307,8 +308,10 @@ const rollover: McpToolDefinition = {
       );
     try {
       const subject = subjectOf(args.subject);
+      const all = loadBaseSections(db, t.term);
       const sections = stackSections(
-        loadBaseSections(db, t.term).filter((s) => s.subject === subject),
+        all.filter((s) => s.subject === subject),
+        hasCrossListLabels(all),
       );
       return okJson({
         base_term: t.term,
@@ -556,7 +559,7 @@ const findSlotsTool: McpToolDefinition = {
           ? args.expected_size
           : Math.max(
               0,
-              ...stackSections(sections)
+              ...stackSections(sections, hasCrossListLabels(sections))
                 .filter((s) => s.course.split(" / ").includes(course))
                 .map((s) => s.expected ?? 0),
             ) || undefined;

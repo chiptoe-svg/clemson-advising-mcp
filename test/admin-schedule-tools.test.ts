@@ -480,3 +480,23 @@ test("find-schedule-conflicts on a snapshot without labels says so", async () =>
   assert.equal(body.labels_recorded, false);
   assert.match(body.note, /cross-list labels/);
 });
+
+test("rollover on a labeled snapshot: labeled pairs stack, an unlabeled identical pair does not", async () => {
+  const { body } = await call("rollover", { term: "202601" });
+  const ids = body.sections.map((s: { id: string }) => s.id);
+  assert.ok(ids.includes("2001+2002"), ids.join()); // labeled GC8 honors pair
+  // The unlabeled 4900/6900 pair has no real room, so it never stacks; the
+  // checker calls it meets_together instead.
+  assert.ok(ids.includes("2003") && ids.includes("2004"), ids.join());
+  assert.ok(ids.includes("2009") && ids.includes("2010"), ids.join());
+  // ...so the checker sees the clash the report shows.
+  const r = await call("checkDraft", {
+    target_term: "202601",
+    draft: body.sections,
+  });
+  const at2009 = r.body.problems
+    .filter((p: { id: string }) => p.id === "2009")
+    .map((p: { kind: string }) => p.kind)
+    .sort();
+  assert.deepEqual(at2009, ["instructor_double_booked", "room_double_booked"]);
+});

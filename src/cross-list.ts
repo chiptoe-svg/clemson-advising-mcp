@@ -34,17 +34,21 @@ function parts(course: string): { subject: string; number: string } | null {
   return m ? { subject: m[1]!, number: m[2]! } : null;
 }
 
+/** Course codes of one subject numbered 4abc and 6abc ("GC 4900", "GC 6900"). */
+export function isGradPairCourses(a: string, b: string): boolean {
+  const pa = parts(a);
+  const pb = parts(b);
+  if (!pa || !pb || pa.subject !== pb.subject) return false;
+  if (pa.number.slice(1) !== pb.number.slice(1)) return false;
+  return [pa.number[0], pb.number[0]].sort().join("") === "46";
+}
+
 /** An unlabeled 4xxx/6xxx pair: one subject, numbers 4abc and 6abc, the same
  *  meeting times, a shared instructor, and NEITHER carrying a Banner label —
  *  a labeled section already says which class it belongs to. */
 export function isUnlabeledGradPair(a: ClassKey, b: ClassKey): boolean {
   if (a.crossList || b.crossList) return false;
-  const pa = parts(a.course);
-  const pb = parts(b.course);
-  if (!pa || !pb || pa.subject !== pb.subject) return false;
-  if (pa.number.slice(1) !== pb.number.slice(1)) return false;
-  const levels = [pa.number[0], pb.number[0]].sort().join("");
-  if (levels !== "46") return false;
+  if (!isGradPairCourses(a.course, b.course)) return false;
   if (!a.slots || a.slots !== b.slots) return false;
   return a.instructors.some((x) => b.instructors.includes(x));
 }

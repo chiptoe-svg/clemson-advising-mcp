@@ -25,6 +25,7 @@ import type { InstructorPreference } from "./instructor-preferences.js";
 import { searchCombinations } from "./section-combinations.js";
 import { snapshotHasColumn } from "./clemson-schedule-db.js";
 import {
+  isGradPairCourses,
   isUnlabeledGradPair,
   slotSignature,
   type ClassKey,
@@ -244,23 +245,44 @@ function stackKey(s: DraftSection): string | null {
   return `${meets}#${s.building}|${s.room}#${who}`;
 }
 
+/** Whether a term's sections carry Banner's cross-list labels at all: a
+ *  snapshot written before they were kept has none. */
+export function hasCrossListLabels(base: readonly DraftSection[]): boolean {
+  return base.some((b) => !!b.crossList);
+}
+
 /**
  * Merge sections that meet together (identical meetings, room and
  * instructors) into one, across course numbers. Sections with no meeting
- * time or no real room never stack.
+ * time or no real room never stack. With Banner's labels known
+ * (`labelsKnown`), identical sections stack only when they are one class —
+ * the same label, or an unlabeled 4xxx/6xxx pair — so an unlabeled clash
+ * stays two entries the checker can see (2026-10-30). Without labels (older
+ * snapshots), identical is enough, or every honors pair would read as a
+ * clash.
  */
 export function stackSections<T extends DraftSection>(
   sections: readonly T[],
+  labelsKnown = false,
 ): T[] {
   const out: T[] = [];
   const byKey = new Map<string, T>();
+  const oneClass = (a: T, b: T) =>
+    !labelsKnown ||
+    (a.crossList
+      ? a.crossList === b.crossList
+      : !b.crossList &&
+        courseCodes(a).some((c) =>
+          isGradPairCourses(c, displayCourse(b.course)),
+        ));
   for (const s of sections) {
     const key = stackKey(s);
-    const into = key ? byKey.get(key) : undefined;
+    const found = key ? byKey.get(key) : undefined;
+    const into = found && oneClass(found, s) ? found : undefined;
     if (!into) {
       const copy = { ...s, sections: [...s.sections], crns: [...s.crns] };
       out.push(copy);
-      if (key) byKey.set(key, copy);
+      if (key && !found) byKey.set(key, copy);
       continue;
     }
     into.crns.push(...s.crns);
@@ -291,8 +313,12 @@ export function othersOf(
 ): BaseSection[] {
   const subj = subject.toUpperCase();
   const mine = base.filter((b) => b.subject === subj);
+  // Without Banner labels, an identical section is taken as a partner (the
+  // old rule); with them, only a shared label is (2026-10-30).
   const own = new Set(
-    mine.map(stackKey).filter((k): k is string => k !== null),
+    hasCrossListLabels(base)
+      ? []
+      : mine.map(stackKey).filter((k): k is string => k !== null),
   );
   // A cross-listing partner (Banner label) moves with the subject's section.
   const ownLabels = new Set(

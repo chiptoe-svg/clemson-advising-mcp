@@ -927,3 +927,84 @@ test("a per-meeting room counts for room needs", () => {
   );
   assert.deepEqual(kinds(r, "lab"), ["room_need"]);
 });
+
+// --- Stacking with Banner labels (review, 2026-10-30) --------------------------
+// With labels known, identical-looking sections stack only when they are one
+// class (same label, or an unlabeled 4xxx/6xxx pair); otherwise the checker
+// would never see an unlabeled clash. Without labels (older snapshots) the
+// identical-section rule stays, or every honors pair would read as a clash.
+const twin = (
+  crn: string,
+  course: string,
+  crossList: string | null,
+  subject = "GC",
+): import("../src/admin-schedule.ts").BaseSection => ({
+  ...d(crn, course, [{ days: "MW", start: "1000", end: "1115" }], "112", [
+    "ktwo@clemson.edu",
+  ]),
+  crns: [crn],
+  crossList,
+  expected: 10,
+  subject,
+  title: course,
+  enrollment: 10,
+  waitCount: 0,
+  roomCapacity: null,
+});
+
+test("labels known: an unlabeled identical pair stays apart; labeled and 4xxx/6xxx pairs stack", () => {
+  const ids = (xs: { id: string }[]) => xs.map((x) => x.id).sort();
+  assert.deepEqual(
+    ids(
+      A.stackSections(
+        [twin("1", "GC 3780", null), twin("2", "GC 3790", null)],
+        true,
+      ),
+    ),
+    ["1", "2"],
+  );
+  assert.deepEqual(
+    ids(
+      A.stackSections(
+        [twin("1", "GC 4400", "GC8"), twin("2", "GC 4400", "GC8")],
+        true,
+      ),
+    ),
+    ["1+2"],
+  );
+  assert.deepEqual(
+    ids(
+      A.stackSections(
+        [twin("1", "GC 4400", null), twin("2", "GC 6400", null)],
+        true,
+      ),
+    ),
+    ["1+2"],
+  );
+  // Labels unknown: the old identical-section rule.
+  assert.deepEqual(
+    ids(
+      A.stackSections([twin("1", "GC 3780", null), twin("2", "GC 3790", null)]),
+    ),
+    ["1+2"],
+  );
+});
+
+test("labels known: another department's identical unlabeled section is still someone else's", () => {
+  const base = [
+    twin("1", "GC 2010", null),
+    twin("2", "PKSC 2010", null, "PKSC"),
+    twin("3", "GC 2020", "XL1"),
+  ];
+  assert.deepEqual(
+    A.othersOf(base, "GC").map((o) => o.id),
+    ["2"],
+  );
+  const r = A.findConflicts(base, "GC");
+  assert.ok(
+    r.doubleBookings.some(
+      (b) =>
+        b.kind === "room_used_by_other_department" && b.likely_missing_label,
+    ),
+  );
+});
