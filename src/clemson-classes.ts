@@ -262,7 +262,7 @@ function mapMeeting(mf: Record<string, unknown>): ClemsonMeeting {
   };
 }
 
-function mapSection(r: Record<string, unknown>): ClemsonSection {
+export function mapSection(r: Record<string, unknown>): ClemsonSection {
   const meetings = arr(r.meetingsFaculty).map(mapMeeting);
   // The same meeting repeats once per faculty member — dedupe identical rows.
   const seen = new Set<string>();
@@ -288,11 +288,18 @@ function mapSection(r: Record<string, unknown>): ClemsonSection {
     scheduleType: str(r.scheduleTypeDescription),
     instructionalMethod: str(r.instructionalMethodDescription),
     partOfTerm: str(r.partOfTerm),
+    // The section's own credits first. creditHourLow/High are the COURSE's
+    // range: preferring the low end put every variable-credit section at its
+    // minimum (GC 4900 005, 3 credits, read as 1; 2026-10-30). A fixed-credit
+    // section sends only creditHourLow; a variable one with nothing set yet
+    // has no single value to claim.
     creditHours:
-      typeof r.creditHourLow === "number"
-        ? r.creditHourLow
-        : typeof r.creditHours === "number"
-          ? r.creditHours
+      typeof r.creditHours === "number"
+        ? r.creditHours
+        : typeof r.creditHourLow === "number" &&
+            (typeof r.creditHourHigh !== "number" ||
+              r.creditHourHigh === r.creditHourLow)
+          ? r.creditHourLow
           : null,
     enrollment: num(r.enrollment),
     maxEnrollment: num(r.maximumEnrollment),
