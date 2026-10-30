@@ -565,6 +565,7 @@ async function fetchSectionsPaged(
   subject: string | undefined,
   openOnly: boolean | undefined,
   attempts = 4,
+  pageDelayMs = 200,
 ): Promise<PagedResult | null> {
   // NB: Banner's searchResults is stateful per session — the first query on a
   // session fixes the result set, and offset paging walks it. Do NOT issue any
@@ -609,7 +610,7 @@ async function fetchSectionsPaged(
       if (out.length >= res.totalCount || res.sections.length === 0) {
         return { sections: out, complete: true };
       }
-      await sleep(200);
+      await sleep(pageDelayMs);
     }
     if (cold || (failed && out.length === 0)) {
       log.warn("clemson scan: attempt failed before any page landed", {
@@ -712,11 +713,23 @@ export async function refreshClemsonSnapshot(
  * one full scan, writing nothing. For backfilling snapshots written before
  * the label was kept. Null unless the scan completed: a partial map would
  * leave labels missing while the snapshot claims them.
+ *
+ * Slow on purpose (Chip, 2026-10-30: Banner shuts out clients that send too
+ * many requests): a few seconds between pages and only two attempts, so a
+ * throttled scan gives up instead of pressing on. The backfill is a one-off;
+ * nothing waits on it.
  */
+export const BACKFILL_PAGE_DELAY_MS = 4000;
 export async function fetchCrossListLabels(
   term: string,
 ): Promise<Map<string, string | null> | null> {
-  const fetched = await fetchSectionsPaged(term, undefined, undefined, 8);
+  const fetched = await fetchSectionsPaged(
+    term,
+    undefined,
+    undefined,
+    2,
+    BACKFILL_PAGE_DELAY_MS,
+  );
   if (!fetched?.complete) return null;
   return new Map(fetched.sections.map((s) => [s.crn, s.crossList ?? null]));
 }

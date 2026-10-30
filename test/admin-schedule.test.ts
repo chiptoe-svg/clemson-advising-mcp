@@ -129,6 +129,7 @@ writeScheduleDb(
     }),
     sec("3002", "PRTM4540", "001", [{ ...TR, room: "101" }], {
       instructor: { name: "Other Person", email: null },
+      crossList: "XL9",
     }),
     sec(
       "3003",
@@ -487,17 +488,26 @@ test("a larger room than the class needs is not a problem (Chip, 2026-10-28)", (
   assert.deepEqual(kinds(r, "a"), []);
 });
 
-test("same room, same instructor, overlapping: meets together, not a double booking", () => {
-  // GC 1990/2990/3990/4990 are one special-projects class listed per level;
-  // a slightly different meeting pattern keeps them from stacking exactly.
+// Cross-listed means Banner's label, or an unlabeled 4xxx/6xxx pair at the
+// same times with the same instructor (Chip, 2026-10-30). Any other overlap
+// is a double booking, even in one room with one instructor.
+const seminar = (
+  id: string,
+  course: string,
+  days: string,
+  crossList?: string,
+) => ({
+  ...d(id, course, [{ days, start: "1115", end: "1250" }], "202", [
+    "cn@clemson.edu",
+  ]),
+  ...(crossList ? { crossList } : {}),
+});
+
+test("same Banner label, different patterns: meets together, not a double booking", () => {
   const r = A.checkDraft(
     [
-      d("s1", "GC 1990", [{ days: "MF", start: "1115", end: "1250" }], "202", [
-        "cn@clemson.edu",
-      ]),
-      d("s2", "GC 4990", [{ days: "F", start: "1115", end: "1250" }], "202", [
-        "cn@clemson.edu",
-      ]),
+      seminar("s1", "GC 1990", "MF", "GC1"),
+      seminar("s2", "GC 4990", "F", "GC1"),
     ],
     base8,
     "GC",
@@ -506,7 +516,86 @@ test("same room, same instructor, overlapping: meets together, not a double book
   );
   assert.deepEqual(kinds(r, "s1"), ["meets_together"]);
   assert.deepEqual(kinds(r, "s2"), ["meets_together"]);
-  assert.match(r.problems[0]!.detail, /one class listed twice/);
+  assert.match(r.problems[0]!.detail, /cross-listed.*GC1/);
+});
+
+test("same room and instructor but no label: a double booking, both kinds", () => {
+  const r = A.checkDraft(
+    [seminar("s1", "GC 1990", "MF"), seminar("s2", "GC 4990", "F")],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "s1").sort(), [
+    "instructor_double_booked",
+    "room_double_booked",
+  ]);
+});
+
+test("the label comes from the base term by CRN when the draft doesn't carry it", () => {
+  const labeled: import("../src/admin-schedule.ts").BaseSection[] = [
+    ["c1", "GC 1990"],
+    ["c2", "GC 4990"],
+  ].map(([crn, course]) => ({
+    ...seminar(crn!, course!, "F"),
+    crns: [crn!],
+    crossList: "GC1",
+    expected: 3,
+    subject: "GC",
+    title: course!,
+    enrollment: 3,
+    waitCount: 0,
+    roomCapacity: null,
+  }));
+  const r = A.checkDraft(
+    [
+      { ...seminar("s1", "GC 1990", "MF"), crns: ["c1"] },
+      { ...seminar("s2", "GC 4990", "F"), crns: ["c2"] },
+    ],
+    [...base8, ...labeled],
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "s1"), ["meets_together"]);
+});
+
+test("an unlabeled 4xxx/6xxx pair at the same times: one class, flagged to label in Banner", () => {
+  const F = [{ days: "F", start: "1010", end: "1310" }];
+  const r = A.checkDraft(
+    [
+      d("g4", "GC 4900", F, null, ["Kim Two"]),
+      d("g6", "GC 6900", F, null, ["Kim Two"]),
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.ok(kinds(r, "g4").includes("meets_together"));
+  assert.ok(!kinds(r, "g4").includes("instructor_double_booked"));
+  assert.match(
+    r.problems.find((p) => p.id === "g4" && p.kind === "meets_together")!
+      .detail,
+    /not labeled/,
+  );
+});
+
+test("same instructor, same time, different rooms, no label: instructor double booked", () => {
+  const T = [{ days: "MW", start: "1220", end: "1335" }];
+  const r = A.checkDraft(
+    [
+      d("a", "GC 3780", T, "112", ["Kim Two"]),
+      d("b", "GC 3790", T, "G017", ["Kim Two"]),
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+  );
+  assert.deepEqual(kinds(r, "a"), ["instructor_double_booked"]);
+  assert.deepEqual(kinds(r, "b"), ["instructor_double_booked"]);
 });
 
 test("free rooms for an expected size: big enough, closest fit first", () => {
@@ -634,20 +723,29 @@ test("I-5: a cross-listed partner in another subject is not 'another department'
   assert.deepEqual(r.problems, []);
 });
 
-test("an other-department section in the same room with the same instructor meets together", () => {
-  // PRTM 4540 (base8) is TR 0930–1045 in Godfrey 101, taught by Other Person.
-  const r = A.checkDraft(
-    [
-      d("a", "GC 4540", [{ days: "T", start: "0930", end: "1100" }], "101", [
-        "Other Person",
-      ]),
-    ],
+test("an other-department section with the same cross-list label meets together", () => {
+  // PRTM 4540 (base8) is TR 0930–1045 in Godfrey 101, taught by Other Person,
+  // cross-listed as XL9.
+  const a = {
+    ...d("a", "GC 4540", [{ days: "T", start: "0930", end: "1100" }], "101", [
+      "Other Person",
+    ]),
+    crossList: "XL9",
+  };
+  const r = A.checkDraft([a], base8, "GC", [], aliases8);
+  assert.deepEqual(kinds(r, "a"), ["meets_together"]);
+  // Without the label it is someone else's room and teaching.
+  const r2 = A.checkDraft(
+    [{ ...a, crossList: null }],
     base8,
     "GC",
     [],
     aliases8,
   );
-  assert.deepEqual(kinds(r, "a"), ["meets_together"]);
+  assert.deepEqual(kinds(r2, "a").sort(), [
+    "instructor_double_booked",
+    "room_used_by_other_department",
+  ]);
 });
 
 // --- Instructor preferences and room needs (2026-10-29) -----------------------
@@ -661,18 +759,34 @@ test("an instructor preference broken by a meeting is reported, matched by name 
   const r = A.checkDraft(
     [
       // Friday: breaks avoid_days. Draft names her by email, file by name.
-      d("fri", "GC 3400", [{ days: "MWF", start: "1010", end: "1100" }], "201", [
-        "lone@clemson.edu",
-      ]),
-      d("early", "GC 4060", [{ days: "TR", start: "0800", end: "0915" }], "202", [
-        "Lee One",
-      ]),
-      d("late", "GC 4070", [{ days: "TR", start: "1630", end: "1745" }], "202", [
-        "Lee One",
-      ]),
-      d("fine", "GC 4080", [{ days: "TR", start: "1100", end: "1215" }], "202", [
-        "Lee One",
-      ]),
+      d(
+        "fri",
+        "GC 3400",
+        [{ days: "MWF", start: "1010", end: "1100" }],
+        "201",
+        ["lone@clemson.edu"],
+      ),
+      d(
+        "early",
+        "GC 4060",
+        [{ days: "TR", start: "0800", end: "0915" }],
+        "202",
+        ["Lee One"],
+      ),
+      d(
+        "late",
+        "GC 4070",
+        [{ days: "TR", start: "1630", end: "1745" }],
+        "202",
+        ["Lee One"],
+      ),
+      d(
+        "fine",
+        "GC 4080",
+        [{ days: "TR", start: "1100", end: "1215" }],
+        "202",
+        ["Lee One"],
+      ),
     ],
     base8,
     "GC",
@@ -701,15 +815,42 @@ test("an instructor over max_sections: every one of their sections is flagged, n
     aliases8,
     { preferences },
   );
-  const a = r.problems.find((p) => p.id === "a" && p.kind === "instructor_preference")!;
+  const a = r.problems.find(
+    (p) => p.id === "a" && p.kind === "instructor_preference",
+  )!;
   assert.match(a.detail, /3 sections.*limit is 1/);
   assert.deepEqual(a.with.sort(), ["b", "c"]);
   assert.ok(kinds(r, "c").includes("instructor_preference"));
 });
 
+test("max_sections counts a cross-listed group once, labeled or an unlabeled 4xxx/6xxx pair", () => {
+  const preferences = new Map([["Kim Two", { maxSections: 2 }]]);
+  const F = [{ days: "F", start: "1010", end: "1310" }];
+  const R = [{ days: "R", start: "1325", end: "1415" }];
+  const r = A.checkDraft(
+    [
+      d("g4", "GC 4900", F, null, ["Kim Two"]),
+      d("g6", "GC 6900", F, null, ["Kim Two"]),
+      { ...d("s1", "GC 1990", R, "205", ["Kim Two"]), crossList: "GC1" },
+      { ...d("s2", "GC 2990", R, "205", ["Kim Two"]), crossList: "GC1" },
+    ],
+    base8,
+    "GC",
+    [],
+    aliases8,
+    { preferences },
+  );
+  for (const id of ["g4", "g6", "s1", "s2"])
+    assert.ok(!kinds(r, id).includes("instructor_preference"), id);
+});
+
 test("no preferences given: no preference problems", () => {
   const r = A.checkDraft(
-    [d("a", "GC 3400", [{ days: "F", start: "0700", end: "0750" }], "201", ["Kim Two"])],
+    [
+      d("a", "GC 3400", [{ days: "F", start: "0700", end: "0750" }], "201", [
+        "Kim Two",
+      ]),
+    ],
     base8,
     "GC",
     [],
@@ -727,8 +868,18 @@ test("a room need: a section outside its allowed rooms or below min size is repo
     [
       d("lab-wrong", "GC 4061", [MW], "201"),
       d("lab-right", "GC 4061", [TRm], "101C"),
-      d("small", "GC 4400 / GC 6400", [{ days: "F", start: "1300", end: "1350" }], "201"),
-      d("no-need", "GC 3400", [{ days: "F", start: "1400", end: "1450" }], "201"),
+      d(
+        "small",
+        "GC 4400 / GC 6400",
+        [{ days: "F", start: "1300", end: "1350" }],
+        "201",
+      ),
+      d(
+        "no-need",
+        "GC 3400",
+        [{ days: "F", start: "1400", end: "1450" }],
+        "201",
+      ),
     ],
     base8,
     "GC",
@@ -737,10 +888,16 @@ test("a room need: a section outside its allowed rooms or below min size is repo
     { roomNeeds },
   );
   assert.deepEqual(kinds(r, "lab-wrong"), ["room_need"]);
-  assert.match(r.problems.find((p) => p.id === "lab-wrong")!.detail, /Godfrey Hall 101C/);
+  assert.match(
+    r.problems.find((p) => p.id === "lab-wrong")!.detail,
+    /Godfrey Hall 101C/,
+  );
   assert.deepEqual(kinds(r, "lab-right"), []);
   assert.deepEqual(kinds(r, "small"), ["room_need"]);
-  assert.match(r.problems.find((p) => p.id === "small")!.detail, /seats 60.*70/);
+  assert.match(
+    r.problems.find((p) => p.id === "small")!.detail,
+    /seats 60.*70/,
+  );
   assert.deepEqual(kinds(r, "no-need"), []);
 });
 
@@ -752,7 +909,13 @@ test("a per-meeting room counts for room needs", () => {
         ...d("lab", "GC 4061", [], "101C"),
         meetings: [
           { days: "M", start: "1115", end: "1400" },
-          { days: "W", start: "1115", end: "1400", building: "Godfrey Hall", room: "201" },
+          {
+            days: "W",
+            start: "1115",
+            end: "1400",
+            building: "Godfrey Hall",
+            room: "201",
+          },
         ],
       },
     ],

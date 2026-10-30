@@ -212,7 +212,10 @@ test("I-2: duplicate draft ids are rejected, not silently merged", async () => {
 test("check: course room needs and the preferences file are reported", async () => {
   const roll = (await call("rollover", { term: "202608" })).body;
   const prefs = path.join(STATE, "instructor-preferences.yaml");
-  fs.writeFileSync(prefs, 'instructors:\n  "Lab Lead":\n    not_before: "1200"\n');
+  fs.writeFileSync(
+    prefs,
+    'instructors:\n  "Lab Lead":\n    not_before: "1200"\n',
+  );
   try {
     const { res, body } = await call("checkDraft", {
       target_term: "Fall 2027",
@@ -234,7 +237,10 @@ test("check: course room needs and the preferences file are reported", async () 
 test("check: a malformed preferences file or courses entry is an error, not ignored", async () => {
   const roll = (await call("rollover", { term: "202608" })).body;
   const prefs = path.join(STATE, "instructor-preferences.yaml");
-  fs.writeFileSync(prefs, 'instructors:\n  "Lab Lead":\n    avoid_days: "Fridays"\n');
+  fs.writeFileSync(
+    prefs,
+    'instructors:\n  "Lab Lead":\n    avoid_days: "Fridays"\n',
+  );
   try {
     const { res } = await call("checkDraft", {
       target_term: "Fall 2027",
@@ -263,20 +269,34 @@ test("check: a malformed preferences file or courses entry is an error, not igno
 
 test("find slots: exclude_ids lets a section's own room and instructor count as free", async () => {
   const roll = (await call("rollover", { term: "202608" })).body;
-  const block = roll.sections.find((s: { course: string }) => s.course === "GC 3400");
+  const block = roll.sections.find(
+    (s: { course: string }) => s.course === "GC 3400",
+  );
   const args = {
     target_term: "Fall 2027",
     course: "GC 3400",
     draft: roll.sections,
     instructors: ["pexample@clemson.edu"],
   };
-  const atTR = (b: { slots: { meetings: { days: string; start: string }[]; rooms: { room: string }[]; instructorsFree: string[] }[] }) =>
-    b.slots.find((s) => s.meetings[0]!.days === "TR" && s.meetings[0]!.start === "0930");
+  const atTR = (b: {
+    slots: {
+      meetings: { days: string; start: string }[];
+      rooms: { room: string }[];
+      instructorsFree: string[];
+    }[];
+  }) =>
+    b.slots.find(
+      (s) => s.meetings[0]!.days === "TR" && s.meetings[0]!.start === "0930",
+    );
   const kept = atTR((await call("findSlots", args)).body);
   assert.ok(!kept || !kept.rooms.some((r) => r.room === "201"));
-  const moved = (await call("findSlots", { ...args, exclude_ids: [block.id] })).body;
+  const moved = (await call("findSlots", { ...args, exclude_ids: [block.id] }))
+    .body;
   const slot = atTR(moved)!;
-  assert.ok(slot, JSON.stringify(moved.slots.map((s: { meetings: unknown }) => s.meetings)));
+  assert.ok(
+    slot,
+    JSON.stringify(moved.slots.map((s: { meetings: unknown }) => s.meetings)),
+  );
   assert.ok(slot.rooms.some((r) => r.room === "201"));
   assert.deepEqual(slot.instructorsFree, ["pexample@clemson.edu"]);
   assert.deepEqual(moved.excluded, [block.id]);
@@ -289,4 +309,43 @@ test("find slots: exclude_ids lets a section's own room and instructor count as 
     const { res } = await call("findSlots", bad);
     assert.equal(res.isError, true, JSON.stringify(bad.exclude_ids));
   }
+});
+
+test("a draft section's crossList is read: labeled seminars meet together, unlabeled double-book", async () => {
+  const sem = (
+    id: string,
+    course: string,
+    days: string,
+    crossList?: string,
+  ) => ({
+    id,
+    course,
+    meetings: [{ days, start: "1115", end: "1250" }],
+    building: "Godfrey Hall",
+    room: "202",
+    instructors: ["cn@clemson.edu"],
+    cap: 5,
+    ...(crossList ? { crossList } : {}),
+  });
+  const labeled = await call("checkDraft", {
+    target_term: "202608",
+    draft: [
+      sem("s1", "GC 1990", "MF", "GC1"),
+      sem("s2", "GC 4990", "F", "GC1"),
+    ],
+  });
+  assert.equal(labeled.res.isError, undefined, labeled.res.content[0]!.text);
+  assert.deepEqual(
+    labeled.body.problems.map((p: { kind: string }) => p.kind),
+    ["meets_together", "meets_together"],
+  );
+  const bare = await call("checkDraft", {
+    target_term: "202608",
+    draft: [sem("s1", "GC 1990", "MF"), sem("s2", "GC 4990", "F")],
+  });
+  assert.ok(
+    bare.body.problems.some(
+      (p: { kind: string }) => p.kind === "instructor_double_booked",
+    ),
+  );
 });

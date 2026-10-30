@@ -315,9 +315,10 @@ Problems in a proposed schedule, per draft section: a room booked twice,
 a room another department uses then, an instructor booked twice (including
 other-department teaching), a room smaller than the seat cap or than the
 expected class size, and course groups with no workable combination of one
-section each. Sections sharing a room and an instructor at once are reported
-as `meets_together` — probably one class listed twice — rather than as double
-bookings. Room capacities include department overrides from
+section each. Cross-listed sections that overlap — Banner's cross-list label,
+or an unlabeled 4xxx/6xxx pair at the same times with the same instructor —
+are reported as `meets_together` rather than as double bookings; any other
+overlap of a room or an instructor is a double booking. Room capacities include department overrides from
 `state/room-capacity-overrides.yaml` (e.g. `"Godfrey Hall 201": 64`), which
 apply everywhere a capacity is shown. A group's courses
 from other departments are taken from the base term. Each section's

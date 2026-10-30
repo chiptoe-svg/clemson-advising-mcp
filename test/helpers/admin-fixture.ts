@@ -17,6 +17,7 @@ export function sec(
     instructor?: { name: string; email?: string | null } | null;
     cap?: number;
     enrollment?: number;
+    crossList?: string | null;
   } = {},
 ) {
   const cap = opts.cap ?? 30;
@@ -30,6 +31,7 @@ export function sec(
     scheduleType: "Lecture",
     instructionalMethod: "F",
     partOfTerm: "1",
+    crossList: opts.crossList ?? null,
     creditHours: 3,
     enrollment,
     maxEnrollment: cap,

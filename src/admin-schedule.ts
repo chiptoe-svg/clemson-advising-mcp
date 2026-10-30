@@ -11,6 +11,11 @@
 // 4xxx/6xxx undergraduate/graduate pairs meet together — same meetings, same
 // room, same instructor. They are one meeting: never a double booking, and
 // the room-size check uses their combined caps (Chip, 2026-10-28).
+//
+// Cross-listed means Banner's cross-list label, or an unlabeled 4xxx/6xxx
+// pair at the same times with the same instructor (src/cross-list.ts). Any
+// other overlap is a double booking, even in one room with one instructor
+// (Chip, 2026-10-30).
 
 import type Database from "better-sqlite3";
 
@@ -18,6 +23,12 @@ import { roomCapacity } from "./clemson-room-capacity.js";
 import { minsToHHMM } from "./clemson-schedule-db.js";
 import type { InstructorPreference } from "./instructor-preferences.js";
 import { searchCombinations } from "./section-combinations.js";
+import { snapshotHasColumn } from "./clemson-schedule-db.js";
+import {
+  isUnlabeledGradPair,
+  slotSignature,
+  type ClassKey,
+} from "./cross-list.js";
 
 export interface DraftMeeting {
   days: string; // MTWRFSU, R = Thursday
@@ -44,6 +55,9 @@ export interface DraftSection {
    * a forecast can replace it later. Absent = unknown.
    */
   expected?: number | null;
+  /** Banner's cross-list group ("GC3"). Absent: looked up by CRN in the
+   *  base term, so a page need not carry it. */
+  crossList?: string | null;
 }
 
 export interface BaseSection extends DraftSection {
@@ -121,7 +135,8 @@ export function loadBaseSections(
   const rows = db
     .prepare(
       `SELECT crn, subject_course, section, title, enrollment, max_enrollment,
-              wait_count
+              wait_count,
+              ${snapshotHasColumn(db, "cross_list") ? "cross_list" : "NULL AS cross_list"}
          FROM sections WHERE term = ? ORDER BY subject_course, section`,
     )
     .all(term) as {
@@ -132,6 +147,7 @@ export function loadBaseSections(
     enrollment: number;
     max_enrollment: number;
     wait_count: number;
+    cross_list: string | null;
   }[];
   const meetings = db
     .prepare(
@@ -206,6 +222,7 @@ export function loadBaseSections(
       enrollment: r.enrollment,
       waitCount: r.wait_count,
       roomCapacity: roomCapacity(building, room),
+      crossList: r.cross_list,
     };
   });
 }
@@ -248,6 +265,7 @@ export function stackSections<T extends DraftSection>(
     }
     into.crns.push(...s.crns);
     into.sections.push(...s.sections);
+    into.crossList ??= s.crossList;
     into.id = into.crns.join("+");
     into.cap =
       into.cap == null || s.cap == null
@@ -272,14 +290,17 @@ export function othersOf(
   subject: string,
 ): BaseSection[] {
   const subj = subject.toUpperCase();
+  const mine = base.filter((b) => b.subject === subj);
   const own = new Set(
-    base
-      .filter((b) => b.subject === subj)
-      .map(stackKey)
-      .filter((k): k is string => k !== null),
+    mine.map(stackKey).filter((k): k is string => k !== null),
+  );
+  // A cross-listing partner (Banner label) moves with the subject's section.
+  const ownLabels = new Set(
+    mine.map((b) => b.crossList).filter((c): c is string => !!c),
   );
   return base.filter((b) => {
     if (b.subject === subj) return false;
+    if (b.crossList && ownLabels.has(b.crossList)) return false;
     const k = stackKey(b);
     return !k || !own.has(k);
   });
@@ -429,6 +450,43 @@ export function checkDraft(
   const who = (s: DraftSection) =>
     new Set(s.instructors.map((i) => canon(i, aliases)));
 
+  // Cross-list labels: the section's own, else the base term's by CRN, so a
+  // page that drops the field still gets them.
+  const labelByCrn = new Map<string, string>();
+  for (const b of base)
+    if (b.crossList) for (const c of b.crns) labelByCrn.set(c, b.crossList);
+  const labelsOf = (s: DraftSection) => {
+    const out = new Set<string>();
+    if (s.crossList) out.add(s.crossList);
+    for (const c of s.crns) {
+      const l = labelByCrn.get(c);
+      if (l) out.add(l);
+    }
+    return out;
+  };
+  const classKey = (s: DraftSection, course: string): ClassKey => ({
+    course,
+    crossList: null,
+    slots: slotSignature(
+      s.meetings.flatMap((m) =>
+        [...m.days].map((day) => ({ day, start: m.start, end: m.end })),
+      ),
+    ),
+    instructors: [...who(s)],
+  });
+  /** Why `a` and `b` are one class, or null when they are two. */
+  const oneClass = (a: DraftSection, b: DraftSection): string | null => {
+    const mine = labelsOf(a);
+    for (const l of labelsOf(b))
+      if (mine.has(l))
+        return `cross-listed with ${describe(b)} (Banner cross-list ${l}) — one class`;
+    for (const ca of courseCodes(a))
+      for (const cb of courseCodes(b))
+        if (isUnlabeledGradPair(classKey(a, ca), classKey(b, cb)))
+          return `meets with ${describe(b)}: a 4xxx/6xxx pair counted as one class, but not labeled as cross-listed in Banner`;
+    return null;
+  };
+
   const found = new Map<string, Problem[]>();
   const add = (
     id: string,
@@ -456,12 +514,19 @@ export function checkDraft(
   for (const [key, { who: name, p }] of prefs) {
     if (p.maxSections === undefined) continue;
     const theirs = draft.filter((s) => who(s).has(key));
-    if (theirs.length > p.maxSections)
+    // A cross-listed group counts once (Chip, 2026-10-30).
+    const classes: DraftSection[][] = [];
+    for (const s of theirs) {
+      const hits = classes.filter((g) => g.some((t) => oneClass(s, t)));
+      for (const h of hits) classes.splice(classes.indexOf(h), 1);
+      classes.push([s, ...hits.flat()]);
+    }
+    if (classes.length > p.maxSections)
       for (const s of theirs)
         add(
           s.id,
           "instructor_preference",
-          `${name} teaches ${theirs.length} sections in this draft; their limit is ${p.maxSections}`,
+          `${name} teaches ${classes.length} sections in this draft (a cross-listed group counts once); their limit is ${p.maxSections}`,
           theirs.filter((t) => t !== s).map((t) => t.id),
         );
   }
@@ -492,16 +557,8 @@ export function checkDraft(
       );
       const shared = [...who(t)].filter((x) => myWho.has(x));
       const timeOverlap = mine.some((a) => theirs.some((b) => overlap(a, b)));
-      if (roomClash && shared.length > 0)
-        // One person can't teach two classes in one room at once: this is
-        // almost certainly one class listed twice (GC 1990/2990/3990/4990)
-        // with slightly different meeting patterns. Shown, not alarmed.
-        add(
-          s.id,
-          "meets_together",
-          `${roomClash.place!.replace("|", " ")} with ${describe(t)}, same instructor — probably one class listed twice`,
-          [t.id],
-        );
+      const together = timeOverlap ? oneClass(s, t) : null;
+      if (together) add(s.id, "meets_together", together, [t.id]);
       else {
         if (roomClash)
           add(
@@ -527,12 +584,10 @@ export function checkDraft(
       const shared = o.instructors
         .map((i) => canon(i, aliases))
         .filter((x) => myWho.has(x));
-      if (roomClash && shared.length > 0)
-        add(
-          s.id,
-          "meets_together",
-          `${roomClash.place!.replace("|", " ")} with ${describe(o)}, same instructor — probably one class listed twice`,
-        );
+      const together = mine.some((a) => theirs.some((b) => overlap(a, b)))
+        ? oneClass(s, o)
+        : null;
+      if (together) add(s.id, "meets_together", together);
       else {
         if (roomClash)
           add(

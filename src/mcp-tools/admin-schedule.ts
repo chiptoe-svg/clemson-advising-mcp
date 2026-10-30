@@ -154,6 +154,8 @@ function parseDraft(raw: unknown): DraftSection[] | string {
         : [],
       cap: typeof x.cap === "number" ? x.cap : null,
       expected: typeof x.expected === "number" ? x.expected : null,
+      crossList:
+        typeof x.crossList === "string" && x.crossList ? x.crossList : null,
     });
   }
   return out;
@@ -272,7 +274,8 @@ const rollover: McpToolDefinition = {
       "enrollment and waitlist, and `expected` (enrollment + waitlist: the " +
       "class size a room must hold). Cross-listed sections that meet together " +
       "(honors pairs, 4xxx/6xxx pairs) come back as ONE entry with combined " +
-      "caps; keep them as one when you send the draft to check-schedule-draft.",
+      "caps; keep them as one when you send the draft to check-schedule-draft. " +
+      "crossList is Banner's cross-list group code (null: none recorded).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -332,9 +335,10 @@ const checkDraftTool: McpToolDefinition = {
       "departments), a room smaller than the seat cap or than the expected " +
       "class size, and course groups " +
       "(courses students take together) with NO workable combination of one " +
-      "section each. Sections sharing a room AND an instructor at once are " +
-      "reported as meets_together (probably one class listed twice), not as " +
-      "double bookings. Room capacities include department overrides " +
+      "section each. Cross-listed sections (Banner's cross-list label, or an " +
+      "unlabeled 4xxx/6xxx pair at the same times with the same instructor) " +
+      "that overlap are reported as meets_together, not as double bookings; " +
+      "any other overlap is a double booking. Room capacities include department overrides " +
       "(state/room-capacity-overrides.yaml). Instructor preferences " +
       "(state/instructor-preferences.yaml: days to avoid, not before/after, " +
       "max sections) and per-course room needs (`courses`) are reported as " +
@@ -349,7 +353,7 @@ const checkDraftTool: McpToolDefinition = {
         draft: {
           type: "array",
           description:
-            "Sections: {id, course, meetings:[{days,start,end}], building, room, instructors:[email or name], cap, expected}. expected = students expected (rollover: last enrollment + waitlist).",
+            "Sections: {id, course, meetings:[{days,start,end}], building, room, instructors:[email or name], cap, expected, crossList?}. expected = students expected (rollover: last enrollment + waitlist). crossList = Banner's cross-list code (from get-department-draft; looked up by CRN when absent). Cross-listed sections that overlap are meets_together, not a double booking; so is an unlabeled 4xxx/6xxx pair at the same times with the same instructor. Any other overlap of a room or an instructor is a double booking.",
           items: { type: "object" },
         },
         groups: {
