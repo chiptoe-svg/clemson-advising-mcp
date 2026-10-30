@@ -65,6 +65,11 @@ const SCHEMA = `
     -- response and previously discarded, which is why "which part of summer
     -- was this?" was unanswerable (2026-09-08).
     part_of_term         TEXT,
+    -- Banner's cross-list group code ("GC3"); see ClemsonSection.crossList.
+    -- Meta "cross_list" = "recorded" when every row's value was read from
+    -- Banner; a column added by a slice write-back leaves older rows null
+    -- (unknown, not "not cross-listed").
+    cross_list           TEXT,
     credit_hours         REAL,
     enrollment           INTEGER NOT NULL DEFAULT 0,
     max_enrollment       INTEGER NOT NULL DEFAULT 0,
@@ -132,9 +137,10 @@ function insertSections(
   const insertSection = db.prepare(`
     INSERT OR REPLACE INTO sections
       (crn, term, subject_course, section, title, campus, schedule_type,
-       instructional_method, part_of_term, credit_hours, enrollment,
-       max_enrollment, seats_available, wait_count, wait_capacity, open)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       instructional_method, part_of_term, cross_list, credit_hours,
+       enrollment, max_enrollment, seats_available, wait_count,
+       wait_capacity, open)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `);
   const insertMeeting = db.prepare(`
     INSERT INTO meetings (crn, term, day, start_min, end_min, building, room, type)
@@ -155,6 +161,7 @@ function insertSections(
       s.scheduleType,
       s.instructionalMethod,
       s.partOfTerm ?? null,
+      s.crossList ?? null,
       s.creditHours,
       s.enrollment,
       s.maxEnrollment,
@@ -214,6 +221,10 @@ export function writeScheduleDb(snap: ClemsonTermSnapshot): boolean {
       const setMeta = db.prepare("INSERT OR REPLACE INTO meta VALUES (?, ?)");
       setMeta.run("fetched_at", snap.fetchedAt);
       setMeta.run("term_description", snap.termDescription);
+      // Only a Banner fetch carries the label on every section; a rebuild
+      // from an older .json.gz archive does not, and must not claim it.
+      if (snap.sections.every((s) => s.crossList !== undefined))
+        setMeta.run("cross_list", "recorded");
 
       db.transaction(() => insertSections(db, snap.term, snap.sections))();
     } finally {
@@ -325,6 +336,8 @@ export function writeScheduleSlice(
     const db = new Database(tmp, { fileMustExist: true });
     try {
       if (!snapshotHasColumn(db, "part_of_term")) return false;
+      if (!snapshotHasColumn(db, "cross_list"))
+        db.exec("ALTER TABLE sections ADD COLUMN cross_list TEXT");
       const match = slice.courseNumber
         ? { sql: "subject_course = ?", arg: sliceKey(slice) }
         : {
@@ -387,6 +400,75 @@ export function writeScheduleSlice(
     return false;
   } finally {
     removeSqliteFiles(tmp); // gone after a rename; cleared after a refusal
+  }
+}
+
+/**
+ * Add Banner's cross-list labels to a snapshot written before they were kept
+ * (2026-10-30), changing nothing else: past terms are frozen, so their
+ * enrollments and meetings stay as recorded. `labels` maps CRN to code (null:
+ * not cross-listed) from a fresh fetch of the same term; CRNs the snapshot
+ * doesn't hold are counted and ignored, and its CRNs the fetch lacks stay
+ * null. Same copy-and-rename as writeScheduleSlice, dropped if a nightly
+ * replaced the file meanwhile. Refused when there is no snapshot.
+ */
+export function backfillCrossList(
+  term: string,
+  labels: ReadonlyMap<string, string | null>,
+):
+  | { ok: true; labeled: number; unknownCrns: number }
+  | { ok: false; reason: string } {
+  if (!isTermCode(term)) return { ok: false, reason: "not a term code" };
+  const p = scheduleDbPath(term);
+  if (!fs.existsSync(p)) return { ok: false, reason: "no snapshot" };
+  const tmp = `${p}.slice-tmp-${process.pid}-${crypto.randomBytes(4).toString("hex")}`;
+  try {
+    sweepStaleSliceCopies(p);
+    const ino = fs.statSync(p).ino;
+    fs.copyFileSync(p, tmp);
+    const db = new Database(tmp, { fileMustExist: true });
+    let labeled = 0;
+    let unknownCrns = 0;
+    try {
+      db.transaction(() => {
+        if (!snapshotHasColumn(db, "cross_list"))
+          db.exec("ALTER TABLE sections ADD COLUMN cross_list TEXT");
+        const set = db.prepare(
+          "UPDATE sections SET cross_list = ? WHERE crn = ? AND term = ?",
+        );
+        for (const [crn, code] of labels) {
+          if (set.run(code, crn, term).changes === 0) unknownCrns++;
+          else if (code) labeled++;
+        }
+        db.prepare("INSERT OR REPLACE INTO meta VALUES (?, ?)").run(
+          "cross_list",
+          "recorded",
+        );
+      })();
+    } finally {
+      db.close();
+    }
+    if (fs.statSync(p).ino !== ino)
+      return { ok: false, reason: "snapshot replaced meanwhile; rerun" };
+    fs.renameSync(tmp, p);
+    log.info("clemson cross-list backfill written", { term, labeled });
+    return { ok: true, labeled, unknownCrns };
+  } catch (err) {
+    return { ok: false, reason: String(err) };
+  } finally {
+    removeSqliteFiles(tmp);
+  }
+}
+
+/** Whether every section's cross-list label was read from Banner. */
+export function crossListRecorded(db: Database.Database): boolean {
+  try {
+    const row = db
+      .prepare("SELECT value FROM meta WHERE key = 'cross_list'")
+      .get() as { value: string } | undefined;
+    return row?.value === "recorded" && snapshotHasColumn(db, "cross_list");
+  } catch {
+    return false;
   }
 }
 

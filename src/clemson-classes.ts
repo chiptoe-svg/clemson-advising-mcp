@@ -70,6 +70,13 @@ export interface ClemsonSection {
    * call, which would cost thousands of extra requests per term.
    */
   partOfTerm: string | null;
+  /**
+   * Banner's cross-list group code ("GC3", "WAG"): sections sharing one are a
+   * single class listed under several numbers (honors 002, 4xxx/6xxx,
+   * 1990-4990 seminars). Same search response, previously dropped
+   * (2026-10-30). Optional: snapshots written before then lack it.
+   */
+  crossList?: string | null;
   creditHours: number | null;
   enrollment: number;
   maxEnrollment: number;
@@ -288,6 +295,7 @@ export function mapSection(r: Record<string, unknown>): ClemsonSection {
     scheduleType: str(r.scheduleTypeDescription),
     instructionalMethod: str(r.instructionalMethodDescription),
     partOfTerm: str(r.partOfTerm),
+    crossList: str(r.crossList),
     // The section's own credits first. creditHourLow/High are the COURSE's
     // range: preferring the low end put every variable-credit section at its
     // minimum (GC 4900 005, 3 credits, read as 1; 2026-10-30). A fixed-credit
@@ -697,6 +705,20 @@ export async function refreshClemsonSnapshot(
   // A snapshot that did not reach disk is not a refresh, whatever Banner said.
   if (!writeScheduleDb(snap)) return null;
   return snap;
+}
+
+/**
+ * Every section's cross-list label for a term, CRN -> code (null: none), from
+ * one full scan, writing nothing. For backfilling snapshots written before
+ * the label was kept. Null unless the scan completed: a partial map would
+ * leave labels missing while the snapshot claims them.
+ */
+export async function fetchCrossListLabels(
+  term: string,
+): Promise<Map<string, string | null> | null> {
+  const fetched = await fetchSectionsPaged(term, undefined, undefined, 8);
+  if (!fetched?.complete) return null;
+  return new Map(fetched.sections.map((s) => [s.crn, s.crossList ?? null]));
 }
 
 // Banner labels BOTH archived past terms and published-but-not-yet-registerable
