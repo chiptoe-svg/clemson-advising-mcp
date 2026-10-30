@@ -1120,6 +1120,9 @@ export function findConflicts(meetings: MeetingInterval[]): ConflictPair[] {
  * GC1010 but not a hypothetical GCX999), and/or one instructor by exact email
  * or exact Banner name. Aggregation happens in the tool layer, where credit
  * hours are counted once per section however many meetings it has.
+ * Cross-list labels come only from a snapshot that records them all: one
+ * label written back into an older file would split a pair whose partner's
+ * label is still unknown.
  */
 export interface TeachingLoadRow {
   name: string;
@@ -1159,7 +1162,7 @@ export function teachingLoadRows(
     .prepare(
       `SELECT i.name, i.email, s.crn, s.subject_course, s.section, s.title,
               s.credit_hours,
-              ${snapshotHasColumn(db, "cross_list") ? "s.cross_list" : "NULL AS cross_list"},
+              ${crossListRecorded(db) ? "s.cross_list" : "NULL AS cross_list"},
               m.day, m.start_min, m.end_min
          FROM instructors i
          JOIN sections s ON s.crn = i.crn AND s.term = i.term

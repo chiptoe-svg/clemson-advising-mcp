@@ -31,6 +31,8 @@ function section(
     termDescription: "",
     crn,
     subjectCourse: course,
+    // Banner reports a label (or none) for every section: a recorded snapshot.
+    crossList: null as string | null,
     section: "001",
     title: `${course} title`,
     campus: "C",
@@ -62,6 +64,7 @@ const chip = {
   email: "tonkin@clemson.edu",
   primary: true,
 };
+const gus = { name: "Gus Seven", email: "gseven@clemson.edu", primary: true };
 const fay = { name: "Fay Six", email: "fsix@clemson.edu", primary: true };
 const dana = { name: "Dana Reyes", email: "reyes@clemson.edu", primary: true };
 const bobby = {
@@ -339,8 +342,47 @@ test("a cross-listed group counts once; other overlaps count separately", async 
   assert.equal(lead("71009")?.meets_with, undefined);
   assert.equal(lead("71010")?.meets_with, undefined);
   assert.equal(row.sections.length, 5);
-  // Most fixture sections have no label field (as an old archive would):
-  // the answer must say labels weren't recorded.
+  assert.equal(b.cross_list_note, undefined);
+});
+
+test("labels not recorded: none are used, so a partial label can't split a pair", async () => {
+  // As after one live course refresh on an older snapshot: GC 4400 got its
+  // label GC3 written back; its GC 6400 partner (also GC3 in Banner) still
+  // has none, and the rest of the file was written without labels.
+  const { crossList: _a, ...g64 } = section(
+    "74002",
+    "GC6400",
+    3,
+    [gus],
+    [{ days: "TR", beginTime: "0800", endTime: "0915" }],
+  );
+  writeScheduleDb({
+    term: "202508",
+    termDescription: "Fall 2025",
+    fetchedAt: new Date().toISOString(),
+    sectionCount: 2,
+    sections: [
+      {
+        ...section(
+          "74001",
+          "GC4400",
+          3,
+          [gus],
+          [{ days: "TR", beginTime: "0800", endTime: "0915" }],
+        ),
+        crossList: "GC3",
+      },
+      g64,
+    ],
+  });
+  const res = await __schedTools.teachingLoad.handler({
+    term: "202508",
+    instructors: ["gseven@clemson.edu"],
+  });
+  const b = JSON.parse((res.content[0] as { text: string }).text);
+  const [row] = b.instructors as Person[];
+  assert.equal(row.sections_count, 1); // the unlabeled 4xxx/6xxx rule
+  assert.equal(row.credit_hours, 3);
   assert.match(String(b.cross_list_note), /predates/);
 });
 
