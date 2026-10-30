@@ -1105,6 +1105,9 @@ function aggregateLoad(rows: TeachingLoadRow[]) {
         : null,
     }));
     const untimed = classes.filter((c) => !c.timed);
+    // A variable-credit section with no credits set has no value to add;
+    // counting it as 0 without saying so would understate the total.
+    const unset = classes.filter((c) => c.credit === null);
     const totalMinutes = classes.reduce((a, c) => a + c.minutes, 0);
     return {
       name: p.name,
@@ -1116,6 +1119,14 @@ function aggregateLoad(rows: TeachingLoadRow[]) {
         count: untimed.length,
         crns: untimed.map((c) => c.lead.crn),
       },
+      ...(unset.length
+        ? {
+            credits_not_set: {
+              count: unset.length,
+              crns: unset.map((c) => c.lead.crn),
+            },
+          }
+        : {}),
       sections: classes.map((c) => ({
         crn: c.lead.crn,
         subject_course: c.lead.subject_course,
@@ -1166,7 +1177,9 @@ const teachingLoad: McpToolDefinition = {
       "bare email, or a name; emails match exactly, names when every word appears (any order), and " +
       "an ambiguous name returns candidates instead of guessing). Two " +
       "measures, kept separate: contact_hours_weekly sums timed meeting " +
-      "durations; credit_hours sums section credit hours. Sections with NO " +
+      "durations; credit_hours sums section credit hours (a variable-credit " +
+      "section with no credits set is listed in credits_not_set, not counted). " +
+      "Sections with NO " +
       "timed meetings are NEVER folded into contact hours — they come back " +
       "in untimed_sections, so a total cannot silently hide an " +
       "online/arranged section. Co-taught sections attribute fully to each " +

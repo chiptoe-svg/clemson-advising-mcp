@@ -176,6 +176,17 @@ writeScheduleDb({
       ),
       crossList: "GC1",
     })),
+    // A variable-credit section with no credits set (credit_hours null).
+    {
+      ...section(
+        "72001",
+        "MATH4900",
+        3,
+        [{ name: "Eve Null", email: "enull@clemson.edu", primary: true }],
+        [{ days: "F", beginTime: "0900", endTime: "0950" }],
+      ),
+      creditHours: null,
+    },
     // Same time, NOT cross-listed (a placeholder instructor, probably):
     // both count.
     section(
@@ -243,6 +254,15 @@ test("subject mode: everyone on the subject's sections, both measures, untimed s
   // The dedupe property: GC1010 meets MWF (three rows) but is 3 credits ONCE.
   assert.equal(chipRow.credit_hours, 4);
   assert.equal((b.instructors as Person[]).length, 3);
+});
+
+test("a section with no credits set is listed, never silently counted as 0", async () => {
+  const b = await load({ instructors: ["enull@clemson.edu"] });
+  const [row] = b.instructors as (Person & {
+    credits_not_set?: { count: number; crns: string[] };
+  })[];
+  assert.equal(row.credit_hours, 0);
+  assert.deepEqual(row.credits_not_set, { count: 1, crns: ["72001"] });
 });
 
 test("a cross-listed group counts once; other overlaps count separately", async () => {

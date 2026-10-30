@@ -403,20 +403,27 @@ export function writeScheduleSlice(
   }
 }
 
+/** What the backfill takes from Banner for one CRN. */
+export interface BackfillFields {
+  crossList: string | null;
+  creditHours: number | null;
+}
+
 /**
- * Add Banner's cross-list labels to a snapshot written before they were kept
- * (2026-10-30), changing nothing else: past terms are frozen, so their
- * enrollments and meetings stay as recorded. `labels` maps CRN to code (null:
- * not cross-listed) from a fresh fetch of the same term; CRNs the snapshot
- * doesn't hold are counted and ignored, and its CRNs the fetch lacks stay
- * null. Same copy-and-rename as writeScheduleSlice, dropped if a nightly
- * replaced the file meanwhile. Refused when there is no snapshot.
+ * Correct a past-term snapshot from a fresh Banner fetch of the same term,
+ * changing two columns only (2026-10-30): the cross-list label, which wasn't
+ * kept before, and credit hours, which were stored at the course minimum for
+ * variable-credit sections before 3e8c25a. Past terms are frozen otherwise:
+ * enrollments and meetings stay as recorded. CRNs the snapshot doesn't hold
+ * are counted and ignored; its CRNs the fetch lacks are left alone. Same
+ * copy-and-rename as writeScheduleSlice, dropped if a nightly replaced the
+ * file meanwhile. Refused when there is no snapshot.
  */
-export function backfillCrossList(
+export function backfillBannerFields(
   term: string,
-  labels: ReadonlyMap<string, string | null>,
+  fields: ReadonlyMap<string, BackfillFields>,
 ):
-  | { ok: true; labeled: number; unknownCrns: number }
+  | { ok: true; labeled: number; creditsChanged: number; unknownCrns: number }
   | { ok: false; reason: string } {
   if (!isTermCode(term)) return { ok: false, reason: "not a term code" };
   const p = scheduleDbPath(term);
@@ -428,17 +435,28 @@ export function backfillCrossList(
     fs.copyFileSync(p, tmp);
     const db = new Database(tmp, { fileMustExist: true });
     let labeled = 0;
+    let creditsChanged = 0;
     let unknownCrns = 0;
     try {
       db.transaction(() => {
         if (!snapshotHasColumn(db, "cross_list"))
           db.exec("ALTER TABLE sections ADD COLUMN cross_list TEXT");
-        const set = db.prepare(
-          "UPDATE sections SET cross_list = ? WHERE crn = ? AND term = ?",
+        const get = db.prepare(
+          "SELECT credit_hours FROM sections WHERE crn = ? AND term = ?",
         );
-        for (const [crn, code] of labels) {
-          if (set.run(code, crn, term).changes === 0) unknownCrns++;
-          else if (code) labeled++;
+        const set = db.prepare(
+          "UPDATE sections SET cross_list = ?, credit_hours = ? WHERE crn = ? AND term = ?",
+        );
+        for (const [crn, f] of fields) {
+          const row = get.get(crn, term) as
+            { credit_hours: number | null } | undefined;
+          if (!row) {
+            unknownCrns++;
+            continue;
+          }
+          set.run(f.crossList, f.creditHours, crn, term);
+          if (f.crossList) labeled++;
+          if (row.credit_hours !== f.creditHours) creditsChanged++;
         }
         db.prepare("INSERT OR REPLACE INTO meta VALUES (?, ?)").run(
           "cross_list",
@@ -451,8 +469,12 @@ export function backfillCrossList(
     if (fs.statSync(p).ino !== ino)
       return { ok: false, reason: "snapshot replaced meanwhile; rerun" };
     fs.renameSync(tmp, p);
-    log.info("clemson cross-list backfill written", { term, labeled });
-    return { ok: true, labeled, unknownCrns };
+    log.info("clemson snapshot backfill written", {
+      term,
+      labeled,
+      creditsChanged,
+    });
+    return { ok: true, labeled, creditsChanged, unknownCrns };
   } catch (err) {
     return { ok: false, reason: String(err) };
   } finally {

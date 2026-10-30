@@ -21,7 +21,7 @@ const {
   writeScheduleSlice,
   scheduleDbPath,
   snapshotHasColumn,
-  backfillCrossList,
+  backfillBannerFields,
   crossListRecorded,
 } = await import("../src/clemson-schedule-db.ts");
 const { sameClass, isUnlabeledGradPair } = await import("../src/cross-list.ts");
@@ -121,7 +121,7 @@ function oldSnapshot(term: string) {
     INSERT INTO sections (crn, term, subject_course, section, title,
       part_of_term, credit_hours, enrollment)
       VALUES ('1', '${term}', 'GC1040', '001', 'Old', '1', 4, 33),
-             ('2', '${term}', 'GC1040', '002', 'Old', '1', 4, 2),
+             ('2', '${term}', 'GC1040', '002', 'Old', '1', 1, 2),
              ('3', '${term}', 'MATH1060', '001', 'Old', '1', 4, 40);
   `);
   db.close();
@@ -151,29 +151,53 @@ test("a slice write-back into a pre-cross_list snapshot adds the column", () => 
   db.close();
 });
 
-test("backfill adds ONLY the labels: every other value stays as recorded", () => {
+test("backfill sets labels and corrects credits; every other value stays as recorded", () => {
   oldSnapshot("202508");
-  const r = backfillCrossList(
+  const r = backfillBannerFields(
     "202508",
     new Map([
-      ["1", "GC3"],
-      ["2", "GC3"],
-      ["3", null],
-      ["999", "ZZ1"], // not in the snapshot: ignored, counted
+      ["1", { crossList: "GC3", creditHours: 4 }],
+      // Stored at a course minimum before 3e8c25a; Banner's section value is 3.
+      ["2", { crossList: "GC3", creditHours: 3 }],
+      ["3", { crossList: null, creditHours: 4 }],
+      ["999", { crossList: "ZZ1", creditHours: 3 }], // not in the snapshot
     ]),
   );
-  assert.deepEqual(r, { ok: true, labeled: 2, unknownCrns: 1 });
+  assert.deepEqual(r, {
+    ok: true,
+    labeled: 2,
+    creditsChanged: 1,
+    unknownCrns: 1,
+  });
   const db = new Database(scheduleDbPath("202508"), { readonly: true });
   assert.deepEqual(
     db
       .prepare(
-        "SELECT crn, title, enrollment, cross_list FROM sections ORDER BY crn",
+        "SELECT crn, title, enrollment, credit_hours, cross_list FROM sections ORDER BY crn",
       )
       .all(),
     [
-      { crn: "1", title: "Old", enrollment: 33, cross_list: "GC3" },
-      { crn: "2", title: "Old", enrollment: 2, cross_list: "GC3" },
-      { crn: "3", title: "Old", enrollment: 40, cross_list: null },
+      {
+        crn: "1",
+        title: "Old",
+        enrollment: 33,
+        credit_hours: 4,
+        cross_list: "GC3",
+      },
+      {
+        crn: "2",
+        title: "Old",
+        enrollment: 2,
+        credit_hours: 3,
+        cross_list: "GC3",
+      },
+      {
+        crn: "3",
+        title: "Old",
+        enrollment: 40,
+        credit_hours: 4,
+        cross_list: null,
+      },
     ],
   );
   assert.ok(crossListRecorded(db));
@@ -181,7 +205,10 @@ test("backfill adds ONLY the labels: every other value stays as recorded", () =>
 });
 
 test("backfill refuses a term with no snapshot rather than creating one", () => {
-  const r = backfillCrossList("203001", new Map([["1", "GC3"]]));
+  const r = backfillBannerFields(
+    "203001",
+    new Map([["1", { crossList: "GC3", creditHours: 3 }]]),
+  );
   assert.equal(r.ok, false);
   assert.equal(fs.existsSync(scheduleDbPath("203001")), false);
 });

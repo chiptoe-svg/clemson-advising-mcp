@@ -709,10 +709,10 @@ export async function refreshClemsonSnapshot(
 }
 
 /**
- * Every section's cross-list label for a term, CRN -> code (null: none), from
- * one full scan, writing nothing. For backfilling snapshots written before
- * the label was kept. Null unless the scan completed: a partial map would
- * leave labels missing while the snapshot claims them.
+ * What the snapshot backfill needs for every section of a term — its
+ * cross-list label and its own credit hours — from one full scan, writing
+ * nothing. Null unless the scan completed: a partial map would leave labels
+ * missing while the snapshot claims them.
  *
  * Slow on purpose (Chip, 2026-10-30: Banner shuts out clients that send too
  * many requests): a few seconds between pages and only two attempts, so a
@@ -720,9 +720,12 @@ export async function refreshClemsonSnapshot(
  * nothing waits on it.
  */
 export const BACKFILL_PAGE_DELAY_MS = 4000;
-export async function fetchCrossListLabels(
+export async function fetchBackfillFields(
   term: string,
-): Promise<Map<string, string | null> | null> {
+): Promise<Map<
+  string,
+  { crossList: string | null; creditHours: number | null }
+> | null> {
   const fetched = await fetchSectionsPaged(
     term,
     undefined,
@@ -731,7 +734,12 @@ export async function fetchCrossListLabels(
     BACKFILL_PAGE_DELAY_MS,
   );
   if (!fetched?.complete) return null;
-  return new Map(fetched.sections.map((s) => [s.crn, s.crossList ?? null]));
+  return new Map(
+    fetched.sections.map((s) => [
+      s.crn,
+      { crossList: s.crossList ?? null, creditHours: s.creditHours },
+    ]),
+  );
 }
 
 // Banner labels BOTH archived past terms and published-but-not-yet-registerable

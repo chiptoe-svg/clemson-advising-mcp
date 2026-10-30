@@ -21,7 +21,7 @@
     "container-bridge": "node scripts/container-bridge.mjs",
     "clemson:refresh": "tsx scripts/clemson-refresh.ts",
     "clemson:convert": "tsx scripts/clemson-convert-snapshots.ts",
-    "clemson:backfill-cross-list": "tsx scripts/clemson-backfill-cross-list.ts",
+    "clemson:backfill": "tsx scripts/clemson-backfill-snapshots.ts",
     "test": "MCP_USAGE_ANALYTICS=off node --import tsx --test --test-timeout=60000 \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "format": "prettier --write \"src/**/*.ts\" \"*.{md,json}\"",
