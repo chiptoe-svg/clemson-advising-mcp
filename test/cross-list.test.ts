@@ -247,3 +247,10 @@ test("a labeled pair is not reported as unlabeled", () => {
   assert.ok(!isUnlabeledGradPair(k("GC 4900", "GC2"), k("GC 6900", "GC2")));
   assert.ok(sameClass(k("GC 4900", "GC2"), k("GC 6900", "GC2")));
 });
+
+test("sections in DIFFERENT Banner groups are not an unlabeled pair", () => {
+  assert.ok(!isUnlabeledGradPair(k("GC 4400", "GC3"), k("GC 6400", "GC7")));
+  assert.ok(!sameClass(k("GC 4400", "GC3"), k("GC 6400", "GC7")));
+  // One labeled, one not: not an "unlabeled pair" either.
+  assert.ok(!isUnlabeledGradPair(k("GC 4400", "GC3"), k("GC 6400", null)));
+});

@@ -62,6 +62,7 @@ const chip = {
   email: "tonkin@clemson.edu",
   primary: true,
 };
+const fay = { name: "Fay Six", email: "fsix@clemson.edu", primary: true };
 const dana = { name: "Dana Reyes", email: "reyes@clemson.edu", primary: true };
 const bobby = {
   name: "Bobby Congdon",
@@ -187,6 +188,39 @@ writeScheduleDb({
       ),
       creditHours: null,
     },
+    // Fay: a labeled 4440/6440 pair, plus an unlabeled 4440-002 at the
+    // same time in another room — a double booking, not part of the group
+    // (no chaining through the 4xxx/6xxx rule).
+    {
+      ...section(
+        "73001",
+        "GC4440",
+        4,
+        [fay],
+        [{ days: "TR", beginTime: "1100", endTime: "1215" }],
+      ),
+      crossList: "GC3",
+    },
+    {
+      ...section(
+        "73002",
+        "GC6440",
+        4,
+        [fay],
+        [{ days: "TR", beginTime: "1100", endTime: "1215" }],
+      ),
+      crossList: "GC3",
+    },
+    {
+      ...section(
+        "73003",
+        "GC4440",
+        4,
+        [fay],
+        [{ days: "TR", beginTime: "1100", endTime: "1215" }],
+      ),
+      section: "002",
+    },
     // Same time, NOT cross-listed (a placeholder instructor, probably):
     // both count.
     section(
@@ -241,8 +275,10 @@ test("subject mode: everyone on the subject's sections, both measures, untimed s
   const b = await load({ subject: "GC" });
   assert.equal(b.has_snapshot, true);
   assert.match(String(b.scope), /GC sections only/);
-  const [bobbyRow, chipRow] = b.instructors as Person[];
+  const rows = b.instructors as Person[];
   // Both total 3.5 contact hours; the tie breaks alphabetically.
+  const i = rows.findIndex((r) => r.name === "Bobby Congdon");
+  const [bobbyRow, chipRow] = [rows[i]!, rows[i + 1]!];
   assert.equal(bobbyRow.name, "Bobby Congdon");
   assert.equal(bobbyRow.sections_count, 3);
   assert.equal(bobbyRow.contact_hours_weekly, 3.5); // 150 + 60 timed minutes
@@ -253,7 +289,19 @@ test("subject mode: everyone on the subject's sections, both measures, untimed s
   assert.equal(chipRow.contact_hours_weekly, 3.5); // 150 + 60
   // The dedupe property: GC1010 meets MWF (three rows) but is 3 credits ONCE.
   assert.equal(chipRow.credit_hours, 4);
-  assert.equal((b.instructors as Person[]).length, 3);
+  assert.equal((b.instructors as Person[]).length, 4);
+});
+
+test("no chaining: a labeled pair stays one class, an unlabeled overlap counts on its own", async () => {
+  const b = await load({ instructors: ["fsix@clemson.edu"] });
+  const [row] = b.instructors as Person[];
+  assert.equal(row.sections_count, 2);
+  const lead = row.sections.find((s) => s.crn === "73001");
+  assert.equal(lead?.cross_list, "GC3");
+  assert.deepEqual(
+    lead?.meets_with?.map((m) => m.crn),
+    ["73002"],
+  );
 });
 
 test("a section with no credits set is listed, never silently counted as 0", async () => {

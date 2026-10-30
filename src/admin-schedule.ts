@@ -532,11 +532,12 @@ export function checkDraft(
     if (p.maxSections === undefined) continue;
     const theirs = draft.filter((s) => who(s).has(key));
     // A cross-listed group counts once (Chip, 2026-10-30).
+    // Joins only a group it is one class with in full — no chaining.
     const classes: DraftSection[][] = [];
     for (const s of theirs) {
-      const hits = classes.filter((g) => g.some((t) => oneClass(s, t)));
-      for (const h of hits) classes.splice(classes.indexOf(h), 1);
-      classes.push([s, ...hits.flat()]);
+      const g = classes.find((g) => g.every((t) => oneClass(s, t)));
+      if (g) g.push(s);
+      else classes.push([s]);
     }
     if (classes.length > p.maxSections)
       for (const s of theirs)

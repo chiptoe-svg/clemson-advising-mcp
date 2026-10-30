@@ -1043,11 +1043,14 @@ function groupCrossListed(
     ),
     instructors: [who],
   });
+  // A section joins a group only when it is one class with EVERY member:
+  // joining on any one member would chain a labeled pair to an unrelated
+  // section through the 4xxx/6xxx rule.
   const groups: LoadSectionAgg[][] = [];
   for (const s of aggs) {
-    const hits = groups.filter((g) => g.some((t) => sameClass(key(s), key(t))));
-    for (const h of hits) groups.splice(groups.indexOf(h), 1);
-    groups.push([s, ...hits.flat()]);
+    const g = groups.find((g) => g.every((t) => sameClass(key(s), key(t))));
+    if (g) g.push(s);
+    else groups.push([s]);
   }
   for (const g of groups)
     g.sort(

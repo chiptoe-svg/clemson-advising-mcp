@@ -35,9 +35,10 @@ function parts(course: string): { subject: string; number: string } | null {
 }
 
 /** An unlabeled 4xxx/6xxx pair: one subject, numbers 4abc and 6abc, the same
- *  meeting times, a shared instructor, and no shared Banner label. */
+ *  meeting times, a shared instructor, and NEITHER carrying a Banner label —
+ *  a labeled section already says which class it belongs to. */
 export function isUnlabeledGradPair(a: ClassKey, b: ClassKey): boolean {
-  if (a.crossList && a.crossList === b.crossList) return false;
+  if (a.crossList || b.crossList) return false;
   const pa = parts(a.course);
   const pb = parts(b.course);
   if (!pa || !pb || pa.subject !== pb.subject) return false;
