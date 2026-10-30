@@ -1084,6 +1084,8 @@ export interface TeachingLoadRow {
   section: string;
   title: string;
   credit_hours: number | null;
+  cross_list: string | null;
+  day: string | null;
   start_min: number | null;
   end_min: number | null;
 }
@@ -1111,7 +1113,9 @@ export function teachingLoadRows(
   return db
     .prepare(
       `SELECT i.name, i.email, s.crn, s.subject_course, s.section, s.title,
-              s.credit_hours, m.start_min, m.end_min
+              s.credit_hours,
+              ${snapshotHasColumn(db, "cross_list") ? "s.cross_list" : "NULL AS cross_list"},
+              m.day, m.start_min, m.end_min
          FROM instructors i
          JOIN sections s ON s.crn = i.crn AND s.term = i.term
          LEFT JOIN meetings m ON m.crn = i.crn AND m.term = i.term

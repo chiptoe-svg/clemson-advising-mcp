@@ -57,7 +57,12 @@ function section(
   };
 }
 
-const chip = { name: "Chip Tonkin", email: "tonkin@clemson.edu", primary: true };
+const chip = {
+  name: "Chip Tonkin",
+  email: "tonkin@clemson.edu",
+  primary: true,
+};
+const dana = { name: "Dana Reyes", email: "reyes@clemson.edu", primary: true };
 const bobby = {
   name: "Bobby Congdon",
   email: "congdon@clemson.edu",
@@ -71,29 +76,122 @@ writeScheduleDb({
   sectionCount: 7,
   sections: [
     // Three meeting rows, ONE section: credit must count once (3, not 9).
-    section("70001", "GC1010", 3, [chip], [
-      { days: "MWF", beginTime: "1130", endTime: "1220" },
-    ]),
-    section("70002", "GC3500", 3, [bobby], [
-      { days: "MW", beginTime: "0800", endTime: "0915" },
-    ]),
+    section(
+      "70001",
+      "GC1010",
+      3,
+      [chip],
+      [{ days: "MWF", beginTime: "1130", endTime: "1220" }],
+    ),
+    section(
+      "70002",
+      "GC3500",
+      3,
+      [bobby],
+      [{ days: "MW", beginTime: "0800", endTime: "0915" }],
+    ),
     // No timed meetings at all — must land in untimed_sections, not a total.
     section("70003", "GC3501", 2, [bobby], []),
     // Co-taught: attributes FULLY to both Chip and Bobby.
-    section("70004", "GC4000", 1, [chip, bobby], [
-      { days: "T", beginTime: "0900", endTime: "1000" },
-    ]),
+    section(
+      "70004",
+      "GC4000",
+      1,
+      [chip, bobby],
+      [{ days: "T", beginTime: "0900", endTime: "1000" }],
+    ),
     // Outside the GC subject — visible without a subject filter only.
-    section("70005", "MATH1060", 3, [bobby], [
-      { days: "F", beginTime: "1000", endTime: "1100" },
-    ]),
+    section(
+      "70005",
+      "MATH1060",
+      3,
+      [bobby],
+      [{ days: "F", beginTime: "1000", endTime: "1100" }],
+    ),
     // Two people sharing the "Smith" substring, for ambiguity.
-    section("70006", "STAT2300", 3, [
-      { name: "Ann Smithers", email: "asmithe@clemson.edu", primary: true },
-    ], [{ days: "M", beginTime: "0900", endTime: "1000" }]),
-    section("70007", "STAT2310", 3, [
-      { name: "Bo Smith", email: "bsmith@clemson.edu", primary: true },
-    ], [{ days: "T", beginTime: "0900", endTime: "1000" }]),
+    section(
+      "70006",
+      "STAT2300",
+      3,
+      [{ name: "Ann Smithers", email: "asmithe@clemson.edu", primary: true }],
+      [{ days: "M", beginTime: "0900", endTime: "1000" }],
+    ),
+    section(
+      "70007",
+      "STAT2310",
+      3,
+      [{ name: "Bo Smith", email: "bsmith@clemson.edu", primary: true }],
+      [{ days: "T", beginTime: "0900", endTime: "1000" }],
+    ),
+    // Dana: what counts once (Chip, 2026-10-30). Honors 002, labeled.
+    {
+      ...section(
+        "71001",
+        "GC4400",
+        4,
+        [dana],
+        [{ days: "MW", beginTime: "0900", endTime: "0915" }],
+      ),
+      crossList: "GC8",
+    },
+    {
+      ...section(
+        "71002",
+        "GC4400",
+        4,
+        [dana],
+        [{ days: "MW", beginTime: "0900", endTime: "0915" }],
+      ),
+      section: "002",
+      crossList: "GC8",
+    },
+    // An unlabeled 4xxx/6xxx pair at the same times.
+    section(
+      "71003",
+      "GC6900",
+      1,
+      [dana],
+      [{ days: "F", beginTime: "1000", endTime: "1030" }],
+    ),
+    section(
+      "71004",
+      "GC4900",
+      1,
+      [dana],
+      [{ days: "F", beginTime: "1000", endTime: "1030" }],
+    ),
+    // Labeled seminars; 2990 runs ten minutes longer.
+    ...[
+      ["71005", "GC1990", "1415"],
+      ["71006", "GC2990", "1425"],
+      ["71007", "GC3990", "1415"],
+      ["71008", "GC4990", "1415"],
+    ].map(([crn, course, end]) => ({
+      ...section(
+        crn!,
+        course!,
+        1,
+        [dana],
+        [{ days: "R", beginTime: "1325", endTime: end! }],
+      ),
+      crossList: "GC1",
+    })),
+    // Same time, NOT cross-listed (a placeholder instructor, probably):
+    // both count.
+    section(
+      "71009",
+      "GC3780",
+      3,
+      [dana],
+      [{ days: "T", beginTime: "0800", endTime: "0815" }],
+    ),
+    section(
+      "71010",
+      "GC3790",
+      3,
+      [dana],
+      [{ days: "T", beginTime: "0800", endTime: "0815" }],
+    ),
   ],
 });
 
@@ -119,7 +217,13 @@ type Person = {
   contact_hours_weekly: number;
   credit_hours: number;
   untimed_sections: { count: number; crns: string[] };
-  sections: { crn: string; weekly_contact_hours: number; timed: boolean }[];
+  sections: {
+    crn: string;
+    weekly_contact_hours: number;
+    timed: boolean;
+    cross_list?: string;
+    meets_with?: { crn: string }[];
+  }[];
 };
 
 test("subject mode: everyone on the subject's sections, both measures, untimed separate", async () => {
@@ -138,7 +242,38 @@ test("subject mode: everyone on the subject's sections, both measures, untimed s
   assert.equal(chipRow.contact_hours_weekly, 3.5); // 150 + 60
   // The dedupe property: GC1010 meets MWF (three rows) but is 3 credits ONCE.
   assert.equal(chipRow.credit_hours, 4);
-  assert.equal((b.instructors as Person[]).length, 2);
+  assert.equal((b.instructors as Person[]).length, 3);
+});
+
+test("a cross-listed group counts once; other overlaps count separately", async () => {
+  const b = await load({ instructors: ["reyes@clemson.edu"] });
+  const [row] = b.instructors as Person[];
+  // 4400 honors pair, 4900/6900, the seminar group, 3780, 3790.
+  assert.equal(row.sections_count, 5);
+  // 30 (MW) + 30 (F) + 60 (R, 1325-1425 once) + 15 + 15 = 150 minutes.
+  assert.equal(row.contact_hours_weekly, 2.5);
+  assert.equal(row.credit_hours, 12); // 4 + 1 + 1 + 3 + 3
+  const lead = (crn: string) => row.sections.find((s) => s.crn === crn);
+  assert.deepEqual(
+    lead("71001")?.meets_with?.map((m) => m.crn),
+    ["71002"],
+  );
+  assert.equal(lead("71001")?.cross_list, "GC8");
+  assert.deepEqual(
+    lead("71004")?.meets_with?.map((m) => m.crn),
+    ["71003"],
+  );
+  assert.equal(lead("71004")?.cross_list, "unlabeled 4xxx/6xxx pair");
+  assert.deepEqual(
+    lead("71005")?.meets_with?.map((m) => m.crn),
+    ["71006", "71007", "71008"],
+  );
+  assert.equal(lead("71009")?.meets_with, undefined);
+  assert.equal(lead("71010")?.meets_with, undefined);
+  assert.equal(row.sections.length, 5);
+  // Most fixture sections have no label field (as an old archive would):
+  // the answer must say labels weren't recorded.
+  assert.match(String(b.cross_list_note), /predates/);
 });
 
 test("instructor mode without subject counts everything they teach", async () => {

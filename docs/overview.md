@@ -231,7 +231,11 @@ sections only) and/or by instructor. Two measures, never conflated:
 `contact_hours_weekly` (timed meeting durations summed) and `credit_hours`
 (section credit hours, once per section). Sections with no timed meetings are
 reported in `untimed_sections`, **never** folded into the totals; co-taught
-sections attribute fully to each listed instructor. Snapshot.
+sections attribute fully to each listed instructor. A cross-listed group one
+person teaches counts **once**, with the others under `meets_with`: Banner's
+cross-list label (honors 002, 4xxx/6xxx, 1990–4990 seminars), or an unlabeled
+4xxx/6xxx pair at the same times. Other sections at the same time count
+separately. Snapshot.
 
 #### `get-course-offerings`
 

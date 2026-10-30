@@ -16,6 +16,7 @@ import {
   findInstructorSections,
   teachingLoadRows,
   type TeachingLoadRow,
+  crossListRecorded,
   findConflicts,
   type ConflictPair,
   type SnapshotSection,
@@ -27,6 +28,7 @@ import {
   type CombinationSection,
 } from "../section-combinations.js";
 import { enrollmentHistory } from "../clemson-enrollment-history.js";
+import { sameClass, slotSignature, type ClassKey } from "../cross-list.js";
 import {
   openOfferingsDb,
   observedTerms,
@@ -998,15 +1000,71 @@ interface LoadSectionAgg {
   section: string;
   title: string;
   credit_hours: number | null;
-  minutes: number;
-  timed: boolean;
+  cross_list: string | null;
+  slots: { day: string; start: number; end: number }[];
+}
+
+/** Weekly minutes a group's meetings cover, overlaps counted once. */
+function unionMinutes(group: readonly LoadSectionAgg[]): number {
+  const byDay = new Map<string, { start: number; end: number }[]>();
+  for (const s of group)
+    for (const t of s.slots) byDay.set(t.day, [...(byDay.get(t.day) ?? []), t]);
+  let total = 0;
+  for (const slots of byDay.values()) {
+    slots.sort((a, b) => a.start - b.start);
+    let { start, end } = slots[0]!;
+    for (const t of slots.slice(1)) {
+      if (t.start < end) end = Math.max(end, t.end);
+      else {
+        total += end - start;
+        ({ start, end } = t);
+      }
+    }
+    total += end - start;
+  }
+  return total;
+}
+
+/**
+ * One person's sections -> classes: a cross-listed group (sameClass) is one
+ * class (Chip, 2026-10-30). Anything else counts on its own, even at the
+ * same time — that is a double booking, not a cross-listing. The lead is the
+ * lowest course and section.
+ */
+function groupCrossListed(
+  aggs: readonly LoadSectionAgg[],
+  who: string,
+): LoadSectionAgg[][] {
+  const key = (s: LoadSectionAgg): ClassKey => ({
+    course: s.subject_course,
+    crossList: s.cross_list,
+    slots: slotSignature(
+      s.slots.map((t) => ({ day: t.day, start: t.start, end: t.end })),
+    ),
+    instructors: [who],
+  });
+  const groups: LoadSectionAgg[][] = [];
+  for (const s of aggs) {
+    const hits = groups.filter((g) => g.some((t) => sameClass(key(s), key(t))));
+    for (const h of hits) groups.splice(groups.indexOf(h), 1);
+    groups.push([s, ...hits.flat()]);
+  }
+  for (const g of groups)
+    g.sort(
+      (a, b) =>
+        a.subject_course.localeCompare(b.subject_course) ||
+        a.section.localeCompare(b.section),
+    );
+  return groups;
 }
 
 /**
  * Load rows -> per-person aggregates. Credit hours count once per SECTION no
  * matter how many meeting rows it has; contact minutes sum only timed rows;
  * a section with no timed meetings lands in untimed_sections instead of
- * silently contributing zero to a total that claims to describe it.
+ * silently contributing zero to a total that claims to describe it. A
+ * cross-listed group counts once (groupCrossListed): its meetings' union, its
+ * highest credit hours, the other sections under the lead's meets_with.
  */
 function aggregateLoad(rows: TeachingLoadRow[]) {
   const people = new Map<
@@ -1028,38 +1086,58 @@ function aggregateLoad(rows: TeachingLoadRow[]) {
         section: r.section,
         title: r.title,
         credit_hours: r.credit_hours,
-        minutes: 0,
-        timed: false,
+        cross_list: r.cross_list,
+        slots: [],
       };
       p.byCrn.set(r.crn, s);
     }
-    if (r.start_min !== null && r.end_min !== null) {
-      s.minutes += r.end_min - r.start_min;
-      s.timed = true;
-    }
+    if (r.start_min !== null && r.end_min !== null)
+      s.slots.push({ day: r.day ?? "", start: r.start_min, end: r.end_min });
   }
-  return [...people.values()].map((p) => {
-    const aggs = [...p.byCrn.values()];
-    const untimed = aggs.filter((s) => !s.timed);
-    const totalMinutes = aggs.reduce((a, s) => a + s.minutes, 0);
+  return [...people.entries()].map(([who, p]) => {
+    const classes = groupCrossListed([...p.byCrn.values()], who).map((g) => ({
+      lead: g[0]!,
+      others: g.slice(1),
+      minutes: unionMinutes(g),
+      timed: g.some((s) => s.slots.length > 0),
+      credit: g.some((s) => s.credit_hours !== null)
+        ? Math.max(...g.map((s) => s.credit_hours ?? 0))
+        : null,
+    }));
+    const untimed = classes.filter((c) => !c.timed);
+    const totalMinutes = classes.reduce((a, c) => a + c.minutes, 0);
     return {
       name: p.name,
       email: p.email,
-      sections_count: aggs.length,
+      sections_count: classes.length,
       contact_hours_weekly: round1(totalMinutes / 60),
-      credit_hours: round1(aggs.reduce((a, s) => a + (s.credit_hours ?? 0), 0)),
+      credit_hours: round1(classes.reduce((a, c) => a + (c.credit ?? 0), 0)),
       untimed_sections: {
         count: untimed.length,
-        crns: untimed.map((s) => s.crn),
+        crns: untimed.map((c) => c.lead.crn),
       },
-      sections: aggs.map((s) => ({
-        crn: s.crn,
-        subject_course: s.subject_course,
-        section: s.section,
-        title: s.title,
-        credit_hours: s.credit_hours,
-        weekly_contact_hours: round1(s.minutes / 60),
-        timed: s.timed,
+      sections: classes.map((c) => ({
+        crn: c.lead.crn,
+        subject_course: c.lead.subject_course,
+        section: c.lead.section,
+        title: c.lead.title,
+        credit_hours: c.credit,
+        weekly_contact_hours: round1(c.minutes / 60),
+        timed: c.timed,
+        ...(c.others.length
+          ? {
+              cross_list:
+                c.lead.cross_list &&
+                c.others.every((o) => o.cross_list === c.lead.cross_list)
+                  ? c.lead.cross_list
+                  : "unlabeled 4xxx/6xxx pair",
+              meets_with: c.others.map((o) => ({
+                crn: o.crn,
+                subject_course: o.subject_course,
+                section: o.section,
+              })),
+            }
+          : {}),
       })),
     };
   });
@@ -1092,7 +1170,11 @@ const teachingLoad: McpToolDefinition = {
       "timed meetings are NEVER folded into contact hours — they come back " +
       "in untimed_sections, so a total cannot silently hide an " +
       "online/arranged section. Co-taught sections attribute fully to each " +
-      "listed instructor. Snapshot-backed, read-only, no Banner load.",
+      "listed instructor. Cross-listed sections one person teaches (Banner's " +
+      "cross-list label: honors 002, 4xxx/6xxx, 1990-4990 seminars; or an " +
+      "unlabeled 4xxx/6xxx pair at the same times) count ONCE, the others " +
+      "under that section's meets_with. Other sections at the same time " +
+      "count separately. Snapshot-backed, read-only, no Banner load.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -1228,8 +1310,16 @@ const teachingLoad: McpToolDefinition = {
           ? `${subject} sections only — teaching outside ${subject} is NOT counted here`
           : "every section each matched instructor teaches this term",
         attribution:
-          "Co-taught sections attribute fully to EACH listed instructor, so totals across people can exceed the section count.",
+          "Co-taught sections attribute fully to EACH listed instructor, so totals across people can exceed the section count. A cross-listed group counts once; see meets_with.",
         instructors: entries,
+        ...(crossListRecorded(db)
+          ? {}
+          : {
+              cross_list_note:
+                "This snapshot predates Banner's cross-list labels, so only " +
+                "unlabeled 4xxx/6xxx pairs were combined; honors and other " +
+                "cross-listed sections may each count separately.",
+            }),
         _source: `Banner schedule snapshot ${meta.fetchedAt} — teaching data only`,
       });
     } finally {
