@@ -162,8 +162,9 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
   `building_room` filter on `search-classes`. A room alone is enough
   (`building_room: "Godfrey 201"`, plus `days` if asked) to list what meets
   there; read the gaps off that list. Free-room and slot finding
-  (`find-free-rooms`, `find-offering-slots`) exist only for keys holding the
-  admin scope — they are department-scheduling tools, not advising ones.
+  (`find-free-rooms`, `find-offering-slots`) and the double-booking report
+  (`find-schedule-conflicts`) exist only for keys holding the admin scope —
+  they are department-scheduling tools, not advising ones.
   (Instructor tools DO exist — `get-instructor-classes` and
   `get-teaching-load` above — but also only for admin-scope keys; on an
   advising key, `search-classes` with `instructor` answers "who teaches X".)
@@ -174,4 +175,4 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
      for absence claims that stopped being true, then updates the stamp.
      (Origin: a bullet denying instructor tools outlived their arrival and
      sent live models paging search-classes instead.) -->
-<!-- limitations-reviewed-against: schedule=f545ca53b727 catalog=d24fd4653cfc -->
+<!-- limitations-reviewed-against: schedule=313933a150d0 catalog=d24fd4653cfc -->

@@ -144,7 +144,7 @@ test("bad times and an unknown group name are errors", async () => {
 
 test("the admin tools are admin-category and outside the schedule scope", () => {
   const ops = Object.values(__adminTools).map((t) => t.operation);
-  assert.equal(ops.length, 5);
+  assert.equal(ops.length, 6);
   for (const t of Object.values(__adminTools))
     assert.equal(t.category, "admin");
   const schedule = expandScopes(["clemson.schedule"]);
@@ -348,4 +348,135 @@ test("a draft section's crossList is read: labeled seminars meet together, unlab
       (p: { kind: string }) => p.kind === "instructor_double_booked",
     ),
   );
+});
+
+// --- find-schedule-conflicts (2026-10-30) -------------------------------------
+// Chip: find rooms or instructors double booked outside cross-listed
+// classes, and list unlabeled 4xxx/6xxx pairs so they get labeled in Banner.
+const F = { days: "F", begin: "1010", end: "1310" };
+const kim = { name: "Kim Two", email: "ktwo@clemson.edu" };
+writeScheduleDb(
+  snapshot("202601", [
+    // Labeled honors pair: one class, nothing to report.
+    sec("2001", "GC4400", "001", [TR], { instructor: kim, crossList: "GC8" }),
+    sec("2002", "GC4400", "002", [TR], { instructor: kim, crossList: "GC8" }),
+    // Unlabeled 4xxx/6xxx pair, no room: one class, but report the label.
+    sec(
+      "2003",
+      "GC4900",
+      "006",
+      [{ ...F, building: "No Building Assigned", room: "ROOM" }],
+      { instructor: kim },
+    ),
+    sec(
+      "2004",
+      "GC6900",
+      "002",
+      [{ ...F, building: "No Building Assigned", room: "ROOM" }],
+      { instructor: kim },
+    ),
+    // Same instructor, same time, different rooms: instructor double booked.
+    sec("2005", "GC3780", "001", [{ ...MW, room: "112" }], { instructor: kim }),
+    sec("2006", "GC3790", "001", [{ ...MW, room: "G017" }], {
+      instructor: kim,
+    }),
+    // One room, two instructors, same time: room double booked.
+    sec(
+      "2007",
+      "GC2070",
+      "001",
+      [{ days: "R", begin: "1400", end: "1515", room: "202" }],
+      {
+        instructor: { name: "Lee One", email: "lone@clemson.edu" },
+      },
+    ),
+    sec(
+      "2008",
+      "GC2400",
+      "001",
+      [{ days: "R", begin: "1430", end: "1545", room: "202" }],
+      {
+        instructor: { name: "Ann Three", email: "athree@clemson.edu" },
+      },
+    ),
+    // Identical meetings, room and instructor, no label: double booked, but
+    // probably a cross-listing missing its label.
+    sec(
+      "2009",
+      "GC1990",
+      "001",
+      [{ days: "F", begin: "0805", end: "0855", room: "205" }],
+      {
+        instructor: { name: "Cy Four", email: "cfour@clemson.edu" },
+      },
+    ),
+    sec(
+      "2010",
+      "GC2990",
+      "001",
+      [{ days: "F", begin: "0805", end: "0855", room: "205" }],
+      {
+        instructor: { name: "Cy Four", email: "cfour@clemson.edu" },
+      },
+    ),
+    // Another department in a GC room at the same time.
+    sec(
+      "2011",
+      "GC3450",
+      "001",
+      [{ days: "T", begin: "1300", end: "1415", room: "101" }],
+      {
+        instructor: { name: "Dee Five", email: "dfive@clemson.edu" },
+      },
+    ),
+    sec(
+      "2012",
+      "PRTM4540",
+      "001",
+      [{ days: "T", begin: "1330", end: "1445", room: "101" }],
+      {
+        instructor: { name: "Other Person", email: null },
+      },
+    ),
+  ]) as never,
+);
+
+test("find-schedule-conflicts: real double bookings once each, unlabeled pairs listed", async () => {
+  const { res, body } = await call("findConflicts", {
+    term: "202601",
+    subject: "GC",
+  });
+  assert.equal(res.isError, undefined, res.content[0]!.text);
+  assert.equal(body.labels_recorded, true);
+  type Sec = { crn: string };
+  const crnsOf = (x: { sections: Sec[] }) =>
+    x.sections
+      .map((s) => s.crn)
+      .sort()
+      .join("+");
+  const found = body.double_bookings.map(
+    (b: { kind: string; sections: Sec[] }) => `${b.kind}:${crnsOf(b)}`,
+  );
+  assert.deepEqual(found.sort(), [
+    "instructor:2005+2006",
+    "instructor:2009+2010",
+    "room:2007+2008",
+    "room:2009+2010",
+    "room_used_by_other_department:2011+2012",
+  ]);
+  const likely = body.double_bookings.filter(
+    (b: { likely_missing_label?: boolean }) => b.likely_missing_label,
+  );
+  assert.deepEqual(likely.map(crnsOf).sort(), ["2009+2010", "2009+2010"]);
+  assert.deepEqual(body.unlabeled_cross_lists.map(crnsOf), ["2003+2004"]);
+  assert.match(body.unlabeled_cross_lists[0].note, /label/i);
+});
+
+test("find-schedule-conflicts on a snapshot without labels says so", async () => {
+  // As written before labels were kept: no crossList field at all.
+  const { crossList: _x, ...bare } = sec("4001", "GC3400", "001", [TR]);
+  writeScheduleDb(snapshot("202508", [bare as never]) as never);
+  const { body } = await call("findConflicts", { term: "202508" });
+  assert.equal(body.labels_recorded, false);
+  assert.match(body.note, /cross-list labels/);
 });

@@ -419,6 +419,50 @@ function courseCodes(s: DraftSection): string[] {
 }
 
 /**
+ * Whether two sections are one class (Chip, 2026-10-30): the same Banner
+ * cross-list label — a section's own crossList, else the base term's by CRN,
+ * so a page that drops the field still gets them — or an unlabeled
+ * 4xxx/6xxx pair at the same times with the same instructor. Null: two
+ * classes, so any overlap between them is a double booking.
+ */
+export function crossListJudge(
+  base: readonly BaseSection[],
+  aliases: ReadonlyMap<string, string>,
+): (a: DraftSection, b: DraftSection) => { label: string | null } | null {
+  const labelByCrn = new Map<string, string>();
+  for (const b of base)
+    if (b.crossList) for (const c of b.crns) labelByCrn.set(c, b.crossList);
+  const labelsOf = (s: DraftSection) => {
+    const out = new Set<string>();
+    if (s.crossList) out.add(s.crossList);
+    for (const c of s.crns) {
+      const l = labelByCrn.get(c);
+      if (l) out.add(l);
+    }
+    return out;
+  };
+  const classKey = (s: DraftSection, course: string): ClassKey => ({
+    course,
+    crossList: null,
+    slots: slotSignature(
+      s.meetings.flatMap((m) =>
+        [...m.days].map((day) => ({ day, start: m.start, end: m.end })),
+      ),
+    ),
+    instructors: s.instructors.map((i) => canon(i, aliases)),
+  });
+  return (a, b) => {
+    const mine = labelsOf(a);
+    for (const l of labelsOf(b)) if (mine.has(l)) return { label: l };
+    for (const ca of courseCodes(a))
+      for (const cb of courseCodes(b))
+        if (isUnlabeledGradPair(classKey(a, ca), classKey(b, cb)))
+          return { label: null };
+    return null;
+  };
+}
+
+/**
  * Problems in a draft schedule, per draft section. "Others" are the base
  * term's sections outside `subject`: their rooms and their instructors'
  * teaching are fixed commitments. The base term's own `subject` sections are
@@ -450,41 +494,14 @@ export function checkDraft(
   const who = (s: DraftSection) =>
     new Set(s.instructors.map((i) => canon(i, aliases)));
 
-  // Cross-list labels: the section's own, else the base term's by CRN, so a
-  // page that drops the field still gets them.
-  const labelByCrn = new Map<string, string>();
-  for (const b of base)
-    if (b.crossList) for (const c of b.crns) labelByCrn.set(c, b.crossList);
-  const labelsOf = (s: DraftSection) => {
-    const out = new Set<string>();
-    if (s.crossList) out.add(s.crossList);
-    for (const c of s.crns) {
-      const l = labelByCrn.get(c);
-      if (l) out.add(l);
-    }
-    return out;
-  };
-  const classKey = (s: DraftSection, course: string): ClassKey => ({
-    course,
-    crossList: null,
-    slots: slotSignature(
-      s.meetings.flatMap((m) =>
-        [...m.days].map((day) => ({ day, start: m.start, end: m.end })),
-      ),
-    ),
-    instructors: [...who(s)],
-  });
+  const judge = crossListJudge(base, aliases);
   /** Why `a` and `b` are one class, or null when they are two. */
   const oneClass = (a: DraftSection, b: DraftSection): string | null => {
-    const mine = labelsOf(a);
-    for (const l of labelsOf(b))
-      if (mine.has(l))
-        return `cross-listed with ${describe(b)} (Banner cross-list ${l}) — one class`;
-    for (const ca of courseCodes(a))
-      for (const cb of courseCodes(b))
-        if (isUnlabeledGradPair(classKey(a, ca), classKey(b, cb)))
-          return `meets with ${describe(b)}: a 4xxx/6xxx pair counted as one class, but not labeled as cross-listed in Banner`;
-    return null;
+    const j = judge(a, b);
+    if (!j) return null;
+    return j.label
+      ? `cross-listed with ${describe(b)} (Banner cross-list ${j.label}) — one class`
+      : `meets with ${describe(b)}: a 4xxx/6xxx pair counted as one class, but not labeled as cross-listed in Banner`;
   };
 
   const found = new Map<string, Problem[]>();
@@ -958,4 +975,107 @@ export function findSlots(args: {
     });
   }
   return { slots, patternsUsed: patterns };
+}
+
+// --- Conflict report (2026-10-30) -------------------------------------------
+
+/** One section in a conflict report. */
+export interface ReportSection {
+  crn: string;
+  course: string;
+  section: string;
+  meetings: DraftMeeting[];
+  building: string | null;
+  room: string | null;
+  instructors: string[];
+}
+
+export interface DoubleBooking {
+  kind: "room" | "instructor" | "room_used_by_other_department";
+  sections: ReportSection[];
+  detail: string;
+  /** Identical meetings, room and instructors: probably a cross-listing
+   *  missing its Banner label rather than a real clash. */
+  likely_missing_label?: true;
+}
+
+export interface UnlabeledPair {
+  sections: ReportSection[];
+  note: string;
+}
+
+/**
+ * A published term's double bookings for one subject, outside cross-listed
+ * classes, and its unlabeled 4xxx/6xxx pairs (Chip, 2026-10-30). Sections are
+ * compared one CRN at a time — never stacked first, since stacking would hide
+ * two unlabeled sections that only look alike — against each other and
+ * against other departments' sections. Each clash is reported once per pair.
+ */
+export function findConflicts(
+  base: readonly BaseSection[],
+  subject: string,
+  aliases: ReadonlyMap<string, string> = new Map(),
+): { doubleBookings: DoubleBooking[]; unlabeled: UnlabeledPair[] } {
+  const subj = subject.toUpperCase();
+  const own = base.filter((b) => b.subject === subj);
+  const others = othersOf(base, subj);
+  const judge = crossListJudge(base, aliases);
+  const iv = new Map(base.map((s) => [s.id, intervals(s)]));
+  const who = (s: DraftSection) =>
+    new Set(s.instructors.map((i) => canon(i, aliases)));
+  const out = (s: BaseSection): ReportSection => ({
+    crn: s.crns[0]!,
+    course: s.course,
+    section: s.sections[0]!,
+    meetings: s.meetings,
+    building: s.building,
+    room: s.room,
+    instructors: s.instructors,
+  });
+
+  const doubleBookings: DoubleBooking[] = [];
+  const unlabeled: UnlabeledPair[] = [];
+  const compare = (a: BaseSection, b: BaseSection, otherDept: boolean) => {
+    const ia = iv.get(a.id)!;
+    const ib = iv.get(b.id)!;
+    if (!ia.some((x) => ib.some((y) => overlap(x, y)))) return;
+    const j = judge(a, b);
+    if (j) {
+      if (j.label === null)
+        unlabeled.push({
+          sections: [out(a), out(b)],
+          note:
+            "Same instructor and times, counted as one class, but not " +
+            "labeled as cross-listed in Banner: ask for the cross-list label.",
+        });
+      return;
+    }
+    const likely =
+      stackKey(a) !== null && stackKey(a) === stackKey(b)
+        ? { likely_missing_label: true as const }
+        : {};
+    const clash = ia.find((x) =>
+      ib.some((y) => x.place && x.place === y.place && overlap(x, y)),
+    );
+    if (clash)
+      doubleBookings.push({
+        kind: otherDept ? "room_used_by_other_department" : "room",
+        sections: [out(a), out(b)],
+        detail: `${clash.place!.replace("|", " ")} holds both at overlapping times`,
+        ...likely,
+      });
+    const shared = [...who(a)].filter((x) => who(b).has(x));
+    if (shared.length)
+      doubleBookings.push({
+        kind: "instructor",
+        sections: [out(a), out(b)],
+        detail: `${shared.join(", ")} teach${shared.length === 1 ? "es" : ""} both at overlapping times`,
+        ...likely,
+      });
+  };
+  for (const [i, a] of own.entries()) {
+    for (const b of own.slice(i + 1)) compare(a, b, false);
+    for (const o of others) compare(a, o, true);
+  }
+  return { doubleBookings, unlabeled };
 }

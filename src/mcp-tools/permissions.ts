@@ -127,6 +127,10 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.admin_course_groups",
   },
+  "clemson.admin_conflicts": {
+    backend: "external-http",
+    policyActionId: "clemson.admin_conflicts",
+  },
   "clemson.find_requirement_sections": {
     backend: "external-http",
     policyActionId: "clemson.find_requirement_sections",
@@ -353,6 +357,7 @@ export const CLEMSON_ADMIN_OPS = [
   "clemson.admin_find_slots",
   "clemson.admin_free_rooms",
   "clemson.admin_course_groups",
+  "clemson.admin_conflicts",
 ];
 
 const CLEMSON_CATALOG_OPS = [

@@ -341,6 +341,17 @@ section being moved — so its own room and instructor count as free.
 Rooms with no class booked in a window, with capacity, the preferred
 building first.
 
+#### `find-schedule-conflicts`
+
+A published term's double bookings for one department: a room holding two
+classes at once, an instructor teaching two at once, or another department's
+class in the department's room — each clash once. Cross-listed sections
+(Banner's cross-list label) are one class and never reported. An unlabeled
+4xxx/6xxx pair at the same times with the same instructor counts as one class
+too, and is listed under `unlabeled_cross_lists` so the label gets fixed in
+Banner; a clash with identical meetings, room and instructor is marked
+`likely_missing_label`.
+
 #### `list-course-groups`
 
 The courses students take together, one group per semester of a program's

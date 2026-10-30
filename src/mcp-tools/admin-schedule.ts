@@ -18,6 +18,7 @@ import {
   hhmmToMins,
   loadBaseSections,
   loadInstructorAliases,
+  findConflicts,
   stackSections,
   displayCourse,
   type CourseGroup,
@@ -26,7 +27,11 @@ import {
   type RoomNeed,
 } from "../admin-schedule.js";
 import { capacityOverrides } from "../clemson-room-capacity.js";
-import { getScheduleDbMeta, openScheduleDb } from "../clemson-schedule-db.js";
+import {
+  crossListRecorded,
+  getScheduleDbMeta,
+  openScheduleDb,
+} from "../clemson-schedule-db.js";
 import { listCourseGroups, loadSavedGroups } from "../course-groups.js";
 import {
   loadInstructorPreferences,
@@ -715,12 +720,82 @@ const courseGroupsTool: McpToolDefinition = {
   },
 };
 
+/**
+ * find-schedule-conflicts: a published term's rooms and instructors booked
+ * twice outside cross-listed classes, plus the unlabeled 4xxx/6xxx pairs to
+ * get labeled in Banner (Chip, 2026-10-30).
+ */
+const conflictsTool: McpToolDefinition = {
+  operation: "clemson.admin_conflicts",
+  category: "admin",
+  tool: {
+    name: "find-schedule-conflicts",
+    description:
+      "Report a department's double bookings in a published term: a room " +
+      "holding two classes at once, an instructor teaching two at once, or " +
+      "another department's class in the department's room. Cross-listed " +
+      "sections (Banner's cross-list label: honors 002, 4xxx/6xxx, 1990-4990 " +
+      "seminars) are one class and never reported. An unlabeled 4xxx/6xxx " +
+      "pair at the same times with the same instructor counts as one class " +
+      "too, and is listed in unlabeled_cross_lists so the label gets fixed in " +
+      "Banner. A double booking with identical meetings, room and instructor " +
+      "is marked likely_missing_label. Class meetings only — Banner's public " +
+      "data has no events or exams.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        term: TERM_PROP,
+        subject: { type: "string", description: 'Default "GC".' },
+      },
+    },
+  },
+  async handler(args) {
+    const denied = guard("clemson.admin_conflicts");
+    if (denied) return denied;
+    const t = parseTermCode(
+      typeof args.term === "string" ? args.term : undefined,
+    );
+    if ("error" in t) return err(t.error);
+    const db = openScheduleDb(t.term);
+    if (!db)
+      return err(
+        `No snapshot for ${t.term}. Available: ${listSnapshotTerms().join(", ")}`,
+      );
+    try {
+      const subject = subjectOf(args.subject);
+      const { doubleBookings, unlabeled } = findConflicts(
+        loadBaseSections(db, t.term),
+        subject,
+        loadInstructorAliases(db, t.term),
+      );
+      const labels = crossListRecorded(db);
+      return okJson({
+        term: t.term,
+        subject,
+        snapshot_date: getScheduleDbMeta(db).fetchedAt,
+        labels_recorded: labels,
+        double_booking_count: doubleBookings.length,
+        double_bookings: doubleBookings,
+        unlabeled_cross_lists: unlabeled,
+        note: labels
+          ? "Checked class meetings only; cross-listed sections are one class."
+          : "This snapshot predates Banner's cross-list labels, so labeled " +
+            "cross-listings (honors pairs, seminars) may show as double " +
+            "bookings here. Run the snapshot backfill for this term first.",
+      });
+    } finally {
+      db.close();
+    }
+  },
+};
+
 export const __adminTools = {
   rollover,
   checkDraft: checkDraftTool,
   findSlots: findSlotsTool,
   freeRooms: freeRoomsTool,
   courseGroups: courseGroupsTool,
+  findConflicts: conflictsTool,
 };
 
 registerTools(Object.values(__adminTools));
