@@ -1008,3 +1008,74 @@ test("labels known: another department's identical unlabeled section is still so
     ),
   );
 });
+
+// --- Re-review (2026-10-30) ----------------------------------------------------
+test("labels count only from a snapshot that records them all", () => {
+  // One labeled row (a slice write-back), the rest written without labels:
+  // not recorded, so the term is treated as unlabeled throughout.
+  const { crossList: _x, ...bare } = sec("9002", "GC4400", "002", [TR]);
+  writeScheduleDb(
+    snapshot("202405", [
+      sec("9001", "GC4400", "001", [TR], { crossList: "GC8" }),
+      bare as never,
+    ]) as never,
+  );
+  const db5 = openScheduleDb("202405")!;
+  const b5 = A.loadBaseSections(db5, "202405");
+  db5.close();
+  assert.deepEqual(
+    b5.map((b) => b.crossList),
+    [null, null],
+  );
+  assert.equal(A.hasCrossListLabels(b5), false);
+});
+
+test("different Banner groups, or one labeled and one not: never an unlabeled pair", () => {
+  const judge = A.crossListJudge([], new Map());
+  const at = (crn: string, course: string, crossList: string | null) => ({
+    ...twin(crn, course, crossList),
+  });
+  assert.equal(
+    judge(at("1", "GC 4400", "GC3"), at("2", "GC 6400", "GC7")),
+    null,
+  );
+  assert.equal(
+    judge(at("1", "GC 4400", null), at("2", "GC 6400", "GC3")),
+    null,
+  );
+  assert.deepEqual(judge(at("1", "GC 4400", null), at("2", "GC 6400", null)), {
+    label: null,
+  });
+});
+
+test("a stacked 4xxx/6xxx pair does not pair again with a third identical section", () => {
+  const stacked = A.stackSections(
+    [
+      twin("1", "GC 4900", null),
+      twin("2", "GC 6900", null),
+      twin("3", "GC 4900", null),
+    ],
+    true,
+  );
+  assert.deepEqual(stacked.map((s) => s.id).sort(), ["1+2", "3"]);
+  const r = A.checkDraft(stacked, [], "GC", [], new Map());
+  assert.deepEqual(
+    r.problems
+      .filter((p) => p.id === "3")
+      .map((p) => p.kind)
+      .sort(),
+    ["instructor_double_booked", "room_double_booked"],
+  );
+});
+
+test("stacking does not depend on order: a later pair finds its partner", () => {
+  const stacked = A.stackSections(
+    [
+      twin("1", "GC 3100", null),
+      twin("2", "GC 4100", null),
+      twin("3", "GC 6100", null),
+    ],
+    true,
+  );
+  assert.deepEqual(stacked.map((s) => s.id).sort(), ["1", "2+3"]);
+});

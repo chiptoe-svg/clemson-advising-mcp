@@ -23,7 +23,7 @@ import { roomCapacity } from "./clemson-room-capacity.js";
 import { minsToHHMM } from "./clemson-schedule-db.js";
 import type { InstructorPreference } from "./instructor-preferences.js";
 import { searchCombinations } from "./section-combinations.js";
-import { snapshotHasColumn } from "./clemson-schedule-db.js";
+import { crossListRecorded } from "./clemson-schedule-db.js";
 import {
   isGradPairCourses,
   isUnlabeledGradPair,
@@ -128,7 +128,10 @@ function sortDays(days: Iterable<string>): string {
     .join("");
 }
 
-/** One row per CRN, unstacked. Callers stack with stackSections. */
+/** One row per CRN, unstacked. Callers stack with stackSections. Banner's
+ *  cross-list labels are read only from a snapshot that records them all:
+ *  a few labels (a slice write-back, a partial backfill) would switch the
+ *  term to the labels rule while most pairs' labels are unknown. */
 export function loadBaseSections(
   db: Database.Database,
   term: string,
@@ -137,7 +140,7 @@ export function loadBaseSections(
     .prepare(
       `SELECT crn, subject_course, section, title, enrollment, max_enrollment,
               wait_count,
-              ${snapshotHasColumn(db, "cross_list") ? "cross_list" : "NULL AS cross_list"}
+              ${crossListRecorded(db) ? "cross_list" : "NULL AS cross_list"}
          FROM sections WHERE term = ? ORDER BY subject_course, section`,
     )
     .all(term) as {
@@ -266,23 +269,25 @@ export function stackSections<T extends DraftSection>(
   labelsKnown = false,
 ): T[] {
   const out: T[] = [];
-  const byKey = new Map<string, T>();
+  const byKey = new Map<string, T[]>();
+  // An unlabeled entry takes only its one 4xxx/6xxx partner: once it is a
+  // pair, an identical third section is a clash, not more of the class.
   const oneClass = (a: T, b: T) =>
     !labelsKnown ||
     (a.crossList
       ? a.crossList === b.crossList
       : !b.crossList &&
-        courseCodes(a).some((c) =>
-          isGradPairCourses(c, displayCourse(b.course)),
-        ));
+        a.crns.length === 1 &&
+        isGradPairCourses(a.course, displayCourse(b.course)));
   for (const s of sections) {
     const key = stackKey(s);
-    const found = key ? byKey.get(key) : undefined;
-    const into = found && oneClass(found, s) ? found : undefined;
+    const into = key
+      ? (byKey.get(key) ?? []).find((e) => oneClass(e, s))
+      : undefined;
     if (!into) {
       const copy = { ...s, sections: [...s.sections], crns: [...s.crns] };
       out.push(copy);
-      if (key && !found) byKey.set(key, copy);
+      if (key) byKey.set(key, [...(byKey.get(key) ?? []), copy]);
       continue;
     }
     into.crns.push(...s.crns);
@@ -477,14 +482,22 @@ export function crossListJudge(
     ),
     instructors: s.instructors.map((i) => canon(i, aliases)),
   });
+  // A pair is two single sections: a stacked entry already holds its
+  // partner, so an identical third section is a clash, not part of it.
+  const single = (s: DraftSection) =>
+    s.crns.length <= 1 && courseCodes(s).length === 1;
   return (a, b) => {
     const mine = labelsOf(a);
-    for (const l of labelsOf(b)) if (mine.has(l)) return { label: l };
-    for (const ca of courseCodes(a))
-      for (const cb of courseCodes(b))
-        if (isUnlabeledGradPair(classKey(a, ca), classKey(b, cb)))
-          return { label: null };
-    return null;
+    const theirs = labelsOf(b);
+    for (const l of theirs) if (mine.has(l)) return { label: l };
+    // A labeled section already says which class it belongs to.
+    if (mine.size || theirs.size || !single(a) || !single(b)) return null;
+    return isUnlabeledGradPair(
+      classKey(a, courseCodes(a)[0]!),
+      classKey(b, courseCodes(b)[0]!),
+    )
+      ? { label: null }
+      : null;
   };
 }
 
