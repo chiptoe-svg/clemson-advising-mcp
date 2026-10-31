@@ -182,7 +182,11 @@ conflict and are reported as such — that is not a compatibility guarantee.
 Sections that fit around a student's existing schedule (`current_crns`)
 without time conflicts, with optional subject, credits, days, time-of-day,
 excluded-day, and open-seats filters. When many fit, returns the top sections
-by open seats plus a `needsNarrowing` summary. Snapshot.
+by open seats plus a `needsNarrowing` summary. With `courses` (up to 20 codes)
+instead of a subject, each listed course gets a verdict from all its sections:
+`fits`, the fitting sections (10 shown, all counted), or the kept CRNs blocking
+each section; a course the student already keeps is marked `already_kept`.
+Snapshot.
 
 #### `find-section-combinations`
 

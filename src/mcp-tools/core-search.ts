@@ -94,7 +94,11 @@ const FIND_ALTERNATIVES_DESCRIPTION =
   "optional — defaults to the current registration term. When many fit, the " +
   "response contains the top sections by open seats plus a needsNarrowing " +
   "summary and a `truncated` block — show a few, don't ask first, but do not " +
-  "report the page as the complete set of what fits.";
+  "report the page as the complete set of what fits. To check SPECIFIC " +
+  'courses ("which of these required courses could she add?"), pass ' +
+  "courses: ['GC 3460', 'GC 4400', ...] instead of subject: every listed " +
+  "course gets a verdict from ALL its sections (fits, the sections that " +
+  "fit, or the kept CRNs blocking each one), never cut.";
 
 const CHECK_CONFLICTS_DESCRIPTION =
   "Check which CRNs in a schedule have time conflicts, pair by pair. Optional " +
@@ -522,6 +526,9 @@ export const searchClasses: McpToolDefinition = makeSearchClasses();
 // find-alternatives
 // ---------------------------------------------------------------------------
 
+const MAX_VERDICT_COURSES = 20;
+const VERDICT_SECTIONS_SHOWN = 10;
+
 export const findAlternatives: McpToolDefinition = {
   operation: "clemson.find_alternatives",
   category: "core",
@@ -579,6 +586,15 @@ export const findAlternatives: McpToolDefinition = {
         open_seats_only: {
           type: "boolean",
           description: "Only return sections with seats available.",
+        },
+        courses: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            `Up to ${MAX_VERDICT_COURSES} course codes ('GC 3460') to check ` +
+            "one by one instead of a subject search: each gets fits " +
+            "true/false from all its sections, the fitting sections, or " +
+            "the kept CRNs blocking each section. Not with subject.",
         },
       },
       required: ["current_crns"],
@@ -648,6 +664,30 @@ export const findAlternatives: McpToolDefinition = {
       }
     }
 
+    if (args.courses !== undefined) {
+      if (args.subject !== undefined)
+        return err(
+          "Pass courses or subject, not both: courses already names them.",
+        );
+      const result = courseVerdicts(resolved.term, args.courses, keepers, {
+        // Only an explicit credits filter: a swap's default credit hours
+        // would hide listed courses of another size.
+        credits: typeof args.credits === "number" ? args.credits : undefined,
+        days: strOrUndef(args.days),
+        excludeDays: strArrOrUndef(args.exclude_days),
+        noMeetingBefore: strOrUndef(args.no_meeting_before),
+        noMeetingAfter: strOrUndef(args.no_meeting_after),
+        openSeatsOnly: Boolean(args.open_seats_only),
+        excludeCrns: replacingCrn ? [replacingCrn] : undefined,
+      });
+      if ("error" in result) return err(result.error);
+      return okJson(
+        replacing
+          ? { ...result, replacing: { ...replacing, applied: {} } }
+          : result,
+      );
+    }
+
     const engineResult = querySectionsEngine({
       term: resolved.term,
       subject,
@@ -664,6 +704,137 @@ export const findAlternatives: McpToolDefinition = {
     return okJson(replacing ? { ...engineResult, replacing } : engineResult);
   },
 };
+
+type VerdictFilters = Omit<
+  Parameters<typeof querySectionsEngine>[0],
+  "term" | "subject" | "courseNumber" | "fitsAroundCrns" | "max" | "offset"
+>;
+
+/** find-alternatives' `courses` mode: per listed course, every section
+ *  checked against the kept CRNs' meetings. The verdict always counts all of
+ *  a course's sections; only the listing is capped. */
+function courseVerdicts(
+  term: string,
+  rawCourses: unknown,
+  keepers: string[],
+  filters: VerdictFilters,
+):
+  | {
+      term: string;
+      snapshotDate: string | null;
+      current_crns: string[];
+      courses: Record<string, unknown>[];
+      summary: {
+        fit: string[];
+        do_not_fit: string[];
+        not_offered: string[];
+        already_kept?: string[];
+      };
+    }
+  | { error: string } {
+  if (
+    !Array.isArray(rawCourses) ||
+    rawCourses.length === 0 ||
+    rawCourses.length > MAX_VERDICT_COURSES
+  )
+    return {
+      error: `courses must be a list of 1–${MAX_VERDICT_COURSES} course codes.`,
+    };
+  const codes: string[] = [];
+  for (const raw of rawCourses) {
+    const code = typeof raw === "string" ? normalizeCourseCode(raw) : null;
+    if (!code)
+      return {
+        error: `courses: ${JSON.stringify(raw)} is not a course code like 'GC 3460'.`,
+      };
+    if (!codes.includes(code)) codes.push(code);
+  }
+
+  const db = openScheduleDb(term);
+  if (!db) return { error: `No schedule snapshot for term ${term}.` };
+  let anchors;
+  const keptCourse = new Map<string, string[]>();
+  try {
+    anchors = getMeetingsForCrns(db, term, keepers);
+    for (const k of getSectionsByCrn(db, term, keepers).sections)
+      keptCourse.set(k.subject_course, [
+        ...(keptCourse.get(k.subject_course) ?? []),
+        k.crn,
+      ]);
+  } finally {
+    db.close();
+  }
+
+  const courses: Record<string, unknown>[] = [];
+  const summary: {
+    fit: string[];
+    do_not_fit: string[];
+    not_offered: string[];
+    already_kept?: string[];
+  } = { fit: [], do_not_fit: [], not_offered: [] };
+  // Her own sections are never candidates: one would only clash with itself.
+  const excludeCrns = [...(filters.excludeCrns ?? []), ...keepers];
+  let snapshotDate: string | null = null;
+  for (const code of codes) {
+    const [subject, courseNumber] = code.split(" ");
+    const every = { term, subject, courseNumber, offset: 0, max: 500 };
+    const all = querySectionsEngine({ ...every, excludeCrns });
+    if ("error" in all) return all;
+    snapshotDate ??= all.snapshotDate;
+    const kept = keptCourse.get(code.replace(" ", ""));
+    if (kept) (summary.already_kept ??= []).push(code);
+    if (all.totalCount === 0 && !kept) {
+      summary.not_offered.push(code);
+      courses.push({ course: code, offered: false, fits: false });
+      continue;
+    }
+    const matching = querySectionsEngine({ ...every, ...filters, excludeCrns });
+    if ("error" in matching) return matching;
+    const fitting: EngineSection[] = [];
+    const blocked: {
+      crn: string;
+      meetings: EngineMeeting[];
+      blocked_by: string[];
+    }[] = [];
+    for (const s of matching.sections) {
+      const by = new Set<string>();
+      for (const m of s.meetings) {
+        const start = hhmmMins(m.start);
+        const end = hhmmMins(m.end);
+        for (const a of anchors)
+          if (a.day === m.day && start < a.endMin && a.startMin < end)
+            by.add(a.crn);
+      }
+      if (by.size === 0) fitting.push(s);
+      else
+        blocked.push({ crn: s.crn, meetings: s.meetings, blocked_by: [...by] });
+    }
+    const fits = fitting.length > 0;
+    if (!kept) (fits ? summary.fit : summary.do_not_fit).push(code);
+    const outside = all.totalCount - matching.totalCount;
+    courses.push({
+      course: code,
+      title: all.sections[0]?.title,
+      offered: true,
+      ...(kept ? { already_kept: kept } : {}),
+      fits,
+      fitting_count: fitting.length,
+      fitting: fitting.slice(0, VERDICT_SECTIONS_SHOWN),
+      ...(fitting.length > VERDICT_SECTIONS_SHOWN
+        ? {
+            fitting_note: `${VERDICT_SECTIONS_SHOWN} of ${fitting.length} fitting sections shown, most open seats first.`,
+          }
+        : {}),
+      ...(fits ? {} : { blocked: blocked.slice(0, VERDICT_SECTIONS_SHOWN) }),
+      ...(outside > 0 ? { outside_filters: outside } : {}),
+    });
+  }
+  return { term, snapshotDate, current_crns: keepers, courses, summary };
+}
+
+function hhmmMins(hhmm: string): number {
+  return Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(2, 4));
+}
 
 // ---------------------------------------------------------------------------
 // check-conflicts
