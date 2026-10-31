@@ -21,6 +21,7 @@ import {
   findConflicts,
   hasCrossListLabels,
   stackSections,
+  subjectSet,
   displayCourse,
   type CourseGroup,
   type DraftMeeting,
@@ -250,10 +251,17 @@ async function resolveGroups(
   return out;
 }
 
+const SUBJECT_PROP = {
+  type: "string",
+  description:
+    'Subject code, default "GC". Departments planned together: several, ' +
+    'comma-separated ("GC,PKSC"); all of them are the draft\'s own.',
+};
+
 function subjectOf(arg: unknown): string {
-  return (typeof arg === "string" && arg.trim() ? arg : "GC")
-    .trim()
-    .toUpperCase();
+  return [
+    ...subjectSet(typeof arg === "string" && arg.trim() ? arg : "GC"),
+  ].join(",");
 }
 
 function guard(op: string) {
@@ -289,7 +297,7 @@ const rollover: McpToolDefinition = {
           type: "string",
           description: 'The term to roll from: a code or a name ("Fall 2026").',
         },
-        subject: { type: "string", description: 'Subject code. Default "GC".' },
+        subject: SUBJECT_PROP,
       },
       required: ["term"],
     },
@@ -310,7 +318,7 @@ const rollover: McpToolDefinition = {
       const subject = subjectOf(args.subject);
       const all = loadBaseSections(db, t.term);
       const sections = stackSections(
-        all.filter((s) => s.subject === subject),
+        all.filter((s) => subjectSet(subject).has(s.subject)),
         hasCrossListLabels(all),
       );
       return okJson({
@@ -357,7 +365,7 @@ const checkDraftTool: McpToolDefinition = {
       properties: {
         target_term: TERM_PROP,
         base_term: BASE_PROP,
-        subject: { type: "string", description: 'Default "GC".' },
+        subject: SUBJECT_PROP,
         draft: {
           type: "array",
           description:
@@ -485,7 +493,7 @@ const findSlotsTool: McpToolDefinition = {
           description:
             "Students expected in the section; rooms must hold this many. Default: the course's largest base-term section demand (enrollment + waitlist).",
         },
-        subject: { type: "string" },
+        subject: SUBJECT_PROP,
         draft: { type: "array", items: { type: "object" } },
         exclude_ids: {
           type: "array",
@@ -627,7 +635,7 @@ const freeRoomsTool: McpToolDefinition = {
           description: 'Preferred building, default "Godfrey Hall".',
         },
         min_capacity: { type: "number" },
-        subject: { type: "string" },
+        subject: SUBJECT_PROP,
         draft: { type: "array", items: { type: "object" } },
       },
       required: ["target_term", "days", "start", "end"],
@@ -748,7 +756,7 @@ const conflictsTool: McpToolDefinition = {
       type: "object" as const,
       properties: {
         term: TERM_PROP,
-        subject: { type: "string", description: 'Default "GC".' },
+        subject: SUBJECT_PROP,
       },
     },
   },

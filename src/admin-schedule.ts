@@ -306,6 +306,17 @@ export function stackSections<T extends DraftSection>(
   return out;
 }
 
+/** The subjects a draft owns: one code, or several comma-separated
+ *  ("GC,PKSC") when departments plan together. */
+export function subjectSet(subject: string): Set<string> {
+  return new Set(
+    subject
+      .split(/[,\s]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean),
+  );
+}
+
 /**
  * The base term's sections outside `subject` — other departments' fixed
  * commitments — minus any that meet together with one of the subject's own
@@ -316,8 +327,8 @@ export function othersOf(
   base: readonly BaseSection[],
   subject: string,
 ): BaseSection[] {
-  const subj = subject.toUpperCase();
-  const mine = base.filter((b) => b.subject === subj);
+  const subjs = subjectSet(subject);
+  const mine = base.filter((b) => subjs.has(b.subject));
   // Without Banner labels, an identical section is taken as a partner (the
   // old rule); with them, only a shared label is (2026-10-30).
   const own = new Set(
@@ -330,7 +341,7 @@ export function othersOf(
     mine.map((b) => b.crossList).filter((c): c is string => !!c),
   );
   return base.filter((b) => {
-    if (b.subject === subj) return false;
+    if (subjs.has(b.subject)) return false;
     if (b.crossList && ownLabels.has(b.crossList)) return false;
     const k = stackKey(b);
     return !k || !own.has(k);
@@ -1056,9 +1067,9 @@ export function findConflicts(
   subject: string,
   aliases: ReadonlyMap<string, string> = new Map(),
 ): { doubleBookings: DoubleBooking[]; unlabeled: UnlabeledPair[] } {
-  const subj = subject.toUpperCase();
-  const own = base.filter((b) => b.subject === subj);
-  const others = othersOf(base, subj);
+  const subjs = subjectSet(subject);
+  const own = base.filter((b) => subjs.has(b.subject));
+  const others = othersOf(base, subject);
   const judge = crossListJudge(base, aliases);
   const iv = new Map(base.map((s) => [s.id, intervals(s)]));
   const who = (s: DraftSection) =>
