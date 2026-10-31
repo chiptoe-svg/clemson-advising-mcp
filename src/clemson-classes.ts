@@ -594,6 +594,7 @@ async function fetchSectionsPaged(
     const seen = new Set<string>();
     let failed = false;
     let shortPage = false;
+    let noCount = false;
     let cold = false;
     let totalCount = 0;
     for (let page = 0; page < MAX_PAGES; page++) {
@@ -631,6 +632,7 @@ async function fetchSectionsPaged(
       }
       if (totalCount === 0) {
         failed = true;
+        noCount = true;
         break;
       }
       if (res.sections.length === 0) {
@@ -665,11 +667,13 @@ async function fetchSectionsPaged(
       subject,
       attempt: attempt + 1,
       attempts,
-      reason: shortPage
-        ? "empty-page-before-total"
-        : failed
-          ? "mid-scan-request-failed"
-          : "max-pages-exhausted",
+      reason: noCount
+        ? "rows-without-total-count"
+        : shortPage
+          ? "empty-page-before-total"
+          : failed
+            ? "mid-scan-request-failed"
+            : "max-pages-exhausted",
       sections: out.length,
       totalCount,
       pages: Math.ceil(out.length / PAGE_SIZE),
