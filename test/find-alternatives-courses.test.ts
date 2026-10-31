@@ -223,3 +223,32 @@ test("a listed course she already keeps says so, not 'blocked by itself'", async
     JSON.stringify(c),
   );
 });
+
+test("a course whose only section is the one being dropped is offered, with no other section", async () => {
+  const body = json(
+    await findAlternatives.handler({
+      term: TERM,
+      current_crns: ["60001", "60002"],
+      replacing_crn: "60002",
+      courses: ["GC 3720"],
+    }),
+  );
+  const c = body.courses[0];
+  assert.equal(c.offered, true);
+  assert.equal(c.fits, false);
+  assert.equal(c.replaced_section, "60002");
+  assert.deepEqual(body.summary.not_offered, []);
+  assert.deepEqual(body.summary.do_not_fit, ["GC 3720"]);
+});
+
+test("kept CRNs not in the term are named, not silently ignored", async () => {
+  const body = json(
+    await findAlternatives.handler({
+      term: TERM,
+      current_crns: ["60001", "99999"],
+      courses: ["GC 3460"],
+    }),
+  );
+  assert.deepEqual(body.unknown_crns, ["99999"]);
+  assert.match(body.note, /99999/);
+});

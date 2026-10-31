@@ -723,6 +723,8 @@ function courseVerdicts(
       term: string;
       snapshotDate: string | null;
       current_crns: string[];
+      unknown_crns?: string[];
+      note?: string;
       courses: Record<string, unknown>[];
       summary: {
         fit: string[];
@@ -754,13 +756,20 @@ function courseVerdicts(
   if (!db) return { error: `No schedule snapshot for term ${term}.` };
   let anchors;
   const keptCourse = new Map<string, string[]>();
+  const replacedCourse = new Map<string, string>();
+  const found = new Set<string>();
   try {
     anchors = getMeetingsForCrns(db, term, keepers);
-    for (const k of getSectionsByCrn(db, term, keepers).sections)
+    for (const k of getSectionsByCrn(db, term, keepers).sections) {
+      found.add(k.crn);
       keptCourse.set(k.subject_course, [
         ...(keptCourse.get(k.subject_course) ?? []),
         k.crn,
       ]);
+    }
+    const dropped = filters.excludeCrns ?? [];
+    for (const d of getSectionsByCrn(db, term, dropped).sections)
+      replacedCourse.set(d.subject_course, d.crn);
   } finally {
     db.close();
   }
@@ -783,7 +792,9 @@ function courseVerdicts(
     snapshotDate ??= all.snapshotDate;
     const kept = keptCourse.get(code.replace(" ", ""));
     if (kept) (summary.already_kept ??= []).push(code);
-    if (all.totalCount === 0 && !kept) {
+    // The section being dropped still means the course runs this term.
+    const replaced = replacedCourse.get(code.replace(" ", ""));
+    if (all.totalCount === 0 && !kept && !replaced) {
       summary.not_offered.push(code);
       courses.push({ course: code, offered: false, fits: false });
       continue;
@@ -817,6 +828,7 @@ function courseVerdicts(
       title: all.sections[0]?.title,
       offered: true,
       ...(kept ? { already_kept: kept } : {}),
+      ...(replaced ? { replaced_section: replaced } : {}),
       fits,
       fitting_count: fitting.length,
       fitting: fitting.slice(0, VERDICT_SECTIONS_SHOWN),
@@ -829,7 +841,24 @@ function courseVerdicts(
       ...(outside > 0 ? { outside_filters: outside } : {}),
     });
   }
-  return { term, snapshotDate, current_crns: keepers, courses, summary };
+  // A kept CRN that isn't in the term blocks nothing, so every verdict
+  // would look better than it is: name it.
+  const unknown = keepers.filter((c) => !found.has(c));
+  return {
+    term,
+    snapshotDate,
+    current_crns: keepers,
+    ...(unknown.length > 0
+      ? {
+          unknown_crns: unknown,
+          note:
+            `${unknown.join(", ")} not found in term ${term}, so not checked ` +
+            "against: confirm the CRNs before relying on these verdicts.",
+        }
+      : {}),
+    courses,
+    summary,
+  };
 }
 
 function hhmmMins(hhmm: string): number {
