@@ -315,6 +315,10 @@ pairs) are one entry with combined caps.
 
 #### `check-schedule-draft`
 
+Every admin tool's `subject` takes one code (default GC) or several,
+comma-separated, for departments planned together (`"GC,PKSC"`): all listed
+subjects are the draft's own, and every other section stays a fixed booking.
+
 Problems in a proposed schedule, per draft section: a room booked twice,
 a room another department uses then, an instructor booked twice (including
 other-department teaching), a room smaller than the seat cap or than the
@@ -338,7 +342,10 @@ Standard meeting patterns (the base term's most common) where a course keeps
 the courses students take with it workable, each with its free rooms
 (preferred building first, default Godfrey Hall) and which given
 instructors are free or busy. `exclude_ids` leaves draft sections out — the
-section being moved — so its own room and instructor count as free.
+section being moved — so its own room and instructor count as free. Slots keep
+the length of the section being moved (or, with nothing excluded, of the
+course's own sections): the same meetings per week and weekly minutes within
+10%, so a 165-minute lab is never offered a 50-minute slot.
 
 #### `find-free-rooms`
 
