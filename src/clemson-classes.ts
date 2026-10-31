@@ -592,6 +592,7 @@ async function fetchSectionsPaged(
     }
     const out: ClemsonSection[] = [];
     let failed = false;
+    let shortPage = false;
     let cold = false;
     let totalCount = 0;
     for (let page = 0; page < MAX_PAGES; page++) {
@@ -614,8 +615,15 @@ async function fetchSectionsPaged(
       // answers 0, which must not erase what page 0 said.
       totalCount = Math.max(totalCount, res.totalCount);
       out.push(...res.sections);
-      if (out.length >= res.totalCount || res.sections.length === 0) {
+      // Complete only at Banner's own count. An empty page short of it is a
+      // throttled or cut-off answer, not the end of the term.
+      if (out.length >= totalCount) {
         return { sections: out, complete: true, totalCount };
+      }
+      if (res.sections.length === 0) {
+        failed = true;
+        shortPage = true;
+        break;
       }
       await sleep(pageDelayMs);
     }
@@ -625,7 +633,11 @@ async function fetchSectionsPaged(
         subject,
         attempt: attempt + 1,
         attempts,
-        reason: cold ? "cold-session" : "first-page-failed",
+        reason: cold
+          ? "cold-session"
+          : shortPage
+            ? "empty-first-page"
+            : "first-page-failed",
       });
       // Linear backoff: a cold session often clears on a later try, and backing
       // off gives Banner room to recover instead of hammering it fresh-session.
@@ -640,7 +652,11 @@ async function fetchSectionsPaged(
       subject,
       attempt: attempt + 1,
       attempts,
-      reason: failed ? "mid-scan-request-failed" : "max-pages-exhausted",
+      reason: shortPage
+        ? "empty-page-before-total"
+        : failed
+          ? "mid-scan-request-failed"
+          : "max-pages-exhausted",
       sections: out.length,
       totalCount,
       pages: Math.ceil(out.length / PAGE_SIZE),
@@ -741,10 +757,7 @@ export async function fetchBackfillFields(
     2,
     pageDelayMs,
   );
-  // "complete" also covers an empty page mid-scan; for a backfill that
-  // claims every label, only a scan reaching Banner's own count will do.
-  if (!fetched?.complete || fetched.sections.length < fetched.totalCount)
-    return null;
+  if (!fetched?.complete) return null;
   return new Map(
     fetched.sections.map((s) => [
       s.crn,
