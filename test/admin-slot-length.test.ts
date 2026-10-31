@@ -129,3 +129,39 @@ test("a course with no meeting times to go by gets the common patterns, as befor
   assert.ok(body.slots.length > 0);
   assert.equal(body.matched_length, null);
 });
+
+test("a lecture can still switch between the MWF and TR grids (same weekly minutes)", async () => {
+  const roll = await call("rollover", { term: "202608" });
+  const tr = roll.sections.find(
+    (s: { id: string; course: string }) =>
+      s.course === "GC 3400" && s.id === "2004",
+  );
+  const body = await call("findSlots", {
+    target_term: "202708",
+    base_term: "202608",
+    course: "GC 3400",
+    draft: roll.sections,
+    exclude_ids: [tr.id],
+  });
+  const shapes: string[] = body.slots.map(shape);
+  assert.ok(
+    shapes.some((x) => x.startsWith("TR")),
+    JSON.stringify(shapes),
+  );
+  assert.ok(
+    shapes.some((x) => x.startsWith("MWF")),
+    JSON.stringify(shapes),
+  );
+});
+
+test("the section's own time comes first, so the slot cap never cuts it", async () => {
+  const roll = await call("rollover", { term: "202608" });
+  const body = await call("findSlots", {
+    target_term: "202708",
+    base_term: "202608",
+    course: "GC 3461",
+    draft: roll.sections,
+    exclude_ids: ["2001"],
+  });
+  assert.equal(shape(body.slots[0]), "T 1100-1345");
+});

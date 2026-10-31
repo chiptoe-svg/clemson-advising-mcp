@@ -464,8 +464,13 @@ const findSlotsTool: McpToolDefinition = {
   tool: {
     name: "find-offering-slots",
     description:
-      "Where could a course be scheduled? Returns standard meeting patterns " +
-      "(the base term's most common ones) that keep the courses students " +
+      "Where could a course be scheduled? Returns meeting patterns as long " +
+      "as the section being moved (exclude_ids) — or, with nothing " +
+      "excluded, as the course's own sections — its own time first, then " +
+      "the base term's most common patterns of that length (a lecture may " +
+      "switch between MWF and TR; a lab keeps its long meeting); a course " +
+      "with no times gets the most common patterns. Each slot keeps the " +
+      "courses students " +
       "take with it workable, each with the rooms free then (preferred " +
       "building first, default Godfrey Hall; rooms hold expected_size, " +
       "closest fit first) and which of the given " +

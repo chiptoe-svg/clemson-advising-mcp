@@ -862,33 +862,55 @@ export function patternLength(meetings: readonly DraftMeeting[]): {
   return { weekly_minutes: weekly, meetings_per_week: count };
 }
 
+/** Longest a meeting runs and still counts as a lecture-grid meeting
+ *  (50 and 75 minutes; a lab's 165 does not). */
+const LECTURE_MEETING_MAX = 80;
+
 /**
- * The base term's patterns as long as one of `shapes` — the same meetings
- * per week and weekly minutes within 10% — most common first, so a 165-minute
- * lab is never offered a 50-minute lecture slot. Each shape itself is
- * included (a section's own time is an option), after the common ones.
+ * The base term's patterns as long as one of `shapes`: weekly minutes within
+ * 10%, and the same meetings per week — except that lecture-grid patterns
+ * (every meeting at most 80 minutes) may trade MWF 50s for TR 75s. So a
+ * 165-minute lab is never offered a 50-minute slot or two 75s, while a
+ * lecture can still change grids. Each shape itself comes first (a section's
+ * own time is an option the slot cap must never cut), then the most common.
  */
 export function patternsLike(
   base: readonly BaseSection[],
   shapes: readonly DraftMeeting[][],
   limit = 12,
 ): DraftMeeting[][] {
-  const lengths = shapes.map(patternLength);
+  const lectureGrid = (p: readonly DraftMeeting[]) =>
+    p.every(
+      (m) => hhmmToMins(m.end) - hhmmToMins(m.start) <= LECTURE_MEETING_MAX,
+    );
+  const refs = shapes.map((sh) => ({
+    ...patternLength(sh),
+    grid: lectureGrid(sh),
+  }));
   const like = (p: readonly DraftMeeting[]) => {
     const l = patternLength(p);
-    return lengths.some(
+    const grid = lectureGrid(p);
+    return refs.some(
       (r) =>
-        l.meetings_per_week === r.meetings_per_week &&
-        Math.abs(l.weekly_minutes - r.weekly_minutes) <= 0.1 * r.weekly_minutes,
+        Math.abs(l.weekly_minutes - r.weekly_minutes) <=
+          0.1 * r.weekly_minutes &&
+        (l.meetings_per_week === r.meetings_per_week || (grid && r.grid)),
     );
   };
-  const out = standardPatterns(base, Infinity).filter(like).slice(0, limit);
-  const seen = new Set(out.map(patternKey));
-  for (const s of shapes) {
-    const k = patternKey(s);
+  const out: DraftMeeting[][] = [];
+  const seen = new Set<string>();
+  for (const sh of shapes) {
+    const k = patternKey(sh);
     if (seen.has(k)) continue;
     seen.add(k);
-    out.push(s.map(({ days, start, end }) => ({ days, start, end })));
+    out.push(sh.map(({ days, start, end }) => ({ days, start, end })));
+  }
+  for (const p of standardPatterns(base, Infinity).filter(like)) {
+    if (out.length >= shapes.length + limit) break;
+    const k = patternKey(p);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(p);
   }
   return out;
 }

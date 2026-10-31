@@ -345,7 +345,7 @@ instructors are free or busy. `exclude_ids` leaves draft sections out — the
 section being moved — so its own room and instructor count as free. Slots keep
 the length of the section being moved (or, with nothing excluded, of the
 course's own sections): the same meetings per week and weekly minutes within
-10%, so a 165-minute lab is never offered a 50-minute slot.
+10% (a lecture may still switch between MWF and TR), so a 165-minute lab is never offered a 50-minute slot.
 
 #### `find-free-rooms`
 
