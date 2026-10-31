@@ -456,7 +456,7 @@ function roomKey(name: string): string {
   return (m ? `${m[1]}|${m[2]}` : name.trim()).toLowerCase();
 }
 
-function courseCodes(s: DraftSection): string[] {
+export function courseCodes(s: DraftSection): string[] {
   return s.course.split(" / ").map((c) => displayCourse(c));
 }
 
@@ -846,6 +846,51 @@ export function standardPatterns(
     .sort((a, b) => b.n - a.n)
     .slice(0, limit)
     .map((e) => e.meetings);
+}
+
+/** A meeting pattern's weekly minutes and meetings per week. */
+export function patternLength(meetings: readonly DraftMeeting[]): {
+  weekly_minutes: number;
+  meetings_per_week: number;
+} {
+  let weekly = 0;
+  let count = 0;
+  for (const m of meetings) {
+    weekly += (hhmmToMins(m.end) - hhmmToMins(m.start)) * m.days.length;
+    count += m.days.length;
+  }
+  return { weekly_minutes: weekly, meetings_per_week: count };
+}
+
+/**
+ * The base term's patterns as long as one of `shapes` — the same meetings
+ * per week and weekly minutes within 10% — most common first, so a 165-minute
+ * lab is never offered a 50-minute lecture slot. Each shape itself is
+ * included (a section's own time is an option), after the common ones.
+ */
+export function patternsLike(
+  base: readonly BaseSection[],
+  shapes: readonly DraftMeeting[][],
+  limit = 12,
+): DraftMeeting[][] {
+  const lengths = shapes.map(patternLength);
+  const like = (p: readonly DraftMeeting[]) => {
+    const l = patternLength(p);
+    return lengths.some(
+      (r) =>
+        l.meetings_per_week === r.meetings_per_week &&
+        Math.abs(l.weekly_minutes - r.weekly_minutes) <= 0.1 * r.weekly_minutes,
+    );
+  };
+  const out = standardPatterns(base, Infinity).filter(like).slice(0, limit);
+  const seen = new Set(out.map(patternKey));
+  for (const s of shapes) {
+    const k = patternKey(s);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(s.map(({ days, start, end }) => ({ days, start, end })));
+  }
+  return out;
 }
 
 export interface FreeRoom {

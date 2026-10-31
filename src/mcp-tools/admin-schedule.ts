@@ -22,6 +22,9 @@ import {
   hasCrossListLabels,
   stackSections,
   subjectSet,
+  courseCodes,
+  patternLength,
+  patternsLike,
   displayCourse,
   type CourseGroup,
   type DraftMeeting,
@@ -518,6 +521,7 @@ const findSlotsTool: McpToolDefinition = {
       draft = d;
     }
     let excluded: string[] = [];
+    const fullDraft = draft;
     if (args.exclude_ids !== undefined) {
       if (
         !Array.isArray(args.exclude_ids) ||
@@ -571,9 +575,40 @@ const findSlotsTool: McpToolDefinition = {
                 .filter((s) => s.course.split(" / ").includes(course))
                 .map((s) => s.expected ?? 0),
             ) || undefined;
+      // Slots as long as the section being moved, else as the course's own
+      // sections run; a course with no times to go by gets the common ones.
+      const ofCourse = (s: DraftSection) => courseCodes(s).includes(course);
+      const timed = (ss: readonly DraftSection[]) =>
+        ss.filter((s) => ofCourse(s) && s.meetings.length > 0);
+      const movedShapes = timed(
+        (fullDraft ?? []).filter((s) => excluded.includes(s.id)),
+      );
+      const ownShapes =
+        movedShapes.length > 0
+          ? movedShapes
+          : timed([...sections, ...(draft ?? [])]);
+      const lengthFrom =
+        movedShapes.length > 0
+          ? "the excluded section"
+          : `${course}'s sections`;
+      const shapes = ownShapes.map((s) => s.meetings);
+      const lengths = [
+        ...new Map(
+          shapes.map(patternLength).map((l) => [JSON.stringify(l), l]),
+        ).values(),
+      ];
+      const matchedLength =
+        shapes.length === 0
+          ? null
+          : lengths.length === 1
+            ? { ...lengths[0]!, from: lengthFrom }
+            : { lengths, from: lengthFrom };
       const r = findSlots({
         course,
         expectedSize,
+        ...(shapes.length > 0
+          ? { patterns: patternsLike(sections, shapes) }
+          : {}),
         base: sections,
         draft,
         subject: subjectOf(args.subject),
@@ -596,6 +631,7 @@ const findSlotsTool: McpToolDefinition = {
         expected_size: expectedSize ?? null,
         avoided: avoid,
         ...(excluded.length > 0 ? { excluded } : {}),
+        matched_length: matchedLength,
         slot_count: r.slots.length,
         slots: r.slots.slice(0, MAX_SLOTS),
         patterns_considered: r.patternsUsed.length,
@@ -603,8 +639,11 @@ const findSlotsTool: McpToolDefinition = {
           (cut
             ? `Showing ${MAX_SLOTS} of ${r.slots.length} slots, most common patterns first. `
             : "") +
+          (matchedLength
+            ? `Slots are as long as ${lengthFrom} (same meetings per week, weekly minutes within 10%). `
+            : "") +
           (r.slots.length === 0
-            ? `No standard pattern keeps ${avoid.join(", ") || "the avoided courses"} workable with a free room. `
+            ? `No ${matchedLength ? "pattern of that length" : "standard pattern"} keeps ${avoid.join(", ") || "the avoided courses"} workable with a free room. `
             : "") +
           FREE_NOTE,
       });
