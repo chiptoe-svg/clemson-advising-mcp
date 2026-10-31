@@ -252,3 +252,19 @@ test("kept CRNs not in the term are named, not silently ignored", async () => {
   assert.deepEqual(body.unknown_crns, ["99999"]);
   assert.match(body.note, /99999/);
 });
+
+test("the summary keeps 'blocked by her schedule' apart from 'outside the filters'", async () => {
+  const body = json(
+    await findAlternatives.handler({
+      term: TERM,
+      current_crns: ["60001", "60002"],
+      courses: ["GC 3460", "GC 4400"],
+      no_meeting_before: "1100",
+    }),
+  );
+  // GC 3460's 1100 MWF section passes the filter and fits; GC 4400's
+  // sections start at 1000, so none passes the filter at all.
+  assert.deepEqual(body.summary.fit, ["GC 3460"]);
+  assert.deepEqual(body.summary.do_not_fit, []);
+  assert.deepEqual(body.summary.outside_filters, ["GC 4400"]);
+});

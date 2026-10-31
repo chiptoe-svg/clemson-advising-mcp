@@ -73,3 +73,64 @@ test("a scan that reaches Banner's count is written", async () => {
   assert.equal(snap?.sectionCount, 700);
   assert.ok(fs.existsSync(scheduleDbPath("209903")));
 });
+
+test("a row repeated across pages is kept once, and counts once toward the total", async () => {
+  // Banner's count grew by one mid-scan and page 1 repeats row 499.
+  const snap = await withBanner(
+    [
+      { totalCount: 700, data: rows(0, 500) },
+      { totalCount: 701, data: rows(499, 202) },
+    ],
+    () => refreshClemsonSnapshot("209904"),
+  );
+  assert.equal(snap?.sectionCount, 701);
+  assert.equal(new Set(snap!.sections.map((s) => s.crn)).size, 701);
+});
+
+test("a repeat that hides a missing section is not complete", async () => {
+  // An insert before the offset shifts page 1: row 499 again, row 999 never seen.
+  const snap = await withBanner(
+    [
+      { totalCount: 1000, data: rows(0, 500) },
+      { totalCount: 1001, data: rows(499, 500) },
+      { totalCount: 1001, data: [] },
+    ],
+    () => refreshClemsonSnapshot("209905"),
+  );
+  assert.equal(snap, null);
+});
+
+test("a page with rows but no count is not a complete term", async () => {
+  const snap = await withBanner(
+    [
+      { data: rows(0, 500) } as unknown as {
+        totalCount: number;
+        data: unknown[];
+      },
+    ],
+    () => refreshClemsonSnapshot("209906"),
+  );
+  assert.equal(snap, null);
+  assert.equal(fs.existsSync(scheduleDbPath("209906")), false);
+});
+
+test("a cut-off scan leaves the existing snapshot exactly as it was", async () => {
+  const good = await withBanner(
+    [
+      { totalCount: 600, data: rows(0, 500) },
+      { totalCount: 600, data: rows(500, 100) },
+    ],
+    () => refreshClemsonSnapshot("209907"),
+  );
+  assert.equal(good?.sectionCount, 600);
+  const before = fs.readFileSync(scheduleDbPath("209907"));
+  const snap = await withBanner(
+    [
+      { totalCount: 600, data: rows(0, 500) },
+      { totalCount: 600, data: [] },
+    ],
+    () => refreshClemsonSnapshot("209907"),
+  );
+  assert.equal(snap, null);
+  assert.ok(fs.readFileSync(scheduleDbPath("209907")).equals(before));
+});

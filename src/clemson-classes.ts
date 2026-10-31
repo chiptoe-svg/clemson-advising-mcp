@@ -591,6 +591,7 @@ async function fetchSectionsPaged(
       continue;
     }
     const out: ClemsonSection[] = [];
+    const seen = new Set<string>();
     let failed = false;
     let shortPage = false;
     let cold = false;
@@ -614,11 +615,23 @@ async function fetchSectionsPaged(
       // The largest count Banner reported: a failed page later in the scan
       // answers 0, which must not erase what page 0 said.
       totalCount = Math.max(totalCount, res.totalCount);
-      out.push(...res.sections);
+      // A row Banner repeats across pages (its count moved mid-scan, or its
+      // sort is unstable) is kept once, so it can't stand in for a section
+      // the scan never saw.
+      for (const sec of res.sections) {
+        if (seen.has(sec.crn)) continue;
+        seen.add(sec.crn);
+        out.push(sec);
+      }
       // Complete only at Banner's own count. An empty page short of it is a
-      // throttled or cut-off answer, not the end of the term.
-      if (out.length >= totalCount) {
+      // throttled or cut-off answer, not the end of the term; rows with no
+      // count at all prove nothing.
+      if (totalCount > 0 && out.length >= totalCount) {
         return { sections: out, complete: true, totalCount };
+      }
+      if (totalCount === 0) {
+        failed = true;
+        break;
       }
       if (res.sections.length === 0) {
         failed = true;

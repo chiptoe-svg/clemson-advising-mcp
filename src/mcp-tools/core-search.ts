@@ -731,6 +731,7 @@ function courseVerdicts(
         do_not_fit: string[];
         not_offered: string[];
         already_kept?: string[];
+        outside_filters?: string[];
       };
     }
   | { error: string } {
@@ -780,6 +781,7 @@ function courseVerdicts(
     do_not_fit: string[];
     not_offered: string[];
     already_kept?: string[];
+    outside_filters?: string[];
   } = { fit: [], do_not_fit: [], not_offered: [] };
   // Her own sections are never candidates: one would only clash with itself.
   const excludeCrns = [...(filters.excludeCrns ?? []), ...keepers];
@@ -821,7 +823,14 @@ function courseVerdicts(
         blocked.push({ crn: s.crn, meetings: s.meetings, blocked_by: [...by] });
     }
     const fits = fitting.length > 0;
-    if (!kept) (fits ? summary.fit : summary.do_not_fit).push(code);
+    // "Doesn't fit her schedule" only when a section passed the filters and
+    // her kept CRNs blocked it; none passing the filters is its own answer.
+    if (!kept) {
+      if (fits) summary.fit.push(code);
+      else if (matching.totalCount === 0 && all.totalCount > 0)
+        (summary.outside_filters ??= []).push(code);
+      else summary.do_not_fit.push(code);
+    }
     const outside = all.totalCount - matching.totalCount;
     courses.push({
       course: code,
