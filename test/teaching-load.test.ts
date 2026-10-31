@@ -458,3 +458,84 @@ test("neither subject nor instructors is an error, not an empty answer", async (
   assert.equal(res.isError, true);
   assert.match((res.content[0] as { text: string }).text, /subject/);
 });
+
+test("listings_count sits beside sections_count: groups count once, listings each", async () => {
+  const b = await load({ instructors: ["reyes@clemson.edu", "fsix@clemson.edu"] });
+  const [dana, fay] = b.instructors as (Person & { listings_count: number })[];
+  assert.equal(dana.sections_count, 5);
+  assert.equal(dana.listings_count, 10);
+  assert.equal(fay.sections_count, 2);
+  assert.equal(fay.listings_count, 3);
+  const all = await load({ subject: "GC" });
+  for (const p of all.instructors as (Person & { listings_count: number })[])
+    assert.equal(
+      p.listings_count,
+      p.sections.reduce((n, s) => n + 1 + (s.meets_with?.length ?? 0), 0),
+    );
+});
+
+// get-instructor-classes must count the way get-teaching-load does, or a
+// chair's "who teaches more sections?" depends on which tool was called.
+async function classes(args: Record<string, unknown>) {
+  const res = await __schedTools.instructorClasses.handler({
+    term: "202608",
+    ...args,
+  });
+  assert.equal(res.isError, undefined, JSON.stringify(res.content?.[0]));
+  return JSON.parse((res.content[0] as { text: string }).text) as Record<
+    string,
+    unknown
+  >;
+}
+
+type ClassesPerson = {
+  status: string;
+  sections_count: number;
+  listings_count: number;
+  sections: {
+    crn: string;
+    timed: boolean;
+    cross_list?: string;
+    meets_with?: { crn: string; subject_course: string; section: string }[];
+    meetings: { day: string; start_min: number | null; end_min: number | null }[];
+  }[];
+};
+
+test("get-instructor-classes groups meets-with listings exactly like get-teaching-load", async () => {
+  const people = ["reyes@clemson.edu", "fsix@clemson.edu", "congdon@clemson.edu", "tonkin@clemson.edu"];
+  const c = await classes({ instructors: people });
+  const l = await load({ instructors: people });
+  const cp = c.instructors as ClassesPerson[];
+  const lp = l.instructors as (Person & { listings_count: number })[];
+  for (let i = 0; i < people.length; i++) {
+    assert.equal(cp[i]!.sections_count, lp[i]!.sections_count, people[i]);
+    assert.equal(cp[i]!.listings_count, lp[i]!.listings_count, people[i]);
+    assert.equal(cp[i]!.sections.length, cp[i]!.sections_count, people[i]);
+    const shape = (ss: { crn: string; cross_list?: string; meets_with?: { crn: string }[] }[]) =>
+      ss
+        .map((s) => `${s.crn}:${s.cross_list ?? ""}:${(s.meets_with ?? []).map((m) => m.crn).join(",")}`)
+        .sort();
+    assert.deepEqual(shape(cp[i]!.sections), shape(lp[i]!.sections), people[i]);
+  }
+  const dana = cp[0]!;
+  const honors = dana.sections.find((s) => s.crn === "71001")!;
+  assert.deepEqual(honors.meets_with, [
+    { crn: "71002", subject_course: "GC4400", section: "002" },
+  ]);
+  // The seminar group's meetings are the union: GC2990 runs to 1425.
+  const seminar = dana.sections.find((s) => s.crn === "71005")!;
+  assert.deepEqual(
+    seminar.meetings.map((m) => `${m.day}${m.start_min}-${m.end_min}`).sort(),
+    ["R805-855", "R805-865"],
+  );
+  // Fay's unlabeled 4440-002 at the same time stays its own section.
+  assert.equal(cp[1]!.sections.find((s) => s.crn === "73003")?.meets_with, undefined);
+});
+
+test("get-instructor-classes counts with a day filter too", async () => {
+  const c = await classes({ instructors: ["reyes@clemson.edu"], days: "R" });
+  const [dana] = c.instructors as ClassesPerson[];
+  assert.equal(dana.status, "busy");
+  assert.equal(dana.sections_count, 5);
+  assert.equal(dana.listings_count, 10);
+});

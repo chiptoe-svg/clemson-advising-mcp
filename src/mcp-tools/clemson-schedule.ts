@@ -762,7 +762,11 @@ const instructorClasses: McpToolDefinition = {
       "an ambiguous name returns the candidates instead of guessing). Every " +
       "matched person gets their full section list with meetings, including " +
       "untimed sections (internships etc.: meetings [], timed: false — " +
-      "listed, but never 'busy'). Statuses " +
+      "listed, but never 'busy'). Cross-listed sections one person " +
+      "teaches (honors 002, 4xxx/6xxx, 1990-4990 seminars) are ONE entry " +
+      "with the other listings under meets_with — the same grouping as " +
+      "get-teaching-load, so sections_count matches it; listings_count " +
+      "counts every CRN. Statuses " +
       "are explicit: 'teaching' / 'not_teaching' without a filter; 'busy' " +
       "(with the overlapping meetings) / 'free' with one. 'not_teaching' " +
       "means no sections in this term's snapshot — NOT the same as free, and " +
@@ -936,12 +940,46 @@ const instructorClasses: McpToolDefinition = {
         for (const s2 of findInstructorSections(db, term, who.email, who.name))
           if (!byCrn.has(s2.crn))
             byCrn.set(s2.crn, { ...s2, timed: false, meetings: [] });
-        const sections = [...byCrn.values()];
+        // One entry per cross-listed group, the same classes
+        // get-teaching-load counts: the lead carries the group's meetings
+        // and its other listings under meets_with.
+        const aggs = new Map<string, LoadSectionAgg>();
+        for (const r of teachingLoadRows(db, term, null, who.email, who.name))
+          addLoadRow(aggs, r);
+        const groups = groupCrossListed(
+          [...aggs.values()],
+          who.email ?? who.name,
+        ).filter((g) => g.every((s2) => byCrn.has(s2.crn)));
+        const inGroup = new Set(groups.flat().map((s2) => s2.crn));
+        const sections = [
+          ...groups.map((g) => {
+            const members = g.map((s2) => byCrn.get(s2.crn)!);
+            const seen = new Set<string>();
+            const meetings = members
+              .flatMap((s2) => s2.meetings)
+              .filter((m3) => {
+                const k = JSON.stringify(m3);
+                return !seen.has(k) && !!seen.add(k);
+              });
+            return {
+              ...members[0]!,
+              timed: members.some((s2) => s2.timed),
+              meetings,
+              ...groupFields(g[0]!, g.slice(1)),
+            };
+          }),
+          ...[...byCrn.values()].filter((s2) => !inGroup.has(s2.crn)),
+        ];
+        const counts = {
+          sections_count: sections.length,
+          listings_count: byCrn.size,
+        };
         if (!filtering) {
           return {
             query: raw,
             matched: who,
             status: "teaching" as const,
+            ...counts,
             sections,
           };
         }
@@ -958,6 +996,7 @@ const instructorClasses: McpToolDefinition = {
           query: raw,
           matched: who,
           status: conflicts.length > 0 ? ("busy" as const) : ("free" as const),
+          ...counts,
           sections,
           conflicts,
         };
@@ -982,6 +1021,14 @@ const instructorClasses: McpToolDefinition = {
             }
           : {}),
         instructors: results,
+        ...(crossListRecorded(db)
+          ? {}
+          : {
+              cross_list_note:
+                "This snapshot predates Banner's cross-list labels, so only " +
+                "unlabeled 4xxx/6xxx pairs were combined; honors and other " +
+                "cross-listed sections may each count separately.",
+            }),
         _source: `Banner schedule snapshot ${meta.fetchedAt} — teaching data only`,
       });
     } finally {
@@ -1061,6 +1108,41 @@ function groupCrossListed(
   return groups;
 }
 
+/** Folds one load row into its section's aggregate. */
+function addLoadRow(byCrn: Map<string, LoadSectionAgg>, r: TeachingLoadRow) {
+  let s = byCrn.get(r.crn);
+  if (!s) {
+    s = {
+      crn: r.crn,
+      subject_course: r.subject_course,
+      section: r.section,
+      title: r.title,
+      credit_hours: r.credit_hours,
+      cross_list: r.cross_list,
+      slots: [],
+    };
+    byCrn.set(r.crn, s);
+  }
+  if (r.start_min !== null && r.end_min !== null)
+    s.slots.push({ day: r.day ?? "", start: r.start_min, end: r.end_min });
+}
+
+/** A group's label and its other listings, on the lead's entry. */
+function groupFields(lead: LoadSectionAgg, others: readonly LoadSectionAgg[]) {
+  if (others.length === 0) return {};
+  return {
+    cross_list:
+      lead.cross_list && others.every((o) => o.cross_list === lead.cross_list)
+        ? lead.cross_list
+        : "unlabeled 4xxx/6xxx pair",
+    meets_with: others.map((o) => ({
+      crn: o.crn,
+      subject_course: o.subject_course,
+      section: o.section,
+    })),
+  };
+}
+
 /**
  * Load rows -> per-person aggregates. Credit hours count once per SECTION no
  * matter how many meeting rows it has; contact minutes sum only timed rows;
@@ -1081,21 +1163,7 @@ function aggregateLoad(rows: TeachingLoadRow[]) {
       p = { name: r.name, email: r.email, byCrn: new Map() };
       people.set(key, p);
     }
-    let s = p.byCrn.get(r.crn);
-    if (!s) {
-      s = {
-        crn: r.crn,
-        subject_course: r.subject_course,
-        section: r.section,
-        title: r.title,
-        credit_hours: r.credit_hours,
-        cross_list: r.cross_list,
-        slots: [],
-      };
-      p.byCrn.set(r.crn, s);
-    }
-    if (r.start_min !== null && r.end_min !== null)
-      s.slots.push({ day: r.day ?? "", start: r.start_min, end: r.end_min });
+    addLoadRow(p.byCrn, r);
   }
   return [...people.entries()].map(([who, p]) => {
     const classes = groupCrossListed([...p.byCrn.values()], who).map((g) => ({
@@ -1116,6 +1184,7 @@ function aggregateLoad(rows: TeachingLoadRow[]) {
       name: p.name,
       email: p.email,
       sections_count: classes.length,
+      listings_count: classes.reduce((n, c) => n + 1 + c.others.length, 0),
       contact_hours_weekly: round1(totalMinutes / 60),
       credit_hours: round1(classes.reduce((a, c) => a + (c.credit ?? 0), 0)),
       untimed_sections: {
@@ -1138,20 +1207,7 @@ function aggregateLoad(rows: TeachingLoadRow[]) {
         credit_hours: c.credit,
         weekly_contact_hours: round1(c.minutes / 60),
         timed: c.timed,
-        ...(c.others.length
-          ? {
-              cross_list:
-                c.lead.cross_list &&
-                c.others.every((o) => o.cross_list === c.lead.cross_list)
-                  ? c.lead.cross_list
-                  : "unlabeled 4xxx/6xxx pair",
-              meets_with: c.others.map((o) => ({
-                crn: o.crn,
-                subject_course: o.subject_course,
-                section: o.section,
-              })),
-            }
-          : {}),
+        ...groupFields(c.lead, c.others),
       })),
     };
   });
@@ -1189,8 +1245,9 @@ const teachingLoad: McpToolDefinition = {
       "listed instructor. Cross-listed sections one person teaches (Banner's " +
       "cross-list label: honors 002, 4xxx/6xxx, 1990-4990 seminars; or an " +
       "unlabeled 4xxx/6xxx pair at the same times) count ONCE, the others " +
-      "under that section's meets_with. Other sections at the same time " +
-      "count separately. Snapshot-backed, read-only, no Banner load.",
+      "under that section's meets_with; listings_count counts every CRN. " +
+      "Other sections at the same time count separately. Snapshot-backed, " +
+      "read-only, no Banner load.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -1302,6 +1359,7 @@ const teachingLoad: McpToolDefinition = {
               matched: who,
               status: "teaching" as const,
               sections_count: 0,
+              listings_count: 0,
               contact_hours_weekly: 0,
               credit_hours: 0,
               untimed_sections: { count: 0, crns: [] },

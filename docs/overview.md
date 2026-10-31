@@ -224,7 +224,10 @@ names, or `Name <email>`; an ambiguous name returns candidates rather than
 guessing a person. Statuses are explicit: `teaching`/`not_teaching` unfiltered,
 `busy`/`free` filtered — and `not_teaching` (no sections in the snapshot) is
 **not** the same as free. Instructor names and emails are Banner's published
-section fields. Snapshot.
+section fields. Cross-listed sections are grouped exactly as
+`get-teaching-load` groups them (one entry, the others under `meets_with`), so
+`sections_count` agrees between the two tools; `listings_count` counts every
+CRN. Snapshot.
 
 #### `get-teaching-load`
 
@@ -238,8 +241,8 @@ reported in `untimed_sections`, **never** folded into the totals; co-taught
 sections attribute fully to each listed instructor. A cross-listed group one
 person teaches counts **once**, with the others under `meets_with`: Banner's
 cross-list label (honors 002, 4xxx/6xxx, 1990–4990 seminars), or an unlabeled
-4xxx/6xxx pair at the same times. Other sections at the same time count
-separately. Snapshot.
+4xxx/6xxx pair at the same times; `listings_count` beside `sections_count`
+counts every CRN. Other sections at the same time count separately. Snapshot.
 
 #### `get-course-offerings`
 
