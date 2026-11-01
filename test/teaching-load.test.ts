@@ -460,7 +460,9 @@ test("neither subject nor instructors is an error, not an empty answer", async (
 });
 
 test("listings_count sits beside sections_count: groups count once, listings each", async () => {
-  const b = await load({ instructors: ["reyes@clemson.edu", "fsix@clemson.edu"] });
+  const b = await load({
+    instructors: ["reyes@clemson.edu", "fsix@clemson.edu"],
+  });
   const [dana, fay] = b.instructors as (Person & { listings_count: number })[];
   assert.equal(dana.sections_count, 5);
   assert.equal(dana.listings_count, 10);
@@ -497,12 +499,21 @@ type ClassesPerson = {
     timed: boolean;
     cross_list?: string;
     meets_with?: { crn: string; subject_course: string; section: string }[];
-    meetings: { day: string; start_min: number | null; end_min: number | null }[];
+    meetings: {
+      day: string;
+      start_min: number | null;
+      end_min: number | null;
+    }[];
   }[];
 };
 
 test("get-instructor-classes groups meets-with listings exactly like get-teaching-load", async () => {
-  const people = ["reyes@clemson.edu", "fsix@clemson.edu", "congdon@clemson.edu", "tonkin@clemson.edu"];
+  const people = [
+    "reyes@clemson.edu",
+    "fsix@clemson.edu",
+    "congdon@clemson.edu",
+    "tonkin@clemson.edu",
+  ];
   const c = await classes({ instructors: people });
   const l = await load({ instructors: people });
   const cp = c.instructors as ClassesPerson[];
@@ -511,9 +522,18 @@ test("get-instructor-classes groups meets-with listings exactly like get-teachin
     assert.equal(cp[i]!.sections_count, lp[i]!.sections_count, people[i]);
     assert.equal(cp[i]!.listings_count, lp[i]!.listings_count, people[i]);
     assert.equal(cp[i]!.sections.length, cp[i]!.sections_count, people[i]);
-    const shape = (ss: { crn: string; cross_list?: string; meets_with?: { crn: string }[] }[]) =>
+    const shape = (
+      ss: {
+        crn: string;
+        cross_list?: string;
+        meets_with?: { crn: string }[];
+      }[],
+    ) =>
       ss
-        .map((s) => `${s.crn}:${s.cross_list ?? ""}:${(s.meets_with ?? []).map((m) => m.crn).join(",")}`)
+        .map(
+          (s) =>
+            `${s.crn}:${s.cross_list ?? ""}:${(s.meets_with ?? []).map((m) => m.crn).join(",")}`,
+        )
         .sort();
     assert.deepEqual(shape(cp[i]!.sections), shape(lp[i]!.sections), people[i]);
   }
@@ -529,7 +549,10 @@ test("get-instructor-classes groups meets-with listings exactly like get-teachin
     ["R805-855", "R805-865"],
   );
   // Fay's unlabeled 4440-002 at the same time stays its own section.
-  assert.equal(cp[1]!.sections.find((s) => s.crn === "73003")?.meets_with, undefined);
+  assert.equal(
+    cp[1]!.sections.find((s) => s.crn === "73003")?.meets_with,
+    undefined,
+  );
 });
 
 test("get-instructor-classes counts with a day filter too", async () => {

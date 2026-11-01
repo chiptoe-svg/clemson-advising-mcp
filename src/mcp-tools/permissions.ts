@@ -131,6 +131,12 @@ export const MCP_ALLOWED_OPERATIONS: Record<string, McpOperationSpec> = {
     backend: "external-http",
     policyActionId: "clemson.admin_conflicts",
   },
+  // A subject's prerequisite graph in one read, for the enrollment forecast
+  // (Cob_advisor, 2026-10-31). Catalog data, read in-process.
+  "clemson.admin_prerequisites": {
+    backend: "external-http",
+    policyActionId: "clemson.admin_prerequisites",
+  },
   "clemson.find_requirement_sections": {
     backend: "external-http",
     policyActionId: "clemson.find_requirement_sections",
@@ -358,6 +364,7 @@ export const CLEMSON_ADMIN_OPS = [
   "clemson.admin_free_rooms",
   "clemson.admin_course_groups",
   "clemson.admin_conflicts",
+  "clemson.admin_prerequisites",
 ];
 
 const CLEMSON_CATALOG_OPS = [

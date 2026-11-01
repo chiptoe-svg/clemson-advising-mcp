@@ -372,6 +372,19 @@ The courses students take together, one group per semester of a program's
 catalog plan with corequisite labs added, plus department-saved groups from
 `state/course-groups.yaml`, which override a generated group of the same name.
 
+#### `get-prerequisites`
+
+The prerequisite graph for one subject (or listed courses), in one call — the
+feeder links an enrollment forecast reads. Per course: the codes to take
+first, those allowed in the same term (`concurrent`), and other conditions
+(standing, major, consent). A hand-reviewed rule wins where it is still valid
+against the catalog text (`source: "expression"`, with the rule's and/or
+structure); otherwise the catalog's own list of codes its wording names
+(`source: "text"`, with the wording), which does not say required, optional
+or same term. Courses whose wording names no course are listed in `unparsed`,
+never read as having no prerequisite. Takes a single subject, not a list.
+Catalog data.
+
 ### Catalog server — `advising-mcp-catalog`, port 8767
 
 Program names are the registrar's, exactly as the catalog spells them

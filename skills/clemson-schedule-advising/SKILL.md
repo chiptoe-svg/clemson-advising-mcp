@@ -175,4 +175,4 @@ per open slot → `check-conflicts` on the candidate set. For lab pairs, confirm
      for absence claims that stopped being true, then updates the stamp.
      (Origin: a bullet denying instructor tools outlived their arrival and
      sent live models paging search-classes instead.) -->
-<!-- limitations-reviewed-against: schedule=313933a150d0 catalog=d24fd4653cfc -->
+<!-- limitations-reviewed-against: schedule=08a485c5f427 catalog=d24fd4653cfc -->

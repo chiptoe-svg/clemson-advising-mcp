@@ -102,4 +102,5 @@ const PUBLIC_ONLY = new Set([
   "find-free-rooms",
   "list-course-groups",
   "find-schedule-conflicts",
+  "get-prerequisites",
 ]);

@@ -10,6 +10,8 @@
 // and says that free means only "no class booked": Banner's public data shows
 // class meetings, not events or exams.
 
+import Database from "better-sqlite3";
+
 import {
   checkDraft,
   defaultBaseTerm,
@@ -37,11 +39,13 @@ import {
   getScheduleDbMeta,
   openScheduleDb,
 } from "../clemson-schedule-db.js";
+import { CATALOG_DB } from "../config-mcp.js";
 import { listCourseGroups, loadSavedGroups } from "../course-groups.js";
 import {
   loadInstructorPreferences,
   type InstructorPreference,
 } from "../instructor-preferences.js";
+import { listPrerequisites, PREREQUISITE_BASIS } from "../prerequisite-list.js";
 import { listSnapshotTerms, parseTermCode } from "../term-resolve.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
@@ -844,6 +848,74 @@ const conflictsTool: McpToolDefinition = {
   },
 };
 
+/**
+ * get-prerequisites: a subject's prerequisite graph in one call — the feeder
+ * links the enrollment forecast reads (Cob_advisor, 2026-10-31). The admin
+ * bridge reaches only this server, so the catalog is read here directly.
+ */
+const prerequisitesTool: McpToolDefinition = {
+  operation: "clemson.admin_prerequisites",
+  category: "admin",
+  tool: {
+    name: "get-prerequisites",
+    description:
+      "Prerequisites for every course in a subject (or for listed courses), " +
+      "in one call: per course the course codes to take first, the ones that " +
+      "may be taken the same term (concurrent), and other conditions. " +
+      "source 'expression' is a hand-reviewed rule (rule keeps its and/or " +
+      "structure); source 'text' is the catalog's list of codes its wording " +
+      "names, with the wording — it does not say required vs. one of " +
+      "several vs. same term. unparsed lists courses whose wording names no " +
+      "course (consent, standing): not the same as no prerequisite. " +
+      "Catalog data, read-only.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        subject: { type: "string", description: "Subject code, e.g. 'GC'." },
+        courses: {
+          type: "array",
+          items: { type: "string" },
+          description: 'Specific courses, e.g. ["GC 4060"]; any subject.',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  async handler(args) {
+    const denied = guard("clemson.admin_prerequisites");
+    if (denied) return denied;
+    const subject =
+      typeof args.subject === "string" ? args.subject.trim().toUpperCase() : "";
+    if (args.subject !== undefined && !/^[A-Z]{1,6}$/.test(subject))
+      return err("subject must be 1-6 letters, e.g. 'GC'.");
+    const courses = Array.isArray(args.courses)
+      ? (args.courses as unknown[]).filter(
+          (c): c is string => typeof c === "string" && c.trim() !== "",
+        )
+      : [];
+    if (!subject && courses.length === 0)
+      return err("Give a subject (e.g. 'GC'), a list of courses, or both.");
+    let db: Database.Database;
+    try {
+      db = new Database(CATALOG_DB, { readonly: true, fileMustExist: true });
+    } catch {
+      return err("The catalog database is not available.");
+    }
+    try {
+      return okJson({
+        ...(subject ? { subject } : {}),
+        ...listPrerequisites(db, {
+          ...(subject ? { subject } : {}),
+          ...(courses.length ? { courses } : {}),
+        }),
+        basis: PREREQUISITE_BASIS,
+      });
+    } finally {
+      db.close();
+    }
+  },
+};
+
 export const __adminTools = {
   rollover,
   checkDraft: checkDraftTool,
@@ -851,6 +923,7 @@ export const __adminTools = {
   freeRooms: freeRoomsTool,
   courseGroups: courseGroupsTool,
   findConflicts: conflictsTool,
+  prerequisites: prerequisitesTool,
 };
 
 registerTools(Object.values(__adminTools));

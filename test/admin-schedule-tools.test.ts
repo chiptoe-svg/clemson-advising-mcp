@@ -144,7 +144,7 @@ test("bad times and an unknown group name are errors", async () => {
 
 test("the admin tools are admin-category and outside the schedule scope", () => {
   const ops = Object.values(__adminTools).map((t) => t.operation);
-  assert.equal(ops.length, 6);
+  assert.equal(ops.length, 7);
   for (const t of Object.values(__adminTools))
     assert.equal(t.category, "admin");
   const schedule = expandScopes(["clemson.schedule"]);
@@ -499,4 +499,27 @@ test("rollover on a labeled snapshot: labeled pairs stack, an unlabeled identica
     .map((p: { kind: string }) => p.kind)
     .sort();
   assert.deepEqual(at2009, ["instructor_double_booked", "room_double_booked"]);
+});
+
+test("get-prerequisites: a whole subject in one call, reviewed rules first", async () => {
+  const { res, body } = await call("prerequisites", { subject: "gc" });
+  assert.equal(res.isError, undefined, res.content[0]!.text);
+  assert.equal(body.subject, "GC");
+  assert.ok(body.courses.length > 30);
+  const g4060 = body.courses.find(
+    (c: { course: string }) => c.course === "GC 4060",
+  );
+  assert.equal(g4060.source, "expression");
+  assert.deepEqual(g4060.concurrent, ["GC 3460"]);
+  assert.match(body.basis, /reviewed/);
+  const one = await call("prerequisites", { courses: ["GC 4060"] });
+  assert.deepEqual(
+    one.body.courses.map((c: { course: string }) => c.course),
+    ["GC 4060"],
+  );
+  assert.equal((await call("prerequisites", {})).res.isError, true);
+  assert.equal(
+    (await call("prerequisites", { subject: "G1" })).res.isError,
+    true,
+  );
 });
