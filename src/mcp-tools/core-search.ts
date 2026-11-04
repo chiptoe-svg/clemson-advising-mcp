@@ -27,6 +27,12 @@ import {
 } from "../gc-curriculum.js";
 import { normalizeCourseCode } from "../catalog-read.js";
 import { findCoreqs as findCoreqsLive } from "./gc-coreqs.js";
+import {
+  canAddText,
+  courseUnitVerdicts,
+  type UnitVerdict,
+  type VerdictFilters,
+} from "./course-fit.js";
 import Database from "better-sqlite3";
 import {
   openScheduleDb,
@@ -83,22 +89,25 @@ const SEARCH_CLASSES_DESCRIPTION =
   "taken before 2026-09-08).";
 
 const FIND_ALTERNATIVES_DESCRIPTION =
-  "Find sections that fit around a student's existing schedule without time " +
-  'conflicts — including to SWAP or REPLACE a section ("swap out X", ' +
-  '"drop X for something else"). Requires current_crns — the CRNs the ' +
-  "student is KEEPING, not the one being dropped. For a swap, also pass " +
-  "replacing_crn: the dropped section's subject and credit hours become the " +
-  "default filters, and it is never offered back. Optional: replacing_crn, " +
-  "subject, credits, days, no_meeting_before, no_meeting_after, exclude_days, " +
-  "open_seats_only. Returns options ready to present side by side. Term is " +
-  "optional — defaults to the current registration term. When many fit, the " +
-  "response contains the top sections by open seats plus a needsNarrowing " +
-  "summary and a `truncated` block — show a few, don't ask first, but do not " +
-  "report the page as the complete set of what fits. To check SPECIFIC " +
-  'courses ("which of these required courses could she add?"), pass ' +
-  "courses: ['GC 3460', 'GC 4400', ...] instead of subject: every listed " +
-  "course gets a verdict from ALL its sections (fits, the sections that " +
-  "fit, or the kept CRNs blocking each one), never cut.";
+  "Which COURSES can be added around a student's existing schedule without " +
+  'time conflicts — including to SWAP or REPLACE a section ("swap out X", ' +
+  '"drop X for something else") and "what else could she take?". Requires ' +
+  "current_crns — the CRNs the student is KEEPING, not the one being " +
+  "dropped — plus subject, courses, or replacing_crn (the dropped section's " +
+  "subject and credit hours become the default filters, and it is never " +
+  "offered back). Answers course by course, never as a section count: a " +
+  "lecture and its required lab are one course that fits only when a " +
+  "section of each fits (options lists the CRN combinations, with credit " +
+  "hours); a lab is never listed alone; zero-capacity placeholder sections " +
+  "are skipped; a course with no set meeting times is 'arranged'. A subject " +
+  "search lists undergraduate courses only unless include_graduate: true. " +
+  "summary.text says how many courses can be added — relay that count, not " +
+  'a number of sections. To check SPECIFIC courses ("which of these ' +
+  "required courses could she add?\"), pass courses: ['GC 3460', ...] " +
+  "instead of subject; each gets a verdict, with the reason when it does " +
+  "not fit. Optional filters: credits, days, no_meeting_before, " +
+  "no_meeting_after, exclude_days, open_seats_only. Term is optional — " +
+  "defaults to the current registration term.";
 
 const CHECK_CONFLICTS_DESCRIPTION =
   "Check which CRNs in a schedule have time conflicts, pair by pair. Optional " +
@@ -587,6 +596,12 @@ export const findAlternatives: McpToolDefinition = {
           type: "boolean",
           description: "Only return sections with seats available.",
         },
+        include_graduate: {
+          type: "boolean",
+          description:
+            "Subject searches list undergraduate (below 5000) courses only; " +
+            "true lists graduate courses too.",
+        },
         courses: {
           type: "array",
           items: { type: "string" },
@@ -664,210 +679,153 @@ export const findAlternatives: McpToolDefinition = {
       }
     }
 
-    if (args.courses !== undefined) {
-      if (args.subject !== undefined)
-        return err(
-          "Pass courses or subject, not both: courses already names them.",
-        );
-      const result = courseVerdicts(resolved.term, args.courses, keepers, {
-        // Only an explicit credits filter: a swap's default credit hours
-        // would hide listed courses of another size.
-        credits: typeof args.credits === "number" ? args.credits : undefined,
-        days: strOrUndef(args.days),
-        excludeDays: strArrOrUndef(args.exclude_days),
-        noMeetingBefore: strOrUndef(args.no_meeting_before),
-        noMeetingAfter: strOrUndef(args.no_meeting_after),
-        openSeatsOnly: Boolean(args.open_seats_only),
-        excludeCrns: replacingCrn ? [replacingCrn] : undefined,
-      });
-      if ("error" in result) return err(result.error);
-      return okJson(
-        replacing
-          ? { ...result, replacing: { ...replacing, applied: {} } }
-          : result,
-      );
-    }
-
-    const engineResult = querySectionsEngine({
-      term: resolved.term,
-      subject,
-      credits,
+    const filters: VerdictFilters = {
       days: strOrUndef(args.days),
       excludeDays: strArrOrUndef(args.exclude_days),
       noMeetingBefore: strOrUndef(args.no_meeting_before),
       noMeetingAfter: strOrUndef(args.no_meeting_after),
       openSeatsOnly: Boolean(args.open_seats_only),
-      fitsAroundCrns: keepers,
       excludeCrns: replacingCrn ? [replacingCrn] : undefined,
-    });
-    if ("error" in engineResult) return err(engineResult.error);
-    return okJson(replacing ? { ...engineResult, replacing } : engineResult);
+    };
+    if (args.courses !== undefined) {
+      if (args.subject !== undefined)
+        return err(
+          "Pass courses or subject, not both: courses already names them.",
+        );
+      const rawCourses = args.courses;
+      if (
+        !Array.isArray(rawCourses) ||
+        rawCourses.length === 0 ||
+        rawCourses.length > MAX_VERDICT_COURSES
+      )
+        return err(
+          `courses must be a list of 1–${MAX_VERDICT_COURSES} course codes.`,
+        );
+      const codes: string[] = [];
+      for (const raw of rawCourses) {
+        const code = typeof raw === "string" ? normalizeCourseCode(raw) : null;
+        if (!code)
+          return err(
+            `courses: ${JSON.stringify(raw)} is not a course code like 'GC 3460'.`,
+          );
+        if (!codes.includes(code)) codes.push(code);
+      }
+      const result = courseVerdicts(
+        resolved.term,
+        keepers,
+        {
+          ...filters,
+          // Only an explicit credits filter: a swap's default credit hours
+          // would hide listed courses of another size.
+          credits: typeof args.credits === "number" ? args.credits : undefined,
+        },
+        { codes },
+      );
+      if ("error" in result) return err(result.error);
+      return okJson(
+        replacing
+          ? { ...result.body, replacing: { ...replacing, applied: {} } }
+          : result.body,
+      );
+    }
+
+    if (!subject)
+      return err(
+        "Pass subject (e.g. 'PKSC'), courses, or replacing_crn: a whole " +
+          "term is too wide to judge course by course.",
+      );
+    if (!/^[A-Za-z]{2,5}$/.test(subject))
+      return err("subject must be a subject code like 'PKSC'.");
+    const result = courseVerdicts(
+      resolved.term,
+      keepers,
+      { ...filters, credits },
+      {
+        subject: subject.toUpperCase(),
+        includeGraduate: args.include_graduate === true,
+      },
+    );
+    if ("error" in result) return err(result.error);
+    return okJson(replacing ? { ...result.body, replacing } : result.body);
   },
 };
 
-type VerdictFilters = Omit<
-  Parameters<typeof querySectionsEngine>[0],
-  "term" | "subject" | "courseNumber" | "fitsAroundCrns" | "max" | "offset"
->;
-
-/** find-alternatives' `courses` mode: per listed course, every section
- *  checked against the kept CRNs' meetings. The verdict always counts all of
- *  a course's sections; only the listing is capped. */
+/** find-alternatives' verdicts, both modes: one entry per course (its
+ *  corequisite lab folded in), never a flat section list. */
 function courseVerdicts(
   term: string,
-  rawCourses: unknown,
   keepers: string[],
   filters: VerdictFilters,
-):
-  | {
-      term: string;
-      snapshotDate: string | null;
-      current_crns: string[];
-      unknown_crns?: string[];
-      note?: string;
-      courses: Record<string, unknown>[];
-      summary: {
-        fit: string[];
-        do_not_fit: string[];
-        not_offered: string[];
-        already_kept?: string[];
-        outside_filters?: string[];
-      };
-    }
-  | { error: string } {
-  if (
-    !Array.isArray(rawCourses) ||
-    rawCourses.length === 0 ||
-    rawCourses.length > MAX_VERDICT_COURSES
-  )
-    return {
-      error: `courses must be a list of 1–${MAX_VERDICT_COURSES} course codes.`,
-    };
-  const codes: string[] = [];
-  for (const raw of rawCourses) {
-    const code = typeof raw === "string" ? normalizeCourseCode(raw) : null;
-    if (!code)
-      return {
-        error: `courses: ${JSON.stringify(raw)} is not a course code like 'GC 3460'.`,
-      };
-    if (!codes.includes(code)) codes.push(code);
-  }
-
-  const db = openScheduleDb(term);
-  if (!db) return { error: `No schedule snapshot for term ${term}.` };
-  let anchors;
-  const keptCourse = new Map<string, string[]>();
-  const replacedCourse = new Map<string, string>();
-  const found = new Set<string>();
-  try {
-    anchors = getMeetingsForCrns(db, term, keepers);
-    for (const k of getSectionsByCrn(db, term, keepers).sections) {
-      found.add(k.crn);
-      keptCourse.set(k.subject_course, [
-        ...(keptCourse.get(k.subject_course) ?? []),
-        k.crn,
-      ]);
-    }
-    const dropped = filters.excludeCrns ?? [];
-    for (const d of getSectionsByCrn(db, term, dropped).sections)
-      replacedCourse.set(d.subject_course, d.crn);
-  } finally {
-    db.close();
-  }
-
-  const courses: Record<string, unknown>[] = [];
-  const summary: {
-    fit: string[];
-    do_not_fit: string[];
-    not_offered: string[];
-    already_kept?: string[];
-    outside_filters?: string[];
-  } = { fit: [], do_not_fit: [], not_offered: [] };
-  // Her own sections are never candidates: one would only clash with itself.
-  const excludeCrns = [...(filters.excludeCrns ?? []), ...keepers];
-  let snapshotDate: string | null = null;
-  for (const code of codes) {
-    const [subject, courseNumber] = code.split(" ");
-    const every = { term, subject, courseNumber, offset: 0, max: 500 };
-    const all = querySectionsEngine({ ...every, excludeCrns });
-    if ("error" in all) return all;
-    snapshotDate ??= all.snapshotDate;
-    const kept = keptCourse.get(code.replace(" ", ""));
-    if (kept) (summary.already_kept ??= []).push(code);
-    // The section being dropped still means the course runs this term.
-    const replaced = replacedCourse.get(code.replace(" ", ""));
-    if (all.totalCount === 0 && !kept && !replaced) {
-      summary.not_offered.push(code);
-      courses.push({ course: code, offered: false, fits: false });
-      continue;
-    }
-    const matching = querySectionsEngine({ ...every, ...filters, excludeCrns });
-    if ("error" in matching) return matching;
-    const fitting: EngineSection[] = [];
-    const blocked: {
-      crn: string;
-      meetings: EngineMeeting[];
-      blocked_by: string[];
-    }[] = [];
-    for (const s of matching.sections) {
-      const by = new Set<string>();
-      for (const m of s.meetings) {
-        const start = hhmmMins(m.start);
-        const end = hhmmMins(m.end);
-        for (const a of anchors)
-          if (a.day === m.day && start < a.endMin && a.startMin < end)
-            by.add(a.crn);
-      }
-      if (by.size === 0) fitting.push(s);
-      else
-        blocked.push({ crn: s.crn, meetings: s.meetings, blocked_by: [...by] });
-    }
-    const fits = fitting.length > 0;
-    // "Doesn't fit her schedule" only when a section passed the filters and
-    // her kept CRNs blocked it; none passing the filters is its own answer.
-    if (!kept) {
-      if (fits) summary.fit.push(code);
-      else if (matching.totalCount === 0 && all.totalCount > 0)
-        (summary.outside_filters ??= []).push(code);
-      else summary.do_not_fit.push(code);
-    }
-    const outside = all.totalCount - matching.totalCount;
-    courses.push({
-      course: code,
-      title: all.sections[0]?.title,
-      offered: true,
-      ...(kept ? { already_kept: kept } : {}),
-      ...(replaced ? { replaced_section: replaced } : {}),
-      fits,
-      fitting_count: fitting.length,
-      fitting: fitting.slice(0, VERDICT_SECTIONS_SHOWN),
-      ...(fitting.length > VERDICT_SECTIONS_SHOWN
-        ? {
-            fitting_note: `${VERDICT_SECTIONS_SHOWN} of ${fitting.length} fitting sections shown, most open seats first.`,
-          }
-        : {}),
-      ...(fits ? {} : { blocked: blocked.slice(0, VERDICT_SECTIONS_SHOWN) }),
-      ...(outside > 0 ? { outside_filters: outside } : {}),
-    });
-  }
-  // A kept CRN that isn't in the term blocks nothing, so every verdict
-  // would look better than it is: name it.
-  const unknown = keepers.filter((c) => !found.has(c));
-  return {
-    term,
-    snapshotDate,
-    current_crns: keepers,
-    ...(unknown.length > 0
+  scope: { codes: string[] } | { subject: string; includeGraduate: boolean },
+): { body: Record<string, unknown> } | { error: string } {
+  const run = courseUnitVerdicts({ term, keepers, filters, ...scope });
+  if ("error" in run) return run;
+  const lead = (u: UnitVerdict) => u.course;
+  const adds = run.units.filter((u) => u.fits && !u.already_kept);
+  const canAdd = adds.map(lead);
+  const arranged = adds.filter((u) => u.how === "arranged").map(lead);
+  const kept = run.units.filter((u) => u.already_kept).map(lead);
+  // "Doesn't fit her schedule" only when a section passed the filters;
+  // none passing the filters is its own answer.
+  const fresh = run.units.filter((u) => !u.already_kept && !u.fits);
+  const outside = fresh.filter(
+    (u) =>
+      u.offered &&
+      u.outside_filters &&
+      u.reason?.includes("passes the filters"),
+  );
+  const notOffered = fresh.filter((u) => !u.offered);
+  const doNotFit = fresh.filter((u) => u.offered && !outside.includes(u));
+  const summary = {
+    text: canAddText(canAdd, arranged),
+    can_add_count: canAdd.length,
+    can_add: canAdd,
+    ...(arranged.length ? { arranged } : {}),
+    // The pre-coreq names of the same lists, kept for existing readers.
+    fit: canAdd,
+    do_not_fit: doNotFit.map(lead),
+    ...("codes" in scope ? { not_offered: notOffered.map(lead) } : {}),
+    ...(kept.length ? { already_kept: kept } : {}),
+    ...(outside.length ? { outside_filters: outside.map(lead) } : {}),
+    ...("subject" in scope &&
+    (run.graduate.length || run.placeholdersOnly.length)
       ? {
-          unknown_crns: unknown,
-          note:
-            `${unknown.join(", ")} not found in term ${term}, so not checked ` +
-            "against: confirm the CRNs before relying on these verdicts.",
+          excluded: {
+            ...(run.graduate.length ? { graduate: run.graduate } : {}),
+            ...(run.placeholdersOnly.length
+              ? { placeholders_only: run.placeholdersOnly }
+              : {}),
+          },
         }
       : {}),
-    courses,
-    summary,
   };
+  const notes: string[] = [];
+  if (run.unknownCrns.length)
+    notes.push(
+      `${run.unknownCrns.join(", ")} not found in term ${term}, so not ` +
+        "checked against: confirm the CRNs before relying on these verdicts.",
+    );
+  if (run.coreqsUnchecked)
+    notes.push(
+      "The catalog could not be read, so required labs were NOT checked: " +
+        "a lecture may be listed as fitting without its lab.",
+    );
+  if ("subject" in scope && run.graduate.length)
+    notes.push(
+      `Graduate courses (${run.graduate.length}) are not listed; pass ` +
+        "include_graduate: true to include them.",
+    );
+  const body = {
+    term,
+    snapshotDate: run.snapshotDate,
+    current_crns: keepers,
+    ...("subject" in scope ? { subject: scope.subject } : {}),
+    ...(run.unknownCrns.length ? { unknown_crns: run.unknownCrns } : {}),
+    ...(notes.length ? { note: notes.join(" ") } : {}),
+    summary,
+    courses: run.units,
+  };
+  return { body };
 }
 
 function hhmmMins(hhmm: string): number {

@@ -212,9 +212,10 @@ test("search-classes: description names the discriminator and both siblings", ()
 test("find-alternatives: description names current_crns as required", () => {
   const desc = findAlternatives.tool.description ?? "";
   assert.match(desc, /Requires current_crns/);
-  assert.match(desc, /top sections by open seats/);
-  assert.match(desc, /truncated/);
-  assert.match(desc, /show a few, don't ask first/);
+  // Courses, not a section count a model would relay (2026-11-04).
+  assert.match(desc, /course by course, never as a section count/);
+  assert.match(desc, /required lab/);
+  assert.match(desc, /include_graduate/);
 });
 
 test("check-conflicts: description names pair-by-pair + candidate_crns", () => {
@@ -731,11 +732,15 @@ test("find-alternatives: excludes an overlapping section, includes a clear one, 
   const res = await findAlternatives.handler({
     term: "Spring 2027",
     current_crns: ["30020"],
+    subject: "GC",
   });
   const body = json(res);
-  assert.ok(!body.sections.some((s: any) => s.crn === "30021")); // overlaps anchor
-  assert.ok(body.sections.some((s: any) => s.crn === "30022")); // clear
-  assert.ok(!body.sections.some((s: any) => s.crn === "30020")); // anchor itself
+  const fitting = body.courses.flatMap((c: any) =>
+    (c.options ?? []).flatMap((o: any) => o.crns),
+  );
+  assert.ok(!fitting.includes("30021")); // overlaps anchor
+  assert.ok(fitting.includes("30022")); // clear
+  assert.ok(!fitting.includes("30020")); // anchor itself
 });
 
 test("find-alternatives: missing current_crns returns the redirect error", async () => {

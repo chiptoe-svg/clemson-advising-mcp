@@ -179,14 +179,20 @@ conflict and are reported as such — that is not a compatibility guarantee.
 
 #### `find-alternatives`
 
-Sections that fit around a student's existing schedule (`current_crns`)
-without time conflicts, with optional subject, credits, days, time-of-day,
-excluded-day, and open-seats filters. When many fit, returns the top sections
-by open seats plus a `needsNarrowing` summary. With `courses` (up to 20 codes)
-instead of a subject, each listed course gets a verdict from all its sections:
-`fits`, the fitting sections (10 shown, all counted), or the kept CRNs blocking
-each section; a course the student already keeps is marked `already_kept`.
-Snapshot.
+Which **courses** can be added around a student's existing schedule
+(`current_crns`), course by course — never a section count. Scope it with a
+`subject`, a list of `courses` (up to 20), or `replacing_crn` for a swap;
+optional credits, days, time-of-day, excluded-day and open-seats filters. A
+course and its catalog corequisites (lecture + required lab) are one entry
+that fits only when a section of each clears the kept CRNs and each other;
+`options` lists the fitting CRN combinations with credit hours, and a course
+that does not fit carries the `reason` (the kept CRNs blocking it, or its lab
+that has no fitting section). A lab is never listed alone. Zero-capacity
+placeholder sections are skipped; a course with no set meeting times fits as
+`arranged`. A subject search lists undergraduate courses only unless
+`include_graduate` is true (the graduate ones are counted in
+`summary.excluded`). `summary.text` states how many courses can be added; a
+course the student already keeps is marked `already_kept`. Snapshot.
 
 #### `find-section-combinations`
 

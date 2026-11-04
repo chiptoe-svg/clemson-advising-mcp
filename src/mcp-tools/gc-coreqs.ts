@@ -139,3 +139,70 @@ export function findCoreqs(rawCode: string): CoreqCourse[] {
     db.close();
   }
 }
+
+export interface CoreqCatalogEntry {
+  title: string | null;
+  credits: string | null;
+  /** True for a non-credit lab (credits 0, or "laboratory" in the title). */
+  lab: boolean;
+  coreqs: string[];
+}
+
+/**
+ * Catalog title, credits and corequisites for `codes` and every course they
+ * pair with (followed to the end, so a three-course group comes back whole).
+ * A code the catalog lacks is absent from the map. Null when the catalog
+ * cannot be opened — the caller must say coreqs went unchecked rather than
+ * treat every course as having none.
+ */
+export function coreqCatalog(
+  codes: string[],
+): Map<string, CoreqCatalogEntry> | null {
+  let db: Database.Database;
+  try {
+    db = new Database(CATALOG_DB, { readonly: true, fileMustExist: true });
+  } catch {
+    return null;
+  }
+  try {
+    const one = db.prepare(
+      "SELECT title, credits, coreq_parsed FROM course WHERE code = ? LIMIT 1",
+    );
+    const out = new Map<string, CoreqCatalogEntry>();
+    const todo = [...codes];
+    const seen = new Set<string>();
+    while (todo.length) {
+      const code = todo.pop()!;
+      if (seen.has(code)) continue;
+      seen.add(code);
+      const row = one.get(code) as
+        | {
+            title: string | null;
+            credits: string | null;
+            coreq_parsed: string | null;
+          }
+        | undefined;
+      if (!row) continue;
+      let coreqs: string[] = [];
+      try {
+        const arr: unknown = JSON.parse(row.coreq_parsed ?? "[]");
+        if (Array.isArray(arr))
+          coreqs = arr
+            .map((x) => (typeof x === "string" ? normCourseCode(x) : null))
+            .filter((x): x is string => x !== null && x !== code);
+      } catch {
+        /* malformed — treated as no structured coreqs, as findCoreqs does */
+      }
+      out.set(code, {
+        title: row.title,
+        credits: row.credits,
+        lab: isLabLike(row.title, row.credits),
+        coreqs,
+      });
+      todo.push(...coreqs);
+    }
+    return out;
+  } finally {
+    db.close();
+  }
+}

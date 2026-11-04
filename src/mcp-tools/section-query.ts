@@ -47,6 +47,9 @@ export interface SectionFilters {
   excludeCrns?: string[]; // never return these (find-alternatives: the section being swapped out)
   max?: number;
   offset?: number;
+  /** Every match, never paged or narrowed — for callers that judge whole
+   *  courses (find-alternatives' verdicts), where a cut list is a wrong one. */
+  unpaged?: boolean;
 }
 
 export interface EngineMeeting {
@@ -493,6 +496,8 @@ export function querySectionsEngine(
       });
     }
 
+    if (filters.unpaged)
+      return { totalCount: matched.length, sections: matched, snapshotDate };
     return {
       ...pageOrNarrow(matched, filters),
       snapshotDate,

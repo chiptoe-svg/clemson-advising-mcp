@@ -84,7 +84,11 @@ function json(res: CallToolResult) {
   assert.equal(res.isError, undefined, JSON.stringify(res.content));
   return JSON.parse((res.content[0] as { text: string }).text);
 }
-const crns = (body: any) => body.sections.map((s: any) => s.crn).sort();
+// Course verdicts now: the CRNs of every fitting option, all courses.
+const crns = (body: any) =>
+  body.courses
+    .flatMap((c: any) => (c.options ?? []).flatMap((o: any) => o.crns))
+    .sort();
 
 test("replacing_crn: same subject and credits by default, never the dropped section, fits the keepers", async () => {
   const body = json(

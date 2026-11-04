@@ -13,6 +13,16 @@ import path from "node:path";
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "advising-mcp-alt-courses-"));
 process.env.STATE_DIR = TMP;
+// No corequisites here: these tests pin the per-section verdict logic. The
+// lecture + lab pairing has its own tests (find-alternatives-coreqs).
+process.env.CATALOG_DB = path.join(TMP, "catalog.db");
+{
+  const { default: Database } = await import("better-sqlite3");
+  const { catalogFixtureDdl } = await import("./_catalog-fixture-ddl.ts");
+  const cat = new Database(process.env.CATALOG_DB);
+  cat.exec(catalogFixtureDdl("course"));
+  cat.close();
+}
 
 const { writeScheduleDb } = await import("../src/clemson-schedule-db.ts");
 const { findAlternatives } = await import("../src/mcp-tools/core-search.ts");
@@ -123,11 +133,16 @@ test("each listed course gets a verdict from all its sections", async () => {
   assert.equal(c["GC 4060"].fits, true); // no meeting times: never clashes
   assert.equal(c["GC 9999"].offered, false);
   assert.equal(c["GC 9999"].fits, false);
-  assert.deepEqual(body.summary, {
-    fit: ["GC 3460", "GC 4060"],
-    do_not_fit: ["GC 4400"],
-    not_offered: ["GC 9999"],
-  });
+  const { fit, do_not_fit, not_offered } = body.summary;
+  assert.deepEqual(
+    { fit, do_not_fit, not_offered },
+    {
+      fit: ["GC 3460", "GC 4060"],
+      do_not_fit: ["GC 4400"],
+      not_offered: ["GC 9999"],
+    },
+  );
+  assert.equal(body.summary.can_add_count, 2);
   assert.equal(body.truncated, undefined);
 });
 
