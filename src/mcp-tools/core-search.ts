@@ -731,8 +731,11 @@ export const findAlternatives: McpToolDefinition = {
 
     if (!subject)
       return err(
-        "Pass subject (e.g. 'PKSC'), courses, or replacing_crn: a whole " +
-          "term is too wide to judge course by course.",
+        "Pass one of: subject (e.g. 'PKSC') for \"what fits around her " +
+          "schedule\" in a department; courses (e.g. ['GC 3460', 'GC 4400']) " +
+          'for "which of these could she add"; or replacing_crn (the CRN ' +
+          "being dropped) to swap one section. A whole term is too wide to " +
+          "judge course by course.",
       );
     if (!/^[A-Za-z]{2,5}$/.test(subject))
       return err("subject must be a subject code like 'PKSC'.");

@@ -318,7 +318,11 @@ test("without subject, courses or replacing_crn, the term is too wide to judge",
     current_crns: KEPT,
   });
   assert.equal(res.isError, true);
-  assert.match((res.content[0] as { text: string }).text, /subject/);
+  const text = (res.content[0] as { text: string }).text;
+  // The error is the redirect a model acts on: it names all three and when.
+  assert.match(text, /subject.*fits around/);
+  assert.match(text, /courses.*which of these/);
+  assert.match(text, /replacing_crn.*swap/);
 });
 
 test("a lab the catalog lacks is still paired with its lecture, and the entry says it was inferred", async () => {
