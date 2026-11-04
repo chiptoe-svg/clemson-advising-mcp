@@ -817,6 +817,12 @@ function courseVerdicts(
       "The catalog could not be read, so required labs were NOT checked: " +
         "a lecture may be listed as fitting without its lab.",
     );
+  for (const o of run.orphans)
+    notes.push(
+      `Kept ${o.kept} goes with ${o.with}, the course being dropped: if she ` +
+        `takes a different course instead, drop ${o.kept} too — its time ` +
+        "is still treated as taken here.",
+    );
   if (run.unpairedLabs.length)
     notes.push(
       `Labs not listed because their lecture could not be determined: ` +

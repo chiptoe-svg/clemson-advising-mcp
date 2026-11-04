@@ -138,6 +138,11 @@ const sections = [
   ),
   sec("40001", "AL3530", "Field Methods", 3, "MW", "1100", "1215"),
   sec("40002", "AL3531", "Field Methods Laboratory", 0, null),
+  // A full lab section with arranged hours: open_seats_only must drop it.
+  {
+    ...sec("40003", "AL3531", "Field Methods Laboratory", 0, null),
+    seatsAvailable: 0,
+  },
   sec("50001", "BI1030", "General Biology", 3, "TR", "0800", "0915"),
   sec("50002", "BI1050", "General Biology Laboratory", 1, "W", "1400", "1650"),
   sec("60001", "XX3000", "Soils", 3, "MW", "1300", "1350"),
@@ -280,4 +285,47 @@ test("placeholder sections are not counted as filter rejections", async () => {
   const u = unit(await alt({ courses: ["ZZ 2000"] }), "ZZ 2000");
   assert.equal(u.outside_filters, undefined);
   assert.equal(u.placeholders_skipped, 1);
+});
+
+test("the time-filter exemption follows the lab, not its position: kept lecture, lab asked", async () => {
+  const body = await alt({
+    current_crns: [K1, "40001"],
+    courses: ["AL 3531"],
+    no_meeting_before: "1000",
+  });
+  assert.deepEqual(body.summary.can_add, ["AL 3531"]);
+});
+
+test("a lab with arranged hours still has to pass open_seats_only", async () => {
+  const body = await alt({
+    courses: ["AL 3530"],
+    open_seats_only: true,
+    no_meeting_before: "1000",
+  });
+  const crns = unit(body, "AL 3530").options.flatMap((o: any) => o.crns);
+  assert.ok(!crns.includes("40003"), JSON.stringify(crns));
+  assert.ok(crns.includes("40002"));
+});
+
+test("graduate labs stay out of unpaired_labs unless graduate courses are asked for", async () => {
+  const yy = await alt({ subject: "YY" });
+  assert.deepEqual(yy.summary.excluded.unpaired_labs, ["YY 4941"]);
+});
+
+test("swapping a lecture whose lab she keeps says the lab goes with it", async () => {
+  const body = await alt({
+    current_crns: [K1, "30002", "30011"],
+    replacing_crn: "30002",
+    subject: "CH",
+  });
+  assert.match(body.note, /CH 1011.*CH 1010/);
+});
+
+test("a course kept whole with no other section is not called placeholder-only", async () => {
+  const body = await alt({
+    current_crns: [K1, "20001", "20002"],
+    courses: ["BI 1230"],
+  });
+  assert.deepEqual(body.summary.already_kept, ["BI 1230"]);
+  assert.doesNotMatch(unit(body, "BI 1230").reason ?? "", /placeholder/);
 });

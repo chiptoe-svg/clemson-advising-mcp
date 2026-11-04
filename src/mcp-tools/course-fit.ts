@@ -59,7 +59,7 @@ export type Failure =
   | "not_offered"
   | "placeholders_only"
   | "unpaired_lab" // a 0-credit lab whose lecture cannot be determined
-  | "only_replaced"; // its only section is the one being dropped
+  | "no_other_section"; // its only sections are kept or being dropped
 
 interface Member {
   code: string;
@@ -172,6 +172,8 @@ export interface VerdictRun {
   graduate: string[];
   placeholdersOnly: string[];
   unpairedLabs: string[];
+  /** A kept course tied to the course being dropped (its lab, say). */
+  orphans: { kept: string; with: string }[];
   coreqsUnchecked: boolean;
 }
 
@@ -381,7 +383,11 @@ export function courseUnitVerdicts(opts: {
   for (const code of codes) {
     if (unpairedLab.has(code) && leadsFor(code)[0] === code) {
       if (subjectMode) {
-        if (!keptBy.has(code)) unpairedLabs.push(code);
+        if (
+          !keptBy.has(code) &&
+          (opts.includeGraduate || courseNumber(code) < GRADUATE_FROM)
+        )
+          unpairedLabs.push(code);
         continue;
       }
       units.push({
@@ -444,17 +450,21 @@ export function courseUnitVerdicts(opts: {
         ? memberCodes
         : memberCodes.filter((c) => !keptBy.has(c));
     const replaced = memberCodes.map((c) => replacedBy.get(c)).find(Boolean);
-    const members: Member[] = adding.map((mc, i) => {
+    const members: Member[] = adding.map((mc) => {
       const got = sectionsOf(mc);
       const real = got.all.filter((s) => s.maxEnrollment > 0);
       let passing = got.passing.filter((s) => s.maxEnrollment > 0);
       // A time window rules out a section with no times for the course she
-      // chose, but a lab with arranged hours fits any window.
-      if (i > 0 && timeFilter)
+      // chose, but a lab with arranged hours fits any window — still subject
+      // to the seat filter.
+      if (mc !== lead && timeFilter)
         passing = [
           ...passing,
           ...real.filter(
-            (s) => s.meetings.length === 0 && !passing.includes(s),
+            (s) =>
+              s.meetings.length === 0 &&
+              !passing.includes(s) &&
+              (!memberFilters.openSeatsOnly || s.seatsAvailable > 0),
           ),
         ];
       const fitting: EngineSection[] = [];
@@ -532,9 +542,14 @@ export function courseUnitVerdicts(opts: {
             : `${failing.role} ${failing.code}`;
         blocked = failing.blocked;
         const by = [...new Set(failing.blocked.flatMap((b) => b.blocked_by))];
-        if (failing.all.length === 0 && replacedBy.has(failing.code)) {
-          failure = "only_replaced";
-          reason = `${what} has no section other than the one being dropped`;
+        if (
+          failing.all.length === 0 &&
+          (replacedBy.has(failing.code) || keptBy.has(failing.code))
+        ) {
+          failure = "no_other_section";
+          reason = replacedBy.has(failing.code)
+            ? `${what} has no section other than the one being dropped`
+            : `${what} has no section other than the one she keeps`;
         } else if (failing.all.length === 0 && !keptBy.has(failing.code)) {
           failure = "not_offered";
           reason = `${what} is not offered this term`;
@@ -632,6 +647,12 @@ export function courseUnitVerdicts(opts: {
     graduate,
     placeholdersOnly,
     unpairedLabs,
+    orphans: [...replacedBy.keys()].flatMap((dropped) =>
+      leadsFor(dropped)
+        .flatMap(unitOf)
+        .filter((c) => c !== dropped && keptBy.has(c))
+        .map((kept) => ({ kept, with: dropped })),
+    ),
     coreqsUnchecked: catalog === null,
   };
 }
