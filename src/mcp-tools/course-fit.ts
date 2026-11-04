@@ -647,12 +647,15 @@ export function courseUnitVerdicts(opts: {
     graduate,
     placeholdersOnly,
     unpairedLabs,
-    orphans: [...replacedBy.keys()].flatMap((dropped) =>
-      leadsFor(dropped)
-        .flatMap(unitOf)
-        .filter((c) => c !== dropped && keptBy.has(c))
-        .map((kept) => ({ kept, with: dropped })),
-    ),
+    // Only for dropping a course: swapping a lab section keeps the course.
+    orphans: [...replacedBy.keys()]
+      .filter((dropped) => !isLab(dropped))
+      .flatMap((dropped) =>
+        leadsFor(dropped)
+          .flatMap(unitOf)
+          .filter((c) => c !== dropped && keptBy.has(c))
+          .map((kept) => ({ kept, with: dropped })),
+      ),
     coreqsUnchecked: catalog === null,
   };
 }

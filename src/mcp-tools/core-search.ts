@@ -820,7 +820,7 @@ function courseVerdicts(
   for (const o of run.orphans)
     notes.push(
       `Kept ${o.kept} goes with ${o.with}, the course being dropped: if she ` +
-        `takes a different course instead, drop ${o.kept} too — its time ` +
+        `drops ${o.with} entirely, ${o.kept} may have to go too — its time ` +
         "is still treated as taken here.",
     );
   if (run.unpairedLabs.length)

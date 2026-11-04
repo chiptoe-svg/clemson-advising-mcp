@@ -329,3 +329,11 @@ test("a course kept whole with no other section is not called placeholder-only",
   assert.deepEqual(body.summary.already_kept, ["BI 1230"]);
   assert.doesNotMatch(unit(body, "BI 1230").reason ?? "", /placeholder/);
 });
+
+test("swapping a lab section does not warn about its kept lecture", async () => {
+  const body = await alt({
+    current_crns: [K1, "30002", "30011"],
+    replacing_crn: "30011",
+  });
+  assert.doesNotMatch(body.note ?? "", /goes with/);
+});
