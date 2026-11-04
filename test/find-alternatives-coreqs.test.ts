@@ -332,6 +332,9 @@ test("a lab the catalog lacks is still paired with its lecture, and the entry sa
   assert.deepEqual(u.with, ["PKSC 7301"]);
   assert.equal(u.fits, false); // the lab's Monday 8:00 clashes with kept 12402
   assert.match(u.reason!, /PKSC 7301.*12402/);
-  assert.match((u as { pairing_note?: string }).pairing_note ?? "", /inferred/);
+  assert.match(
+    (u as { pairing_note?: string }).pairing_note ?? "",
+    /read from the schedule/,
+  );
   assert.equal(unit(await pksc(), "PKSC 7301"), undefined);
 });

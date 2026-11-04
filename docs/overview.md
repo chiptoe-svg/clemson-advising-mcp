@@ -187,7 +187,12 @@ course and its catalog corequisites (lecture + required lab) are one entry
 that fits only when a section of each clears the kept CRNs and each other;
 `options` lists the fitting CRN combinations with credit hours, and a course
 that does not fit carries the `reason` (the kept CRNs blocking it, or its lab
-that has no fitting section). A lab is never listed alone. Zero-capacity
+that has no fitting section). A lab is never listed alone: a lab shared by
+alternative lectures goes with either one, a lab the catalog lacks is paired
+only when its title is the course's plus "Lab", and any other is set aside in
+`summary.excluded.unpaired_labs`. A course part of which she already keeps
+(the lecture, say) offers the rest (`adds`: the lab). Credit hours are the
+choice's total, lab included, and the `credits` filter reads that total. Zero-capacity
 placeholder sections are skipped; a course with no set meeting times fits as
 `arranged`. A subject search lists undergraduate courses only unless
 `include_graduate` is true (the graduate ones are counted in

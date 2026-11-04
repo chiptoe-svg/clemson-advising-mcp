@@ -28,6 +28,7 @@ import {
 import { normalizeCourseCode } from "../catalog-read.js";
 import { findCoreqs as findCoreqsLive } from "./gc-coreqs.js";
 import {
+  addedName,
   canAddText,
   courseUnitVerdicts,
   type UnitVerdict,
@@ -763,40 +764,43 @@ function courseVerdicts(
 ): { body: Record<string, unknown> } | { error: string } {
   const run = courseUnitVerdicts({ term, keepers, filters, ...scope });
   if ("error" in run) return run;
-  const lead = (u: UnitVerdict) => u.course;
-  const adds = run.units.filter((u) => u.fits && !u.already_kept);
-  const canAdd = adds.map(lead);
-  const arranged = adds.filter((u) => u.how === "arranged").map(lead);
-  const kept = run.units.filter((u) => u.already_kept).map(lead);
-  // "Doesn't fit her schedule" only when a section passed the filters;
-  // none passing the filters is its own answer.
-  const fresh = run.units.filter((u) => !u.already_kept && !u.fits);
-  const outside = fresh.filter(
-    (u) =>
-      u.offered &&
-      u.outside_filters &&
-      u.reason?.includes("passes the filters"),
+  // Every unit lands in exactly one list. A unit she keeps whole is not an
+  // add; one she keeps part of adds the rest.
+  const wholeKept = (u: UnitVerdict) => u.already_kept && !u.adds;
+  const adds = run.units.filter((u) => u.fits && !wholeKept(u));
+  const canAdd = adds.map(addedName);
+  const arranged = adds.filter((u) => u.how === "arranged").map(addedName);
+  const open = run.units.filter((u) => !u.fits && !wholeKept(u));
+  const names = (f: (u: UnitVerdict) => boolean) =>
+    open.filter(f).map((u) => u.course);
+  const notOffered = names((u) => u.failure === "not_offered");
+  const outside = names((u) => u.failure === "filters");
+  const doNotFit = names(
+    (u) => u.failure !== "not_offered" && u.failure !== "filters",
   );
-  const notOffered = fresh.filter((u) => !u.offered);
-  const doNotFit = fresh.filter((u) => u.offered && !outside.includes(u));
+  const kept = run.units.filter(wholeKept).map((u) => u.course);
   const summary = {
-    text: canAddText(canAdd, arranged),
+    text: canAddText(adds),
     can_add_count: canAdd.length,
     can_add: canAdd,
     ...(arranged.length ? { arranged } : {}),
     // The pre-coreq names of the same lists, kept for existing readers.
     fit: canAdd,
-    do_not_fit: doNotFit.map(lead),
-    ...("codes" in scope ? { not_offered: notOffered.map(lead) } : {}),
+    do_not_fit: doNotFit,
+    not_offered: notOffered,
     ...(kept.length ? { already_kept: kept } : {}),
-    ...(outside.length ? { outside_filters: outside.map(lead) } : {}),
-    ...("subject" in scope &&
-    (run.graduate.length || run.placeholdersOnly.length)
+    ...(outside.length ? { outside_filters: outside } : {}),
+    ...(run.graduate.length ||
+    run.placeholdersOnly.length ||
+    run.unpairedLabs.length
       ? {
           excluded: {
             ...(run.graduate.length ? { graduate: run.graduate } : {}),
             ...(run.placeholdersOnly.length
               ? { placeholders_only: run.placeholdersOnly }
+              : {}),
+            ...(run.unpairedLabs.length
+              ? { unpaired_labs: run.unpairedLabs }
               : {}),
           },
         }
@@ -812,6 +816,11 @@ function courseVerdicts(
     notes.push(
       "The catalog could not be read, so required labs were NOT checked: " +
         "a lecture may be listed as fitting without its lab.",
+    );
+  if (run.unpairedLabs.length)
+    notes.push(
+      `Labs not listed because their lecture could not be determined: ` +
+        `${run.unpairedLabs.join(", ")}.`,
     );
   if ("subject" in scope && run.graduate.length)
     notes.push(
