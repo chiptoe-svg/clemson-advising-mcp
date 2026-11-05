@@ -159,7 +159,7 @@ function strArrOrUndef(v: unknown): string[] | undefined {
 // ClemsonSection, not EngineSection — map them so the response carries the
 // same field set regardless of whether it served from the snapshot engine or
 // a live Banner query. Task 7's display handoff depends on this shape: crn,
-// subjectCourse, title, creditHours, enrollment, maxEnrollment,
+// subjectCourse, section, title, creditHours, enrollment, maxEnrollment,
 // seatsAvailable, instructors, meetings.
 function toEngineMeetings(
   meetings: ClemsonSection["meetings"],
@@ -185,6 +185,7 @@ function toEngineSections(sections: ClemsonSection[]): EngineSection[] {
   return sections.map((s) => ({
     crn: s.crn,
     subjectCourse: s.subjectCourse,
+    section: s.section,
     // Live Banner results carry it too, so a refresh:true page reports the
     // same session codes as a snapshot page.
     partOfTerm: s.partOfTerm ?? null,

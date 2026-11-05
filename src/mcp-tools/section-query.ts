@@ -63,6 +63,8 @@ export interface EngineMeeting {
 export interface EngineSection {
   crn: string;
   subjectCourse: string;
+  /** Banner's section number ("001", "002"): tells two sections of one course apart. */
+  section: string;
   /**
    * Banner's part-of-term code, passed through VERBATIM and never bucketed:
    * "1" (full term), "H1"/"H2" (Summer 1 / Summer 2), "MMA".."MMD" (the short
@@ -115,6 +117,7 @@ const TOP_PAGE_WHEN_NARROWING = 12;
 interface SectionRow {
   crn: string;
   subject_course: string;
+  section: string;
   part_of_term: string | null;
   title: string;
   credit_hours: number | null;
@@ -347,7 +350,7 @@ export function querySectionsEngine(
     const hasPot = snapshotHasColumn(db, "part_of_term");
     const rows = db
       .prepare(
-        `SELECT crn, subject_course, title, credit_hours, enrollment, max_enrollment, seats_available` +
+        `SELECT crn, subject_course, section, title, credit_hours, enrollment, max_enrollment, seats_available` +
           (hasPot ? ", part_of_term" : "") +
           ` FROM sections WHERE ${where} ORDER BY subject_course, section`,
       )
@@ -479,6 +482,7 @@ export function querySectionsEngine(
       matched.push({
         crn: row.crn,
         subjectCourse: row.subject_course,
+        section: row.section,
         partOfTerm: row.part_of_term ?? null,
         title: row.title,
         creditHours: row.credit_hours,

@@ -269,6 +269,41 @@ test("search-classes: EngineSection fields are present on each result", async ()
   assert.ok(Array.isArray(s.meetings) && s.meetings.length === 3);
 });
 
+test("search-classes: each snapshot row carries its Banner section number", async () => {
+  const res = await searchClasses.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    course_number: "1010",
+  });
+  const body = json(res);
+  assert.equal(
+    body.sections.find((x: any) => x.crn === "30001").section,
+    "001",
+  );
+});
+
+test("search-classes: refresh:true rows carry the live section number", async () => {
+  const liveSections = [
+    section({ crn: "40051", subjectCourse: "GC1010", section: "002" }),
+  ];
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: liveSections.length,
+    sections: liveSections,
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
+  const res = await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+  });
+  assert.equal(
+    json(res).sections.find((x: any) => x.crn === "40051").section,
+    "002",
+  );
+});
+
 test("search-classes: refresh:true maps live enrollment/maxEnrollment through toEngineSections, not just seatsAvailable", async () => {
   const liveSections = [
     section({
