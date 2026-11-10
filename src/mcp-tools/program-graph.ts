@@ -33,7 +33,7 @@ import {
   requiredCodes,
   type Expr,
 } from "../prereq-expr.js";
-import { slackTerms, type SeasonLabels } from "../plan-whatif.js";
+import { slackTerms, whatIf, type SeasonLabels } from "../plan-whatif.js";
 import { assertMcpOperation } from "./permissions.js";
 import {
   CATALOG_YEAR_ARG_DESCRIPTION,
@@ -275,7 +275,8 @@ export const programGraph: McpToolDefinition = {
       "was given. coreqs must be taken in the same term. required_by counts " +
       "courses that need this one; one_way_into counts courses where it is " +
       "only one option. slack = how many terms a planned course can slip " +
-      "before graduation does. Use this FIRST for multi-semester planning or " +
+      "before graduation does; pass current_term for a student behind the " +
+      "plan, or slack is measured as if they were on it. Use this FIRST for multi-semester planning or " +
       "'what should I take next' — instead of calling get-course-details " +
       "course by course. For 'what if he delays X / takes a term off / takes " +
       "X earlier', call what-if-plan: it computes the answer. critical_path is ONE " +
@@ -308,6 +309,17 @@ export const programGraph: McpToolDefinition = {
           type: "string",
           enum: [...STANDINGS],
           description: "The student's class standing, if known.",
+        },
+        current_term: {
+          type: "string",
+          description:
+            "The student's CURRENT plan term, as the plan labels it ('Junior/Second " +
+            "Semester'), not a calendar term. Courses planned before it and not in " +
+            "completed_courses are overdue: they move to the first term they can " +
+            "use from now on, and the answer is measured from there." +
+            " Adds graduation_slip_terms (terms already behind; 0 = on plan), " +
+            "plan_graduation_term, graduation_term and behind (where each " +
+            "overdue course lands); slack is then measured from now.",
         },
         include_edges: {
           type: "boolean",
@@ -351,6 +363,28 @@ export const programGraph: McpToolDefinition = {
     const seasonMap =
       "error" in s ? undefined : (s.labels as Map<string, SeasonLabels>);
     const done = new Set(sa.student?.completed.keys() ?? []);
+    const now =
+      typeof args.current_term === "string" ? args.current_term : undefined;
+    let position: Record<string, unknown> = {};
+    if (now !== undefined) {
+      try {
+        const r = whatIf(
+          graph,
+          loaded.planTerms,
+          { changes: [], completed: done, now },
+          seasonMap,
+        );
+        position = {
+          current_term: now,
+          plan_graduation_term: r.plan_graduation_term,
+          graduation_term: r.graduation_term,
+          graduation_slip_terms: r.graduation_slip_terms,
+          behind: r.behind,
+        };
+      } catch (e) {
+        return err(e instanceof Error ? e.message : String(e));
+      }
+    }
     for (const c of graph.courses) {
       if (!c.planned || c.choice || done.has(c.code)) continue;
       const slack = slackTerms(
@@ -359,6 +393,7 @@ export const programGraph: McpToolDefinition = {
         c.code,
         done,
         seasonMap,
+        now !== undefined ? { now } : {},
       );
       if (slack !== undefined)
         (c as unknown as Record<string, unknown>).slack = slack;
@@ -366,6 +401,7 @@ export const programGraph: McpToolDefinition = {
 
     return okJson({
       ...graph,
+      ...position,
       ...(args.include_edges === true ? { edges: typedEdges(graph) } : {}),
       courses: graph.courses.map(compactCourse),
       encoding_note: COMPACT_NOTE,

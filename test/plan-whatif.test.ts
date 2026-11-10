@@ -534,3 +534,153 @@ test("review 7: the quoted verdict says why a course jumped further, and names a
   });
   assert.match(risky.verdict, /uncertain/);
 });
+
+// current_term (Cob_advisor 2026-11-10): a student behind the plan. Courses
+// planned before now and not completed move to the first term they can use
+// at or after now; slack and graduation are then measured from there.
+const runNow = (
+  now: string,
+  done: string[],
+  changes: PlanChange[] = [],
+  seasons?: Map<string, SeasonLabels>,
+) =>
+  whatIf(
+    BASE(),
+    TERMS,
+    {
+      changes: changes.map((c) =>
+        "course" in c ? { ...c, course: code(c.course) } : c,
+      ),
+      completed: new Set(done.map(code)),
+      now,
+    },
+    seasons && new Map([...seasons].map(([k, v]) => [code(k), v] as const)),
+  );
+
+test("current term: overdue courses move to now, and graduation that holds reports no slip", () => {
+  const r = runNow("Junior/Second Semester", ["A", "B"]);
+  assert.deepEqual(
+    Object.fromEntries(r.behind!.map((m) => [back(m.code), m.to])),
+    { D: "Junior/Second Semester", DL: "Junior/Second Semester" },
+  );
+  assert.equal(r.graduation_slip_terms, 0);
+  assert.equal(r.plan_graduation_term, "Senior/Second Semester");
+  assert.equal(r.graduation_term, "Senior/Second Semester");
+  assert.equal(r.slips_graduation, false);
+  assert.deepEqual(r.moves, []);
+});
+
+test("current term: a student already behind gets the slip, counted in fall/spring terms", () => {
+  // B (So fall) overdue -> Sr spring, so C (needs B) -> Fifth Year fall.
+  const r = runNow("Senior/Second Semester", ["A"]);
+  assert.equal(r.graduation_term, "Fifth Year/First Semester");
+  assert.equal(r.plan_graduation_term, "Senior/Second Semester");
+  assert.equal(r.graduation_slip_terms, 1);
+  assert.match(r.verdict, /already 1 term behind/i);
+});
+
+test("current term: a further delay is measured from the rebased plan, not the published one", () => {
+  // D is overdue (Jr fall) and lands in Jr spring; one more term puts it in
+  // Sr fall and E (needs D) in Sr spring: still on time. Two more is late.
+  const one = runNow(
+    "Junior/Second Semester",
+    ["A", "B"],
+    [{ course: "D", delayTerms: 1 }],
+  );
+  assert.equal(one.slips_graduation, false);
+  const two = runNow(
+    "Junior/Second Semester",
+    ["A", "B"],
+    [{ course: "D", delayTerms: 2 }],
+  );
+  assert.equal(two.slips_graduation, true);
+  assert.equal(two.new_graduation_term, "Fifth Year/First Semester");
+});
+
+test("current term: slack shrinks for a student behind the plan", () => {
+  const g = BASE();
+  const done = new Set([code("A"), code("B")]);
+  assert.equal(slackTerms(g, TERMS, code("D"), done), 2);
+  assert.equal(
+    slackTerms(g, TERMS, code("D"), done, undefined, {
+      now: "Junior/Second Semester",
+    }),
+    1,
+  );
+});
+
+test("current term: an overdue summer course waits for the next summer it is offered", () => {
+  const g = graph([
+    course("A", "Freshman/First Semester"),
+    course("X", "Sophomore/Summer"),
+    course("Y", "Senior/First Semester", "X"),
+    course("Z", "Senior/Second Semester"),
+  ]);
+  const r = whatIf(
+    g,
+    [...TERMS, "Sophomore/Summer"],
+    {
+      changes: [],
+      completed: new Set([code("A")]),
+      now: "Junior/Second Semester",
+    },
+    new Map([
+      [
+        code("X"),
+        {
+          summer: "very likely",
+          fall: "very unlikely",
+          spring: "very unlikely",
+        },
+      ],
+    ]),
+  );
+  assert.deepEqual(
+    r.behind!.map((m) => [back(m.code), m.to]),
+    [["X", "Junior/Summer"]],
+  );
+  assert.equal(r.graduation_slip_terms, 0);
+});
+
+test("current term: nothing to say without it — the result has no behind fields", () => {
+  const r = run(BASE(), [{ course: "D", delayTerms: 1 }]);
+  assert.equal(r.behind, undefined);
+  assert.equal(r.graduation_slip_terms, undefined);
+  assert.equal(r.plan_graduation_term, undefined);
+});
+
+test("current term: an unknown label is an error, and a move before now is refused", () => {
+  assert.throws(() => runNow("Spring 2027", []), /current_term/);
+  assert.throws(
+    () =>
+      runNow(
+        "Junior/Second Semester",
+        ["A", "B"],
+        [{ course: "E", moveTo: "Junior/First Semester" }],
+      ),
+    /before the current term/,
+  );
+});
+
+test("current term: the other options of a choice already made are not overdue", () => {
+  const g = BASE();
+  g.courses.push(
+    course("P", "Freshman/Second Semester", null, { choice: true }),
+    course("Q", "Freshman/Second Semester", null, { choice: true }),
+  );
+  g.choices = [
+    {
+      term: "Freshman/Second Semester",
+      options: [code("P"), code("Q")].map((c) => ({
+        code: c,
+        min_prior_terms: 0,
+      })),
+    },
+  ];
+  const r = whatIf(g, TERMS, {
+    changes: [],
+    completed: new Set([code("A"), code("B"), code("P")]),
+    now: "Junior/Second Semester",
+  });
+  assert.ok(!r.behind!.some((m) => m.code === code("Q")));
+});

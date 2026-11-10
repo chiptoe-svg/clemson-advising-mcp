@@ -71,7 +71,8 @@ export const whatIfPlanTool: McpToolDefinition = {
       "prerequisites allow, and returns slips_graduation, the courses that " +
       "move (from, to, because), prereq_problems, and a verdict sentence to " +
       "quote with its caveat. Pass completed_courses so finished courses " +
-      "stay put. Relative to the published plan's term order; no course-load " +
+      "stay put, and current_term for a student behind the plan. Relative to " +
+      "the published plan's term order; no course-load " +
       "check; offerings are history, not a guarantee; Degree Works decides " +
       "what counts. Read-only, no login.",
     inputSchema: {
@@ -105,6 +106,16 @@ export const whatIfPlanTool: McpToolDefinition = {
           items: { type: "string" },
           description:
             'Courses already completed, e.g. ["GC 1010", "GC 1040"].',
+        },
+        current_term: {
+          type: "string",
+          description:
+            "The student's CURRENT plan term, as the plan labels it ('Junior/Second " +
+            "Semester'), not a calendar term. Courses planned before it and not in " +
+            "completed_courses are overdue: they move to the first term they can " +
+            "use from now on, and the answer is measured from there." +
+            " changes may then be empty: the answer is how far behind the " +
+            "student already is (graduation_slip_terms, behind).",
         },
       },
       required: ["program", "catalog_year", "changes"],
@@ -147,7 +158,13 @@ export const whatIfPlanTool: McpToolDefinition = {
       const result = whatIf(
         loaded.graph,
         loaded.planTerms,
-        { changes, completed: new Set(sa.student?.completed.keys() ?? []) },
+        {
+          changes,
+          completed: new Set(sa.student?.completed.keys() ?? []),
+          ...(typeof args.current_term === "string"
+            ? { now: args.current_term }
+            : {}),
+        },
         seasons,
       );
       return okJson({

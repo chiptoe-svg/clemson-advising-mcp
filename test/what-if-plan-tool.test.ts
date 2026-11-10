@@ -86,3 +86,26 @@ test("a completed course cannot be moved", async () => {
   assert.equal(res.isError, true);
   assert.match(res.content[0].text, /already completed/);
 });
+
+test("current_term: a delay is measured from the student's rebased plan", async () => {
+  const { res, body } = await call({
+    ...GC,
+    changes: [{ course: "GC 4400", delay_terms: 1 }],
+    current_term: "Senior/First Semester",
+  });
+  assert.equal(res.isError, undefined, res.content[0].text);
+  assert.equal(body.plan_graduation_term, "Senior/Second Semester");
+  assert.equal(typeof body.graduation_slip_terms, "number");
+  assert.ok(Array.isArray(body.behind));
+});
+
+test("current_term alone, with no changes, reports how far behind the student is", async () => {
+  const { res, body } = await call({
+    ...GC,
+    changes: [],
+    current_term: "Senior/Second Semester",
+  });
+  assert.equal(res.isError, undefined, res.content[0].text);
+  assert.ok(body.graduation_slip_terms >= 1);
+  assert.match(body.verdict, /behind the published plan/);
+});

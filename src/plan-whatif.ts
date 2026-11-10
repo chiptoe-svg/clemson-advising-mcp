@@ -52,6 +52,10 @@ export type PlanChange =
 export interface WhatIfQuery {
   changes: PlanChange[];
   completed: ReadonlySet<string>;
+  /** The student's current plan term ("Junior/Second Semester"): courses
+   *  planned before it and not completed move to the first term they can use
+   *  at or after it, and every answer is measured from that rebased plan. */
+  now?: string;
 }
 
 export interface PlanMove {
@@ -70,6 +74,13 @@ export interface WhatIfResult {
   moves: PlanMove[];
   prereq_problems: { course: string; term: string; problem: string }[];
   on_critical_path: string[];
+  /** Only with `now`: where each overdue course lands. */
+  behind?: PlanMove[];
+  /** Only with `now`: the published plan's graduation term. */
+  plan_graduation_term?: string;
+  /** Only with `now`: fall/spring terms graduation has already slipped
+   *  before any change (a summer finish counts as one); 0 = on plan. */
+  graduation_slip_terms?: number;
   verdict: string;
   assumptions: string[];
   unresolved: string[];
@@ -92,7 +103,7 @@ export function whatIf(
   const assumptions: string[] = [];
   const unresolved: string[] = [];
 
-  if (q.changes.length === 0)
+  if (q.changes.length === 0 && q.now === undefined)
     throw new Error(
       "changes is empty — give at least one course move or skipped term",
     );
@@ -111,12 +122,27 @@ export function whatIf(
       `this plan runs only through ${labelOf(finalSlot)} and does not reach a senior year, so there is no graduation term to measure a slip against (it is likely a pre-major plan)`,
     );
   const limit = finalSlot + HORIZON;
+  const nowSlot = q.now === undefined ? 0 : slotOf(q.now);
+  if (nowSlot === null)
+    throw new Error(
+      `current_term "${q.now}" is not a recognised plan term label (e.g. "Junior/Second Semester")`,
+    );
 
   const byCode = new Map(graph.courses.map((c) => [c.code, c]));
   const slot = new Map<string, number>();
   const original = new Map<string, number>();
+  // With a current term, a choice the student already made is settled: its
+  // other options are not overdue.
+  const settled = new Set<string>();
+  if (q.now !== undefined)
+    for (const ch of graph.choices) {
+      const opts = ch.options.map((o) => o.code);
+      if (opts.some((o) => q.completed.has(o)))
+        for (const o of opts) settled.add(o);
+    }
   for (const c of graph.courses) {
-    if (c.planned === null || q.completed.has(c.code)) continue;
+    if (c.planned === null || q.completed.has(c.code) || settled.has(c.code))
+      continue;
     const s = slotOf(c.planned);
     if (s === null)
       throw new Error(
@@ -125,7 +151,10 @@ export function whatIf(
     slot.set(c.code, s);
     original.set(c.code, s);
   }
-  const summerPlanned = (code: string) => (original.get(code) ?? 0) % 3 === 2;
+  // The published term, kept apart from `original` (which `now` rebases):
+  // whether a course may go in a summer follows the plan, not the rebase.
+  const published = new Map(original);
+  const summerPlanned = (code: string) => (published.get(code) ?? 0) % 3 === 2;
 
   const skipped = new Set<number>();
   for (const ch of q.changes)
@@ -144,7 +173,7 @@ export function whatIf(
       "No offering history was available: every course was assumed to run every fall and spring.",
     );
   const placeable = (code: string, s: number) =>
-    !skipped.has(s) && (s % 3 !== 2 || summerPlanned(code));
+    s >= nowSlot && !skipped.has(s) && (s % 3 !== 2 || summerPlanned(code));
   const usableSeasons = (code: string): Season[] =>
     summerPlanned(code) ? SEASONS : ["fall", "spring"];
   const offerState = (code: string, s: number): "yes" | "risky" | "no" => {
@@ -263,6 +292,10 @@ export function whatIf(
   const exactly = (code: string, group: string[], s: number) => {
     for (const c of group) {
       const who = c === code ? c : `${c} (taken with ${code})`;
+      if (s < nowSlot)
+        throw new Error(
+          `${code} cannot move to ${labelOf(s)}: that is before the current term (${labelOf(nowSlot)})`,
+        );
       if (!placeable(c, s))
         throw new Error(
           `${code} cannot move to ${labelOf(s)}: ${skipped.has(s) ? "that term is skipped" : `${who === code ? "it" : who} is not planned in a summer`}`,
@@ -277,6 +310,95 @@ export function whatIf(
       ? risky.map((c) => riskText(c, s)).join("; ")
       : undefined;
   };
+
+  // Push everything whose prerequisites can no longer be met.
+  const need = (e: Expr): { at: number; by?: string } => {
+    switch (e.t) {
+      case "course": {
+        const s = slot.get(e.code);
+        if (s === undefined) return { at: -Infinity };
+        return { at: e.concurrent ? s : s + 1, by: e.code };
+      }
+      case "and":
+        return e.of
+          .map(need)
+          .reduce((a, b) => (b.at > a.at ? b : a), { at: -Infinity });
+      case "or":
+        return e.of
+          .map(need)
+          .reduce((a, b) => (b.at < a.at ? b : a), { at: Infinity });
+      default:
+        return { at: -Infinity };
+    }
+  };
+  const parsed = parsedRules(graph);
+
+  const propagate = () => {
+    let changed = true;
+    let rounds = 0;
+    while (changed) {
+      changed = false;
+      if (++rounds > graph.courses.length + HORIZON)
+        throw new Error(
+          "could not place the affected courses — the prerequisite data may contain a cycle",
+        );
+      for (const c of graph.courses) {
+        const at = slot.get(c.code);
+        const e = parsed.get(c.code);
+        if (at === undefined || !e || pinned.has(c.code)) continue;
+        const n = need(e);
+        if (!(n.at > at)) continue;
+        const group = groupOf(c.code);
+        if (group.some((g) => pinned.has(g))) continue;
+        const p = placeGroup(group, n.at);
+        const by = n.by
+          ? `needs ${n.by} (now ${labelOf(slot.get(n.by)!)})`
+          : "prerequisites";
+        setGroup(group, c.code, p.at, by + offeredNote(p), p.risk);
+        changed = true;
+      }
+    }
+  };
+
+  // 0. The student's current term: everything planned before it and not
+  // completed moves to the first term it can use at or after it, and then
+  // that rebased plan is the baseline every later step measures from.
+  const planFinal = finalSlot;
+  let behind: PlanMove[] | undefined;
+  if (q.now !== undefined) {
+    const done = new Set<string>();
+    for (const [code] of [...slot.entries()].sort((a, b) => a[1] - b[1])) {
+      if (slot.get(code)! >= nowSlot || done.has(code)) continue;
+      const group = groupOf(code);
+      for (const g of group) done.add(g);
+      const p = placeGroup(group, nowSlot);
+      setGroup(
+        group,
+        code,
+        p.at,
+        `planned before ${labelOf(nowSlot)} and not completed${offeredNote(p)}`,
+        p.risk,
+        new Set(group.filter((g) => slot.get(g)! < nowSlot)),
+      );
+    }
+    propagate();
+    behind = [...slot.keys()]
+      .filter((c) => slot.get(c) !== original.get(c))
+      .sort((a, b) => original.get(a)! - original.get(b)! || a.localeCompare(b))
+      .map((code) => ({
+        code,
+        from: labelOf(original.get(code)!),
+        to: labelOf(slot.get(code)!),
+        because: because.get(code) ?? "",
+        ...(risks.has(code) ? { risk: risks.get(code)! } : {}),
+        ...(byCode.get(code)?.choice ? { only_if_chosen: true as const } : {}),
+      }));
+    for (const m of behind)
+      if (!m.only_if_chosen) finalSlot = Math.max(finalSlot, slot.get(m.code)!);
+    for (const [c, at] of slot) original.set(c, at);
+    because.clear();
+    risks.clear();
+  }
 
   // 1. Explicit course moves. move_to (earlier or later) is exact; a delay
   // counts from the PLAN term and goes to the first term the whole
@@ -297,6 +419,10 @@ export function whatIf(
       );
     if (q.completed.has(code))
       throw new Error(`${code} is already completed — nothing to move`);
+    if (settled.has(code))
+      throw new Error(
+        `${code} is an option of a choice the student already completed — nothing to move`,
+      );
     const from = original.get(code)!;
     const hasDelay = ch.delayTerms !== undefined;
     const hasMove = ch.moveTo !== undefined;
@@ -389,51 +515,7 @@ export function whatIf(
   }
 
   // 3. Push everything whose prerequisites can no longer be met.
-  const need = (e: Expr): { at: number; by?: string } => {
-    switch (e.t) {
-      case "course": {
-        const s = slot.get(e.code);
-        if (s === undefined) return { at: -Infinity };
-        return { at: e.concurrent ? s : s + 1, by: e.code };
-      }
-      case "and":
-        return e.of
-          .map(need)
-          .reduce((a, b) => (b.at > a.at ? b : a), { at: -Infinity });
-      case "or":
-        return e.of
-          .map(need)
-          .reduce((a, b) => (b.at < a.at ? b : a), { at: Infinity });
-      default:
-        return { at: -Infinity };
-    }
-  };
-  const parsed = parsedRules(graph);
-
-  let changed = true;
-  let rounds = 0;
-  while (changed) {
-    changed = false;
-    if (++rounds > graph.courses.length + HORIZON)
-      throw new Error(
-        "could not place the affected courses — the prerequisite data may contain a cycle",
-      );
-    for (const c of graph.courses) {
-      const at = slot.get(c.code);
-      const e = parsed.get(c.code);
-      if (at === undefined || !e || pinned.has(c.code)) continue;
-      const n = need(e);
-      if (!(n.at > at)) continue;
-      const group = groupOf(c.code);
-      if (group.some((g) => pinned.has(g))) continue;
-      const p = placeGroup(group, n.at);
-      const by = n.by
-        ? `needs ${n.by} (now ${labelOf(slot.get(n.by)!)})`
-        : "prerequisites";
-      setGroup(group, c.code, p.at, by + offeredNote(p), p.risk);
-      changed = true;
-    }
-  }
+  propagate();
 
   // 4. Earlier moves are checked, never pushed.
   const prereq_problems: WhatIfResult["prereq_problems"] = [];
@@ -500,6 +582,13 @@ export function whatIf(
   const fmt = (m: PlanMove) =>
     `${m.code} ${m.from} -> ${m.to}${m.because === AS_ASKED ? "" : ` (${m.because})`}${m.risk ? ` [${m.risk}]` : ""}`;
   const parts: string[] = [];
+  const slipTerms = behind && countTerms(planFinal, finalSlot);
+  if (behind)
+    parts.push(
+      slipTerms
+        ? `Already ${slipTerms} term${slipTerms === 1 ? "" : "s"} behind the published plan: graduation is now ${labelOf(finalSlot)}, not ${labelOf(planFinal)}.`
+        : `On track for ${labelOf(planFinal)} from ${labelOf(nowSlot)}${behind.length ? ` once ${behind.length} overdue course${behind.length === 1 ? " is" : "s are"} placed` : ""}.`,
+    );
   if (prereq_problems.length)
     parts.push(
       `Not possible as asked: ${prereq_problems.map((p) => p.problem).join("; ")}.`,
@@ -530,11 +619,25 @@ export function whatIf(
     on_critical_path: [...explicit].filter((c) =>
       graph.critical_path.includes(c),
     ),
+    ...(behind
+      ? {
+          behind,
+          plan_graduation_term: labelOf(planFinal),
+          graduation_slip_terms: slipTerms!,
+        }
+      : {}),
     verdict: parts.join(" "),
     assumptions,
     unresolved,
     caveat,
   };
+}
+
+/** Fall/spring terms from `from` to `to`; a summer finish counts as one. */
+function countTerms(from: number, to: number): number {
+  let n = 0;
+  for (let s = from + 1; s <= to; s++) if (s % 3 !== 2) n++;
+  return n + (to > from && to % 3 === 2 ? 1 : 0);
 }
 
 /**
@@ -548,14 +651,19 @@ export function slackTerms(
   code: string,
   completed: ReadonlySet<string>,
   seasons?: ReadonlyMap<string, SeasonLabels>,
-  cap = 4,
+  opts: { cap?: number; now?: string } = {},
 ): number | undefined {
+  const cap = opts.cap ?? 4;
   for (let k = 1; k <= cap; k++) {
     try {
       const r = whatIf(
         graph,
         planTerms,
-        { changes: [{ course: code, delayTerms: k }], completed },
+        {
+          changes: [{ course: code, delayTerms: k }],
+          completed,
+          ...(opts.now !== undefined ? { now: opts.now } : {}),
+        },
         seasons,
       );
       if (r.slips_graduation) return k - 1;

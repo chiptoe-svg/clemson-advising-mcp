@@ -195,3 +195,53 @@ test("slack is absent for completed courses", async () => {
   )!;
   assert.equal(c.slack, undefined);
 });
+
+// Cob_advisor's case (2026-11-10): a GC student in Junior spring who has
+// done everything planned through Junior fall EXCEPT GC 3500 and GC 4060.
+async function behindStudent() {
+  const { slotOf } = await import("../src/plan-whatif.ts");
+  const { body } = await call(GC);
+  const upTo = slotOf("Junior/First Semester")!;
+  const done = (
+    body.courses as (Course & { planned?: string; choice?: true })[]
+  )
+    .filter(
+      (c) =>
+        c.planned &&
+        !c.choice &&
+        slotOf(c.planned)! <= upTo &&
+        c.code !== "GC 3500" &&
+        c.code !== "GC 4060",
+    )
+    .map((c) => c.code);
+  return call({
+    ...GC,
+    completed_courses: done,
+    current_term: "Junior/Second Semester",
+  });
+}
+
+test("current_term: a student behind the plan is told so, and slack is measured from now", async () => {
+  const { res, body } = await behindStudent();
+  assert.equal(res.isError, undefined, res.content[0].text);
+  assert.equal(body.plan_graduation_term, "Senior/Second Semester");
+  assert.ok(body.graduation_slip_terms >= 1, JSON.stringify(body.behind));
+  const behind = (body.behind as { code: string }[]).map((m) => m.code);
+  assert.ok(behind.includes("GC 3500") && behind.includes("GC 4060"));
+  const gc4480 = (body.courses as (Course & { slack?: number })[]).find(
+    (c) => c.code === "GC 4480",
+  )!;
+  assert.equal(gc4480.slack, 0);
+});
+
+test("current_term: absent means today's answer, with no behind fields", async () => {
+  const { body } = await call(GC);
+  assert.equal(body.graduation_slip_terms, undefined);
+  assert.equal(body.behind, undefined);
+});
+
+test("current_term: a calendar term is refused with the expected form", async () => {
+  const { res } = await call({ ...GC, current_term: "Spring 2027" });
+  assert.equal(res.isError, true);
+  assert.match(res.content[0].text, /Junior\/Second Semester/);
+});
