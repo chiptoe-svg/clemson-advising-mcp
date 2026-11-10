@@ -116,6 +116,11 @@ export interface ProgramGraph {
   requirements: GraphRequirement[];
   courses: GraphCourse[];
   critical_path: string[];
+  /** Every course on a chain of the maximum length: plan order, then courses
+   *  the plan never names. Tied chains are all required, so all are critical. */
+  critical_courses: string[];
+  /** The tied longest chains, first to last course (at most 5). */
+  critical_paths: string[][];
   choices: {
     term: string;
     options: { code: string; min_prior_terms: number }[];
@@ -562,6 +567,34 @@ export function buildProgramGraph(
     cur = e ? bindingLeaf(e, pure.get(cur) ?? 0, pureOf, inPlan) : undefined;
   }
 
+  // Every chain tied at the maximum: start from each forced course at the
+  // bound and branch where an AND has more than one prerequisite at it.
+  const critical_paths: string[][] = [];
+  const onChain = new Set<string>();
+  const walk = (code: string, after: string[]) => {
+    if (after.length > facts.size) return;
+    // Past the cap, only the course set still grows: skip covered branches.
+    if (critical_paths.length >= 5 && onChain.has(code)) return;
+    const path = [code, ...after];
+    onChain.add(code);
+    const e = parsed.get(code)?.expr;
+    const prev = e ? bindingLeaves(e, pure.get(code) ?? 0, pureOf, inPlan) : [];
+    if (prev.length === 0) {
+      if (critical_paths.length < 5) critical_paths.push(path);
+      return;
+    }
+    for (const p of prev) walk(p, path);
+  };
+  if (start?.b)
+    for (const code of pos.order)
+      if (forced.has(code) && pure.get(code) === start.b) walk(code, []);
+  // Plan order, then any course the plan never names: the chain still runs
+  // through it (Marketing 2026-27: STAT 3090 > MKT 3310).
+  const critical_courses = [
+    ...pos.order.filter((c) => onChain.has(c)),
+    ...[...onChain].filter((c) => !pos.plannedAt.has(c)).sort(),
+  ];
+
   const choices = inp.plan.groups.flatMap((g) =>
     g.items
       .filter((it) => (it.one_of?.length ?? 0) > 0)
@@ -581,6 +614,8 @@ export function buildProgramGraph(
     requirements,
     courses,
     critical_path,
+    critical_courses,
+    critical_paths,
     choices,
     notes,
   };
@@ -619,6 +654,26 @@ function bindingLeaf(
     default:
       return undefined;
   }
+}
+
+/** Every course leaf whose own chain reaches `bound`: all tied prerequisites
+ *  of an AND, but only bindingLeaf's one pick from an OR. */
+function bindingLeaves(
+  e: Expr,
+  bound: number,
+  chainOf: (c: string) => number,
+  inPlan: (c: string) => boolean,
+): string[] {
+  if (e.t !== "and") {
+    const one = bindingLeaf(e, bound, chainOf, inPlan);
+    return one ? [one] : [];
+  }
+  const out: string[] = [];
+  for (const c of e.of)
+    if (minPriorTerms(c, chainOf) === bound)
+      for (const x of bindingLeaves(c, bound, chainOf, inPlan))
+        if (!out.includes(x)) out.push(x);
+  return out;
 }
 
 function otherWays(r: Record<string, unknown>): string[] {

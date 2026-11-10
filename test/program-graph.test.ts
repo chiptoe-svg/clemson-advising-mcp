@@ -397,3 +397,67 @@ test("critical path: a choice counts only its shortest option", () => {
   assert.equal(course(g, "MATH 3020").min_prior_terms, 3);
   assert.deepEqual(g.critical_path, ["GC 1020", "GC 1040", "GC 3400"]);
 });
+
+test("critical courses: chains tied at the maximum are all critical", () => {
+  // Real case (Financial Management 2026-27): ACCT 2010 > 3110 > 3120 ties
+  // FIN 3120's chain. Both are required, so both chains are critical;
+  // critical_path still names one of them.
+  const inp = inputs();
+  for (const c of ["GC 2500", "GC 3500"]) inp.courses.set(c, facts(c));
+  setExpr(inp, "GC 2500", "GC 1050");
+  setExpr(inp, "GC 3500", "GC 2500");
+  inp.plan.groups[1].items.push(item({ course_code: "GC 2500" }) as never);
+  inp.plan.groups[2].items.push(item({ course_code: "GC 3500" }) as never);
+  const g = buildProgramGraph(inp);
+  assert.deepEqual(g.critical_path, ["GC 1020", "GC 1040", "GC 3400"]);
+  assert.deepEqual(g.critical_courses, [
+    "GC 1020",
+    "GC 1040",
+    "GC 1050",
+    "GC 2500",
+    "GC 3400",
+    "GC 3500",
+  ]);
+  assert.deepEqual(g.critical_paths, [
+    ["GC 1020", "GC 1040", "GC 3400"],
+    ["GC 1050", "GC 2500", "GC 3500"],
+  ]);
+});
+
+test("critical courses: AND prerequisites tied on the bound are both critical", () => {
+  const inp = inputs();
+  inp.courses.set("GC 2500", facts("GC 2500"));
+  setExpr(inp, "GC 2500", "GC 1050");
+  setExpr(inp, "GC 3400", "GC 1040 & GC 2500");
+  inp.plan.groups[1].items.push(item({ course_code: "GC 2500" }) as never);
+  const g = buildProgramGraph(inp);
+  assert.deepEqual(g.critical_courses, [
+    "GC 1020",
+    "GC 1040",
+    "GC 1050",
+    "GC 2500",
+    "GC 3400",
+  ]);
+  assert.deepEqual(g.critical_paths, [
+    ["GC 1020", "GC 1040", "GC 3400"],
+    ["GC 1050", "GC 2500", "GC 3400"],
+  ]);
+});
+
+test("critical courses: no tie means the one path, and slack courses stay out", () => {
+  const g = buildProgramGraph(inputs());
+  assert.deepEqual(g.critical_courses, ["GC 1020", "GC 1040", "GC 3400"]);
+  assert.deepEqual(g.critical_paths, [g.critical_path]);
+});
+
+test("critical courses: an unplanned prerequisite on the chain is listed after the plan", () => {
+  // Real case (Marketing 2026-27): MATH 1060 > STAT 3090 > MKT 3310; the
+  // plan never names STAT 3090, but the student cannot skip it.
+  const inp = inputs();
+  inp.courses.set("GC 2600", facts("GC 2600"));
+  setExpr(inp, "GC 2600", "GC 1020");
+  setExpr(inp, "GC 3400", "GC 2600");
+  const g = buildProgramGraph(inp);
+  assert.deepEqual(g.critical_paths, [["GC 1020", "GC 2600", "GC 3400"]]);
+  assert.deepEqual(g.critical_courses, ["GC 1020", "GC 3400", "GC 2600"]);
+});

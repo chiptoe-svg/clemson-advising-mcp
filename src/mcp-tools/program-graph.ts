@@ -278,8 +278,11 @@ export const programGraph: McpToolDefinition = {
       "before graduation does. Use this FIRST for multi-semester planning or " +
       "'what should I take next' — instead of calling get-course-details " +
       "course by course. For 'what if he delays X / takes a term off / takes " +
-      "X earlier', call what-if-plan: it computes the answer. critical_path is the " +
-      "longest prerequisite chain; start it early. Prerequisite expressions: " +
+      "X earlier', call what-if-plan: it computes the answer. critical_path is ONE " +
+      "longest prerequisite chain; start it early. Several chains can tie, and " +
+      "a tie means ALL of them are critical, not a choice between them: " +
+      "critical_courses lists every course on any longest chain (plan order, " +
+      "then unplanned prerequisites), critical_paths the tied chains (up to 5). Prerequisite expressions: " +
       "& = all, | = any, ~ = may be taken the same term, >=C = minimum grade, " +
       '[standing:junior] etc. are conditions to confirm, ?"..." is a clause ' +
       "to read to the student verbatim. It never decides whether a " +
