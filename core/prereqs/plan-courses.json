@@ -203,6 +203,14 @@
     "text": "Senior standing",
     "expr": "[standing:senior]"
   },
+  "IE 3600": {
+    "text": "MATH 2060 with a C or higher",
+    "expr": "MATH 2060>=C"
+  },
+  "IE 3610": {
+    "text": "IE 3600",
+    "expr": "IE 3600"
+  },
   "LAW 3220": {
     "text": "Junior standing",
     "expr": "[standing:junior]"
@@ -211,17 +219,37 @@
     "text": "Any MATH or STAT course, or a score of 620 or higher on the SAT Math section, or a score of 26 or higher on the ACT Math section, or a score of 60 or higher on the Clemson Mathematics Placement Test (CMPT)",
     "expr": "?\"Any MATH or STAT course\" | [test:SAT Math>=620] | [test:ACT Math>=26] | [test:CMPT>=60]"
   },
+  "MATH 1040": {
+    "text": "Any MATH or STAT course, or a score of 640 or higher on the SAT Math section, or a score of 27 or higher on the ACT Math section, or a score of 65 or higher on the Clemson Mathematics Placement Test (CMPT)",
+    "expr": "?\"Any MATH or STAT course\" | [test:SAT Math>=640] | [test:ACT Math>=27] | [test:CMPT>=65]"
+  },
   "MATH 1060": {
     "text": "A score of 680 or higher on the SAT Math section, or a score of 29 or higher on the ACT Math section, or a score of 80 or higher on the Clemson Mathematics Placement Test (CMPT)",
     "expr": "[test:SAT Math>=680] | [test:ACT Math>=29] | [test:CMPT>=80]"
+  },
+  "MATH 1070": {
+    "text": "MATH 1040",
+    "expr": "MATH 1040"
   },
   "MATH 1080": {
     "text": "MATH 1060 with a C or better or MATH 1070 with a C or better",
     "expr": "MATH 1060>=C | MATH 1070>=C"
   },
+  "MATH 1110": {
+    "text": "MATH 1060 or MATH 1070",
+    "expr": "MATH 1060 | MATH 1070"
+  },
+  "MATH 2060": {
+    "text": "MATH 1080 with a C or better or MATH 1110 with a C or better",
+    "expr": "MATH 1080>=C | MATH 1110>=C"
+  },
   "MATH 2070": {
     "text": "MATH 1020 with a C or better or MATH 1060 or MATH 1070",
     "expr": "MATH 1020>=C | MATH 1060 | MATH 1070"
+  },
+  "MATH 2100": {
+    "text": "MATH 1020 or MATH 1060 or MATH 1070",
+    "expr": "MATH 1020 | MATH 1060 | MATH 1070"
   },
   "MATH 2800": {
     "text": "Any MATH or STAT course, or a score of 540 or higher on the SAT Math section, or a score of 21 or higher on the ACT Math section, or a score of 50 or higher on the Clemson Mathematics Placement Test (CMPT)",
@@ -398,6 +426,14 @@
     "text": "PKSC 2010",
     "expr": "PKSC 2010"
   },
+  "PSYC 2030": {
+    "text": "Psychology major. Preq or concurrent enrollment: PSYC 2010",
+    "expr": "[major:Psychology] & ~PSYC 2010"
+  },
+  "PSYC 3090": {
+    "text": "Psychology major; and PSYC 2010; and PSYC 2030 with a grade of C or higher",
+    "expr": "[major:Psychology] & PSYC 2010 & PSYC 2030>=C"
+  },
   "PSYC 3640": {
     "text": "PSYC 2010",
     "expr": "PSYC 2010"
@@ -421,5 +457,9 @@
   "STAT 3300": {
     "text": "MATH 3020 with a C or better or STAT 2300 with a C or better",
     "expr": "MATH 3020>=C | STAT 2300>=C"
+  },
+  "STAT 4110": {
+    "text": "MATH 2060",
+    "expr": "MATH 2060"
   }
 }
