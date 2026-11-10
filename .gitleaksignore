@@ -1,0 +1,4 @@
+# False positives: SHA-256 hashes of the fixture's fake test tokens
+# ('cma_alpha_token', 'cma_beta_token'), not real credentials.
+09932cb00b9acb466999fff63822a4e77e5b7445:test/fixtures/registry-contract.json:generic-api-key:35
+09932cb00b9acb466999fff63822a4e77e5b7445:test/fixtures/registry-contract.json:generic-api-key:40
