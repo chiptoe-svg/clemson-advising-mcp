@@ -28,6 +28,12 @@ const RISKY = new Set(["uncertain"]);
 /** How far past the plan's last term to search before giving up. */
 const HORIZON = 12;
 const MAX_CHANGES = 6;
+/** Course pairs at most one of which may be in a summer, in any years.
+ *  GC (Chip, 2026-11-10): either internship may be a summer, never both;
+ *  the published plan shows both in summers only because of how it can be
+ *  displayed. */
+const ONE_SUMMER_OF: readonly (readonly string[])[] = [["GC 3500", "GC 4500"]];
+
 /** Senior/First Semester: a plan that ends before it has no graduation. */
 const SENIOR_FALL = 9;
 
@@ -172,8 +178,16 @@ export function whatIf(
     assumptions.push(
       "No offering history was available: every course was assumed to run every fall and spring.",
     );
+  const partnerInSummer = (code: string) =>
+    ONE_SUMMER_OF.some(
+      (pair) =>
+        pair.includes(code) &&
+        pair.some((p) => p !== code && (slot.get(p) ?? 0) % 3 === 2),
+    );
   const placeable = (code: string, s: number) =>
-    s >= nowSlot && !skipped.has(s) && (s % 3 !== 2 || summerPlanned(code));
+    s >= nowSlot &&
+    !skipped.has(s) &&
+    (s % 3 !== 2 || (summerPlanned(code) && !partnerInSummer(code)));
   const usableSeasons = (code: string): Season[] =>
     summerPlanned(code) ? SEASONS : ["fall", "spring"];
   const offerState = (code: string, s: number): "yes" | "risky" | "no" => {
@@ -298,7 +312,7 @@ export function whatIf(
         );
       if (!placeable(c, s))
         throw new Error(
-          `${code} cannot move to ${labelOf(s)}: ${skipped.has(s) ? "that term is skipped" : `${who === code ? "it" : who} is not planned in a summer`}`,
+          `${code} cannot move to ${labelOf(s)}: ${skipped.has(s) ? "that term is skipped" : summerPlanned(c) && partnerInSummer(c) ? `only one of ${ONE_SUMMER_OF.find((p) => p.includes(c))!.join(" and ")} may be in a summer` : `${who === code ? "it" : who} is not planned in a summer`}`,
         );
       if (offerState(c, s) === "no")
         throw new Error(
@@ -538,6 +552,12 @@ export function whatIf(
         problem: `${code} in ${labelOf(slot.get(code)!)} needs ${n.by}, which is planned in ${labelOf(slot.get(n.by)!)}`,
       });
   }
+
+  for (const pair of ONE_SUMMER_OF)
+    if (pair.every((p) => slot.has(p) && slot.get(p)! % 3 === 2))
+      assumptions.push(
+        `${pair.join(" and ")} are both in summers here, as the published plan shows them, but only one of them may be in a summer — plan the other in a fall or spring.`,
+      );
 
   const movedCodes = [...slot.keys()].filter(
     (c) => slot.get(c) !== original.get(c),

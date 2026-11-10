@@ -684,3 +684,70 @@ test("current term: the other options of a choice already made are not overdue",
   });
   assert.ok(!r.behind!.some((m) => m.code === code("Q")));
 });
+
+// GC rule (Chip, 2026-11-10): GC 3500 and GC 4500 may not BOTH be in a
+// summer, in any years; neither has to be. The published plan shows both in
+// summers — "a limitation in how it can be shown".
+function internships(first: string, second: string) {
+  const c = (code: string, planned: string, prereq: string | null = null) => ({
+    code,
+    title: code,
+    planned,
+    requirements: [],
+    prereq,
+    parse: (prereq ? "complete" : "none") as GraphCourse["parse"],
+    min_prior_terms: 0,
+    required_by: 0,
+    one_way_into: 0,
+  });
+  return graph([
+    c("GC 3500", first),
+    c("GC 4500", second, "GC 3500"),
+    c("GC 4800", "Senior/Second Semester"),
+  ]);
+}
+const ITERMS = [...TERMS, "Sophomore/Summer", "Junior/Summer"];
+
+test("GC rule: GC 4500 is not delayed into a summer while GC 3500 is in one", () => {
+  const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    changes: [{ course: "GC 4500", delayTerms: 3 }],
+    completed: none,
+  });
+  assert.equal(r.moves[0].to, "Fifth Year/First Semester");
+});
+
+test("GC rule: with GC 3500 in a fall, GC 4500 may take a summer", () => {
+  const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    changes: [
+      { course: "GC 3500", moveTo: "Junior/First Semester" },
+      { course: "GC 4500", delayTerms: 3 },
+    ],
+    completed: none,
+  });
+  assert.equal(r.moves.find((m) => m.code === "GC 4500")!.to, "Senior/Summer");
+  assert.ok(!r.assumptions.some((a) => /both in summers/.test(a)));
+});
+
+test("GC rule: a result that still has both in summers says so", () => {
+  const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    changes: [{ skipTerm: "Freshman/First Semester" }],
+    completed: none,
+  });
+  assert.ok(
+    r.assumptions.some((a) =>
+      /GC 3500 and GC 4500 are both in summers/.test(a),
+    ),
+    r.assumptions.join(" | "),
+  );
+});
+
+test("GC rule: moving GC 4500 into a summer while GC 3500 is in one names the rule", () => {
+  assert.throws(
+    () =>
+      whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+        changes: [{ course: "GC 4500", moveTo: "Senior/Summer" }],
+        completed: none,
+      }),
+    /only one of GC 3500 and GC 4500 may be in a summer/,
+  );
+});
