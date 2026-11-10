@@ -534,15 +534,32 @@ export function buildProgramGraph(
     return bound;
   };
   for (const code of facts.keys()) pureOf(code);
+  // Start from what the plan forces: every fixed course, and from each choice
+  // only its shortest option — "MATH 3020 or STAT 3090" must not put
+  // MATH 3020's calculus chain on the path (Economics 2026-27).
+  const forced = new Set(
+    pos.order.filter((c) => !pos.plannedAt.get(c)?.choice),
+  );
+  for (const g of inp.plan.groups)
+    for (const it of g.items) {
+      const opts = it.one_of ?? [];
+      if (opts.length === 0) continue;
+      const best = [...opts].sort(
+        (a, b) => (pure.get(a) ?? 0) - (pure.get(b) ?? 0),
+      )[0];
+      forced.add(best);
+    }
   const critical_path: string[] = [];
   const start = pos.order
     .map((code, i) => ({ code, i, b: pure.get(code) ?? 0 }))
+    .filter((x) => forced.has(x.code))
     .sort((a, b) => b.b - a.b || a.i - b.i)[0];
+  const inPlan = (c: string) => pos.plannedAt.has(c);
   for (let cur = start?.b ? start.code : undefined; cur;) {
     critical_path.unshift(cur);
     if (critical_path.length > facts.size) break;
     const e = parsed.get(cur)?.expr;
-    cur = e ? bindingLeaf(e, pure.get(cur) ?? 0, pureOf) : undefined;
+    cur = e ? bindingLeaf(e, pure.get(cur) ?? 0, pureOf, inPlan) : undefined;
   }
 
   const choices = inp.plan.groups.flatMap((g) =>
@@ -569,28 +586,34 @@ export function buildProgramGraph(
   };
 }
 
-/** The course leaf whose own chain produces `bound` (AND: max; OR: min). */
+/** The course leaf whose own chain produces `bound` (AND: max; OR: min).
+ *  Among OR alternatives tied on the bound, one the plan names wins, so
+ *  "AGRB 2020 | ECON 2110" follows ECON 2110 in Economics (2026-11-09). */
 function bindingLeaf(
   e: Expr,
   bound: number,
   chainOf: (c: string) => number,
+  inPlan: (c: string) => boolean,
 ): string | undefined {
   const leafBound = (x: Expr): number => minPriorTerms(x, chainOf);
+  const planned = (x: Expr) => (x.t === "course" && inPlan(x.code) ? 0 : 1);
   switch (e.t) {
     case "course":
       return leafBound(e) === bound ? e.code : undefined;
     case "and":
       for (const c of e.of) {
         if (leafBound(c) === bound) {
-          const hit = bindingLeaf(c, bound, chainOf);
+          const hit = bindingLeaf(c, bound, chainOf, inPlan);
           if (hit) return hit;
         }
       }
       return undefined;
     case "or": {
-      const best = [...e.of].sort((a, b) => leafBound(a) - leafBound(b))[0];
+      const best = [...e.of].sort(
+        (a, b) => leafBound(a) - leafBound(b) || planned(a) - planned(b),
+      )[0];
       return best && leafBound(best) === bound
-        ? bindingLeaf(best, bound, chainOf)
+        ? bindingLeaf(best, bound, chainOf, inPlan)
         : undefined;
     }
     default:

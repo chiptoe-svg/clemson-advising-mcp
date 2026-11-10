@@ -368,3 +368,32 @@ test("stale rules are named in notes, so a shortened chain is never silent", () 
   const g = buildProgramGraph(inp);
   assert.ok(g.notes.some((n) => /stale/.test(n) && /GC 3400/.test(n)));
 });
+
+test("critical path: among OR leaves tied on the bound, a course the plan names wins", () => {
+  // Real case (Economics BA/BS 2026-27): ECON 2120 = AGRB 2020 | ECON 2110,
+  // both bound 0; the path named AGRB 2020, which the major never plans.
+  const inp = inputs();
+  inp.courses.set("AGRB 2020", facts("AGRB 2020"));
+  setExpr(inp, "GC 1040", "AGRB 2020 | GC 1020");
+  const g = buildProgramGraph(inp);
+  assert.deepEqual(g.critical_path, ["GC 1020", "GC 1040", "GC 3400"]);
+});
+
+test("critical path: a choice counts only its shortest option", () => {
+  // Real case (Economics 2026-27): "MATH 3020 or STAT 3090" — MATH 3020's
+  // calculus chain is longer than any course the plan requires, but STAT 3090
+  // satisfies the same slot. The path must not run through the option a
+  // student can avoid.
+  const inp = inputs();
+  inp.plan.groups[1].items[2] = item({
+    kind: "choice",
+    one_of: ["MATH 3020", "STAT 2300"],
+  }) as GraphInputs["plan"]["groups"][number]["items"][number];
+  setExpr(inp, "MATH 3020", "MATH 2060");
+  setExpr(inp, "MATH 2060", "MATH 1080");
+  setExpr(inp, "MATH 1080", "MATH 1060");
+  inp.courses.set("MATH 1060", facts("MATH 1060"));
+  const g = buildProgramGraph(inp);
+  assert.equal(course(g, "MATH 3020").min_prior_terms, 3);
+  assert.deepEqual(g.critical_path, ["GC 1020", "GC 1040", "GC 3400"]);
+});
