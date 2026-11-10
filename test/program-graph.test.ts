@@ -461,3 +461,55 @@ test("critical courses: an unplanned prerequisite on the chain is listed after t
   assert.deepEqual(g.critical_paths, [["GC 1020", "GC 2600", "GC 3400"]]);
   assert.deepEqual(g.critical_courses, ["GC 1020", "GC 3400", "GC 2600"]);
 });
+
+test("critical courses: OR alternatives tied on the bound are all critical when the plan requires each", () => {
+  // Real case (GC 2026-27): GC 4500 = GC 3500 & (GC 4060 | GC 4400); both
+  // are required and tied, and GC 4060 won only by being written first.
+  const inp = inputs();
+  inp.courses.set("GC 2500", facts("GC 2500"));
+  setExpr(inp, "GC 2500", "GC 1050");
+  setExpr(inp, "GC 3400", "GC 1040 | GC 2500");
+  inp.plan.groups[1].items.push(item({ course_code: "GC 2500" }) as never);
+  const g = buildProgramGraph(inp);
+  assert.deepEqual(g.critical_path, ["GC 1020", "GC 1040", "GC 3400"]);
+  assert.deepEqual(g.critical_courses, [
+    "GC 1020",
+    "GC 1040",
+    "GC 1050",
+    "GC 2500",
+    "GC 3400",
+  ]);
+  assert.deepEqual(g.critical_paths, [
+    ["GC 1020", "GC 1040", "GC 3400"],
+    ["GC 1050", "GC 2500", "GC 3400"],
+  ]);
+  assert.equal(g.critical_paths_total, 2);
+});
+
+test("critical courses: a tied OR alternative the plan does not require stays out", () => {
+  const inp = inputs();
+  inp.courses.set("GC 2500", facts("GC 2500"));
+  setExpr(inp, "GC 2500", "GC 1050");
+  setExpr(inp, "GC 3400", "GC 1040 | GC 2500");
+  const g = buildProgramGraph(inp);
+  assert.deepEqual(g.critical_courses, ["GC 1020", "GC 1040", "GC 3400"]);
+  assert.equal(g.critical_paths_total, 1);
+});
+
+test("critical paths: capped at 20, with the full count alongside", () => {
+  const inp = inputs();
+  const ands: string[] = [];
+  for (let i = 0; i < 25; i++) {
+    const a = `XY ${1000 + i}`;
+    const b = `XY ${2000 + i}`;
+    inp.courses.set(a, facts(a));
+    inp.courses.set(b, facts(b));
+    setExpr(inp, b, a);
+    ands.push(b);
+  }
+  setExpr(inp, "GC 3400", ands.join(" & "));
+  const g = buildProgramGraph(inp);
+  assert.equal(g.critical_paths.length, 20);
+  assert.equal(g.critical_paths_total, 25);
+  assert.equal(g.critical_courses.length, 51); // GC 3400 + 50 unplanned
+});

@@ -65,6 +65,7 @@ function graph(courses: GraphCourse[], critical: string[] = []): ProgramGraph {
     critical_path: critical.map(code),
     critical_courses: critical.map(code),
     critical_paths: [critical.map(code)],
+    critical_paths_total: 1,
     choices: [],
     notes: [],
   };

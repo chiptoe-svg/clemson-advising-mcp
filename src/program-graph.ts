@@ -119,14 +119,20 @@ export interface ProgramGraph {
   /** Every course on a chain of the maximum length: plan order, then courses
    *  the plan never names. Tied chains are all required, so all are critical. */
   critical_courses: string[];
-  /** The tied longest chains, first to last course (at most 5). */
+  /** The tied longest chains, first to last course (at most 20). */
   critical_paths: string[][];
+  /** How many tied chains there are in all; above 20, the list is cut. */
+  critical_paths_total: number;
   choices: {
     term: string;
     options: { code: string; min_prior_terms: number }[];
   }[];
   notes: string[];
 }
+
+/** critical_paths lists at most this many chains (Financial Management
+ *  2026-27 has 13); critical_paths_total gives the full count. */
+const CRITICAL_PATHS_CAP = 20;
 
 const STANDINGS: readonly Standing[] = [
   "freshman",
@@ -568,26 +574,53 @@ export function buildProgramGraph(
   }
 
   // Every chain tied at the maximum: start from each forced course at the
-  // bound and branch where an AND has more than one prerequisite at it.
-  const critical_paths: string[][] = [];
-  const onChain = new Set<string>();
-  const walk = (code: string, after: string[]) => {
-    if (after.length > facts.size) return;
-    // Past the cap, only the course set still grows: skip covered branches.
-    if (critical_paths.length >= 5 && onChain.has(code)) return;
-    const path = [code, ...after];
-    onChain.add(code);
-    const e = parsed.get(code)?.expr;
-    const prev = e ? bindingLeaves(e, pure.get(code) ?? 0, pureOf, inPlan) : [];
-    if (prev.length === 0) {
-      if (critical_paths.length < 5) critical_paths.push(path);
-      return;
+  // bound and branch where an AND has more than one prerequisite at it (or
+  // an OR has more than one the plan requires anyway). The course set and
+  // the count are complete; the listed chains stop at CRITICAL_PATHS_CAP.
+  const prevMemo = new Map<string, string[]>();
+  const prevOf = (code: string): string[] => {
+    let prev = prevMemo.get(code);
+    if (!prev) {
+      const e = parsed.get(code)?.expr;
+      prev = e
+        ? bindingLeaves(e, pure.get(code) ?? 0, pureOf, inPlan, (c) =>
+            forced.has(c),
+          )
+        : [];
+      prevMemo.set(code, prev);
     }
+    return prev;
+  };
+  const starts = start?.b
+    ? pos.order.filter((c) => forced.has(c) && pure.get(c) === start.b)
+    : [];
+  const onChain = new Set<string>();
+  const mark = (code: string) => {
+    if (onChain.has(code)) return;
+    onChain.add(code);
+    prevOf(code).forEach(mark);
+  };
+  starts.forEach(mark);
+  const countMemo = new Map<string, number>();
+  const countOf = (code: string): number => {
+    let n = countMemo.get(code);
+    if (n === undefined) {
+      const prev = prevOf(code);
+      n = prev.length ? prev.reduce((t, p) => t + countOf(p), 0) : 1;
+      countMemo.set(code, n);
+    }
+    return n;
+  };
+  const critical_paths_total = starts.reduce((t, c) => t + countOf(c), 0);
+  const critical_paths: string[][] = [];
+  const walk = (code: string, after: string[]) => {
+    if (critical_paths.length >= CRITICAL_PATHS_CAP) return;
+    const path = [code, ...after];
+    const prev = prevOf(code);
+    if (prev.length === 0) critical_paths.push(path);
     for (const p of prev) walk(p, path);
   };
-  if (start?.b)
-    for (const code of pos.order)
-      if (forced.has(code) && pure.get(code) === start.b) walk(code, []);
+  starts.forEach((c) => walk(c, []));
   // Plan order, then any course the plan never names: the chain still runs
   // through it (Marketing 2026-27: STAT 3090 > MKT 3310).
   const critical_courses = [
@@ -616,6 +649,7 @@ export function buildProgramGraph(
     critical_path,
     critical_courses,
     critical_paths,
+    critical_paths_total,
     choices,
     notes,
   };
@@ -657,13 +691,25 @@ function bindingLeaf(
 }
 
 /** Every course leaf whose own chain reaches `bound`: all tied prerequisites
- *  of an AND, but only bindingLeaf's one pick from an OR. */
+ *  of an AND; from an OR, every tied course the plan requires anyway (GC
+ *  2026-27: GC 4060 | GC 4400, both required), else bindingLeaf's one pick. */
 function bindingLeaves(
   e: Expr,
   bound: number,
   chainOf: (c: string) => number,
   inPlan: (c: string) => boolean,
+  required: (c: string) => boolean,
 ): string[] {
+  if (e.t === "or") {
+    const tied = e.of.flatMap((x) =>
+      x.t === "course" &&
+      required(x.code) &&
+      minPriorTerms(x, chainOf) === bound
+        ? [x.code]
+        : [],
+    );
+    if (tied.length > 1) return tied;
+  }
   if (e.t !== "and") {
     const one = bindingLeaf(e, bound, chainOf, inPlan);
     return one ? [one] : [];
@@ -671,7 +717,7 @@ function bindingLeaves(
   const out: string[] = [];
   for (const c of e.of)
     if (minPriorTerms(c, chainOf) === bound)
-      for (const x of bindingLeaves(c, bound, chainOf, inPlan))
+      for (const x of bindingLeaves(c, bound, chainOf, inPlan, required))
         if (!out.includes(x)) out.push(x);
   return out;
 }

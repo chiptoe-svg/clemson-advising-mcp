@@ -282,7 +282,9 @@ export const programGraph: McpToolDefinition = {
       "longest prerequisite chain; start it early. Several chains can tie, and " +
       "a tie means ALL of them are critical, not a choice between them: " +
       "critical_courses lists every course on any longest chain (plan order, " +
-      "then unplanned prerequisites), critical_paths the tied chains (up to 5). Prerequisite expressions: " +
+      "then unplanned prerequisites) — lead with it. critical_paths shows up to " +
+      "20 of the tied chains; critical_paths_total is how many there are. " +
+      "Prerequisite expressions: " +
       "& = all, | = any, ~ = may be taken the same term, >=C = minimum grade, " +
       '[standing:junior] etc. are conditions to confirm, ?"..." is a clause ' +
       "to read to the student verbatim. It never decides whether a " +
