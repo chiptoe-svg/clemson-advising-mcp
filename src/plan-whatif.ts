@@ -41,7 +41,8 @@ const SENIOR_FALL = 9;
 export function slotOf(label: string): number | null {
   const m = /^(?:Pre-Business )?([^/]+)\/(.+)$/.exec(label.trim());
   if (!m) return null;
-  const y = YEARS.indexOf(m[1]);
+  const n = /^Year (\d+)$/.exec(m[1]);
+  const y = n ? Number(n[1]) - 1 : YEARS.indexOf(m[1]);
   const p = PARTS.indexOf(m[2]);
   return y < 0 || p < 0 ? null : y * 3 + p;
 }
@@ -130,25 +131,46 @@ export function whatIf(
     throw new Error(
       `this plan runs only through ${labelOf(finalSlot)} and does not reach a senior year, so there is no graduation term to measure a slip against (it is likely a pre-major plan)`,
     );
-  const limit = finalSlot + HORIZON;
   const nowSlot = q.now === undefined ? 0 : slotOf(q.now);
   if (nowSlot === null)
     throw new Error(
       `current_term "${q.now}" is not a recognised plan term label (e.g. "Junior/Second Semester")`,
     );
+  // Searched from the later of the plan's end and now, so a student far
+  // behind gets an answer rather than a horizon error.
+  const limit = Math.max(finalSlot, nowSlot) + HORIZON;
 
   const byCode = new Map(graph.courses.map((c) => [c.code, c]));
   const slot = new Map<string, number>();
   const original = new Map<string, number>();
   // With a current term, a choice the student already made is settled: its
   // other options are not overdue.
+  // An option some planned course requires outright stays (Management
+  // 2026-27: CPSC 2200 | MGT 2180, and MGT 3130 requires MGT 2180).
   const settled = new Set<string>();
-  if (q.now !== undefined)
+  const requiredOption = new Set<string>();
+  if (q.now !== undefined) {
     for (const ch of graph.choices) {
       const opts = ch.options.map((o) => o.code);
       if (opts.some((o) => q.completed.has(o)))
         for (const o of opts) settled.add(o);
     }
+    const rules = parsedRules(graph);
+    for (const c of graph.courses) {
+      const e = rules.get(c.code);
+      if (!e || c.planned === null || q.completed.has(c.code)) continue;
+      if (settled.has(c.code)) continue;
+      for (const l of mandatoryLeaves(e))
+        if (byCode.get(l)?.choice && !q.completed.has(l)) {
+          settled.delete(l);
+          requiredOption.add(l);
+        }
+    }
+  }
+  const onlyIfChosen = (code: string) =>
+    byCode.get(code)?.choice && !requiredOption.has(code)
+      ? { only_if_chosen: true as const }
+      : {};
   for (const c of graph.courses) {
     if (c.planned === null || q.completed.has(c.code) || settled.has(c.code))
       continue;
@@ -173,6 +195,10 @@ export function whatIf(
         throw new Error(
           `skip_term "${ch.skipTerm}" is not a recognised term label`,
         );
+      if (s < nowSlot)
+        throw new Error(
+          `skip_term "${ch.skipTerm}" is before the current term (${labelOf(nowSlot)})`,
+        );
       skipped.add(s);
     }
 
@@ -181,21 +207,12 @@ export function whatIf(
     assumptions.push(
       "No offering history was available: every course was assumed to run every fall and spring.",
     );
-  const partnerInSummer = (code: string) =>
-    ONE_SUMMER_OF.some(
-      (pair) =>
-        pair.includes(code) &&
-        pair.some(
-          (p) =>
-            p !== code &&
-            ((slot.get(p) ?? 0) % 3 === 2 ||
-              (q.completedInSummer?.has(p) ?? false)),
-        ),
-    );
+  // Courses ONE_SUMMER_OF has taken out of summers for this answer.
+  const noSummer = new Set<string>();
   const placeable = (code: string, s: number) =>
     s >= nowSlot &&
     !skipped.has(s) &&
-    (s % 3 !== 2 || (summerPlanned(code) && !partnerInSummer(code)));
+    (s % 3 !== 2 || (summerPlanned(code) && !noSummer.has(code)));
   const usableSeasons = (code: string): Season[] =>
     summerPlanned(code) ? SEASONS : ["fall", "spring"];
   const offerState = (code: string, s: number): "yes" | "risky" | "no" => {
@@ -320,7 +337,7 @@ export function whatIf(
         );
       if (!placeable(c, s))
         throw new Error(
-          `${code} cannot move to ${labelOf(s)}: ${skipped.has(s) ? "that term is skipped" : summerPlanned(c) && partnerInSummer(c) ? `only one of ${ONE_SUMMER_OF.find((p) => p.includes(c))!.join(" and ")} may be in a summer` : `${who === code ? "it" : who} is not planned in a summer`}`,
+          `${code} cannot move to ${labelOf(s)}: ${skipped.has(s) ? "that term is skipped" : `${who === code ? "it" : who} is not planned in a summer`}`,
         );
       if (offerState(c, s) === "no")
         throw new Error(
@@ -382,6 +399,51 @@ export function whatIf(
     }
   };
 
+  // ONE_SUMMER_OF is checked on the settled answer, not while placing: a
+  // partner's slot can still change (GC 4500 leaves its summer when GC 3500
+  // moves into one). With `baseline`, the plan as given is fixed too (the
+  // rebase: it stands for the student's real plan); otherwise only a course
+  // this answer moved is, and the published plan is noted instead. The later
+  // course moves; a move_to into the conflict is refused.
+  const exactSet = new Set<string>();
+  const inSummer = (p: string) =>
+    slot.has(p)
+      ? slot.get(p)! % 3 === 2
+      : (q.completedInSummer?.has(p) ?? false);
+  const enforceOneSummer = (baseline: boolean) => {
+    for (let round = 0; round < ONE_SUMMER_OF.length + 2; round++) {
+      let changed = false;
+      for (const pair of ONE_SUMMER_OF) {
+        if (pair.filter(inSummer).length < 2) continue;
+        const movable = pair.filter(
+          (p) =>
+            slot.has(p) &&
+            inSummer(p) &&
+            (baseline || slot.get(p) !== original.get(p)),
+        );
+        if (movable.length === 0) continue;
+        const free = movable.filter((p) => !exactSet.has(p) && !pinned.has(p));
+        if (free.length === 0)
+          throw new Error(
+            `${movable[0]} cannot be in ${labelOf(slot.get(movable[0])!)}: only one of ${pair.join(" and ")} may be in a summer`,
+          );
+        const code = free.sort((a, b) => slot.get(b)! - slot.get(a)!)[0];
+        noSummer.add(code);
+        const p = placeGroup(groupOf(code), slot.get(code)! + 1);
+        setGroup(
+          groupOf(code),
+          code,
+          p.at,
+          `only one of ${pair.join(" and ")} may be in a summer${offeredNote(p)}`,
+          p.risk,
+        );
+        changed = true;
+      }
+      if (!changed) return;
+      propagate();
+    }
+  };
+
   // 0. The student's current term: everything planned before it and not
   // completed moves to the first term it can use at or after it, and then
   // that rebased plan is the baseline every later step measures from.
@@ -404,6 +466,7 @@ export function whatIf(
       );
     }
     propagate();
+    enforceOneSummer(true);
     behind = [...slot.keys()]
       .filter((c) => slot.get(c) !== original.get(c))
       .sort((a, b) => original.get(a)! - original.get(b)! || a.localeCompare(b))
@@ -413,7 +476,7 @@ export function whatIf(
         to: labelOf(slot.get(code)!),
         because: because.get(code) ?? "",
         ...(risks.has(code) ? { risk: risks.get(code)! } : {}),
-        ...(byCode.get(code)?.choice ? { only_if_chosen: true as const } : {}),
+        ...onlyIfChosen(code),
       }));
     for (const m of behind)
       if (!m.only_if_chosen) finalSlot = Math.max(finalSlot, slot.get(m.code)!);
@@ -469,6 +532,7 @@ export function whatIf(
         );
       const risk = exactly(code, group, s);
       fixedGroups.set(key, s);
+      for (const g of group) exactSet.add(g);
       const leads = new Set(group.filter((g) => explicit.has(g)));
       setGroup(
         group,
@@ -538,6 +602,7 @@ export function whatIf(
 
   // 3. Push everything whose prerequisites can no longer be met.
   propagate();
+  enforceOneSummer(false);
 
   // 4. Earlier moves are checked, never pushed.
   const prereq_problems: WhatIfResult["prereq_problems"] = [];
@@ -562,7 +627,7 @@ export function whatIf(
   }
 
   for (const pair of ONE_SUMMER_OF)
-    if (pair.every((p) => slot.has(p) && slot.get(p)! % 3 === 2))
+    if (pair.every(inSummer))
       assumptions.push(
         `${pair.join(" and ")} are both in summers here, as the published plan shows them, but only one of them may be in a summer — plan the other in a fall or spring.`,
       );
@@ -600,7 +665,7 @@ export function whatIf(
       to: labelOf(slot.get(code)!),
       because: because.get(code) ?? "",
       ...(risks.has(code) ? { risk: risks.get(code)! } : {}),
-      ...(byCode.get(code)?.choice ? { only_if_chosen: true as const } : {}),
+      ...onlyIfChosen(code),
     }));
 
   const firm = moves.filter((m) => !m.only_if_chosen);
@@ -722,6 +787,15 @@ function parsedRules(graph: ProgramGraph): Map<string, Expr> {
     parseCache.set(graph, m);
   }
   return m;
+}
+
+/** Courses an expression requires outright (not via any OR). */
+function mandatoryLeaves(e: Expr): string[] {
+  return e.t === "course"
+    ? [e.code]
+    : e.t === "and"
+      ? e.of.flatMap(mandatoryLeaves)
+      : [];
 }
 
 function courseLeaves(e: Expr): string[] {

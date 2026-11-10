@@ -762,3 +762,127 @@ test("GC rule: a GC 3500 completed in a summer keeps GC 4500 out of summers", ()
   assert.equal(q([]).moves[0].to, "Senior/Summer");
   assert.equal(q(["GC 3500"]).moves[0].to, "Fifth Year/First Semester");
 });
+
+// Review fixes (2026-11-10).
+test("review: a settled choice's other option is kept when a planned course needs it", () => {
+  // Real case (Management 2026-27): CPSC 2200 | MGT 2180 is a choice, and
+  // MGT 3130 requires MGT 2180 alone.
+  const g = BASE();
+  g.courses.push(
+    course("P", "Freshman/Second Semester", null, { choice: true }),
+    course("Q", "Freshman/Second Semester", null, { choice: true }),
+    course("R", "Sophomore/Second Semester", "Q"),
+  );
+  g.choices = [
+    {
+      term: "Freshman/Second Semester",
+      options: [code("P"), code("Q")].map((c) => ({
+        code: c,
+        min_prior_terms: 0,
+      })),
+    },
+  ];
+  const r = whatIf(g, TERMS, {
+    changes: [],
+    completed: new Set([code("A"), code("B"), code("P")]),
+    now: "Junior/Second Semester",
+  });
+  const q = r.behind!.find((m) => m.code === code("Q"))!;
+  assert.equal(q.to, "Junior/Second Semester");
+  assert.equal(q.only_if_chosen, undefined);
+  assert.equal(
+    r.behind!.find((m) => m.code === code("R"))!.to,
+    "Senior/First Semester",
+  );
+});
+
+test("review: a GC 3500 completed in a summer moves a planned-summer GC 4500 out of summers", () => {
+  const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    changes: [],
+    completed: new Set(["GC 3500"]),
+    completedInSummer: new Set(["GC 3500"]),
+    now: "Junior/Summer",
+  });
+  assert.deepEqual(
+    r.behind!.map((m) => [m.code, m.to]),
+    [["GC 4500", "Senior/First Semester"]],
+  );
+});
+
+test("review: without current_term, a summer-completed GC 3500 and a summer GC 4500 are noted", () => {
+  const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    changes: [{ course: "GC 4800", delayTerms: 1 }],
+    completed: new Set(["GC 3500"]),
+    completedInSummer: new Set(["GC 3500"]),
+  });
+  assert.ok(r.assumptions.some((a) => /both in summers/.test(a)));
+});
+
+test("review: GC 3500 may move into a summer when GC 4500 must leave its summer anyway", () => {
+  const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    changes: [{ course: "GC 3500", moveTo: "Junior/Summer" }],
+    completed: none,
+  });
+  assert.equal(r.moves.find((m) => m.code === "GC 3500")!.to, "Junior/Summer");
+  assert.equal(
+    r.moves.find((m) => m.code === "GC 4500")!.to,
+    "Senior/First Semester",
+  );
+});
+
+test("review: a delay of GC 3500 counts the summer GC 4500 is about to leave", () => {
+  const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    changes: [{ course: "GC 3500", delayTerms: 3 }],
+    completed: none,
+  });
+  assert.equal(r.moves.find((m) => m.code === "GC 3500")!.to, "Junior/Summer");
+});
+
+test("review: a skipped term before the current term is refused", () => {
+  assert.throws(
+    () =>
+      runNow(
+        "Junior/First Semester",
+        ["A", "B"],
+        [{ skipTerm: "Sophomore/First Semester" }],
+      ),
+    /before the current term/,
+  );
+});
+
+test("review: a student far behind gets an answer, not a horizon error", () => {
+  const r = runNow("Sixth Year/Second Semester", []);
+  assert.ok(r.graduation_slip_terms! > 0);
+  assert.equal(slotOf(r.graduation_term) !== null, true);
+});
+
+test("review: an option a planned course requires is not 'only if chosen', even before the choice is made", () => {
+  const g = BASE();
+  g.courses.push(
+    course("P", "Freshman/Second Semester", null, { choice: true }),
+    course("Q", "Freshman/Second Semester", null, { choice: true }),
+    course("R", "Sophomore/Second Semester", "Q"),
+  );
+  g.choices = [
+    {
+      term: "Freshman/Second Semester",
+      options: [code("P"), code("Q")].map((c) => ({
+        code: c,
+        min_prior_terms: 0,
+      })),
+    },
+  ];
+  const r = whatIf(g, TERMS, {
+    changes: [],
+    completed: new Set([code("A"), code("B")]),
+    now: "Junior/Second Semester",
+  });
+  assert.equal(
+    r.behind!.find((m) => m.code === code("Q"))!.only_if_chosen,
+    undefined,
+  );
+  assert.equal(
+    r.behind!.find((m) => m.code === code("P"))!.only_if_chosen,
+    true,
+  );
+});

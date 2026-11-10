@@ -33,7 +33,12 @@ import {
   requiredCodes,
   type Expr,
 } from "../prereq-expr.js";
-import { slackTerms, whatIf, type SeasonLabels } from "../plan-whatif.js";
+import {
+  slackTerms,
+  slotOf,
+  whatIf,
+  type SeasonLabels,
+} from "../plan-whatif.js";
 import { assertMcpOperation } from "./permissions.js";
 import {
   CATALOG_YEAR_ARG_DESCRIPTION,
@@ -385,8 +390,18 @@ export const programGraph: McpToolDefinition = {
     const seasonMap =
       "error" in s ? undefined : (s.labels as Map<string, SeasonLabels>);
     const done = new Set(sa.student?.completed.keys() ?? []);
-    const now =
-      typeof args.current_term === "string" ? args.current_term : undefined;
+    if (
+      args.current_term !== undefined &&
+      typeof args.current_term !== "string"
+    )
+      return err(
+        'current_term must be a plan term label, e.g. "Junior/Second Semester"',
+      );
+    let now = args.current_term as string | undefined;
+    if (now !== undefined && slotOf(now) === null)
+      return err(
+        `current_term "${now}" is not a recognised plan term label (e.g. "Junior/Second Semester")`,
+      );
     let position: Record<string, unknown> = {};
     if (now !== undefined) {
       try {
@@ -409,7 +424,12 @@ export const programGraph: McpToolDefinition = {
           behind: r.behind,
         };
       } catch (e) {
-        return err(e instanceof Error ? e.message : String(e));
+        // A plan with no senior year has no graduation to measure: the graph
+        // still answers, as slack already does (review 6).
+        graph.notes.push(
+          `current_term not applied: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        now = undefined;
       }
     }
     for (const c of graph.courses) {

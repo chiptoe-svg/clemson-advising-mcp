@@ -145,6 +145,13 @@ export const whatIfPlanTool: McpToolDefinition = {
       changes.push(c);
     }
 
+    if (
+      args.current_term !== undefined &&
+      typeof args.current_term !== "string"
+    )
+      return err(
+        'current_term must be a plan term label, e.g. "Junior/Second Semester"',
+      );
     const sa = parseStudentArgs(args);
     if ("error" in sa) return err(sa.error);
     const loaded = loadProgramGraph(program, year, sa.student);

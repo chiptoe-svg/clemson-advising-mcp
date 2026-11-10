@@ -245,3 +245,19 @@ test("current_term: a calendar term is refused with the expected form", async ()
   assert.equal(res.isError, true);
   assert.match(res.content[0].text, /Junior\/Second Semester/);
 });
+
+test("review: current_term on a plan with no senior year still returns the graph", async () => {
+  const { res, body } = await call({
+    program: "Pre-Business",
+    catalog_year: "2026-2027",
+    current_term: "Sophomore/First Semester",
+  });
+  assert.equal(res.isError, undefined, res.content[0].text);
+  assert.equal(body.graduation_slip_terms, undefined);
+  assert.ok((body.notes as string[]).some((n) => /current_term/.test(n)));
+});
+
+test("review: a non-string current_term is refused, not ignored", async () => {
+  const { res } = await call({ ...GC, current_term: 7 });
+  assert.equal(res.isError, true);
+});

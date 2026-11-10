@@ -132,3 +132,15 @@ test("completed_courses: an @term marks a GC 3500 taken in summer, for the one-s
   });
   assert.deepEqual(bad.body.ignored_completed, ["GC 3500@Winter 2026"]);
 });
+
+test("review: a GC student far behind gets an answer, in labels the tools accept back", async () => {
+  const { slotOf } = await import("../src/plan-whatif.ts");
+  const { res, body } = await call({
+    ...GC,
+    changes: [],
+    current_term: "Sixth Year/Second Semester",
+  });
+  assert.equal(res.isError, undefined, res.content[0].text);
+  assert.ok(body.graduation_slip_terms > 0);
+  assert.notEqual(slotOf(body.graduation_term), null, body.graduation_term);
+});

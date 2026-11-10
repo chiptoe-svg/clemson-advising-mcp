@@ -584,9 +584,20 @@ export function buildProgramGraph(
     let prev = prevMemo.get(code);
     if (!prev) {
       const e = parsed.get(code)?.expr;
+      // A tied OR alternative counts only if the plan has it by this
+      // course's term: Packaging Science's CH 1010 (Freshman fall) takes
+      // ~MATH 1060 | ... | ~STAT 2300, and STAT 2300 comes years later.
+      const at = pos.plannedAt.get(code)?.index;
       prev = e
-        ? bindingLeaves(e, pure.get(code) ?? 0, pureOf, inPlan, (c) =>
-            forced.has(c),
+        ? bindingLeaves(
+            e,
+            pure.get(code) ?? 0,
+            pureOf,
+            inPlan,
+            (c) =>
+              forced.has(c) &&
+              (at === undefined ||
+                (pos.plannedAt.get(c)?.index ?? Infinity) <= at),
           )
         : [];
       prevMemo.set(code, prev);
@@ -596,18 +607,25 @@ export function buildProgramGraph(
   const starts = start?.b
     ? pos.order.filter((c) => forced.has(c) && pure.get(c) === start.b)
     : [];
-  const onChain = new Set<string>();
-  const mark = (code: string) => {
-    if (onChain.has(code)) return;
-    onChain.add(code);
-    prevOf(code).forEach(mark);
+  // The chains as a DAG: an edge back into the current walk is dropped, so
+  // same-term prerequisites naming each other (A = ~B, B = ~A) cannot loop.
+  const dag = new Map<string, string[]>();
+  const inWalk = new Set<string>();
+  const visit = (code: string) => {
+    if (dag.has(code)) return;
+    inWalk.add(code);
+    const prev = prevOf(code).filter((p) => !inWalk.has(p));
+    dag.set(code, prev);
+    prev.forEach(visit);
+    inWalk.delete(code);
   };
-  starts.forEach(mark);
+  starts.forEach(visit);
+  const onChain = new Set(dag.keys());
   const countMemo = new Map<string, number>();
   const countOf = (code: string): number => {
     let n = countMemo.get(code);
     if (n === undefined) {
-      const prev = prevOf(code);
+      const prev = dag.get(code)!;
       n = prev.length ? prev.reduce((t, p) => t + countOf(p), 0) : 1;
       countMemo.set(code, n);
     }
@@ -618,7 +636,7 @@ export function buildProgramGraph(
   const walk = (code: string, after: string[]) => {
     if (critical_paths.length >= CRITICAL_PATHS_CAP) return;
     const path = [code, ...after];
-    const prev = prevOf(code);
+    const prev = dag.get(code)!;
     if (prev.length === 0) critical_paths.push(path);
     for (const p of prev) walk(p, path);
   };

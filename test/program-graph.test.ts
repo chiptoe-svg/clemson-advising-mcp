@@ -513,3 +513,33 @@ test("critical paths: capped at 20, with the full count alongside", () => {
   assert.equal(g.critical_paths_total, 25);
   assert.equal(g.critical_courses.length, 51); // GC 3400 + 50 unplanned
 });
+
+test("review: mutual same-term prerequisites do not hang the critical chains", () => {
+  const inp = inputs();
+  inp.courses.set("GC 4000", facts("GC 4000"));
+  setExpr(inp, "GC 1040", "GC 1020 & ~GC 3400");
+  setExpr(inp, "GC 3400", "GC 1020 & ~GC 1040");
+  setExpr(inp, "GC 4000", "GC 3400");
+  inp.plan.groups[2].items.push(item({ course_code: "GC 4000" }) as never);
+  const g = buildProgramGraph(inp);
+  assert.ok(g.critical_paths.length >= 1);
+  assert.ok(g.critical_paths_total >= 1);
+});
+
+test("review: a tied OR alternative planned AFTER the course is not on its chain", () => {
+  // Real case (Packaging Science 2026-27): CH 1010 (Freshman fall) takes
+  // ~MATH 1060 | ... | ~STAT 2300; STAT 2300 is planned years later.
+  const inp = inputs();
+  inp.courses.set("GC 2500", facts("GC 2500"));
+  setExpr(inp, "GC 2500", "GC 1050");
+  setExpr(inp, "GC 3400", "GC 1040 | GC 2500");
+  inp.plan.groups.push({
+    label: "Sophomore/Second Semester",
+    kind: "term",
+    credit_total: null,
+    items: [item({ course_code: "GC 2500" })],
+  } as never);
+  const g = buildProgramGraph(inp);
+  assert.deepEqual(g.critical_courses, ["GC 1020", "GC 1040", "GC 3400"]);
+  assert.equal(g.critical_paths_total, 1);
+});
