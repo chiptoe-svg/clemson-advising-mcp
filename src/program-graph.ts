@@ -56,6 +56,8 @@ export type Standing = "freshman" | "sophomore" | "junior" | "senior";
 export interface StudentState {
   /** normalized code -> letter grade if known ("C"), else null */
   completed: Map<string, string | null>;
+  /** Completed courses the caller said were taken in a summer. */
+  completedInSummer?: Set<string>;
   standing?: Standing;
 }
 

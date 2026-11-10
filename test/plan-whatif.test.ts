@@ -751,3 +751,14 @@ test("GC rule: moving GC 4500 into a summer while GC 3500 is in one names the ru
     /only one of GC 3500 and GC 4500 may be in a summer/,
   );
 });
+
+test("GC rule: a GC 3500 completed in a summer keeps GC 4500 out of summers", () => {
+  const q = (inSummer: string[]) =>
+    whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+      changes: [{ course: "GC 4500", delayTerms: 3 }],
+      completed: new Set(["GC 3500"]),
+      completedInSummer: new Set(inSummer),
+    });
+  assert.equal(q([]).moves[0].to, "Senior/Summer");
+  assert.equal(q(["GC 3500"]).moves[0].to, "Fifth Year/First Semester");
+});

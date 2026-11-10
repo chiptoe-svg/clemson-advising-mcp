@@ -52,17 +52,29 @@ const STANDINGS: readonly Standing[] = [
   "senior",
 ];
 
-/** "ACCT 2010:C" / "acct2010" -> [code, grade|null], or null if unusable. */
-function parseCompleted(raw: string): [string, string | null] | null {
-  const s = raw.trim();
+/** "ACCT 2010:C" / "acct2010" / "GC 3500:B@Summer 2026" / "GC 3500@202605"
+ *  -> [code, grade|null, taken in a summer], or null if unusable. The term
+ *  is optional; only its season is used (the GC 3500/4500 one-summer rule). */
+function parseCompleted(raw: string): [string, string | null, boolean] | null {
+  let s = raw.trim();
+  let summer = false;
+  const at = s.lastIndexOf("@");
+  if (at >= 0) {
+    const term = s.slice(at + 1).trim();
+    const named = /^(spring|summer|fall)\s+\d{4}$/i.exec(term);
+    const banner = /^\d{4}(01|05|08)$/.exec(term);
+    if (!named && !banner) return null;
+    summer = named ? named[1].toLowerCase() === "summer" : banner![1] === "05";
+    s = s.slice(0, at).trim();
+  }
   const colon = s.lastIndexOf(":");
   const codePart = colon >= 0 ? s.slice(0, colon) : s;
   const gradePart = colon >= 0 ? s.slice(colon + 1).trim() : null;
   const code = normalizeCourseCode(codePart);
   if (!code) return null;
-  if (gradePart === null) return [code, null];
+  if (gradePart === null) return [code, null, summer];
   if (!/^[A-F][+-]?$/i.test(gradePart)) return null;
-  return [code, gradePart.toUpperCase().replace(/[+-]/, "")];
+  return [code, gradePart.toUpperCase().replace(/[+-]/, ""), summer];
 }
 
 // Absent means the default, so a 40-55 course graph fits a small model's
@@ -155,6 +167,7 @@ export function parseStudentArgs(
   const ignored: string[] = [];
   if (Array.isArray(args.completed_courses)) {
     const completed = new Map<string, string | null>();
+    const completedInSummer = new Set<string>();
     for (const raw of args.completed_courses) {
       const parsed = typeof raw === "string" ? parseCompleted(raw) : null;
       if (!parsed) ignored.push(String(raw));
@@ -162,10 +175,17 @@ export function parseStudentArgs(
         ignored.push(
           `${String(raw).trim()} (an F does not complete the course)`,
         );
-      else completed.set(parsed[0], parsed[1]);
+      else {
+        completed.set(parsed[0], parsed[1]);
+        if (parsed[2]) completedInSummer.add(parsed[0]);
+      }
     }
     return {
-      student: { completed, ...(standing ? { standing } : {}) },
+      student: {
+        completed,
+        ...(completedInSummer.size ? { completedInSummer } : {}),
+        ...(standing ? { standing } : {}),
+      },
       ignored,
     };
   }
@@ -302,8 +322,10 @@ export const programGraph: McpToolDefinition = {
           type: "array",
           items: { type: "string" },
           description:
-            'Courses already completed, e.g. ["GC 1010", "ACCT 2010:C"]. A ' +
-            "grade after a colon is checked against minimum-grade rules.",
+            'Courses already completed, e.g. ["GC 1010", "ACCT 2010:C", ' +
+            '"GC 3500:B@Summer 2026"]. A grade after a colon is checked against ' +
+            'minimum-grade rules; an optional @term ("Summer 2026" or 202605) ' +
+            "says when it was taken.",
         },
         standing: {
           type: "string",
@@ -371,7 +393,12 @@ export const programGraph: McpToolDefinition = {
         const r = whatIf(
           graph,
           loaded.planTerms,
-          { changes: [], completed: done, now },
+          {
+            changes: [],
+            completed: done,
+            now,
+            completedInSummer: sa.student?.completedInSummer,
+          },
           seasonMap,
         );
         position = {
@@ -393,7 +420,10 @@ export const programGraph: McpToolDefinition = {
         c.code,
         done,
         seasonMap,
-        now !== undefined ? { now } : {},
+        {
+          ...(now !== undefined ? { now } : {}),
+          completedInSummer: sa.student?.completedInSummer,
+        },
       );
       if (slack !== undefined)
         (c as unknown as Record<string, unknown>).slack = slack;

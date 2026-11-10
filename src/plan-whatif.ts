@@ -62,6 +62,9 @@ export interface WhatIfQuery {
    *  planned before it and not completed move to the first term they can use
    *  at or after it, and every answer is measured from that rebased plan. */
   now?: string;
+  /** Completed courses known to have been taken in a summer (for
+   *  ONE_SUMMER_OF); a completed course not listed is not assumed either way. */
+  completedInSummer?: ReadonlySet<string>;
 }
 
 export interface PlanMove {
@@ -182,7 +185,12 @@ export function whatIf(
     ONE_SUMMER_OF.some(
       (pair) =>
         pair.includes(code) &&
-        pair.some((p) => p !== code && (slot.get(p) ?? 0) % 3 === 2),
+        pair.some(
+          (p) =>
+            p !== code &&
+            ((slot.get(p) ?? 0) % 3 === 2 ||
+              (q.completedInSummer?.has(p) ?? false)),
+        ),
     );
   const placeable = (code: string, s: number) =>
     s >= nowSlot &&
@@ -671,7 +679,11 @@ export function slackTerms(
   code: string,
   completed: ReadonlySet<string>,
   seasons?: ReadonlyMap<string, SeasonLabels>,
-  opts: { cap?: number; now?: string } = {},
+  opts: {
+    cap?: number;
+    now?: string;
+    completedInSummer?: ReadonlySet<string>;
+  } = {},
 ): number | undefined {
   const cap = opts.cap ?? 4;
   for (let k = 1; k <= cap; k++) {
@@ -683,6 +695,7 @@ export function slackTerms(
           changes: [{ course: code, delayTerms: k }],
           completed,
           ...(opts.now !== undefined ? { now: opts.now } : {}),
+          completedInSummer: opts.completedInSummer,
         },
         seasons,
       );

@@ -105,7 +105,9 @@ export const whatIfPlanTool: McpToolDefinition = {
           type: "array",
           items: { type: "string" },
           description:
-            'Courses already completed, e.g. ["GC 1010", "GC 1040"].',
+            'Courses already completed, e.g. ["GC 1010", "GC 3500@Summer 2026"]. ' +
+            'An optional @term ("Summer 2026" or 202605) says when it was ' +
+            "taken; it matters for GC 3500/GC 4500 (at most one in a summer).",
         },
         current_term: {
           type: "string",
@@ -161,6 +163,7 @@ export const whatIfPlanTool: McpToolDefinition = {
         {
           changes,
           completed: new Set(sa.student?.completed.keys() ?? []),
+          completedInSummer: sa.student?.completedInSummer,
           ...(typeof args.current_term === "string"
             ? { now: args.current_term }
             : {}),

@@ -109,3 +109,26 @@ test("current_term alone, with no changes, reports how far behind the student is
   assert.ok(body.graduation_slip_terms >= 1);
   assert.match(body.verdict, /behind the published plan/);
 });
+
+test("completed_courses: an @term marks a GC 3500 taken in summer, for the one-summer rule", async () => {
+  const move = (done: string[]) =>
+    call({
+      ...GC,
+      changes: [{ course: "GC 4500", move_to: "Senior/Summer" }],
+      completed_courses: done,
+    });
+  const summer = await move(["GC 3500:B@Summer 2026"]);
+  assert.equal(summer.res.isError, true);
+  assert.match(summer.res.content[0].text, /only one of GC 3500 and GC 4500/);
+  const banner = await move(["GC 3500@202605"]);
+  assert.equal(banner.res.isError, true);
+  const fall = await move(["GC 3500@Fall 2025"]);
+  assert.equal(fall.res.isError, undefined, fall.res.content[0].text);
+  // An unreadable term is reported, never guessed.
+  const bad = await call({
+    ...GC,
+    changes: [{ course: "GC 4400", delay_terms: 1 }],
+    completed_courses: ["GC 3500@Winter 2026"],
+  });
+  assert.deepEqual(bad.body.ignored_completed, ["GC 3500@Winter 2026"]);
+});
