@@ -14,6 +14,11 @@ const STATE = fs.mkdtempSync(path.join(os.tmpdir(), "course-offerings-"));
 process.env.STATE_DIR = STATE;
 fs.mkdirSync(path.join(STATE, "clemson"), { recursive: true });
 
+// 2026-11-11: Fall 2024 has ended; Fall 2026 is still in progress.
+const NOW = new Date("2026-11-11T12:00:00-05:00");
+const { __setTermClockForTest } = await import("../src/term-resolve.ts");
+__setTermClockForTest(() => NOW);
+
 const { writeScheduleDb } = await import("../src/clemson-schedule-db.ts");
 const { __schedTools } = await import("../src/mcp-tools/clemson-schedule.ts");
 
@@ -64,18 +69,19 @@ function shell(crn: string, course: string) {
   };
 }
 
-// Fall 2024: GC3400 runs twice, MATH1060 once; PKSC4990 has only a shell.
-// Fall 2026: only MATH1060 (plus a shell beside its real section).
+// Fall 2024: GC3400 runs twice, MATH1060 once (plus a shell); PKSC4990 has
+// only a shell. Fall 2026: only MATH1060 (plus a shell).
 writeScheduleDb({
   term: "202408",
   termDescription: "Fall 2024",
   fetchedAt: "2024-08-01T05:00:00Z",
-  sectionCount: 4,
+  sectionCount: 5,
   sections: [
     section("50001", "GC3400"),
     section("50002", "GC3400"),
     section("50003", "MATH1060"),
     shell("50004", "PKSC4990"),
+    shell("50005", "MATH1060"),
   ],
 });
 writeScheduleDb({
@@ -131,17 +137,23 @@ test("offering history is per observed term, with counts, keyed by normalized co
   );
 });
 
-test("a zero-capacity, zero-enrolled section is not an offering", async () => {
+test("in a term that has ended, a section with no seats and no students is not an offering", async () => {
   const b = await offerings(["PKSC 4990", "MATH 1060"]);
   // Only a shell in 202408: observed, and it did not run.
   const pksc = b.courses.find((c) => c.code === "PKSC4990")!;
   assert.deepEqual(pksc.offerings, []);
   // A shell beside a real section does not add to the count.
   const math = b.courses.find((c) => c.code === "MATH1060")!;
-  assert.deepEqual(math.offerings, [
-    { term: "202408", section_count: 1 },
-    { term: "202608", section_count: 1 },
-  ]);
+  assert.equal(math.offerings[0].term, "202408");
+  assert.equal(math.offerings[0].section_count, 1);
+});
+
+test("a term still in progress keeps its shells — its schedule can still change", async () => {
+  const b = await offerings(["MATH 1060"]);
+  assert.deepEqual(b.courses[0].offerings[1], {
+    term: "202608",
+    section_count: 2,
+  });
 });
 
 test("a course seen in no held snapshot says so — and does not claim 'not offered'", async () => {
@@ -221,6 +233,22 @@ test("the offerings cache absorbs a new snapshot on the next call (fingerprint r
   assert.equal(spring.last_offered, "202601");
   assert.equal(spring.estimated_probability, 0.97);
   assert.equal(spring.label, "very likely");
+});
+
+test("when a term ends, the cache recounts it without its shells", async () => {
+  __setTermClockForTest(() => new Date("2027-01-05T12:00:00-05:00"));
+  try {
+    const b = await offerings(["MATH 1060"]);
+    assert.deepEqual(b.courses[0].offerings[1], {
+      term: "202608",
+      section_count: 1,
+    });
+  } finally {
+    __setTermClockForTest(() => NOW);
+  }
+  // And back: the in-progress count returns with the clock.
+  const b = await offerings(["MATH 1060"]);
+  assert.equal(b.courses[0].offerings[1].section_count, 2);
 });
 
 test("a cache built under an older counting rule is rebuilt even though no snapshot changed", async () => {

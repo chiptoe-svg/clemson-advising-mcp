@@ -128,6 +128,30 @@ export function __setTermClockForTest(clock: (() => Date) | null): void {
   clockForTest = clock;
 }
 
+/** The wall clock, or the test clock when one is set. */
+export function termClockNow(): Date {
+  return clockForTest ? clockForTest() : new Date();
+}
+
+// Last day of each season, generously: a term's schedule can change until
+// it has ended. Months are 0-based for Date.UTC.
+const SEASON_END: Record<string, { month: number; day: number }> = {
+  "01": { month: 4, day: 31 }, // spring: May 31
+  "05": { month: 7, day: 31 }, // summer: Aug 31
+  "08": { month: 11, day: 31 }, // fall: Dec 31
+};
+
+/** True once the term (YYYY01/05/08) is over; false for an unknown code. */
+export function termHasEnded(
+  code: string,
+  now: Date = termClockNow(),
+): boolean {
+  const end = SEASON_END[code.slice(4, 6)];
+  if (!end) return false;
+  const year = Number(code.slice(0, 4));
+  return now.getTime() > Date.UTC(year, end.month, end.day, 23, 59, 59);
+}
+
 /**
  * Parse a term WITHOUT requiring a snapshot for it.
  *

@@ -21,7 +21,7 @@ import {
   getScheduleDbMeta,
   scheduleDbPath,
 } from "./clemson-schedule-db.js";
-import { listSnapshotTerms } from "./term-resolve.js";
+import { listSnapshotTerms, termHasEnded } from "./term-resolve.js";
 import { log } from "./log.js";
 
 const OFFERINGS_DB = () => path.join(STATE_DIR, "clemson", "offerings.db");
@@ -43,14 +43,19 @@ const SCHEMA = `
 `;
 
 // Bump when the rebuild COUNTS differently, so a cache built under the old
-// rule is rebuilt although no snapshot changed. rule-2: shell sections
-// (no seats, no students) are not offerings.
-const COUNTING_RULE = "rule-2";
+// rule is rebuilt although no snapshot changed. rule-3: in a term that has
+// ENDED, shell sections (no seats, no students) are not offerings; a term
+// still in progress keeps them (Chip, 2026-11-11), since its schedule can
+// still change.
+const COUNTING_RULE = "rule-3";
 
-/** Fingerprint of the snapshot set: counting rule, then term + mtime + size. */
+/** Fingerprint of the snapshot set: counting rule, the terms that have
+ *  ended (a term ending changes how it is counted), then term + mtime +
+ *  size. */
 function snapshotFingerprint(): string {
+  const ended = listSnapshotTerms().filter((t) => termHasEnded(t));
   return (
-    `${COUNTING_RULE}|` +
+    `${COUNTING_RULE}|ended:${ended.at(-1) ?? "none"}|` +
     listSnapshotTerms()
       .map((term) => {
         try {
@@ -79,14 +84,17 @@ function rebuild(db: Database.Database, fingerprint: string): void {
       } catch {
         fetchedAt = null;
       }
-      // A section with no seats and nobody in it is a placeholder, not an
-      // offering: ~2% of course-terms are only such shells and read as
-      // "offered" otherwise. If one later gains seats, the refreshed
-      // snapshot changes the fingerprint and the next open counts it.
+      // Once a term has ended, a section with no seats and nobody in it was
+      // a placeholder, not an offering: ~2% of course-terms are only such
+      // shells and read as "offered" otherwise. A term still in progress
+      // keeps them, since a shell there may yet get seats.
+      const shells = termHasEnded(term)
+        ? "WHERE NOT (max_enrollment = 0 AND enrollment = 0) "
+        : "";
       const rows = snap
         .prepare(
           "SELECT subject_course, COUNT(*) AS n FROM sections " +
-            "WHERE NOT (max_enrollment = 0 AND enrollment = 0) " +
+            shells +
             "GROUP BY subject_course",
         )
         .all() as { subject_course: string; n: number }[];
