@@ -192,3 +192,20 @@ test("an unreadable rules file is an error, not 'no rules recorded'", async () =
     else process.env.DEPARTMENTS_DIR = prev;
   }
 });
+
+test("every department names its programs, spelled as the catalog does", async () => {
+  // A department that lists no program cannot be found from a plan, so a
+  // reader says "no department" instead of the department's own answer.
+  const expected: Record<string, string[]> = {
+    accounting: ["Accounting, BS"],
+    economics: ["Economics, BA", "Economics, BS"],
+    "financial-management": ["Financial Management, BS"],
+    gc: ["Graphic Communications, BS"],
+    management: ["Management, BS"],
+    marketing: ["Marketing, BS"],
+  };
+  for (const [id, programs] of Object.entries(expected)) {
+    const res = await __deptTools.departmentRules.handler({ department: id });
+    assert.deepEqual(body(res as never).programs, programs, id);
+  }
+});

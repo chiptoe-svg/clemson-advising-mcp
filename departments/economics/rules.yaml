@@ -2,4 +2,7 @@
 # published catalog data. No decisions are recorded yet: this file existing and
 # saying so is deliberate, so "no rules" is an answer rather than an absence.
 department: null # filled when the department records its first decision
+programs:
+  - "Economics, BA"
+  - "Economics, BS"
 slots: []
