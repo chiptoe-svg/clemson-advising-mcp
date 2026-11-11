@@ -36,8 +36,10 @@ def test_delta_is_the_items_a_fix_changed():
 def test_verdict_avoided_when_html_matches_after():
     before = prog(course("PSYC 3680"))
     after = prog(CHOICE)
-    verdicts = score(before, after, HtmlReading(program=prog(CHOICE)), after)
-    assert {v.verdict for v in verdicts} == {"avoided"}
+    verdicts = {v.change: v.verdict for v in score(before, after, HtmlReading(program=prog(CHOICE)), after)}
+    # The added choice is a real avoid; the removed course is the other half
+    # of the same correction, counted apart so it is not counted twice.
+    assert verdicts == {"added": "avoided", "removed": "wrong item not produced"}
 
 
 def test_verdict_not_avoided_when_html_matches_before():
@@ -115,7 +117,7 @@ def test_judged_against_the_final_reading_not_an_intermediate_one():
     after = prog(course("GC 4800"), ParsedItem(kind="slot", slot_type="Elective", credits=1))
     final = prog(course("GC 4800"))
     (v,) = score(before, after, HtmlReading(program=prog(course("GC 4800"))), final)
-    assert v.verdict == "avoided"
+    assert v.verdict == "wrong item not produced"
 
 
 def test_course_from_a_printed_artifact_choice_is_not_a_reading_problem():
@@ -127,3 +129,10 @@ def test_course_from_a_printed_artifact_choice_is_not_a_reading_problem():
     html = HtmlReading(program=prog(ParsedItem(kind="choice", one_of=["ACCT 2010"], slot_type=reach, credits=3)))
     verdicts = {v.item: v.verdict for v in score(before, after, html, after)}
     assert verdicts["ACCT 2010 (3 cr)"] == "not a reading problem"
+
+
+def test_a_term_the_old_parser_did_not_read_is_counted_apart():
+    before = ParsedProgram(name="P", kind="major")
+    after = prog(course("GC 4800"))
+    (v,) = score(before, after, HtmlReading(program=prog(course("GC 4800"))), after)
+    assert v.verdict == "old parser did not read this term"

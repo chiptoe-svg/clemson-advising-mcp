@@ -188,3 +188,26 @@ def test_plain_list_item_slot_is_read_from_its_text_and_marked_carried():
     slot = r.program.groups[0].items[0]
     assert (slot.kind, slot.slot_type, slot.credits, slot.footnote_refs) == ("slot", "Major Requirement", 6, [6])
     assert any("plain list item" in c for c in r.carried)
+
+
+# Final review (2026-11-11).
+def test_void_tag_inside_hidden_markup_drops_nothing():
+    html = SNIPPET.format(
+        items=COURSE.format(coid=1, code="GC 3400", tail="")
+        # The hidden element sits right before the item's own </li>.
+        + '<li class="acalog-course"><span><a href="#" onclick="showCourse(\'49\', \'2\',this);">'
+        'GC 1040&nbsp;-&nbsp;Title</a> 3 Credits</span><span style="display: none">a<br>b</span></li>'
+        + COURSE.format(coid=3, code="GC 2000", tail="")
+    )
+    codes = [it.course_code for it in parse_program_html(html, "major", "BS").groups[0].items]
+    assert codes == ["GC 3400", "GC 1040", "GC 2000"]
+
+
+def test_footnote_number_printed_as_text_starts_a_footnote():
+    # Pre-Business 2023-25: "<p>4* See South Carolina REACH Act…</p>", no <sup>.
+    html = SNIPPET.format(items=COURSE.format(coid=1, code="GC 3400", tail="")) + (
+        '<div class="acalog-core"><h3>Footnotes</h3>'
+        "<p><sup>3*</sup> Three.</p><p>4* See South Carolina REACH Act.</p></div>"
+    )
+    fns = read_program_html(html, "major", "BS").program.footnotes
+    assert [(f.number, f.text) for f in fns] == [(3, "Three."), (4, "See South Carolina REACH Act.")]

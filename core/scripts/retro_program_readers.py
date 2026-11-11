@@ -59,7 +59,7 @@ class Verdict:
     group: str
     change: str  # "added" | "removed" | "changed"
     item: str
-    verdict: str  # "avoided" | "not avoided" | "not a reading problem"
+    verdict: str  # "avoided" | "wrong item not produced" | "old parser did not read this term" | "not avoided" | "not a reading problem"
     carried: bool = False
 
 
@@ -93,6 +93,7 @@ def score(before: ParsedProgram, after: ParsedProgram, html: HtmlReading,
     fixes left output that later fixes corrected again."""
     h_items = {g.label: g.items for g in html.program.groups}
     f_items = {g.label: g.items for g in final.groups}
+    b_terms = {g.label for g in before.groups}
 
     def state(items, key):
         return sorted((x.credits or 0, tuple(sorted(x.footnote_refs))) for x in items if _key(x) == key)
@@ -108,11 +109,20 @@ def score(before: ParsedProgram, after: ParsedProgram, html: HtmlReading,
             and it.course_code in h.one_of
             for h in h_items.get(d.group, [])
         )
+        in_final = bool(state(f_items.get(d.group, []), key))
         if d.label == LAYOUT_ARTIFACT or printed_choice:
             # The page itself prints these cells as a choice (REACH / Social
             # Science): the HTML reads them as printed, the fix corrects the
             # page. Not something a better reader would have avoided.
             v = "not a reading problem"
+        elif d.group not in b_terms:
+            # The old parser produced nothing for this term: the fix made
+            # the page readable at all, item by item it is not a correction.
+            v = "old parser did not read this term"
+        elif same and not in_final:
+            # A wrong item the fix removed, which the HTML never had: the
+            # other half of a correction, counted apart, not twice.
+            v = "wrong item not produced"
         else:
             v = "avoided" if same else "not avoided"
         out.append(Verdict(d.group, change, _show(it), v, _carried(d.group, it, html.carried)))

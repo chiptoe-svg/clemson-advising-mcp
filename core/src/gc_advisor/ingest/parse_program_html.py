@@ -53,6 +53,8 @@ _CREDITS_RE = re.compile(r"(\d+)\s+Credits?\b")
 _SLOT_RE = re.compile(r"^(.+?)\s+(\d+)\s+Credits?$")
 _TEXT_COURSE_RE = re.compile(r"^([A-Z]{2,5})\s+(\d{4})\s+-\s+.+?\s+(\d+)\s+Credits?$")
 _COID_RE = re.compile(r"showCourse\(\s*'\d+'\s*,\s*'(\d+)'")
+_VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+_TEXT_FOOTNOTE_RE = re.compile(r"^(\d+)\*?\s+(.*)$")
 _TOTAL_RE = re.compile(r"^Total Credits:\s*(\d+)")
 _HOURS_RE = re.compile(r"^Credit Hours:\s*(\d+)")
 
@@ -90,7 +92,10 @@ class _Tokenizer(HTMLParser):
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
         if self.hidden:
-            self.hidden.append(tag)
+            # A void tag (<br>) never closes: pushing it would swallow the
+            # hidden element's own end tag and hide what follows.
+            if tag not in _VOID:
+                self.hidden.append(tag)
             return
         if "display: none" in (a.get("style") or ""):
             self.hidden.append(tag)
@@ -227,8 +232,13 @@ def read_program_html(html: str, kind: str, degree: str | None = None) -> HtmlRe
         if in_footnotes:
             body = t.text
             num = re.match(r"(\d+)", t.sup) if t.kind == "p" else None
+            plain = _TEXT_FOOTNOTE_RE.match(body) if t.kind == "p" and not t.sup else None
             if num and t.sup.split()[0].rstrip("*").isdigit():
                 prog.footnotes.append(Footnote(number=int(num.group(1)), text=body))
+            elif plain:
+                # A footnote whose number is printed as text, not in <sup>
+                # (Pre-Business 2023-25: "4* See South Carolina REACH Act…").
+                prog.footnotes.append(Footnote(number=int(plain.group(1)), text=plain.group(2)))
             elif prog.footnotes and body:
                 prog.footnotes[-1].text += " " + body
             continue
