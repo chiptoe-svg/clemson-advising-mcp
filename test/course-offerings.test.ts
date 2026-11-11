@@ -54,24 +54,36 @@ function section(crn: string, course: string) {
   };
 }
 
-// Fall 2024: GC3400 runs twice, MATH1060 once. Fall 2026: only MATH1060.
+// A placeholder: no seats and nobody in it. It is listed, but nothing ran.
+function shell(crn: string, course: string) {
+  return {
+    ...section(crn, course),
+    enrollment: 0,
+    maxEnrollment: 0,
+    seatsAvailable: 0,
+  };
+}
+
+// Fall 2024: GC3400 runs twice, MATH1060 once; PKSC4990 has only a shell.
+// Fall 2026: only MATH1060 (plus a shell beside its real section).
 writeScheduleDb({
   term: "202408",
   termDescription: "Fall 2024",
   fetchedAt: "2024-08-01T05:00:00Z",
-  sectionCount: 3,
+  sectionCount: 4,
   sections: [
     section("50001", "GC3400"),
     section("50002", "GC3400"),
     section("50003", "MATH1060"),
+    shell("50004", "PKSC4990"),
   ],
 });
 writeScheduleDb({
   term: "202608",
   termDescription: "Fall 2026",
   fetchedAt: "2026-08-01T05:00:00Z",
-  sectionCount: 1,
-  sections: [section("60001", "MATH1060")],
+  sectionCount: 2,
+  sections: [section("60001", "MATH1060"), shell("60002", "MATH1060")],
 });
 
 async function offerings(courses: string[]) {
@@ -117,6 +129,19 @@ test("offering history is per observed term, with counts, keyed by normalized co
     math.offerings.map((o) => o.term),
     ["202408", "202608"],
   );
+});
+
+test("a zero-capacity, zero-enrolled section is not an offering", async () => {
+  const b = await offerings(["PKSC 4990", "MATH 1060"]);
+  // Only a shell in 202408: observed, and it did not run.
+  const pksc = b.courses.find((c) => c.code === "PKSC4990")!;
+  assert.deepEqual(pksc.offerings, []);
+  // A shell beside a real section does not add to the count.
+  const math = b.courses.find((c) => c.code === "MATH1060")!;
+  assert.deepEqual(math.offerings, [
+    { term: "202408", section_count: 1 },
+    { term: "202608", section_count: 1 },
+  ]);
 });
 
 test("a course seen in no held snapshot says so — and does not claim 'not offered'", async () => {
@@ -198,6 +223,24 @@ test("the offerings cache absorbs a new snapshot on the next call (fingerprint r
   assert.equal(spring.label, "very likely");
 });
 
+test("a cache built under an older counting rule is rebuilt even though no snapshot changed", async () => {
+  await offerings(["MATH 1060"]); // cache current
+  // Make it look like a cache written before shells were excluded: the bare
+  // snapshot fingerprint, and the shell-only course counted as offered.
+  const Database = (await import("better-sqlite3")).default;
+  const db = new Database(path.join(STATE, "clemson", "offerings.db"));
+  const { value } = db
+    .prepare("SELECT value FROM meta WHERE key='fingerprint'")
+    .get() as { value: string };
+  db.prepare("UPDATE meta SET value=? WHERE key='fingerprint'").run(
+    value.replace(/^rule-\d+\|/, ""),
+  );
+  db.prepare("INSERT INTO offerings VALUES ('PKSC4990','202408',1)").run();
+  db.close();
+  const b = await offerings(["PKSC 4990"]);
+  assert.deepEqual(b.courses[0].offerings, []);
+});
+
 // --- recorded decisions: the third provenance overrides the estimate --------
 
 const DECISIONS_PATH = path.join(STATE, "offering-decisions.yaml");
@@ -216,7 +259,8 @@ test("a recorded decision overrides the label and rides as known_decision", asyn
     ].join("\n"),
   );
   const b = await offerings(["GC 3400"]);
-  const fall = b.courses[0].seasons.fall as (typeof b)["courses"][number]["seasons"]["fall"] & {
+  const fall = b.courses[0].seasons
+    .fall as (typeof b)["courses"][number]["seasons"]["fall"] & {
     known_decision?: { expect: string; note?: string; source?: string };
   };
   assert.equal(fall.label, "ruled out");

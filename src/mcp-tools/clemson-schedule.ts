@@ -1523,7 +1523,8 @@ const courseOfferings: McpToolDefinition = {
           ...(offerings.length === 0
             ? {
                 note:
-                  "Not seen in ANY held snapshot. Check observed_terms for " +
+                  "Not seen running in ANY held snapshot (a section with no " +
+                  "seats and no students does not count). Check observed_terms for " +
                   "coverage — a term with no snapshot is unknown, not " +
                   '"not offered".',
               }
