@@ -11,7 +11,7 @@ DEPARTMENTS = Path(__file__).parent.parent.parent / "departments"
 DEPT_ANCHORS = {
     "gc": [
         "Specialty-area approval", "GC 3600 double-dip", "Lab co-requisite",
-        "GC 4060", "GC 3500 + COOP 1010", "Intern Employer Day", "CourseLineup",
+        "GC 4060", "GC 3500 + COOP 2010", "Intern Employer Day", "CourseLineup",
     ],
     "accounting": ["No department advising policy has been recorded"],
     "economics": ["No department advising policy has been recorded"],
