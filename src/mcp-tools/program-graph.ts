@@ -9,6 +9,7 @@
 import Database from "better-sqlite3";
 
 import { CATALOG_DB } from "../config-mcp.js";
+import { planningRulesForProgram, type PlanningRule } from "../departments.js";
 import { normalizeCourseCode } from "../catalog-read.js";
 import {
   observedTerms,
@@ -300,7 +301,8 @@ export const programGraph: McpToolDefinition = {
       "was given. coreqs must be taken in the same term. required_by counts " +
       "courses that need this one; one_way_into counts courses where it is " +
       "only one option. slack = how many terms a planned course can slip " +
-      "before graduation does; pass current_term for a student behind the " +
+      "before graduation does, honouring the department's planning rules " +
+      "(as what-if-plan does); pass current_term for a student behind the " +
       "plan, or slack is measured as if they were on it. Use this FIRST for multi-semester planning or " +
       "'what should I take next' — instead of calling get-course-details " +
       "course by course. For 'what if he delays X / takes a term off / takes " +
@@ -375,6 +377,15 @@ export const programGraph: McpToolDefinition = {
     const loaded = loadProgramGraph(program, year, sa.student);
     if ("error" in loaded) return err(loaded.error);
     const { graph } = loaded;
+    // The department's planning rules (departments/<id>/rules.yaml) shape
+    // slack and the current-term position, as they shape what-if-plan. An
+    // unreadable rules file is an error, never "no rules".
+    let rules: PlanningRule[];
+    try {
+      rules = planningRulesForProgram(graph.program);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
 
     const s = seasonLabelsFor(graph.courses.map((c) => c.code));
     if ("error" in s)
@@ -412,6 +423,7 @@ export const programGraph: McpToolDefinition = {
             changes: [],
             completed: done,
             now,
+            rules,
             completedInSummer: sa.student?.completedInSummer,
           },
           seasonMap,
@@ -422,6 +434,9 @@ export const programGraph: McpToolDefinition = {
           graduation_term: r.graduation_term,
           graduation_slip_terms: r.graduation_slip_terms,
           behind: r.behind,
+          ...(r.department_warnings
+            ? { department_warnings: r.department_warnings }
+            : {}),
         };
       } catch (e) {
         // A plan with no senior year has no graduation to measure: the graph
@@ -443,6 +458,7 @@ export const programGraph: McpToolDefinition = {
         {
           ...(now !== undefined ? { now } : {}),
           completedInSummer: sa.student?.completedInSummer,
+          rules,
         },
       );
       if (slack !== undefined)

@@ -6,6 +6,7 @@
 // see the caveat in every response.
 
 import { normalizeCourseCode } from "../catalog-read.js";
+import { planningRulesForProgram } from "../departments.js";
 import { whatIf, type PlanChange, type SeasonLabels } from "../plan-whatif.js";
 import { assertMcpOperation } from "./permissions.js";
 import {
@@ -71,7 +72,11 @@ export const whatIfPlanTool: McpToolDefinition = {
       "prerequisites allow, and returns slips_graduation, the courses that " +
       "move (from, to, because), prereq_problems, and a verdict sentence to " +
       "quote with its caveat. Pass completed_courses so finished courses " +
-      "stay put, and current_term for a student behind the plan. Relative to " +
+      "stay put, and current_term for a student behind the plan. The " +
+      "department's planning rules apply (GC: internship order, at most one " +
+      "internship in a summer, GC 3500/4500 registered with their COOP); a " +
+      "discouraged combination comes back in department_warnings, and a " +
+      "load rule this cannot check is named in assumptions. Relative to " +
       "the published plan's term order; no course-load " +
       "check; offerings are history, not a guarantee; Degree Works decides " +
       "what counts. Read-only, no login.",
@@ -169,6 +174,7 @@ export const whatIfPlanTool: McpToolDefinition = {
         loaded.planTerms,
         {
           changes,
+          rules: planningRulesForProgram(loaded.graph.program),
           completed: new Set(sa.student?.completed.keys() ?? []),
           completedInSummer: sa.student?.completedInSummer,
           ...(typeof args.current_term === "string"

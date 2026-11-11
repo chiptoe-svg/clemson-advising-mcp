@@ -261,3 +261,28 @@ test("review: a non-string current_term is refused, not ignored", async () => {
   const { res } = await call({ ...GC, current_term: 7 });
   assert.equal(res.isError, true);
 });
+
+test("GC's department planning rules shape slack and the current-term position", async () => {
+  // departments/gc/rules.yaml: GC 4440, 4480 and 4800 follow the second
+  // internship, and GC 4500 is registered with COOP 2020. For a student who
+  // has completed nothing by Junior spring, GC 4800 follows GC 4500 into the
+  // last term, so it has no slack (it had 3 with no rules).
+  const { res, body } = await call({
+    ...GC,
+    current_term: "Junior/Second Semester",
+  });
+  assert.equal(res.isError, undefined, res.content[0].text);
+  const find = (code: string) =>
+    body.courses.find((c: { code: string }) => c.code === code);
+  assert.equal(find("GC 4800").slack, 0);
+  const to = Object.fromEntries(
+    (body.behind as { code: string; to: string }[]).map((m) => [m.code, m.to]),
+  );
+  assert.equal(to["COOP 2020"], to["GC 4500"]);
+  // GC 4060 and GC 4400 land together: discouraged, so warned, not moved.
+  assert.ok(
+    (body.department_warnings as string[]).some((w) =>
+      /^GC 4060 and GC 4400 are both in /.test(w),
+    ),
+  );
+});

@@ -45,3 +45,70 @@ faculty:
   - { name: "Katie Hildebrand", banner_name: "Katie Hildebrand" }
   - { name: "Jackie Herr", banner_name: "Jackie Herr" }
   - { name: "Lori Pindar", banner_name: "Lori Marlise Pindar" }
+
+# Planning rules — WHEN and WITH WHAT a course may be taken, which neither the
+# catalog plan nor Degree Works encodes. Read by what-if-plan and
+# get-program-graph here, and by the advisor's plan checker, so both apply one
+# source. Every rule needs `text` (quoted to students and advisors) and
+# `source` (whose ruling, when). An unknown `kind` or a malformed field is a
+# load ERROR, never a rule skipped. Kinds: avoid_same_term (a warning only),
+# same_term (registered together),
+# at_most_in_season, before, term_load, term_excludes. Course lists are
+# alternatives where a rule says "first" or a group: GC 3500 or COOP 2010.
+planning:
+  - kind: avoid_same_term
+    courses: ["GC 4060", "GC 4400"]
+    text: "GC 4060 and GC 4400 in the same semester is discouraged: they are the two most time-consuming core courses."
+    source: "GC advising policy (SKILL.md), recorded by 2026-08-28; Chip, 2026-11-11: discouraged, not forbidden"
+  - kind: same_term
+    courses: ["GC 3500", "COOP 2010"]
+    text: "The first internship is registered as GC 3500 together with COOP 2010."
+    source: "GC advising policy (SKILL.md), 2026-10-27"
+  - kind: same_term
+    courses: ["GC 4500", "COOP 2020"]
+    text: "The second internship is registered as GC 4500 together with COOP 2020."
+    source: "GC advising policy (SKILL.md), 2026-10-27"
+  - kind: at_most_in_season
+    season: summer
+    n: 1
+    groups:
+      - ["GC 3500", "COOP 2010"]
+      - ["GC 4500", "COOP 2020"]
+    text: "At most one of the two internships (GC 3500, GC 4500) may be in a summer; neither has to be."
+    source: "Chip, 2026-09-11; restated 2026-11-10"
+  - kind: before
+    first: ["GC 3500", "COOP 2010"]
+    then: ["GC 4500", "COOP 2020"]
+    text: "The first internship (GC 3500) comes before the second (GC 4500)."
+    source: "GC advising policy (SKILL.md), 2026-10-27: GC 3500 is the 1st internship, GC 4500 the 2nd; stated as a rule 2026-11-11"
+  - kind: before
+    first: ["GC 4060", "GC 4400"]
+    then: ["GC 4500", "COOP 2020"]
+    text: "Take GC 4060 or GC 4400 before the second internship (GC 4500)."
+    source: "GC advising policy (SKILL.md), recorded by 2026-08-31; Chip, 2026-11-11"
+  - kind: before
+    first: ["GC 4500", "COOP 2020"]
+    then: ["GC 4440", "GC 4480", "GC 4800"]
+    text: "Finish the second internship (GC 4500) before GC 4440, GC 4480 and GC 4800."
+    source: "GC advising policy (SKILL.md), recorded by 2026-08-31"
+  - kind: term_load
+    when_any: ["GC 3500", "COOP 2010", "GC 4500", "COOP 2020"]
+    not_counted: ["GC 3500", "COOP 2010", "GC 4500", "COOP 2020"]
+    max_other_credits: 6
+    preferred_other_credits: 3
+    text: "An internship term carries at most 6 credits of other courses (the department prefers 3); the internship's own GC and COOP registrations don't count."
+    source: "Chip, 2026-10-27"
+  - kind: term_excludes
+    when_any: ["GC 3500", "COOP 2010", "GC 4500", "COOP 2020"]
+    courses:
+      [
+        "GC 1040",
+        "GC 2070",
+        "GC 3400",
+        "GC 4060",
+        "GC 4070",
+        "GC 4400",
+        "GC 4440",
+      ]
+    text: "No 4-credit GC course with a lab in an internship term (GC 1040, 2070, 3400, 4060, 4070, 4400, 4440); 3-credit GC lab courses are allowed."
+    source: "Chip, 2026-10-27; GC 4070 confirmed 2026-11-11"

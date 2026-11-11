@@ -6,6 +6,7 @@
 // PUBLISHED plan's term order: not course load, not a guarantee of
 // offerings, not requirement satisfaction (Degree Works).
 
+import type { PlanningRule } from "./departments.js";
 import { parsePrereq, type Expr } from "./prereq-expr.js";
 import type { ProgramGraph } from "./program-graph.js";
 
@@ -28,11 +29,6 @@ const RISKY = new Set(["uncertain"]);
 /** How far past the plan's last term to search before giving up. */
 const HORIZON = 12;
 const MAX_CHANGES = 6;
-/** Course pairs at most one of which may be in a summer, in any years.
- *  GC (Chip, 2026-11-10): either internship may be a summer, never both;
- *  the published plan shows both in summers only because of how it can be
- *  displayed. */
-const ONE_SUMMER_OF: readonly (readonly string[])[] = [["GC 3500", "GC 4500"]];
 
 /** Senior/First Semester: a plan that ends before it has no graduation. */
 const SENIOR_FALL = 9;
@@ -63,9 +59,13 @@ export interface WhatIfQuery {
    *  planned before it and not completed move to the first term they can use
    *  at or after it, and every answer is measured from that rebased plan. */
   now?: string;
-  /** Completed courses known to have been taken in a summer (for
-   *  ONE_SUMMER_OF); a completed course not listed is not assumed either way. */
+  /** Completed courses known to have been taken in a summer (for an
+   *  at_most_in_season rule); a completed course not listed is not assumed
+   *  either way. */
   completedInSummer?: ReadonlySet<string>;
+  /** The department's planning rules for this program
+   *  (departments/<id>/rules.yaml). None given, none applied. */
+  rules?: readonly PlanningRule[];
 }
 
 export interface PlanMove {
@@ -91,6 +91,8 @@ export interface WhatIfResult {
   /** Only with `now`: fall/spring terms graduation has already slipped
    *  before any change (a summer finish counts as one); 0 = on plan. */
   graduation_slip_terms?: number;
+  /** Discouraged combinations this answer contains (avoid_same_term). */
+  department_warnings?: string[];
   verdict: string;
   assumptions: string[];
   unresolved: string[];
@@ -207,7 +209,12 @@ export function whatIf(
     assumptions.push(
       "No offering history was available: every course was assumed to run every fall and spring.",
     );
-  // Courses ONE_SUMMER_OF has taken out of summers for this answer.
+  const rules = q.rules ?? [];
+  const summerRules = rules.filter(
+    (r): r is Extract<PlanningRule, { kind: "at_most_in_season" }> =>
+      r.kind === "at_most_in_season",
+  );
+  // Courses a summer rule has taken out of summers for this answer.
   const noSummer = new Set<string>();
   const placeable = (code: string, s: number) =>
     s >= nowSlot &&
@@ -256,6 +263,17 @@ export function whatIf(
   };
   for (const c of graph.courses)
     for (const k of c.coreqs ?? []) link(c.code, k);
+  // A department same_term rule groups its courses the same way (GC 4500
+  // is registered with COOP 2020).
+  const together = new Set<string>();
+  for (const r of q.rules ?? [])
+    if (r.kind === "same_term")
+      for (const a of r.courses)
+        for (const b of r.courses)
+          if (a !== b && slot.has(a) && slot.has(b)) {
+            link(a, b);
+            together.add(a);
+          }
   const groupOf = (code: string): string[] => {
     const seen = new Set([code]);
     const todo = [code];
@@ -320,7 +338,9 @@ export function whatIf(
         setSlot(
           c,
           at,
-          leads.has(c) ? why : `taken with ${lead} (corequisite)`,
+          leads.has(c)
+            ? why
+            : `taken with ${lead} (${together.has(c) && together.has(lead) ? "registered together" : "corequisite"})`,
           risk,
         );
   };
@@ -370,7 +390,33 @@ export function whatIf(
         return { at: -Infinity };
     }
   };
-  const parsed = parsedRules(graph);
+  // A department `before` rule reads as one more prerequisite: each `then`
+  // course needs one of the `first` alternatives in an earlier term. A
+  // completed alternative satisfies it; one in neither the plan nor the
+  // record cannot be placed and is left out.
+  const parsed = new Map(parsedRules(graph));
+  for (const r of rules) {
+    if (r.kind !== "before" || r.first.some((f) => q.completed.has(f)))
+      continue;
+    const present = r.first.filter((f) => slot.has(f));
+    if (present.length === 0) continue;
+    const req: Expr =
+      present.length === 1
+        ? { t: "course", code: present[0], concurrent: false }
+        : {
+            t: "or",
+            of: present.map((code) => ({
+              t: "course" as const,
+              code,
+              concurrent: false,
+            })),
+          };
+    for (const t of r.then) {
+      if (!slot.has(t)) continue;
+      const own = parsed.get(t);
+      parsed.set(t, own ? { t: "and", of: [own, req] } : req);
+    }
+  }
 
   const propagate = () => {
     let changed = true;
@@ -399,44 +445,56 @@ export function whatIf(
     }
   };
 
-  // ONE_SUMMER_OF is checked on the settled answer, not while placing: a
+  // A summer rule is checked on the settled answer, not while placing: a
   // partner's slot can still change (GC 4500 leaves its summer when GC 3500
   // moves into one). With `baseline`, the plan as given is fixed too (the
   // rebase: it stands for the student's real plan); otherwise only a course
   // this answer moved is, and the published plan is noted instead. The later
-  // course moves; a move_to into the conflict is refused.
+  // course moves; a move_to into the conflict is refused. A group is one
+  // requirement whose codes are alternatives (GC 3500 or COOP 2010): it is in
+  // a summer when any of them is.
   const exactSet = new Set<string>();
   const inSummer = (p: string) =>
     slot.has(p)
       ? slot.get(p)! % 3 === 2
       : (q.completedInSummer?.has(p) ?? false);
-  const enforceOneSummer = (baseline: boolean) => {
-    for (let round = 0; round < ONE_SUMMER_OF.length + 2; round++) {
+  // A group with a completed member happened when that member was taken: a
+  // partner still in the plan (COOP 2010 beside a completed GC 3500) is not
+  // a second summer.
+  const groupInSummer = (g: string[]) =>
+    g.some((c) => q.completed.has(c))
+      ? g.some((c) => q.completed.has(c) && inSummer(c))
+      : g.some(inSummer);
+  /** A group's name in messages: its member in the plan or record. */
+  const nameOf = (g: string[]) =>
+    g.find((c) => slot.has(c) || q.completed.has(c)) ?? g[0];
+  const namesOf = (r: { groups: string[][] }) =>
+    r.groups.map(nameOf).join(" and ");
+  const enforceSummer = (baseline: boolean) => {
+    for (let round = 0; round < summerRules.length + 2; round++) {
       let changed = false;
-      for (const pair of ONE_SUMMER_OF) {
-        if (pair.filter(inSummer).length < 2) continue;
-        const movable = pair.filter(
-          (p) =>
-            slot.has(p) &&
-            inSummer(p) &&
-            (baseline || slot.get(p) !== original.get(p)),
-        );
+      for (const r of summerRules) {
+        const inside = r.groups.filter(groupInSummer);
+        if (inside.length <= r.n) continue;
+        const movable = inside
+          .flat()
+          .filter(
+            (p) =>
+              slot.has(p) &&
+              inSummer(p) &&
+              (baseline || slot.get(p) !== original.get(p)),
+          );
         if (movable.length === 0) continue;
         const free = movable.filter((p) => !exactSet.has(p) && !pinned.has(p));
+        const only = `only ${r.n === 1 ? "one" : r.n} of ${namesOf(r)} may be in a summer`;
         if (free.length === 0)
           throw new Error(
-            `${movable[0]} cannot be in ${labelOf(slot.get(movable[0])!)}: only one of ${pair.join(" and ")} may be in a summer`,
+            `${movable[0]} cannot be in ${labelOf(slot.get(movable[0])!)}: ${only}`,
           );
         const code = free.sort((a, b) => slot.get(b)! - slot.get(a)!)[0];
         noSummer.add(code);
         const p = placeGroup(groupOf(code), slot.get(code)! + 1);
-        setGroup(
-          groupOf(code),
-          code,
-          p.at,
-          `only one of ${pair.join(" and ")} may be in a summer${offeredNote(p)}`,
-          p.risk,
-        );
+        setGroup(groupOf(code), code, p.at, only + offeredNote(p), p.risk);
         changed = true;
       }
       if (!changed) return;
@@ -466,7 +524,7 @@ export function whatIf(
       );
     }
     propagate();
-    enforceOneSummer(true);
+    enforceSummer(true);
     behind = [...slot.keys()]
       .filter((c) => slot.get(c) !== original.get(c))
       .sort((a, b) => original.get(a)! - original.get(b)! || a.localeCompare(b))
@@ -602,7 +660,7 @@ export function whatIf(
 
   // 3. Push everything whose prerequisites can no longer be met.
   propagate();
-  enforceOneSummer(false);
+  enforceSummer(false);
 
   // 4. Earlier moves are checked, never pushed.
   const prereq_problems: WhatIfResult["prereq_problems"] = [];
@@ -626,11 +684,29 @@ export function whatIf(
       });
   }
 
-  for (const pair of ONE_SUMMER_OF)
-    if (pair.every(inSummer))
+  for (const r of summerRules)
+    if (r.groups.filter(groupInSummer).length > r.n)
       assumptions.push(
-        `${pair.join(" and ")} are both in summers here, as the published plan shows them, but only one of them may be in a summer — plan the other in a fall or spring.`,
+        `${namesOf(r)} are both in summers here, as the published plan shows them, but only ${r.n === 1 ? "one of them" : r.n} may be in a summer — plan the other in a fall or spring.`,
       );
+  const department_warnings: string[] = [];
+  for (const r of rules) {
+    if (r.kind === "avoid_same_term") {
+      const bySlot = new Map<number, string[]>();
+      for (const c of r.courses)
+        if (slot.has(c))
+          bySlot.set(slot.get(c)!, [...(bySlot.get(slot.get(c)!) ?? []), c]);
+      for (const [at, cs] of bySlot)
+        if (cs.length > 1)
+          department_warnings.push(
+            `${cs.join(" and ")} are both in ${labelOf(at)}: ${r.text}`,
+          );
+    } else if (
+      (r.kind === "term_load" || r.kind === "term_excludes") &&
+      r.when_any.some((c) => slot.has(c))
+    )
+      assumptions.push(`Not checked here (department rule): ${r.text}`);
+  }
 
   const movedCodes = [...slot.keys()].filter(
     (c) => slot.get(c) !== original.get(c),
@@ -719,6 +795,7 @@ export function whatIf(
           graduation_slip_terms: slipTerms!,
         }
       : {}),
+    ...(department_warnings.length ? { department_warnings } : {}),
     verdict: parts.join(" "),
     assumptions,
     unresolved,
@@ -748,6 +825,7 @@ export function slackTerms(
     cap?: number;
     now?: string;
     completedInSummer?: ReadonlySet<string>;
+    rules?: readonly PlanningRule[];
   } = {},
 ): number | undefined {
   const cap = opts.cap ?? 4;
@@ -761,6 +839,7 @@ export function slackTerms(
           completed,
           ...(opts.now !== undefined ? { now: opts.now } : {}),
           completedInSummer: opts.completedInSummer,
+          rules: opts.rules,
         },
         seasons,
       );

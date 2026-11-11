@@ -23,6 +23,7 @@ import {
   type SeasonLabels,
 } from "../src/plan-whatif.ts";
 import type { GraphCourse, ProgramGraph } from "../src/program-graph.ts";
+import type { PlanningRule } from "../src/departments.ts";
 
 // The prerequisite parser accepts only real course codes (SUBJ NNNN), so the
 // letter names below are written as "D" -> "DD 1000", "DL" -> "DL 1000".
@@ -687,7 +688,20 @@ test("current term: the other options of a choice already made are not overdue",
 
 // GC rule (Chip, 2026-11-10): GC 3500 and GC 4500 may not BOTH be in a
 // summer, in any years; neither has to be. The published plan shows both in
-// summers — "a limitation in how it can be shown".
+// summers — "a limitation in how it can be shown". The rule is department
+// data (departments/gc/rules.yaml), passed in as the tools pass it.
+const SUMMER_RULE: PlanningRule = {
+  kind: "at_most_in_season",
+  season: "summer",
+  n: 1,
+  groups: [
+    ["GC 3500", "COOP 2010"],
+    ["GC 4500", "COOP 2020"],
+  ],
+  text: "At most one internship in a summer.",
+  source: "test",
+};
+const GC_RULES: PlanningRule[] = [SUMMER_RULE];
 function internships(first: string, second: string) {
   const c = (code: string, planned: string, prereq: string | null = null) => ({
     code,
@@ -710,6 +724,7 @@ const ITERMS = [...TERMS, "Sophomore/Summer", "Junior/Summer"];
 
 test("GC rule: GC 4500 is not delayed into a summer while GC 3500 is in one", () => {
   const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    rules: GC_RULES,
     changes: [{ course: "GC 4500", delayTerms: 3 }],
     completed: none,
   });
@@ -718,6 +733,7 @@ test("GC rule: GC 4500 is not delayed into a summer while GC 3500 is in one", ()
 
 test("GC rule: with GC 3500 in a fall, GC 4500 may take a summer", () => {
   const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    rules: GC_RULES,
     changes: [
       { course: "GC 3500", moveTo: "Junior/First Semester" },
       { course: "GC 4500", delayTerms: 3 },
@@ -730,6 +746,7 @@ test("GC rule: with GC 3500 in a fall, GC 4500 may take a summer", () => {
 
 test("GC rule: a result that still has both in summers says so", () => {
   const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    rules: GC_RULES,
     changes: [{ skipTerm: "Freshman/First Semester" }],
     completed: none,
   });
@@ -745,6 +762,7 @@ test("GC rule: moving GC 4500 into a summer while GC 3500 is in one names the ru
   assert.throws(
     () =>
       whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+        rules: GC_RULES,
         changes: [{ course: "GC 4500", moveTo: "Senior/Summer" }],
         completed: none,
       }),
@@ -755,6 +773,7 @@ test("GC rule: moving GC 4500 into a summer while GC 3500 is in one names the ru
 test("GC rule: a GC 3500 completed in a summer keeps GC 4500 out of summers", () => {
   const q = (inSummer: string[]) =>
     whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+      rules: GC_RULES,
       changes: [{ course: "GC 4500", delayTerms: 3 }],
       completed: new Set(["GC 3500"]),
       completedInSummer: new Set(inSummer),
@@ -798,6 +817,7 @@ test("review: a settled choice's other option is kept when a planned course need
 
 test("review: a GC 3500 completed in a summer moves a planned-summer GC 4500 out of summers", () => {
   const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    rules: GC_RULES,
     changes: [],
     completed: new Set(["GC 3500"]),
     completedInSummer: new Set(["GC 3500"]),
@@ -811,6 +831,7 @@ test("review: a GC 3500 completed in a summer moves a planned-summer GC 4500 out
 
 test("review: without current_term, a summer-completed GC 3500 and a summer GC 4500 are noted", () => {
   const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    rules: GC_RULES,
     changes: [{ course: "GC 4800", delayTerms: 1 }],
     completed: new Set(["GC 3500"]),
     completedInSummer: new Set(["GC 3500"]),
@@ -820,6 +841,7 @@ test("review: without current_term, a summer-completed GC 3500 and a summer GC 4
 
 test("review: GC 3500 may move into a summer when GC 4500 must leave its summer anyway", () => {
   const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    rules: GC_RULES,
     changes: [{ course: "GC 3500", moveTo: "Junior/Summer" }],
     completed: none,
   });
@@ -832,6 +854,7 @@ test("review: GC 3500 may move into a summer when GC 4500 must leave its summer 
 
 test("review: a delay of GC 3500 counts the summer GC 4500 is about to leave", () => {
   const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    rules: GC_RULES,
     changes: [{ course: "GC 3500", delayTerms: 3 }],
     completed: none,
   });
@@ -885,4 +908,212 @@ test("review: an option a planned course requires is not 'only if chosen', even 
     r.behind!.find((m) => m.code === code("P"))!.only_if_chosen,
     true,
   );
+});
+
+// Department planning rules are data (departments/<id>/rules.yaml): the
+// engine applies what it is given, and nothing it is not.
+test("rules: without the summer rule, GC 4500 may be delayed into a summer", () => {
+  const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    changes: [{ course: "GC 4500", delayTerms: 3 }],
+    completed: none,
+  });
+  assert.equal(r.moves[0].to, "Senior/Summer");
+});
+
+test("rules: a summer group counts its alternatives — COOP 2010 in a summer keeps GC 4500 out", () => {
+  const r = whatIf(internships("Sophomore/Summer", "Junior/Summer"), ITERMS, {
+    rules: GC_RULES,
+    changes: [{ course: "GC 4500", delayTerms: 3 }],
+    completed: new Set(["GC 3500", "COOP 2010"]),
+    completedInSummer: new Set(["COOP 2010"]),
+  });
+  assert.equal(r.moves[0].to, "Fifth Year/First Semester");
+});
+
+// A GC-shaped plan for the ordering rules.
+function gcPlan() {
+  const c = (code: string, planned: string, prereq: string | null = null) => ({
+    code,
+    title: code,
+    planned,
+    requirements: [],
+    prereq,
+    parse: (prereq ? "complete" : "none") as GraphCourse["parse"],
+    min_prior_terms: 0,
+    required_by: 0,
+    one_way_into: 0,
+  });
+  return graph([
+    c("GC 3500", "Sophomore/Summer"),
+    c("GC 4060", "Junior/First Semester"),
+    c("GC 4400", "Junior/Second Semester"),
+    c("GC 4500", "Junior/Summer", "GC 3500"),
+    c("GC 4440", "Senior/First Semester"),
+    c("GC 4800", "Senior/Second Semester"),
+  ]);
+}
+const rule = (r: Record<string, unknown>) =>
+  ({ text: `rule ${String(r.kind)}`, source: "test", ...r }) as PlanningRule;
+const AFTER_SECOND = rule({
+  kind: "before",
+  first: ["GC 4500", "COOP 2020"],
+  then: ["GC 4440", "GC 4480", "GC 4800"],
+});
+const LAB_FIRST = rule({
+  kind: "before",
+  first: ["GC 4060", "GC 4400"],
+  then: ["GC 4500", "COOP 2020"],
+});
+
+test("rules: `before` pushes the later courses after the earlier one", () => {
+  const r = whatIf(gcPlan(), ITERMS, {
+    rules: [AFTER_SECOND],
+    changes: [{ course: "GC 4500", moveTo: "Senior/Summer" }],
+    completed: none,
+  });
+  assert.equal(
+    r.moves.find((m) => m.code === "GC 4440")!.to,
+    "Fifth Year/First Semester",
+  );
+  assert.equal(
+    r.moves.find((m) => m.code === "GC 4800")!.to,
+    "Fifth Year/First Semester",
+  );
+  assert.match(r.moves.find((m) => m.code === "GC 4440")!.because, /GC 4500/);
+});
+
+test("rules: without `before`, those courses stay put", () => {
+  const r = whatIf(gcPlan(), ITERMS, {
+    changes: [{ course: "GC 4500", moveTo: "Senior/Summer" }],
+    completed: none,
+  });
+  assert.equal(r.moves.length, 1);
+});
+
+test("rules: `before` with alternatives — either one in time is enough", () => {
+  // GC 4400 delayed past GC 4500, but GC 4060 is still before it.
+  const one = whatIf(gcPlan(), ITERMS, {
+    rules: [LAB_FIRST],
+    changes: [{ course: "GC 4400", delayTerms: 2 }],
+    completed: none,
+  });
+  assert.ok(!one.moves.some((m) => m.code === "GC 4500"));
+  // Both delayed (GC 4060 to Senior fall, GC 4400 to Senior spring): GC 4500
+  // must follow the earlier of the two, so the term after Senior fall.
+  const both = whatIf(gcPlan(), ITERMS, {
+    rules: [LAB_FIRST],
+    changes: [
+      { course: "GC 4060", delayTerms: 2 },
+      { course: "GC 4400", delayTerms: 2 },
+    ],
+    completed: none,
+  });
+  assert.equal(
+    both.moves.find((m) => m.code === "GC 4500")!.to,
+    "Senior/Second Semester",
+  );
+});
+
+test("rules: a completed `first` alternative satisfies `before`", () => {
+  const r = whatIf(gcPlan(), ITERMS, {
+    rules: [AFTER_SECOND],
+    changes: [{ course: "GC 4440", moveTo: "Junior/First Semester" }],
+    completed: new Set(["COOP 2020"]),
+  });
+  assert.deepEqual(r.prereq_problems, []);
+});
+
+test("rules: moving a course earlier than its `before` rule allows is a problem, not a push", () => {
+  const r = whatIf(gcPlan(), ITERMS, {
+    rules: [AFTER_SECOND],
+    changes: [{ course: "GC 4440", moveTo: "Junior/First Semester" }],
+    completed: none,
+  });
+  assert.equal(r.prereq_problems.length, 1);
+  assert.match(r.prereq_problems[0].problem, /GC 4500/);
+});
+
+test("rules: avoid_same_term warns and never moves anything", () => {
+  const r = whatIf(gcPlan(), ITERMS, {
+    rules: [
+      rule({
+        kind: "avoid_same_term",
+        courses: ["GC 4060", "GC 4400"],
+        text: "GC 4060 and GC 4400 together is discouraged.",
+      }),
+    ],
+    changes: [{ course: "GC 4060", moveTo: "Junior/Second Semester" }],
+    completed: none,
+  });
+  assert.equal(r.moves.length, 1);
+  assert.equal(r.slips_graduation, false);
+  assert.deepEqual(r.department_warnings, [
+    "GC 4060 and GC 4400 are both in Junior/Second Semester: GC 4060 and GC 4400 together is discouraged.",
+  ]);
+});
+
+test("rules: load rules the engine cannot check are named as not checked", () => {
+  const r = whatIf(gcPlan(), ITERMS, {
+    rules: [
+      rule({
+        kind: "term_load",
+        when_any: ["GC 3500"],
+        not_counted: ["GC 3500"],
+        max_other_credits: 6,
+        preferred_other_credits: 3,
+        text: "At most 6 other credits in an internship term.",
+      }),
+    ],
+    changes: [{ course: "GC 4800", delayTerms: 1 }],
+    completed: none,
+  });
+  assert.ok(
+    r.assumptions.includes(
+      "Not checked here (department rule): At most 6 other credits in an internship term.",
+    ),
+    r.assumptions.join(" | "),
+  );
+});
+
+test("rules: same_term moves a registration pair as one", () => {
+  const g = gcPlan();
+  g.courses.push({
+    ...g.courses[3],
+    code: "COOP 2020",
+    prereq: null,
+    parse: "none",
+  });
+  const r = whatIf(g, ITERMS, {
+    rules: [
+      rule({ kind: "same_term", courses: ["GC 4500", "COOP 2020"] }),
+      AFTER_SECOND,
+    ],
+    changes: [{ course: "GC 4500", moveTo: "Senior/First Semester" }],
+    completed: none,
+  });
+  const coop = r.moves.find((m) => m.code === "COOP 2020")!;
+  assert.equal(coop.to, "Senior/First Semester");
+  assert.equal(coop.because, "taken with GC 4500 (registered together)");
+  // ...so the second internship really is in Senior fall, and GC 4440 follows.
+  assert.equal(
+    r.moves.find((m) => m.code === "GC 4440")!.to,
+    "Senior/Second Semester",
+  );
+});
+
+test("rules: an internship group with a completed member counts by that member's term", () => {
+  // GC 3500 done in a fall: COOP 2010 still in its planned summer is not a
+  // second summer internship. Nothing is marked completed on its behalf.
+  const g = gcPlan();
+  g.courses.push({ ...g.courses[0], code: "COOP 2010" });
+  const r = whatIf(g, ITERMS, {
+    rules: [
+      rule({ kind: "same_term", courses: ["GC 3500", "COOP 2010"] }),
+      SUMMER_RULE,
+    ],
+    changes: [{ course: "GC 4500", moveTo: "Senior/Summer" }],
+    completed: new Set(["GC 3500"]),
+  });
+  assert.equal(r.moves.find((m) => m.code === "GC 4500")!.to, "Senior/Summer");
+  assert.ok(!r.moves.some((m) => m.code === "COOP 2010"));
 });

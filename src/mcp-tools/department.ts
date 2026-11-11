@@ -27,7 +27,10 @@ const departmentRules: McpToolDefinition = {
     description:
       "A department's RECORDED DECISIONS about requirement slots: " +
       "faculty-approved course additions (and denials) for slots like the " +
-      "Specialty Area — plus the department's own faculty ROSTER, the honest " +
+      "Specialty Area — the department's PLANNING rules (when and with what " +
+      "a course may be taken: order, same or separate terms, summer limits, " +
+      "internship-term loads; each with its sentence and source) — plus the " +
+      "department's own faculty ROSTER, the honest " +
       "source for membership (the schedule snapshot has no department " +
       "column; feed roster banner_name strings to get-teaching-load or " +
       "get-instructor-classes). Provenance is the department, NOT the published " +
@@ -77,6 +80,15 @@ const departmentRules: McpToolDefinition = {
       programs: rules.programs,
       faculty: rules.faculty,
       slots: rules.slots,
+      planning: rules.planning,
+      ...(rules.planning.length === 0
+        ? {
+            planning_note:
+              "This department has recorded no planning rules (when or with " +
+              "what a course may be taken). That is a statement about the " +
+              "record, not proof the department has none.",
+          }
+        : {}),
       ...(rules.slots.length === 0
         ? {
             note:

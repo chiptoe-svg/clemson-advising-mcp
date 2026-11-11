@@ -144,3 +144,33 @@ test("review: a GC student far behind gets an answer, in labels the tools accept
   assert.ok(body.graduation_slip_terms > 0);
   assert.notEqual(slotOf(body.graduation_term), null, body.graduation_term);
 });
+
+test("GC's department planning rules apply: GC 4440 follows the second internship", async () => {
+  const { res, body } = await call({
+    ...GC,
+    changes: [{ course: "GC 4500", move_to: "Senior/First Semester" }],
+  });
+  assert.equal(res.isError, undefined, res.content[0].text);
+  const m = body.moves.find((x: { code: string }) => x.code === "GC 4440");
+  assert.equal(m?.to, "Senior/Second Semester");
+  assert.match(m.because, /GC 4500/);
+  assert.ok(
+    body.assumptions.some((a: string) =>
+      /^Not checked here \(department rule\): An internship term/.test(a),
+    ),
+    body.assumptions.join(" | "),
+  );
+});
+
+test("GC 4060 and GC 4400 in one term is a warning, not a move", async () => {
+  const { res, body } = await call({
+    ...GC,
+    changes: [{ course: "GC 4060", move_to: "Junior/Second Semester" }],
+  });
+  assert.equal(res.isError, undefined, res.content[0].text);
+  assert.equal(body.slips_graduation, false);
+  assert.match(
+    body.department_warnings[0],
+    /GC 4060 and GC 4400 are both in Junior\/Second Semester: .*discouraged/,
+  );
+});
