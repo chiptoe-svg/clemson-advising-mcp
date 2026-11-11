@@ -176,3 +176,16 @@ def test_doubt_in_a_year_without_an_audit_says_so(regdb):
     html = prog(course("GC 1040", 6), course("GC 1010", 6), credit_total=15, total=15)
     (c,) = captures_for(regdb, "Accounting, BS", "2025-2026", [], html)
     assert c.priority == 1 and "no registrar audit on file" in c.detail
+
+
+def test_graduated_years_need_no_capture(regdb):
+    # Chip, 2026-11-11: 2020-21 and earlier have all graduated.
+    html = prog(course("GC 1040", 6), course("GC 1010", 6), credit_total=15, total=15)
+    assert captures_for(regdb, "Accounting, BS", "2020-2021", [], html) == []
+    assert captures_for(regdb, "Accounting, BS", "2021-2022", [], html) != []
+
+
+def test_pre_business_needs_no_audit_of_its_own(regdb):
+    # Its rules come with the audits of the business majors that use it.
+    html = prog(course("GC 1040", 3), credit_total=3, total=3)
+    assert captures_for(regdb, "Pre-Business", "2026-2027", [], html) == []

@@ -18,6 +18,9 @@ from gc_advisor.ingest.pre_business import DESCRIPTION, PROGRAM_NAME
 from gc_advisor.models import ParsedItem, ParsedProgram
 
 LAYOUT_ARTIFACT = "layout artifact"
+# Catalog years older than this have all graduated (Chip, 2026-11-11), so no
+# capture is worth making for them. Move it forward as classes graduate.
+OLDEST_CURRENT_YEAR = "2021-2022"
 
 
 @dataclass
@@ -172,7 +175,10 @@ def captures_for(db_path, program_name: str, year: str,
     """The captures one program-year needs: each term where the readers
     disagree for no known reason and the registrar's rules name none of the
     courses; each printed total the page's own items do not reach; and, if
-    neither applies, a program-year with no audit on file."""
+    neither applies, a program-year with no audit on file. None for a year
+    older than OLDEST_CURRENT_YEAR."""
+    if year < OLDEST_CURRENT_YEAR:
+        return []
     out: list[Capture] = []
     open_groups: dict[str, list[ItemDiff]] = {}
     for d in diffs:
@@ -198,7 +204,9 @@ def captures_for(db_path, program_name: str, year: str,
     if out and not _has_registrar_rules(db_path, program_name, year):
         for c in out:
             c.detail += " (no registrar audit on file for this year)"
-    elif not out and not _has_registrar_rules(db_path, program_name, year):
+    # Pre-Business has no audit of its own: its rules come with the audits of
+    # the business majors that start students in it.
+    elif not out and program_name != PROGRAM_NAME and not _has_registrar_rules(db_path, program_name, year):
         out.append(Capture(
             2, program_name, year, "whole program", "no registrar audit on file",
             "the registrar's rules; today this program-year's rules come from the catalog alone",
