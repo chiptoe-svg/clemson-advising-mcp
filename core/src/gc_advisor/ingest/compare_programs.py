@@ -128,3 +128,79 @@ def pre_business_html(marketing_html: str) -> HtmlReading:
     r.program.name = PROGRAM_NAME
     r.program.description = DESCRIPTION
     return r
+
+
+@dataclass
+class Capture:
+    """A Degree Works audit worth exporting for one program-year.
+    Priority 1: something on the page or between the readers is in doubt.
+    Priority 2: nothing is in doubt, but no audit is on file."""
+
+    priority: int
+    program: str
+    year: str
+    where: str
+    detail: str
+    settles: str
+
+
+def _has_registrar_rules(db_path, program_name: str, year: str) -> bool:
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        return con.execute(
+            "SELECT 1 FROM registrar_requirement r JOIN program p ON p.id = r.program_id "
+            "JOIN catalog_year cy ON cy.id = p.catalog_year_id "
+            "WHERE p.name = ? AND cy.label = ? LIMIT 1",
+            (program_name, year),
+        ).fetchone() is not None
+    finally:
+        con.close()
+
+
+def _describe(it: ParsedItem | None) -> str:
+    if it is None:
+        return "nothing"
+    if it.kind == "fixed_course":
+        return it.course_code
+    if it.kind == "slot":
+        return f"slot {it.slot_type!r}"
+    return " or ".join(it.one_of + ([f"slot {it.slot_type!r}"] if it.slot_type else []))
+
+
+def captures_for(db_path, program_name: str, year: str,
+                 diffs: list[ItemDiff], html_prog: ParsedProgram) -> list[Capture]:
+    """The captures one program-year needs: each term where the readers
+    disagree for no known reason and the registrar's rules name none of the
+    courses; each printed total the page's own items do not reach; and, if
+    neither applies, a program-year with no audit on file."""
+    out: list[Capture] = []
+    open_groups: dict[str, list[ItemDiff]] = {}
+    for d in diffs:
+        if d.label is None:
+            open_groups.setdefault(d.group, []).append(d)
+    for group, ds in open_groups.items():
+        codes = sorted({c for d in ds for it in (d.text_item, d.html_item) if it
+                        for c in ([it.course_code] if it.course_code else it.one_of)})
+        if codes and registrar_lines(db_path, program_name, year, codes):
+            continue
+        out.append(Capture(
+            1, program_name, year, group,
+            "; ".join(f"text reads {_describe(d.text_item)}, HTML reads {_describe(d.html_item)}" for d in ds),
+            f"which reading Degree Works counts for {', '.join(codes) or 'this term'}",
+        ))
+    for line in credit_checks(html_prog):
+        where, _, what = line.partition(": ") if ": " in line else ("credit totals", "", line)
+        out.append(Capture(
+            1, program_name, year, where, what or line,
+            "the degree's real credit total" if where == "credit totals"
+            else "which courses Degree Works requires here (the printed term total is the catalog's own)",
+        ))
+    if out and not _has_registrar_rules(db_path, program_name, year):
+        for c in out:
+            c.detail += " (no registrar audit on file for this year)"
+    elif not out and not _has_registrar_rules(db_path, program_name, year):
+        out.append(Capture(
+            2, program_name, year, "whole program", "no registrar audit on file",
+            "the registrar's rules; today this program-year's rules come from the catalog alone",
+        ))
+    return out

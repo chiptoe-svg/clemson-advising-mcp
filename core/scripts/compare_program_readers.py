@@ -9,8 +9,8 @@ a summary, then each program-year (Pre-Business read from the Marketing
 page): whether today's text equals the original saved scrape, anything the
 HTML reader could not read, item differences (labelled when a known
 text-parser repair explains them), credit checks for both readers, the
-registrar's rules for disputed courses, and finally the cases only a Degree
-Works What-If can settle. catalog.db is read only; nothing is written to it.
+registrar's rules for disputed courses, and finally the Degree Works captures
+worth making (captures_for), most useful first. catalog.db is read only; nothing is written to it.
 """
 import argparse
 import json
@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from gc_advisor.ingest.compare_programs import (  # noqa: E402
     LAYOUT_ARTIFACT,
+    captures_for,
     credit_checks,
     diff_programs,
     pre_business_html,
@@ -71,7 +72,7 @@ def compare_all(pages_dir: Path, db: Path, raw_dir: Path) -> tuple[str, dict]:
     stats = Counter()
     by_label = Counter()
     patterns: dict[tuple, list[str]] = defaultdict(list)
-    what_if: list[str] = []
+    captures = []
     body: list[str] = []
     for name, year, same, tprog, reading in rows:
         diffs = diff_programs(tprog, reading.program)
@@ -110,9 +111,7 @@ def compare_all(pages_dir: Path, db: Path, raw_dir: Path) -> tuple[str, dict]:
             if reg:
                 body.append(f"- registrar, {group} ({', '.join(codes)}):")
                 body += [f"  - {r}" for r in reg]
-            else:
-                what_if.append(f"- {name} {year}, {group}: " + "; ".join(
-                    f"text {_item(d.text_item)} / html {_item(d.html_item)}" for d in ds))
+        captures += captures_for(db, name, year, diffs, reading.program)
         for who, prog in (("text", tprog), ("html", reading.program)):
             for line in credit_checks(prog):
                 body.append(f"- credit check ({who}): {line}")
@@ -127,7 +126,12 @@ def compare_all(pages_dir: Path, db: Path, raw_dir: Path) -> tuple[str, dict]:
     for (name, group, kind, t, h), years in sorted(patterns.items(), key=lambda kv: -len(kv[1])):
         if len(years) > 1:
             head.append(f"- {name}, {group}, {kind}: text {t} / html {h} — {len(years)} years ({', '.join(years)})")
-    tail = ["\n## Needs a Degree Works What-If\n"] + (what_if or ["- None."])
+    tail = ["\n## Degree Works captures worth making\n"]
+    for priority, title in ((1, "Something is in doubt"), (2, "No audit on file")):
+        rows_p = [c for c in captures if c.priority == priority]
+        tail.append(f"\n### {priority}. {title} ({len(rows_p)})\n")
+        tail += [f"- {c.program} {c.year}, {c.where}: {c.detail}. Would settle: {c.settles}."
+                 for c in rows_p] or ["- None."]
     return "\n".join(head + body + tail) + "\n", dict(stats)
 
 

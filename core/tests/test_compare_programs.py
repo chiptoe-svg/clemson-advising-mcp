@@ -123,3 +123,56 @@ def test_pre_business_html_side_stops_at_additional_curriculum():
     r = pre_business_html(html)
     assert r.program.name == "Pre-Business"
     assert [g.label for g in r.program.groups] == ["Pre-Business Freshman/First Semester"]
+
+
+# Degree Works captures worth making (2026-11-11): a disagreement the
+# registrar's rules do not settle, a printed total that does not add up, and a
+# program-year with no audit on file.
+from gc_advisor.ingest.compare_programs import captures_for  # noqa: E402
+
+
+def test_unsettled_disagreement_is_a_first_priority_capture(regdb):
+    text = prog(course("PSYC 3680"))
+    html = prog(ParsedItem(kind="choice", one_of=["MGT 3070", "PSYC 3680"], credits=3))
+    (c,) = captures_for(regdb, "Accounting, BS", "2026-2027", diff_programs(text, html), html)
+    assert (c.priority, c.where) == (1, "Freshman/First Semester")
+    assert "MGT 3070" in c.detail and "PSYC 3680" in c.detail
+    assert c.settles
+
+
+def test_disagreement_the_registrar_settles_is_not_a_capture(regdb):
+    text = prog(course("ACCT 2010"), course("GC 1040"))
+    html = prog(course("ACCT 2010", 4), course("GC 1040"))
+    assert captures_for(regdb, "Accounting, BS", "2026-2027", diff_programs(text, html), html) == []
+
+
+def test_layout_artifact_is_not_a_capture(regdb):
+    reach = "South Carolina REACH Act Requirement"
+    text = prog(course("BIOL 1030"), ParsedItem(kind="slot", slot_type=reach, credits=0))
+    html = prog(ParsedItem(kind="choice", one_of=["BIOL 1030"], slot_type=reach, credits=3))
+    assert captures_for(regdb, "Accounting, BS", "2026-2027", diff_programs(text, html), html) == []
+
+
+def test_printed_total_that_does_not_add_up_is_a_capture(regdb):
+    html = prog(course("GC 1040", 6), course("GC 1010", 6), credit_total=15, total=15)
+    (c,) = captures_for(regdb, "Accounting, BS", "2026-2027", [], html)
+    assert c.priority == 1 and "12" in c.detail and "15" in c.detail
+    assert c.settles
+
+
+def test_program_year_without_an_audit_is_a_second_priority_capture(regdb):
+    html = prog(course("GC 1040", 3), credit_total=3, total=3)
+    (c,) = captures_for(regdb, "Accounting, BS", "2025-2026", [], html)
+    assert (c.priority, c.where) == (2, "whole program")
+    assert c.settles
+
+
+def test_clean_program_year_with_an_audit_needs_no_capture(regdb):
+    html = prog(course("GC 1040", 3), credit_total=3, total=3)
+    assert captures_for(regdb, "Accounting, BS", "2026-2027", [], html) == []
+
+
+def test_doubt_in_a_year_without_an_audit_says_so(regdb):
+    html = prog(course("GC 1040", 6), course("GC 1010", 6), credit_total=15, total=15)
+    (c,) = captures_for(regdb, "Accounting, BS", "2025-2026", [], html)
+    assert c.priority == 1 and "no registrar audit on file" in c.detail
