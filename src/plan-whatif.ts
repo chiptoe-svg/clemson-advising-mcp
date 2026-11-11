@@ -390,11 +390,24 @@ export function whatIf(
         return { at: -Infinity };
     }
   };
+  // A course registered with a completed one (COOP 2020 beside a completed
+  // GC 4500) belongs to something that already happened: no planning rule
+  // places it. It is never marked completed itself.
+  const partnerDone = (c: string) =>
+    rules.some(
+      (r) =>
+        r.kind === "same_term" &&
+        r.courses.includes(c) &&
+        r.courses.some((x) => q.completed.has(x)),
+    );
   // A department `before` rule reads as one more prerequisite: each `then`
   // course needs one of the `first` alternatives in an earlier term. A
   // completed alternative satisfies it; one in neither the plan nor the
-  // record cannot be placed and is left out.
-  const parsed = new Map(parsedRules(graph));
+  // record cannot be placed and is left out. ruleReqs keeps which rule added
+  // what, so a move or problem it causes quotes the rule.
+  const catalogRules = parsedRules(graph);
+  const parsed = new Map(catalogRules);
+  const ruleReqs = new Map<string, { text: string; req: Expr }[]>();
   for (const r of rules) {
     if (r.kind !== "before" || r.first.some((f) => q.completed.has(f)))
       continue;
@@ -412,11 +425,18 @@ export function whatIf(
             })),
           };
     for (const t of r.then) {
-      if (!slot.has(t)) continue;
+      if (!slot.has(t) || partnerDone(t)) continue;
       const own = parsed.get(t);
       parsed.set(t, own ? { t: "and", of: [own, req] } : req);
+      ruleReqs.set(t, [...(ruleReqs.get(t) ?? []), { text: r.text, req }]);
     }
   }
+  /** The department rule that alone sets a course's earliest term, if any. */
+  const ruleBehind = (code: string, at: number): string | undefined => {
+    const own = catalogRules.get(code);
+    if (own && need(own).at >= at) return undefined;
+    return ruleReqs.get(code)?.find((x) => need(x.req).at >= at)?.text;
+  };
 
   const propagate = () => {
     let changed = true;
@@ -436,9 +456,12 @@ export function whatIf(
         const group = groupOf(c.code);
         if (group.some((g) => pinned.has(g))) continue;
         const p = placeGroup(group, n.at);
-        const by = n.by
-          ? `needs ${n.by} (now ${labelOf(slot.get(n.by)!)})`
-          : "prerequisites";
+        const rule = ruleBehind(c.code, n.at);
+        const by = rule
+          ? `department rule: ${rule}`
+          : n.by
+            ? `needs ${n.by} (now ${labelOf(slot.get(n.by)!)})`
+            : "prerequisites";
         setGroup(group, c.code, p.at, by + offeredNote(p), p.risk);
         changed = true;
       }
@@ -467,7 +490,7 @@ export function whatIf(
       : g.some(inSummer);
   /** A group's name in messages: its member in the plan or record. */
   const nameOf = (g: string[]) =>
-    g.find((c) => slot.has(c) || q.completed.has(c)) ?? g[0];
+    g.find((c) => q.completed.has(c)) ?? g.find((c) => slot.has(c)) ?? g[0];
   const namesOf = (r: { groups: string[][] }) =>
     r.groups.map(nameOf).join(" and ");
   const enforceSummer = (baseline: boolean) => {
@@ -476,7 +499,10 @@ export function whatIf(
       for (const r of summerRules) {
         const inside = r.groups.filter(groupInSummer);
         if (inside.length <= r.n) continue;
+        // A group with a completed member is fixed: moving its leftover
+        // partner could not resolve anything.
         const movable = inside
+          .filter((g) => !g.some((c) => q.completed.has(c)))
           .flat()
           .filter(
             (p) =>
@@ -586,7 +612,7 @@ export function whatIf(
         (fixedGroups.has(key) && fixedGroups.get(key) !== s)
       )
         throw new Error(
-          `${group.join(" and ")} are corequisites — move them together, to the same term`,
+          `${group.join(" and ")} are taken in the same term (corequisites, or registered together) — move them together, to the same term`,
         );
       const risk = exactly(code, group, s);
       fixedGroups.set(key, s);
@@ -610,7 +636,7 @@ export function whatIf(
       );
     if (fixedGroups.has(key))
       throw new Error(
-        `${group.join(" and ")} are corequisites — move them together, the same way`,
+        `${group.join(" and ")} are taken in the same term (corequisites, or registered together) — move them together, the same way`,
       );
     let wanted = from;
     for (let k = 0; k < n;) {
@@ -676,12 +702,16 @@ export function whatIf(
     const e = parsed.get(code);
     if (!e) continue;
     const n = need(e);
-    if (n.at > slot.get(code)! && n.by)
+    if (n.at > slot.get(code)! && n.by) {
+      const rule = ruleBehind(code, n.at);
       prereq_problems.push({
         course: code,
         term: labelOf(slot.get(code)!),
-        problem: `${code} in ${labelOf(slot.get(code)!)} needs ${n.by}, which is planned in ${labelOf(slot.get(n.by)!)}`,
+        problem: rule
+          ? `${code} in ${labelOf(slot.get(code)!)} breaks a department rule: ${rule}`
+          : `${code} in ${labelOf(slot.get(code)!)} needs ${n.by}, which is planned in ${labelOf(slot.get(n.by)!)}`,
       });
+    }
   }
 
   for (const r of summerRules)

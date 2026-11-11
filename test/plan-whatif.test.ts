@@ -979,7 +979,10 @@ test("rules: `before` pushes the later courses after the earlier one", () => {
     r.moves.find((m) => m.code === "GC 4800")!.to,
     "Fifth Year/First Semester",
   );
-  assert.match(r.moves.find((m) => m.code === "GC 4440")!.because, /GC 4500/);
+  assert.equal(
+    r.moves.find((m) => m.code === "GC 4440")!.because,
+    "department rule: rule before",
+  );
 });
 
 test("rules: without `before`, those courses stay put", () => {
@@ -1030,7 +1033,10 @@ test("rules: moving a course earlier than its `before` rule allows is a problem,
     completed: none,
   });
   assert.equal(r.prereq_problems.length, 1);
-  assert.match(r.prereq_problems[0].problem, /GC 4500/);
+  assert.match(
+    r.prereq_problems[0].problem,
+    /GC 4440 in Junior\/First Semester breaks a department rule: rule before/,
+  );
 });
 
 test("rules: avoid_same_term warns and never moves anything", () => {
@@ -1116,4 +1122,84 @@ test("rules: an internship group with a completed member counts by that member's
   });
   assert.equal(r.moves.find((m) => m.code === "GC 4500")!.to, "Senior/Summer");
   assert.ok(!r.moves.some((m) => m.code === "COOP 2010"));
+});
+
+// Review (2026-11-11).
+test("review: the summer rule never moves the partner of a completed internship", () => {
+  // Both internships done in summers; their COOP registrations are still
+  // planned. Moving a COOP cannot resolve anything, so nothing moves.
+  const g = gcPlan();
+  g.courses.push(
+    { ...g.courses[0], code: "COOP 2010" },
+    { ...g.courses[3], code: "COOP 2020", prereq: null, parse: "none" },
+  );
+  const r = whatIf(g, ITERMS, {
+    rules: [
+      rule({ kind: "same_term", courses: ["GC 3500", "COOP 2010"] }),
+      rule({ kind: "same_term", courses: ["GC 4500", "COOP 2020"] }),
+      SUMMER_RULE,
+    ],
+    changes: [],
+    completed: new Set(["GC 3500", "GC 4500"]),
+    completedInSummer: new Set(["GC 3500", "GC 4500"]),
+    now: "Sophomore/Summer",
+  });
+  assert.ok(
+    !(r.behind ?? []).some((m) => m.code.startsWith("COOP")),
+    JSON.stringify(r.behind),
+  );
+});
+
+test("review: `before` does not chain the leftover partner of a completed internship", () => {
+  // GC 4500 done; its COOP 2020 left in the plan is not the second
+  // internship still to come, so no `before` rule pushes it.
+  const g = gcPlan();
+  g.courses.push({
+    ...g.courses[3],
+    code: "COOP 2020",
+    prereq: null,
+    parse: "none",
+  });
+  const r = whatIf(g, ITERMS, {
+    rules: [
+      rule({ kind: "same_term", courses: ["GC 4500", "COOP 2020"] }),
+      LAB_FIRST,
+    ],
+    changes: [
+      { course: "GC 4060", delayTerms: 2 },
+      { course: "GC 4400", delayTerms: 2 },
+    ],
+    completed: new Set(["GC 4500"]),
+  });
+  assert.ok(
+    !r.moves.some((m) => m.code === "COOP 2020"),
+    JSON.stringify(r.moves),
+  );
+});
+
+test("review: a move forced by a department rule quotes the rule, not a prerequisite", () => {
+  const r = whatIf(gcPlan(), ITERMS, {
+    rules: [LAB_FIRST],
+    changes: [
+      { course: "GC 4060", delayTerms: 2 },
+      { course: "GC 4400", delayTerms: 2 },
+    ],
+    completed: none,
+  });
+  assert.equal(
+    r.moves.find((m) => m.code === "GC 4500")!.because,
+    "department rule: rule before",
+  );
+});
+
+test("review: moving earlier than a department rule allows names the rule", () => {
+  const r = whatIf(gcPlan(), ITERMS, {
+    rules: [AFTER_SECOND],
+    changes: [{ course: "GC 4440", moveTo: "Junior/First Semester" }],
+    completed: none,
+  });
+  assert.match(
+    r.prereq_problems[0].problem,
+    /breaks a department rule: rule before/,
+  );
 });

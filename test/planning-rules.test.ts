@@ -228,3 +228,87 @@ test("planning rules are found by program name", () => {
   assert.ok(gc.some((r) => r.kind === "avoid_same_term"));
   assert.deepEqual(planningRulesForProgram("Marketing, BS"), []);
 });
+
+// Review (2026-11-11).
+test("review: a missing departments store is an error, not 'no rules'", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const out = execFileSync(
+    process.execPath,
+    [
+      "--import",
+      "tsx",
+      "-e",
+      `import("./src/departments.ts").then(m => {
+         try { m.planningRulesForProgram("Graphic Communications, BS"); console.log("SILENT"); }
+         catch (e) { console.log("THREW: " + e.message); }
+       })`,
+    ],
+    {
+      env: { ...process.env, DEPARTMENTS_DIR: "/nonexistent-departments" },
+      encoding: "utf-8",
+    },
+  );
+  assert.match(out, /THREW: department rules unreadable/);
+});
+
+test("review: a before rule that contradicts itself or another is refused", () => {
+  assert.throws(
+    () =>
+      parsePlanningRules([
+        { ...base, kind: "before", first: ["GC 3500"], then: ["GC 3500"] },
+      ]),
+    /planning rule 1: GC 3500 is in both first and then/,
+  );
+  assert.throws(
+    () =>
+      parsePlanningRules([
+        { ...base, kind: "before", first: ["GC 4500"], then: ["GC 4800"] },
+        { ...base, kind: "before", first: ["GC 4800"], then: ["GC 4500"] },
+      ]),
+    /before rules form a cycle: GC 4500 -> GC 4800 -> GC 4500/,
+  );
+});
+
+test("review: parser gaps are closed", () => {
+  const summer = (n: number) => ({
+    ...base,
+    kind: "at_most_in_season",
+    season: "summer",
+    n,
+    groups: [["GC 3500"], ["GC 4500"]],
+  });
+  assert.throws(() => parsePlanningRules([summer(0)]), /planning rule 1: n/);
+  assert.throws(() => parsePlanningRules([summer(2)]), /planning rule 1: n/);
+  assert.throws(
+    () =>
+      parsePlanningRules([
+        { ...base, kind: "same_term", courses: ["GC 3500", "GC 3500"] },
+      ]),
+    /planning rule 1: courses lists GC 3500 twice/,
+  );
+  assert.throws(
+    () =>
+      parsePlanningRules([
+        {
+          ...base,
+          kind: "same_term",
+          courses: ["GC 3500", "COOP 2010"],
+          unless: ["x"],
+        },
+      ]),
+    /planning rule 1: unknown field "unless"/,
+  );
+  assert.throws(
+    () =>
+      parsePlanningRules([
+        {
+          ...base,
+          kind: "term_load",
+          when_any: ["GC 3500"],
+          max_other_credits: 3,
+          preferred_other_credits: 6,
+        },
+      ]),
+    /preferred_other_credits cannot exceed max_other_credits/,
+  );
+});

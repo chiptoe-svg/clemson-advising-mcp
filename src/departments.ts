@@ -148,13 +148,34 @@ const CODE = /^[A-Z]{2,5} \d{4}$/;
  * dropped, because a dropped rule reads as "no such rule" and the plans it
  * forbids would be offered as fine.
  */
+// The fields each kind may carry; any other key is an error, so a
+// misspelt or invented condition is never silently dropped.
+const RULE_FIELDS: Record<string, readonly string[]> = {
+  avoid_same_term: ["courses"],
+  same_term: ["courses"],
+  at_most_in_season: ["season", "n", "groups"],
+  before: ["first", "then"],
+  term_load: [
+    "when_any",
+    "not_counted",
+    "max_other_credits",
+    "preferred_other_credits",
+  ],
+  term_excludes: ["when_any", "courses"],
+};
+
 export function parsePlanningRules(raw: unknown): PlanningRule[] {
   if (raw === undefined || raw === null) return [];
   if (!Array.isArray(raw)) throw new Error("planning must be a list");
-  return raw.map((r, i) => {
+  const rules = raw.map((r, i): PlanningRule => {
     const at = `planning rule ${i + 1}`;
     if (!r || typeof r !== "object") throw new Error(`${at}: not a mapping`);
     const o = r as Record<string, unknown>;
+    const allowed = RULE_FIELDS[String(o.kind)];
+    if (allowed)
+      for (const k of Object.keys(o))
+        if (!["kind", "text", "source", ...allowed].includes(k))
+          throw new Error(`${at}: unknown field ${JSON.stringify(k)}`);
     const str = (k: string): string => {
       if (typeof o[k] !== "string" || !(o[k] as string).trim())
         throw new Error(`${at}: ${k} must be a non-empty string`);
@@ -170,6 +191,8 @@ export function parsePlanningRules(raw: unknown): PlanningRule[] {
         throw new Error(
           `${at}: ${k} must be a list of ${min === 0 ? "" : `at least ${min === 2 ? "two " : "one "}`}course codes like "GC 3500"`,
         );
+      const dup = v.find((c, j) => v.indexOf(c) !== j);
+      if (dup) throw new Error(`${at}: ${k} lists ${dup} twice`);
       return v as string[];
     };
     const int = (k: string): number => {
@@ -200,24 +223,27 @@ export function parsePlanningRules(raw: unknown): PlanningRule[] {
             );
           return x as string[];
         });
-        return {
-          kind: o.kind,
-          text,
-          source,
-          season: "summer",
-          n: int("n"),
-          groups,
-        };
+        const n = int("n");
+        if (n < 1 || n >= groups.length)
+          throw new Error(
+            `${at}: n must be at least 1 and fewer than the ${groups.length} groups`,
+          );
+        return { kind: o.kind, text, source, season: "summer", n, groups };
       }
-      case "before":
-        return {
-          kind: o.kind,
-          text,
-          source,
-          first: codes("first"),
-          then: codes("then"),
-        };
-      case "term_load":
+      case "before": {
+        const first = codes("first");
+        const then = codes("then");
+        const both = first.find((c) => then.includes(c));
+        if (both) throw new Error(`${at}: ${both} is in both first and then`);
+        return { kind: o.kind, text, source, first, then };
+      }
+      case "term_load": {
+        const max = int("max_other_credits");
+        const preferred = int("preferred_other_credits");
+        if (preferred > max)
+          throw new Error(
+            `${at}: preferred_other_credits cannot exceed max_other_credits`,
+          );
         return {
           kind: o.kind,
           text,
@@ -225,9 +251,10 @@ export function parsePlanningRules(raw: unknown): PlanningRule[] {
           when_any: codes("when_any"),
           not_counted:
             o.not_counted === undefined ? [] : codes("not_counted", 0),
-          max_other_credits: int("max_other_credits"),
-          preferred_other_credits: int("preferred_other_credits"),
+          max_other_credits: max,
+          preferred_other_credits: preferred,
         };
+      }
       case "term_excludes":
         return {
           kind: o.kind,
@@ -240,6 +267,22 @@ export function parsePlanningRules(raw: unknown): PlanningRule[] {
         throw new Error(`${at}: unknown kind ${JSON.stringify(o.kind)}`);
     }
   });
+  // `before` rules that order a course after itself can never be met: the
+  // engine would fail with a misleading placement error, so refuse here.
+  const after = new Map<string, string[]>();
+  for (const r of rules)
+    if (r.kind === "before")
+      for (const f of r.first)
+        after.set(f, [...(after.get(f) ?? []), ...r.then]);
+  const walk = (c: string, path: string[]): void => {
+    if (path.includes(c))
+      throw new Error(
+        `before rules form a cycle: ${[...path.slice(path.indexOf(c)), c].join(" -> ")}`,
+      );
+    for (const n of after.get(c) ?? []) walk(n, [...path, c]);
+  };
+  for (const c of after.keys()) walk(c, []);
+  return rules;
 }
 
 /**
@@ -248,6 +291,13 @@ export function parsePlanningRules(raw: unknown): PlanningRule[] {
  * throws, as everywhere in this layer.
  */
 export function planningRulesForProgram(program: string): PlanningRule[] {
+  // Not listDepartments(), which logs and returns [] for an unreadable
+  // store: here that would drop every rule in silence.
+  try {
+    fs.readdirSync(DEPARTMENTS_DIR);
+  } catch (err) {
+    throw new Error(`department rules unreadable: ${String(err)}`);
+  }
   for (const id of listDepartments()) {
     const rules = getDepartmentRules(id);
     if (rules?.programs.includes(program)) return rules.planning;
