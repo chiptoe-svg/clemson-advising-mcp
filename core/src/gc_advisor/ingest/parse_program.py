@@ -17,8 +17,11 @@ _FN_TRAILER = r"(?:\s+(\d[\d*,\s]*))?"
 _OR_TRAILER = r"(\s+or)?"
 
 # Matches: SUBJ 1234 - Title text N Credit[s]  (optional trailing footnote refs)
+# A variable-credit course prints a range, "1-3 Credits" (Accounting 2023-27,
+# ACCT 3990); group 4 takes the upper bound. Without the range the line failed
+# this pattern and the course vanished, leaving only its "or" partner.
 COURSE_RE = re.compile(
-    r"^([A-Z]{2,5})\s+(\d{4})\s+-\s+(.+?)\s+(\d+)\s+Credits?"
+    r"^([A-Z]{2,5})\s+(\d{4})\s+-\s+(.+?)\s+(?:\d+-)?(\d+)\s+Credits?"
     + _FN_TRAILER
     + _OR_TRAILER
     + r"$"

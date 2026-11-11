@@ -162,3 +162,15 @@ def test_marketing_asterisk_footnote_refs_dont_drop_courses(fixtures_dir):
     p = _mkt(fixtures_dir)
     codes = [i.course_code for g in p.groups for i in g.items if i.kind == "fixed_course"]
     assert "BUS 1010" in codes  # "BUS 1010 - ... 1 Credit 1*"
+
+
+def test_course_with_a_credit_range_is_kept(fixtures_dir):
+    # Accounting 2023-27: "ACCT 3990 - Internship in Accounting 1-3 Credits 5",
+    # then "or", then "Business Requirement 3 Credits". The range failed the
+    # course pattern and the internship vanished, leaving only the slot. The
+    # choice carries the upper bound, the credits the slot it shares asks for.
+    text = (fixtures_dir / "html" / "accounting_2026-2027.txt").read_text()
+    p = parse_program(text, kind="major", degree="BS")
+    (c,) = [it for g in p.groups for it in g.items if "ACCT 3990" in (it.one_of or [])]
+    assert (c.kind, c.slot_type, c.credits) == ("choice", "Business Requirement", 3)
+    assert 5 in c.footnote_refs
