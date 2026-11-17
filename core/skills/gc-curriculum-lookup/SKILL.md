@@ -32,6 +32,8 @@ Use the catalog tools (their JSON output is your source of truth):
   Area or advancement policy).
 - For choice items (`one_of`) present all options; for `slot` items, state the
   slot type and credits and consult the relevant footnote for allowed courses.
+  A choice with a `slot_type` too means "this course **or** any course meeting
+  the slot": present both, never the course alone.
 - **Cite the source page.** Include the plan's `source_url` when you state a
   program's requirements so the reader can follow the link and verify. It works
   for any program, including a minor or certificate (returns `source_url` even

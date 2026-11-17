@@ -23,6 +23,10 @@
     "text": "ACCT 2010 with a grade of C or higher; and one of CPSC 2200 or MGT 2180",
     "expr": "ACCT 2010>=C & (CPSC 2200 | MGT 2180)"
   },
+  "ACCT 3990": {
+    "text": "Junior standing and consent of instructor",
+    "expr": "[standing:junior] & [consent:instructor]"
+  },
   "ACCT 4040": {
     "text": "ACCT 3110 with a C or better",
     "expr": "ACCT 3110>=C"

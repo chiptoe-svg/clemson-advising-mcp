@@ -292,6 +292,8 @@ export const findCourseInProgram: McpToolDefinition = {
       "get-requirement-rules or get-program-plan alone is NOT — each " +
       'sees only half the program. Accepts a full code ("PCID 3040") or a ' +
       'bare subject ("PCID", which matches every course with that prefix). ' +
+      "An appearance with both choose_one_of and slot_type means that course " +
+      "OR any course meeting the slot — the course is one way, not required. " +
       "Read-only, no login. Takes program + optional catalog_year (defaults " +
       "to the program's newest).",
     inputSchema: {

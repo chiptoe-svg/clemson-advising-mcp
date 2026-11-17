@@ -114,6 +114,10 @@ When a student shares their completed courses and asks what they still need:
 2. Walk every item in every group:
    - **`fixed_course`**: satisfied if `course_code` is in the completed list.
    - **`choice`**: satisfied if **any** code in `one_of` is in the completed list.
+     A `choice` that also has a `slot_type` (e.g. `one_of` ["ACCT 3990"] with
+     `slot_type` "Business Requirement") is **also** satisfied by any course
+     that meets that slot's rule, as for a `slot` item. The listed course is one
+     way, not a must.
    - **`slot`**: satisfied per the requirement rule for that `slot_type`.
 3. Call `get-requirement-rules` and match rules to slot items by `slot_type`.
    **What counts toward a slot is more than `explicit_courses`**: apply
