@@ -543,3 +543,44 @@ test("review: a tied OR alternative planned AFTER the course is not on its chain
   assert.deepEqual(g.critical_courses, ["GC 1020", "GC 1040", "GC 3400"]);
   assert.equal(g.critical_paths_total, 1);
 });
+
+// A choice that also names a slot (Accounting 2023-27, senior spring: "ACCT
+// 3990 or Business Requirement") reads "this course, or any course that meets
+// the slot". The course is one way, never a must.
+function slotChoiceInputs() {
+  const inp = inputs();
+  inp.plan.groups[1].items[2] = item({
+    kind: "choice",
+    one_of: ["MATH 3020"],
+    slot_type: "Business Requirement",
+  }) as GraphInputs["plan"]["groups"][number]["items"][number];
+  setExpr(inp, "MATH 3020", "MATH 2060");
+  setExpr(inp, "MATH 2060", "MATH 1080");
+  setExpr(inp, "MATH 1080", "MATH 1060");
+  inp.courses.set("MATH 1060", facts("MATH 1060"));
+  return inp;
+}
+
+test("critical path: a choice with a slot alternative forces nothing", () => {
+  const g = buildProgramGraph(slotChoiceInputs());
+  assert.equal(course(g, "MATH 3020").min_prior_terms, 3);
+  assert.deepEqual(g.critical_path, ["GC 1020", "GC 1040", "GC 3400"]);
+});
+
+test("choices: a slot alternative is named alongside the course options", () => {
+  const g = buildProgramGraph(slotChoiceInputs());
+  const c = g.choices.find((x) => x.options.some((o) => o.code === "MATH 3020"))!;
+  assert.equal(c.or_slot, "Business Requirement");
+  assert.deepEqual(c.options.map((o) => o.code), ["MATH 3020"]);
+  const plain = g.choices.find((x) => x.options.some((o) => o.code === "STAT 2300"));
+  assert.equal(plain, undefined); // replaced in this fixture
+});
+
+test("no Degree Works import: a slot choice is the slot, with its course as one way", () => {
+  const g = buildProgramGraph(slotChoiceInputs());
+  const r = g.requirements.find((x) => x.name === "Business Requirement")!;
+  assert.deepEqual(r.courses, ["MATH 3020"]);
+  assert.equal(r.unit, "credits");
+  assert.equal(r.need, 3);
+  assert.ok(!g.requirements.some((x) => x.name.startsWith("Choice: MATH 3020")));
+});

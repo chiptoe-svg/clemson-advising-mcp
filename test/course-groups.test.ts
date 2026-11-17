@@ -102,3 +102,21 @@ test("a saved group overrides the generated one with the same name", () => {
   assert.ok(merged.some((g) => g.name === "GC lab block"));
   assert.equal(merged.length, 3);
 });
+
+test("a choice with a slot alternative is unresolved, not a must-take", () => {
+  // Accounting 2023-27 senior spring: "ACCT 3990 or Business Requirement".
+  const p = {
+    ...plan,
+    groups: [
+      {
+        label: "Senior/Second Semester",
+        kind: "term",
+        credit_total: 15,
+        items: [item("ACCT 4050"), item(null, ["ACCT 3990"], "Business Requirement")],
+      },
+    ],
+  };
+  const [g] = G.groupsFromPlan(p, () => []);
+  assert.deepEqual(g!.needs, [["ACCT 4050"]]);
+  assert.deepEqual(g!.unresolved, ["Business Requirement (or ACCT 3990)"]);
+});

@@ -128,6 +128,9 @@ export interface ProgramGraph {
   choices: {
     term: string;
     options: { code: string; min_prior_terms: number }[];
+    /** Set when the plan also accepts any course meeting this slot
+     *  ("ACCT 3990 or Business Requirement"): the options are one way, not the only way. */
+    or_slot?: string;
   }[];
   notes: string[];
 }
@@ -435,13 +438,18 @@ export function buildProgramGraph(
     for (const g of inp.plan.groups) {
       for (const it of g.items) {
         if (it.slot_type) {
+          // A slot choice ("ACCT 3990 or Business Requirement") is the slot,
+          // with its courses as one way to meet it.
+          const courses = [...(it.one_of ?? [])];
           requirements.push({
             name: it.slot_type,
             source: "catalog_plan",
             need: it.credits,
             unit: "credits",
-            courses: [],
+            courses,
           });
+          for (const c of courses)
+            reqNamesOf.set(c, [...(reqNamesOf.get(c) ?? []), it.slot_type]);
         } else if (it.one_of?.length) {
           const name = `Choice: ${it.one_of.join(" / ")}`;
           requirements.push({
@@ -556,7 +564,9 @@ export function buildProgramGraph(
   for (const g of inp.plan.groups)
     for (const it of g.items) {
       const opts = it.one_of ?? [];
-      if (opts.length === 0) continue;
+      // A slot alternative ("ACCT 3990 or Business Requirement") means no
+      // option is forced: any course meeting the slot will do.
+      if (opts.length === 0 || it.slot_type) continue;
       const best = [...opts].sort(
         (a, b) => (pure.get(a) ?? 0) - (pure.get(b) ?? 0),
       )[0];
@@ -657,6 +667,7 @@ export function buildProgramGraph(
           code: c,
           min_prior_terms: chain.get(c) ?? 0,
         })),
+        ...(it.slot_type ? { or_slot: it.slot_type } : {}),
       })),
   );
 

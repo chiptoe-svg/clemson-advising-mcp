@@ -44,6 +44,11 @@ export function groupsFromPlan(
       const unresolved: string[] = [];
       for (const it of g.items) {
         if (it.course_code) needs.push([displayCourse(it.course_code)]);
+        // "ACCT 3990 or Business Requirement": still to pick, not a must-take.
+        else if (it.slot_type && it.one_of.length > 0)
+          unresolved.push(
+            `${it.slot_type} (or ${it.one_of.map(displayCourse).join(" / ")})`,
+          );
         else if (it.one_of.length > 0) needs.push(it.one_of.map(displayCourse));
         else if (it.slot_type) unresolved.push(it.slot_type);
       }

@@ -312,6 +312,8 @@ export const programGraph: McpToolDefinition = {
       "critical_courses lists every course on any longest chain (plan order, " +
       "then unplanned prerequisites) — lead with it. critical_paths shows up to " +
       "20 of the tied chains; critical_paths_total is how many there are. " +
+      "A choice with or_slot also accepts any course meeting that slot, so " +
+      "its options are one way, not required. " +
       "Prerequisite expressions: " +
       "& = all, | = any, ~ = may be taken the same term, >=C = minimum grade, " +
       '[standing:junior] etc. are conditions to confirm, ?"..." is a clause ' +
