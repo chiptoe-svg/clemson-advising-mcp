@@ -83,8 +83,8 @@ export const programPlan: McpToolDefinition = {
       "Get the full semester-by-semester degree plan for a Clemson program " +
       "in a given catalog year: required courses, choice sets (one-of), " +
       "requirement slots, per-term and total credits, and footnotes. " +
-      "A choice that also has a slot_type (e.g. one_of [\"ACCT 3990\"] with " +
-      "slot_type \"Business Requirement\") means that course OR any course " +
+      'A choice that also has a slot_type (e.g. one_of ["ACCT 3990"] with ' +
+      'slot_type "Business Requirement") means that course OR any course ' +
       "meeting the slot — the course is one way, not the only way. " +
       "This is the bulk of the degree, but NOT all of it — the named " +
       "requirement slots (lab science, specialty area, technical, REACH) " +
