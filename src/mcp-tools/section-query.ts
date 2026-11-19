@@ -16,6 +16,7 @@ import {
   minsToHHMM,
   nameWords,
 } from "../clemson-schedule-db.js";
+import { roomCapacity } from "../clemson-room-capacity.js";
 
 /**
  * Appended to every day/time filter parameter description. 4,968 of 10,769
@@ -58,6 +59,17 @@ export interface EngineMeeting {
   end: string; // "HHMM"
   building: string | null;
   room: string | null;
+  /** Seats in the room; omitted when unknown, so unknown never reads as 0. */
+  roomCapacity?: number;
+}
+
+/** A meeting's room capacity as an optional field (absent when unknown). */
+export function withRoomCapacity(
+  building: string | null,
+  room: string | null,
+): { roomCapacity?: number } {
+  const seats = roomCapacity(building, room);
+  return seats === null ? {} : { roomCapacity: seats };
 }
 
 export interface EngineSection {
@@ -496,6 +508,7 @@ export function querySectionsEngine(
           end: minsToHHMM(m.end_min),
           building: m.building,
           room: m.room,
+          ...withRoomCapacity(m.building, m.room),
         })),
       });
     }

@@ -591,9 +591,30 @@ test("EngineSection carries crn/subjectCourse/title/creditHours/enrollment/maxEn
   assert.equal(s.maxEnrollment, 20);
   assert.deepEqual(s.instructors, ["Jane Smith"]);
   assert.deepEqual(s.meetings, [
-    { day: "M", start: "0900", end: "0950", building: "Lee Hall", room: "100" },
-    { day: "W", start: "0900", end: "0950", building: "Lee Hall", room: "100" },
-    { day: "F", start: "0900", end: "0950", building: "Lee Hall", room: "100" },
+    {
+      day: "M",
+      start: "0900",
+      end: "0950",
+      building: "Lee Hall",
+      room: "100",
+      roomCapacity: 52, // data/clemson-room-capacity.json
+    },
+    {
+      day: "W",
+      start: "0900",
+      end: "0950",
+      building: "Lee Hall",
+      room: "100",
+      roomCapacity: 52, // data/clemson-room-capacity.json
+    },
+    {
+      day: "F",
+      start: "0900",
+      end: "0950",
+      building: "Lee Hall",
+      room: "100",
+      roomCapacity: 52, // data/clemson-room-capacity.json
+    },
   ]);
 });
 

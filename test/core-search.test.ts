@@ -1056,3 +1056,50 @@ test("get-course-facts: a thrown catalog read fails the whole call loudly", asyn
     /catalog\.db unreadable/,
   );
 });
+
+// Room capacity per meeting (Cob_advisor's hold-to-see colouring: red =
+// enrollment at or over the room's seats). Known rooms carry roomCapacity;
+// an unknown room omits it, so unknown never reads as 0.
+test("search-classes: each meeting carries its room's capacity when known", async () => {
+  const res = await searchClasses.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    course_number: "1010",
+  });
+  const s = json(res).sections.find((x: any) => x.crn === "30001");
+  // Lee Hall 100 seats 52 in data/clemson-room-capacity.json.
+  assert.deepEqual(
+    s.meetings.map((m: any) => m.roomCapacity),
+    [52, 52, 52],
+  );
+});
+
+test("search-classes: refresh:true meetings carry room capacity; an unknown room omits it", async () => {
+  const liveSections = [
+    section({
+      crn: "40060",
+      subjectCourse: "GC1010",
+      meetings: [
+        meeting("M", "0900", "0950"),
+        meeting("W", "0900", "0950", "Barre Hall", "200"),
+      ],
+    }),
+  ];
+  const searchLive = async (): Promise<ClemsonSearchResult> => ({
+    totalCount: liveSections.length,
+    sections: liveSections,
+    snapshotDate: null,
+    scope: "live",
+  });
+  const tool = makeSearchClasses({ searchLive, writeBack: noWriteBack });
+  const res = await tool.handler({
+    term: "Spring 2027",
+    subject: "GC",
+    refresh: true,
+  });
+  const s = json(res).sections.find((x: any) => x.crn === "40060");
+  const lee = s.meetings.find((m: any) => m.building === "Lee Hall");
+  const barre = s.meetings.find((m: any) => m.building === "Barre Hall");
+  assert.equal(lee.roomCapacity, 52);
+  assert.ok(!("roomCapacity" in barre), JSON.stringify(barre));
+});

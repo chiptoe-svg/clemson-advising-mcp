@@ -53,6 +53,7 @@ import {
   type EngineSection,
   type EngineMeeting,
   UNTIMED_FILTER_NOTE,
+  withRoomCapacity,
 } from "./section-query.js";
 import { toEasternIso } from "../eastern-time.js";
 import { log } from "../log.js";
@@ -175,6 +176,7 @@ function toEngineMeetings(
         end: m.endTime,
         building: m.building,
         room: m.room,
+        ...withRoomCapacity(m.building, m.room),
       });
     }
   }
