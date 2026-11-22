@@ -439,7 +439,11 @@ export function resolveCredentialedAuth(
 
 /** The Tool descriptors whose operation is within `scopes` (for ListTools). */
 export function toolsForScope(scopes: Set<string>) {
-  return allTools.filter((t) => scopes.has(t.operation)).map((t) => t.tool);
+  return allTools
+    .filter((t) => scopes.has(t.operation))
+    .map((t) =>
+      t.describe ? { ...t.tool, description: t.describe(scopes) } : t.tool,
+    );
 }
 
 /** Whether a registered tool's operation is within `scopes` (for CallTool). */

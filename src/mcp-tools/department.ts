@@ -32,8 +32,8 @@ const departmentRules: McpToolDefinition = {
       "internship-term loads; each with its sentence and source) — plus the " +
       "department's own faculty ROSTER, the honest " +
       "source for membership (the schedule snapshot has no department " +
-      "column; feed roster banner_name strings to get-teaching-load or " +
-      "get-instructor-classes). Provenance is the department, NOT the published " +
+      "column; match roster banner_name strings against the schedule's " +
+      "instructor names). Provenance is the department, NOT the published " +
       "catalog, which is why this is a separate tool from " +
       "get-requirement-rules. A known department with nothing recorded " +
       "says so explicitly. Feed the returned codes to " +

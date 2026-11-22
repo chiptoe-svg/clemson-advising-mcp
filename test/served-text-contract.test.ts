@@ -92,17 +92,44 @@ test("the tools that compete with get-program-graph point to it", async () => {
   }
 });
 
-test("the tools that compete with the teaching tools point to them", async () => {
+test("the tools that compete with the teaching tools point to them — for a consumer that holds them", async () => {
   // Cob_advisor 2026-10-07: a two-term faculty list took 27 calls (24
   // get-course-details + 3 search-classes) and never touched a teaching tool;
   // both sit in the scheduling tail, so the model used what was loaded.
-  const { getCourseDetails, searchClasses } =
-    await import("../src/mcp-tools/core-search.js");
-  for (const t of [getCourseDetails, searchClasses]) {
-    const d = t.tool.description ?? "";
-    assert.match(d, /get-instructor-classes/, t.tool.name);
-    assert.match(d, /get-teaching-load/, t.tool.name);
+  await import("../src/mcp-tools/core-search.js");
+  const { toolsForScope } = await import("../src/mcp-tools/server.js");
+  const { SCOPE_OPERATIONS } = await import("../src/mcp-tools/permissions.js");
+  const admin = new Set([
+    ...SCOPE_OPERATIONS["clemson.schedule"],
+    ...SCOPE_OPERATIONS["clemson.admin"],
+  ]);
+  const listed = toolsForScope(admin);
+  for (const name of ["get-course-details", "search-classes"]) {
+    const d = listed.find((t) => t.name === name)?.description ?? "";
+    assert.match(d, /get-instructor-classes/, name);
+    assert.match(d, /get-teaching-load/, name);
   }
+});
+
+test("a consumer without the admin tools is never pointed at them", async () => {
+  // Cob_advisor 2026-11-22: the advisor (schedule scope only) kept calling a
+  // non-existent get_instructor_classes on T2b/T9h because search-classes
+  // named it. It gets the route it can call instead.
+  await import("../src/mcp-tools/core-search.js");
+  const { toolsForScope } = await import("../src/mcp-tools/server.js");
+  const { SCOPE_OPERATIONS } = await import("../src/mcp-tools/permissions.js");
+  const listed = toolsForScope(new Set(SCOPE_OPERATIONS["clemson.schedule"]));
+  assert.ok(listed.length > 0);
+  for (const t of listed) {
+    assert.doesNotMatch(
+      t.description ?? "",
+      /get-instructor-classes|get-teaching-load/,
+      t.name,
+    );
+  }
+  const d = listed.find((t) => t.name === "search-classes")?.description ?? "";
+  assert.match(d, /`instructor` filter/);
+  assert.match(d, /one call per subject/);
 });
 
 test("get-program-graph routes what-if questions to what-if-plan and explains slack", async () => {

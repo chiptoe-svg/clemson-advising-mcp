@@ -209,3 +209,10 @@ test("every department names its programs, spelled as the catalog does", async (
     assert.deepEqual(body(res as never).programs, programs, id);
   }
 });
+
+test("get-department-rules names no admin-only schedule tool", () => {
+  // Cob_advisor 2026-11-22: a consumer without the admin scope must never be
+  // pointed at get-teaching-load / get-instructor-classes.
+  const d = __deptTools.departmentRules.tool.description ?? "";
+  assert.doesNotMatch(d, /get-teaching-load|get-instructor-classes/);
+});

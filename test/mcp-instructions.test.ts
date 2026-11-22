@@ -56,8 +56,13 @@ test("public instructions carry the two verification traps (reachable but undisc
   const t = serverInstructions("advising-mcp-schedule", PUBLIC_TOOLS);
   assert.match(t, /get-sections-by-crn/);
   assert.match(t, /not_found.*authoritative|authoritative/i);
-  assert.match(t, /get-instructor-classes/);
-  assert.match(t, /NOT TEACHING.*NOT.*FREE|not_teaching/i);
+  assert.doesNotMatch(t, /get-instructor-classes/, "not in PUBLIC_TOOLS");
+  const admin = serverInstructions("advising-mcp-schedule", [
+    ...PUBLIC_TOOLS,
+    "get-instructor-classes",
+  ]);
+  assert.match(admin, /get-instructor-classes/);
+  assert.match(admin, /NOT TEACHING.*NOT.*FREE|not_teaching/i);
 });
 
 test("the two servers get different instructions", () => {

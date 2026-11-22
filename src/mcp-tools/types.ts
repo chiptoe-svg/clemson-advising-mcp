@@ -18,6 +18,9 @@ export interface McpToolDefinition {
   tool: Tool;
   category: ToolCategory;
   handler: (args: Record<string, unknown>) => Promise<CallToolResult>;
+  /** The description for a consumer holding `scopes`, when it differs by
+   *  consumer — so a description never names a tool the reader cannot call. */
+  describe?: (scopes: Set<string>) => string;
 }
 
 export function ok(text: string): CallToolResult {

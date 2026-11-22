@@ -69,7 +69,28 @@ import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
 // artifact; test/core-search.test.ts asserts literal substrings against them.
 // ---------------------------------------------------------------------------
 
-const SEARCH_CLASSES_DESCRIPTION =
+// Who teaches what: the teaching tools are admin-only (clemson.admin), so a
+// consumer without them gets the route it can call. Naming a tool the reader
+// cannot call cost the advisor a step per question (Cob_advisor, 2026-11-22).
+const TEACHING_HINT_ADMIN =
+  "For who teaches what — one person's teaching in a term, or every " +
+  "instructor of a subject — call get-instructor-classes or " +
+  "get-teaching-load (scheduling tools) instead of listing sections " +
+  "course by course. ";
+const TEACHING_HINT_SEARCH =
+  "For who teaches what — one person's teaching in a term — call " +
+  "search-classes with the `instructor` filter plus a subject, one call " +
+  "per subject the person teaches in, instead of listing sections course " +
+  "by course. ";
+
+function teachingHint(scopes: Set<string>): string {
+  return scopes.has("clemson.instructor_classes") &&
+    scopes.has("clemson.teaching_load")
+    ? TEACHING_HINT_ADMIN
+    : TEACHING_HINT_SEARCH;
+}
+
+const searchClassesDescription = (hint: string) =>
   "Search Clemson class sections by subject and/or course number, or by " +
   "room (building_room 'Godfrey 201' alone: what meets in that room). Optional " +
   "filters: instructor, building_room, days, no_meeting_before, no_meeting_after, " +
@@ -77,10 +98,7 @@ const SEARCH_CLASSES_DESCRIPTION =
   "accepts names like 'Spring 2027' or codes. Do NOT use this to check conflicts " +
   "(check-conflicts) or to find what fits an existing schedule, including a " +
   "replacement when swapping out a section (find-alternatives). " +
-  "For who teaches what — one person's teaching in a term, or every " +
-  "instructor of a subject — call get-instructor-classes or " +
-  "get-teaching-load (scheduling tools) instead of listing sections " +
-  "course by course. " +
+  hint +
   "A result too large to list is CUT: it returns the top sections by open " +
   "seats plus a `truncated` block that states the cut in words. Never answer " +
   '"what was offered" or "how many" from a truncated page — those sections ' +
@@ -117,7 +135,7 @@ const CHECK_CONFLICTS_DESCRIPTION =
   "Deterministic, from the daily snapshot. Term is optional — defaults to the " +
   "current registration term.";
 
-const GET_COURSE_DETAILS_DESCRIPTION =
+const getCourseDetailsDescription = (hint: string) =>
   "Details for one course or one section: description, prerequisites, " +
   "corequisites, restrictions (course_code also includes credits). With " +
   "course_code it also answers the reverse question — prerequisite_for: the " +
@@ -126,10 +144,7 @@ const GET_COURSE_DETAILS_DESCRIPTION =
   "include_chain for everything further down. For planning across " +
   "several courses or semesters, call get-program-graph (catalog server) " +
   "once instead of this tool course by course. " +
-  "For who teaches what — one person's teaching in a term, or every " +
-  "instructor of a subject — call get-instructor-classes or " +
-  "get-teaching-load (scheduling tools) instead of listing sections " +
-  "course by course. " +
+  hint +
   "Pass " +
   "course_code (e.g. 'GC 3010') for catalog information, or crn for a " +
   "specific section. Not a search — use search-classes to find sections. " +
@@ -301,9 +316,10 @@ export function makeSearchClasses(
   return {
     operation: "clemson.search_classes",
     category: "core",
+    describe: (scopes) => searchClassesDescription(teachingHint(scopes)),
     tool: {
       name: "search-classes",
-      description: SEARCH_CLASSES_DESCRIPTION,
+      description: searchClassesDescription(TEACHING_HINT_ADMIN),
       inputSchema: {
         type: "object" as const,
         properties: {
@@ -980,9 +996,10 @@ export function makeGetCourseDetails(
   return {
     operation: "clemson.course_details",
     category: "core",
+    describe: (scopes) => getCourseDetailsDescription(teachingHint(scopes)),
     tool: {
       name: "get-course-details",
-      description: GET_COURSE_DETAILS_DESCRIPTION,
+      description: getCourseDetailsDescription(TEACHING_HINT_ADMIN),
       inputSchema: {
         type: "object" as const,
         properties: {

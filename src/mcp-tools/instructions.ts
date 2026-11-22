@@ -63,6 +63,11 @@ What agents get wrong here:
   \`get-sections-by-crn\` before repeating them: its \`not_found\` is
   authoritative (the snapshot was read), which is exactly what catches a
   fabricated or mistyped CRN.
+`.trim();
+
+// Only for a consumer that can call get-instructor-classes (admin scope):
+// naming a tool the reader cannot call costs it a step (2026-11-22).
+const NOT_TEACHING_GUIDANCE = `
 - "NOT TEACHING" IS NOT "FREE". \`get-instructor-classes\` answers what people
   teach (and, with a day/window filter, who has a teaching conflict). A person
   with no sections this term is reported \`not_teaching\` — the snapshot sees
@@ -111,7 +116,9 @@ export function serverInstructions(
 ): string {
   const specific = name.includes("catalog")
     ? CATALOG_GUIDANCE
-    : PUBLIC_GUIDANCE;
+    : toolNames.includes("get-instructor-classes")
+      ? `${PUBLIC_GUIDANCE}\n${NOT_TEACHING_GUIDANCE}`
+      : PUBLIC_GUIDANCE;
   // Named from the VISIBLE tool list, never hardcoded: the catalog server
   // renames these tools, and a scoped consumer (e.g. clemson.schedule only)
   // cannot see them at all. Naming a tool the reader cannot call is the defect
