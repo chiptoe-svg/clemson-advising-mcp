@@ -27,7 +27,8 @@ const departmentRules: McpToolDefinition = {
     description:
       "A department's RECORDED DECISIONS about requirement slots: " +
       "faculty-approved course additions (and denials) for slots like the " +
-      "Specialty Area — the department's PLANNING rules (when and with what " +
+      'Specialty Area (an entry with form: "substitution" counts only with a ' +
+      "course substitution form) — the department's PLANNING rules (when and with what " +
       "a course may be taken: order, same or separate terms, summer limits, " +
       "internship-term loads; each with its sentence and source) — plus the " +
       "department's own faculty ROSTER, the honest " +

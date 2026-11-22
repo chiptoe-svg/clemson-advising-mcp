@@ -216,3 +216,20 @@ test("get-department-rules names no admin-only schedule tool", () => {
   const d = __deptTools.departmentRules.tool.description ?? "";
   assert.doesNotMatch(d, /get-teaching-load|get-instructor-classes/);
 });
+
+test("GC 4440 counts for Global Challenges with a substitution form (Chip, 2026-11-22)", async () => {
+  const { getDepartmentRules } = await import("../src/departments.ts");
+  const gc = getDepartmentRules("gc")!;
+  const slot = gc.slots.find(
+    (s) => s.slot_type === "Global Challenges Requirement",
+  );
+  assert.ok(slot, "slot named as the catalog's GC plan names it");
+  const e = slot.allow.find((c) => c.code === "GC 4440");
+  assert.equal(e?.form, "substitution");
+  assert.match(e?.note ?? "", /course substitution form/);
+  // Absent = no form: the existing Specialty Area entries carry none.
+  const spec = gc.slots.find(
+    (s) => s.slot_type === "Specialty Area Requirement",
+  )!;
+  assert.ok(spec.allow.every((c) => c.form === undefined));
+});

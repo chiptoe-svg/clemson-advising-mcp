@@ -26,7 +26,13 @@ import { log } from "./log.js";
 export interface DepartmentRuleCourse {
   code: string;
   note?: string;
+  /** Paperwork the course needs to count; absent = none. */
+  form?: DepartmentForm;
 }
+
+/** Known `form` values. An unknown one is a load error, never dropped. */
+const FORMS = ["substitution"] as const;
+export type DepartmentForm = (typeof FORMS)[number];
 
 /**
  * A roster member as the department records them. `banner_name` is the exact
@@ -116,10 +122,20 @@ function coerceCourses(raw: unknown): DepartmentRuleCourse[] {
         typeof c === "object" &&
         typeof (c as { code?: unknown }).code === "string",
     )
-    .map((c) => ({
-      code: String(c.code),
-      ...(typeof c.note === "string" ? { note: c.note } : {}),
-    }));
+    .map((c) => {
+      if (
+        c.form !== undefined &&
+        !(FORMS as readonly unknown[]).includes(c.form)
+      )
+        throw new Error(
+          `${String(c.code)}: unknown form ${JSON.stringify(c.form)} (known: ${FORMS.join(", ")})`,
+        );
+      return {
+        code: String(c.code),
+        ...(typeof c.note === "string" ? { note: c.note } : {}),
+        ...(c.form !== undefined ? { form: c.form as DepartmentForm } : {}),
+      };
+    });
 }
 
 function coerceFaculty(raw: unknown): DepartmentFacultyMember[] {
@@ -335,14 +351,9 @@ export function getDepartmentRules(id: string): DepartmentRules | null {
       `department rules unreadable for "${id}": ${err instanceof Error ? err.message : String(err)}`,
     );
   }
-  return {
-    planning,
-    id,
-    department:
-      typeof parsed.department === "string" ? parsed.department : null,
-    programs: Array.isArray(parsed.programs) ? parsed.programs.map(String) : [],
-    faculty: coerceFaculty(parsed.faculty),
-    slots: slotsRaw
+  let slots: DepartmentSlot[];
+  try {
+    slots = slotsRaw
       .filter(
         (s): s is Record<string, unknown> =>
           !!s &&
@@ -353,7 +364,20 @@ export function getDepartmentRules(id: string): DepartmentRules | null {
         slot_type: String(s.slot_type),
         allow: coerceCourses(s.allow),
         deny: coerceCourses(s.deny),
-      })),
+      }));
+  } catch (err) {
+    throw new Error(
+      `department rules unreadable for "${id}": ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  return {
+    planning,
+    id,
+    department:
+      typeof parsed.department === "string" ? parsed.department : null,
+    programs: Array.isArray(parsed.programs) ? parsed.programs.map(String) : [],
+    faculty: coerceFaculty(parsed.faculty),
+    slots,
   };
 }
 

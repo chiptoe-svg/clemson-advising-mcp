@@ -21,6 +21,13 @@ slots:
       - { code: "MKT 4290", note: "Public & Non-profit Marketing — advisor list (Brand Comm)" }
       - { code: "PKSC 3689", note: "Packaging and Society — advisor list (Packaging)" }
     deny: []
+  # `form: substitution` = counts only with a course substitution form.
+  # With the form, GC 4440 counts for BOTH its own GC requirement and Global
+  # Challenges — a double-dip, like the other Global Challenges exceptions.
+  - slot_type: "Global Challenges Requirement"
+    allow:
+      - { code: "GC 4440", note: "counts with a course substitution form (3000-level or higher Global Challenges) — Chip, 2026-11-22", form: "substitution" }
+    deny: []
 
 # The GC faculty roster — Chip's list (2026-08-31), the department's own
 # statement of membership. The schedule snapshot has NO department or college
