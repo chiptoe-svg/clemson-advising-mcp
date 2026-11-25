@@ -175,6 +175,8 @@ export interface VerdictRun {
   /** A kept course tied to the course being dropped (its lab, say). */
   orphans: { kept: string; with: string }[];
   coreqsUnchecked: boolean;
+  /** Courses of the kept CRNs, "GC 3400" form. */
+  keptCourses: string[];
 }
 
 /**
@@ -657,6 +659,7 @@ export function courseUnitVerdicts(opts: {
           .map((kept) => ({ kept, with: dropped })),
       ),
     coreqsUnchecked: catalog === null,
+    keptCourses: [...keptBy.keys()],
   };
 }
 

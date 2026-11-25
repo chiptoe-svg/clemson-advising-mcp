@@ -20,6 +20,7 @@ import { querySectionsEngine, type EngineSection } from "./section-query.js";
 import { resolveTerm } from "../term-resolve.js";
 import { getGcRequirementRules as getGcRequirementRulesLive } from "../gc-curriculum.js";
 import { UNTIMED_FILTER_NOTE } from "./section-query.js";
+import { PREREQ_UNDETERMINABLE } from "../prereq-eligibility.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
@@ -195,8 +196,6 @@ function getRequirementRule(
 export type PrereqEligibility = "eligible" | "not_eligible" | "undetermined";
 
 /** OR / grade / standing / consent markers that a flat code list cannot express. */
-const PREREQ_UNDETERMINABLE =
-  /\bor\b|\bconcurrent|\bconsent\b|\bpermission\b|\bstanding\b|\bminimum grade\b|\bgrade of\b|\bC or better\b/i;
 
 export function checkPrereqEligible(
   prereqParsed: string | null,

@@ -59,6 +59,7 @@ import { toEasternIso } from "../eastern-time.js";
 import { log } from "../log.js";
 import { resolveTerm } from "../term-resolve.js";
 import { REVIEW_FIELDS_NOTE, reviewFieldsFor } from "../reviewed-prereq.js";
+import { loadRuleFacts, prereqEligibility } from "../prereq-eligibility.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
@@ -127,7 +128,12 @@ const FIND_ALTERNATIVES_DESCRIPTION =
   "instead of subject; each gets a verdict, with the reason when it does " +
   "not fit. Optional filters: credits, days, no_meeting_before, " +
   "no_meeting_after, exclude_days, open_seats_only. Term is optional — " +
-  "defaults to the current registration term.";
+  "defaults to the current registration term. " +
+  "Pass completed_courses (and in_progress_courses) to check prerequisites: " +
+  'each course gets prereq_eligibility — "eligible", "not_eligible" (with ' +
+  'missing), or "undetermined" (pending or reason; never call it eligible) ' +
+  "— and not-eligible courses move from can_add to summary.not_eligible. " +
+  "Without them, prerequisites are NOT checked.";
 
 const CHECK_CONFLICTS_DESCRIPTION =
   "Check which CRNs in a schedule have time conflicts, pair by pair. Optional " +
@@ -631,6 +637,24 @@ export const findAlternatives: McpToolDefinition = {
             "true/false from all its sections, the fitting sections, or " +
             "the kept CRNs blocking each section. Not with subject.",
         },
+        completed_courses: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            'Course codes the student has completed, e.g. ["GC 2070"]. ' +
+            "Each course then carries prereq_eligibility, and courses " +
+            "she cannot take leave can_add. Omit it and prerequisites are " +
+            "NOT checked.",
+        },
+        in_progress_courses: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Course codes in progress in a term BEFORE the search term. A " +
+            'course waiting on one is "undetermined" with pending — eligible ' +
+            "only if she passes it. A course in a kept CRN counts as the " +
+            "same term: it meets only a may-be-concurrent prerequisite.",
+        },
       },
       required: ["current_crns"],
     },
@@ -647,6 +671,31 @@ export const findAlternatives: McpToolDefinition = {
     const currentCrns = strArrOrUndef(args.current_crns);
     if (!currentCrns || currentCrns.length === 0) {
       return err("current_crns is required — the CRNs the student is keeping.");
+    }
+    let student: StudentLists | undefined;
+    if (
+      args.completed_courses !== undefined ||
+      args.in_progress_courses !== undefined
+    ) {
+      const lists: Record<string, string[]> = {};
+      for (const key of ["completed_courses", "in_progress_courses"]) {
+        const raw = args[key] ?? [];
+        if (!Array.isArray(raw))
+          return err(`${key} must be a list of course codes like 'GC 2070'.`);
+        lists[key] = [];
+        for (const r of raw) {
+          const code = typeof r === "string" ? normalizeCourseCode(r) : null;
+          if (!code)
+            return err(
+              `${key}: ${JSON.stringify(r)} is not a course code like 'GC 2070'.`,
+            );
+          lists[key].push(code);
+        }
+      }
+      student = {
+        completed: lists.completed_courses,
+        inProgress: lists.in_progress_courses,
+      };
     }
 
     // A swap: the dropped section supplies default filters and is excluded.
@@ -740,6 +789,7 @@ export const findAlternatives: McpToolDefinition = {
           credits: typeof args.credits === "number" ? args.credits : undefined,
         },
         { codes },
+        student,
       );
       if ("error" in result) return err(result.error);
       return okJson(
@@ -767,6 +817,7 @@ export const findAlternatives: McpToolDefinition = {
         subject: subject.toUpperCase(),
         includeGraduate: args.include_graduate === true,
       },
+      student,
     );
     if ("error" in result) return err(result.error);
     return okJson(replacing ? { ...result.body, replacing } : result.body);
@@ -775,18 +826,65 @@ export const findAlternatives: McpToolDefinition = {
 
 /** find-alternatives' verdicts, both modes: one entry per course (its
  *  corequisite lab folded in), never a flat section list. */
+interface StudentLists {
+  completed: string[];
+  inProgress: string[];
+}
+
 function courseVerdicts(
   term: string,
   keepers: string[],
   filters: VerdictFilters,
   scope: { codes: string[] } | { subject: string; includeGraduate: boolean },
+  student?: StudentLists,
 ): { body: Record<string, unknown> } | { error: string } {
   const run = courseUnitVerdicts({ term, keepers, filters, ...scope });
   if ("error" in run) return run;
+  // Prerequisites: each unit by its lead course's rule. An unreadable
+  // catalog makes every verdict undetermined, never eligible.
+  type Units = (UnitVerdict & ReturnType<typeof prereqEligibility>)[];
+  const units: Units = run.units as Units;
+  if (student) {
+    const facts = loadRuleFacts(units.map((u) => u.course));
+    const courses = {
+      completed: new Set(student.completed),
+      inProgress: new Set(student.inProgress),
+      sameTerm: new Set(run.keptCourses),
+    };
+    for (const u of units)
+      Object.assign(
+        u,
+        facts
+          ? prereqEligibility(
+              facts.get(u.course) ?? {
+                prereqText: null,
+                flat: null,
+                reviewed: null,
+              },
+              courses,
+            )
+          : {
+              prereq_eligibility: "undetermined",
+              reason: "the catalog could not be read",
+            },
+      );
+  }
   // Every unit lands in exactly one list. A unit she keeps whole is not an
-  // add; one she keeps part of adds the rest.
+  // add; one she keeps part of adds the rest. A course she cannot take is
+  // not an add either: it is listed under not_eligible.
   const wholeKept = (u: UnitVerdict) => u.already_kept && !u.adds;
-  const adds = run.units.filter((u) => u.fits && !wholeKept(u));
+  const fitting = units.filter((u) => u.fits && !wholeKept(u));
+  const adds = fitting.filter((u) => u.prereq_eligibility !== "not_eligible");
+  const notEligible = fitting
+    .filter((u) => u.prereq_eligibility === "not_eligible")
+    .map((u) => ({ course: addedName(u), missing: u.missing ?? [] }));
+  const undetermined = adds
+    .filter((u) => u.prereq_eligibility === "undetermined")
+    .map((u) => ({
+      course: addedName(u),
+      ...(u.pending ? { pending: u.pending } : {}),
+      ...(u.reason ? { reason: u.reason } : {}),
+    }));
   const canAdd = adds.map(addedName);
   const arranged = adds.filter((u) => u.how === "arranged").map(addedName);
   const open = run.units.filter((u) => !u.fits && !wholeKept(u));
@@ -799,7 +897,10 @@ function courseVerdicts(
   );
   const kept = run.units.filter(wholeKept).map((u) => u.course);
   const summary = {
-    text: canAddText(adds),
+    text: [
+      canAddText(adds),
+      ...prereqText(student, notEligible, undetermined),
+    ].join(" "),
     can_add_count: canAdd.length,
     can_add: canAdd,
     ...(arranged.length ? { arranged } : {}),
@@ -809,6 +910,10 @@ function courseVerdicts(
     not_offered: notOffered,
     ...(kept.length ? { already_kept: kept } : {}),
     ...(outside.length ? { outside_filters: outside } : {}),
+    prerequisites_checked: student !== undefined,
+    ...(student
+      ? { not_eligible: notEligible, prereq_undetermined: undetermined }
+      : {}),
     ...(run.graduate.length ||
     run.placeholdersOnly.length ||
     run.unpairedLabs.length
@@ -860,9 +965,34 @@ function courseVerdicts(
     ...(run.unknownCrns.length ? { unknown_crns: run.unknownCrns } : {}),
     ...(notes.length ? { note: notes.join(" ") } : {}),
     summary,
-    courses: run.units,
+    courses: units,
   };
   return { body };
+}
+
+/** The summary sentences about prerequisites — the part a model relays. */
+function prereqText(
+  student: StudentLists | undefined,
+  notEligible: { course: string; missing: string[] }[],
+  undetermined: { course: string; pending?: string[]; reason?: string }[],
+): string[] {
+  if (!student)
+    return [
+      "Prerequisites were NOT checked: pass completed_courses to check them.",
+    ];
+  const out: string[] = [];
+  if (notEligible.length)
+    out.push(
+      `${notEligible.length} more fit but need prerequisites the student ` +
+        `lacks: ${notEligible.map((n) => `${n.course} (needs ${n.missing.join(", ")})`).join(", ")}.`,
+    );
+  if (undetermined.length)
+    out.push(
+      "Prerequisites could not be confirmed for " +
+        `${undetermined.map((u) => `${u.course} (${u.reason ?? "see prereq_text"})`).join(", ")}` +
+        " — say so rather than calling them eligible.",
+    );
+  return out;
 }
 
 function hhmmMins(hhmm: string): number {
