@@ -855,14 +855,7 @@ function courseVerdicts(
       Object.assign(
         u,
         facts
-          ? prereqEligibility(
-              facts.get(u.course) ?? {
-                prereqText: null,
-                flat: null,
-                reviewed: null,
-              },
-              courses,
-            )
+          ? prereqEligibility(facts.get(u.course) ?? null, courses)
           : {
               prereq_eligibility: "undetermined",
               reason: "the catalog could not be read",
@@ -877,7 +870,11 @@ function courseVerdicts(
   const adds = fitting.filter((u) => u.prereq_eligibility !== "not_eligible");
   const notEligible = fitting
     .filter((u) => u.prereq_eligibility === "not_eligible")
-    .map((u) => ({ course: addedName(u), missing: u.missing ?? [] }));
+    .map((u) => ({
+      course: addedName(u),
+      missing: u.missing ?? [],
+      ...(u.reason ? { reason: u.reason, prereq_text: u.prereq_text } : {}),
+    }));
   const undetermined = adds
     .filter((u) => u.prereq_eligibility === "undetermined")
     .map((u) => ({
@@ -973,7 +970,12 @@ function courseVerdicts(
 /** The summary sentences about prerequisites — the part a model relays. */
 function prereqText(
   student: StudentLists | undefined,
-  notEligible: { course: string; missing: string[] }[],
+  notEligible: {
+    course: string;
+    missing: string[];
+    reason?: string;
+    prereq_text?: string;
+  }[],
   undetermined: { course: string; pending?: string[]; reason?: string }[],
 ): string[] {
   if (!student)
@@ -984,7 +986,7 @@ function prereqText(
   if (notEligible.length)
     out.push(
       `${notEligible.length} more fit but need prerequisites the student ` +
-        `lacks: ${notEligible.map((n) => `${n.course} (needs ${n.missing.join(", ")})`).join(", ")}.`,
+        `lacks: ${notEligible.map((n) => `${n.course} (needs ${n.reason ? `one of the ways in: ${n.prereq_text}` : n.missing.join(", ")})`).join(", ")}.`,
     );
   if (undetermined.length)
     out.push(

@@ -146,3 +146,73 @@ test("reviewed rule: a grade minimum on a completed course is assumed and said",
   assert.equal(r.prereq_eligibility, "eligible");
   assert.deepEqual(r.assumes, ["C or better in ACCT 2010"]);
 });
+
+// Hostile review, 2026-11-25.
+test("review 1: every listed course done but a consent / standing / major gate left is undetermined", () => {
+  for (const text of [
+    "GC 3500 and consent",
+    "Senior standing and AGRB 2080",
+    "ED 3000 and admission to the professional level",
+  ]) {
+    const codes = text.match(/[A-Z]{2,5} \d{4}/g)!;
+    const r = prereqEligibility(flat(text, codes), student(codes));
+    assert.equal(r.prereq_eligibility, "undetermined", text);
+    assert.match(r.reason ?? "", /cannot check/, text);
+  }
+});
+
+test("review 1: a grade minimum on finished courses is eligible, with the assumption said", () => {
+  const text = "AGRB 2080 with a grade of C or higher";
+  const r = prereqEligibility(
+    flat(text, ["AGRB 2080"]),
+    student(["AGRB 2080"]),
+  );
+  assert.equal(r.prereq_eligibility, "eligible");
+  assert.deepEqual(r.assumes, [`grade minimum met: ${text}`]);
+});
+
+test("review 2: a course missing from the catalog is undetermined, never eligible", () => {
+  const r = prereqEligibility(null, T10G);
+  assert.equal(r.prereq_eligibility, "undetermined");
+  assert.match(r.reason ?? "", /not in the catalog/);
+});
+
+test("review 3: alternatives written without 'or' are undetermined, not a no", () => {
+  const text =
+    "ART 1510 and ART 1530 and ART 3060 (Visual Arts majors); ART 1030 (non- Art Majors)";
+  const r = prereqEligibility(
+    flat(text, ["ART 1510", "ART 1530", "ART 3060", "ART 1030"]),
+    student(["ART 1030"]),
+  );
+  assert.equal(r.prereq_eligibility, "undetermined");
+});
+
+test("review 4: an OR that fails says one way is enough", () => {
+  const r = prereqEligibility(
+    reviewed("GC 1010 or GC 1020 and GC 1040", "GC 1010 | (GC 1020 & GC 1040)"),
+    student(["GC 1020"]),
+  );
+  assert.equal(r.prereq_eligibility, "not_eligible");
+  assert.match(r.reason ?? "", /one of the ways/);
+});
+
+test("review 6: missing lists each course once", () => {
+  const r = prereqEligibility(flat("GC 3700", ["GC 3700", "GC 3700"]), T10G);
+  assert.deepEqual(r.missing, ["GC 3700"]);
+});
+
+test("every listed course done meets a pure OR of courses", () => {
+  const text =
+    "AGRB 2020 with a grade of C or higher or ECON 2110 with a grade of C or higher";
+  const r = prereqEligibility(
+    flat(text, ["AGRB 2020", "ECON 2110"]),
+    student(["AGRB 2020", "ECON 2110"]),
+  );
+  assert.equal(r.prereq_eligibility, "eligible");
+  // A partial match on the same OR is still undecidable from the list.
+  const p = prereqEligibility(
+    flat(text, ["AGRB 2020", "ECON 2110"]),
+    student(["AGRB 2020"]),
+  );
+  assert.equal(p.prereq_eligibility, "undetermined");
+});

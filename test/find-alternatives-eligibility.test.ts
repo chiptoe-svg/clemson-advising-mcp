@@ -104,6 +104,7 @@ const sections = [
   sec("90002", "GC3460", "MW", "1300", "1415"),
   sec("90003", "GC3730", "TR", "1400", "1515"),
   sec("90004", "GC3700", "F", "0900", "1150"),
+  sec("90005", "GC4999", "F", "1300", "1350"), // no catalog row
 ];
 writeScheduleDb({
   term: TERM,
@@ -201,4 +202,12 @@ test("a completed course that is not a course code is an error", async () => {
     completed_courses: ["flexo"],
   });
   assert.equal(res.isError, true);
+});
+
+test("a course missing from the catalog is undetermined, never eligible (review 2)", async () => {
+  const b = await alt({ completed_courses: T10G });
+  assert.equal(unit(b, "GC 4999").prereq_eligibility, "undetermined");
+  assert.ok(
+    b.summary.prereq_undetermined.some((u: any) => u.course === "GC 4999"),
+  );
 });

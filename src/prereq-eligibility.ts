@@ -62,9 +62,15 @@ const withText = (e: Eligibility, text: string | null): Eligibility =>
   text?.trim() ? { ...e, prereq_text: text } : e;
 
 export function prereqEligibility(
-  facts: CourseRuleFacts,
+  facts: CourseRuleFacts | null,
   s: StudentCourses,
 ): Eligibility {
+  // No catalog row: its rule is unknown, which is not "no prerequisites".
+  if (!facts)
+    return {
+      prereq_eligibility: "undetermined",
+      reason: "not in the catalog, so its prerequisites cannot be checked",
+    };
   const text = facts.prereqText;
   const earlier = (c: string) => s.inProgress.has(c) && !s.sameTerm.has(c);
   if (facts.reviewed) {
@@ -77,26 +83,30 @@ export function prereqEligibility(
     if (expr) return fromExpr(expr, s, earlier, text);
   }
   if (!text?.trim()) return { prereq_eligibility: "eligible" };
-  const codes = facts.flat ?? [];
-  if (codes.length === 0)
-    return withText(
-      {
-        prereq_eligibility: "undetermined",
-        reason: cannotCheck(text),
-      },
-      text,
-    );
+  const codes = [...new Set(facts.flat ?? [])];
+  const rest = beyondCodes(text);
+  // Wording beyond course codes and a grade minimum — a standing, consent,
+  // major or admission gate, an OR, or alternatives by major — is something a
+  // code list cannot decide, met or not (hostile review, 2026-11-25).
   const notDone = codes.filter((c) => !s.completed.has(c));
-  // All listed courses done satisfies the rule under any reading.
-  if (notDone.length === 0) return { prereq_eligibility: "eligible" };
-  if (PREREQ_UNDETERMINABLE.test(text))
+  // Every listed course done meets an OR of them under any reading, so only
+  // OR wording may remain beside the codes then.
+  const left =
+    notDone.length === 0
+      ? rest.other
+          .replace(/\b(?:or|either|one of|the following)\b|:/gi, "")
+          .trim()
+      : rest.other;
+  if (codes.length === 0 || left)
     return withText(
-      {
-        prereq_eligibility: "undetermined",
-        reason: cannotCheck(text),
-      },
+      { prereq_eligibility: "undetermined", reason: cannotCheck(text) },
       text,
     );
+  if (notDone.length === 0)
+    return {
+      prereq_eligibility: "eligible",
+      ...(rest.grade ? { assumes: [`grade minimum met: ${text}`] } : {}),
+    };
   const untaken = notDone.filter((c) => !earlier(c));
   if (untaken.length > 0)
     return withText(
@@ -104,6 +114,24 @@ export function prereqEligibility(
       text,
     );
   return withText(pendingOn(notDone), text);
+}
+
+const CODE = /\b[A-Z]{2,5}\s?\d{4}\b/g;
+const GRADE =
+  /\b(?:with\s+)?(?:an?\s+)?(?:minimum\s+)?(?:grade\s+of\s+)?(?:an?\s+)?[A-D][+-]?\s+or\s+(?:better|higher)(?:\s+in)?\b|\bminimum\s+grade\s+of\s+[A-D][+-]?\b/gi;
+
+/** What a rule says beyond its course codes: a grade minimum, and anything
+ *  else (connectives and punctuation aside). */
+function beyondCodes(text: string): { grade: boolean; other: string } {
+  const noCodes = text.replace(CODE, " ");
+  const grade = GRADE.test(noCodes);
+  GRADE.lastIndex = 0;
+  const other = noCodes
+    .replace(GRADE, " ")
+    .replace(/\b(?:and|each|both)\b/gi, " ")
+    .replace(/[,;.&()]/g, " ")
+    .trim();
+  return { grade, other };
 }
 
 /** The rule in its own words — what a model should relay — falling back to
@@ -117,7 +145,10 @@ function pendingOn(codes: string[]): Eligibility {
   return {
     prereq_eligibility: "undetermined",
     pending: codes,
-    reason: `eligible if ${codes.join(" and ")} ${codes.length === 1 ? "is" : "are"} passed`,
+    reason:
+      codes.length === 1
+        ? `eligible if ${codes[0]} is passed`
+        : `depends on in-progress ${codes.join(", ")} — see prereq_text for which are needed`,
   };
 }
 
@@ -152,7 +183,13 @@ function fromExpr(
     };
   if (v === "F")
     return withText(
-      { prereq_eligibility: "not_eligible", missing: missingOf(expr, strict) },
+      {
+        prereq_eligibility: "not_eligible",
+        missing: missingOf(expr, strict),
+        ...(failingOr(expr, strict)
+          ? { reason: "needs one of the ways in its rule — see prereq_text" }
+          : {}),
+      },
       text,
     );
   if (evaluate(expr, ctx(true)) === "T")
@@ -164,6 +201,14 @@ function fromExpr(
     },
     text,
   );
+}
+
+/** Whether a false rule fails at an OR — so one way would be enough. */
+function failingOr(e: Expr, ctx: EvalCtx): boolean {
+  if (e.t === "or") return evaluate(e, ctx) === "F";
+  if (e.t === "and")
+    return e.of.some((c) => evaluate(c, ctx) === "F" && failingOr(c, ctx));
+  return false;
 }
 
 /** The untaken courses behind a false rule; an OR lists every way. */
