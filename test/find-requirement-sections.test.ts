@@ -136,6 +136,27 @@ function buildGcAdvisorFixture(): void {
       raw_text: "or prereq test rule",
     }),
   );
+  insertRule.run(
+    2,
+    "Uncatalogued Requirement",
+    JSON.stringify({
+      slot_type: "Uncatalogued Requirement",
+      total_credits: 3,
+      explicit_courses: ["GC 3095"],
+      raw_text: "uncatalogued test rule",
+    }),
+  );
+  const GATED_PREREQ_SLOT = "Gated Prereq Requirement";
+  insertRule.run(
+    2,
+    GATED_PREREQ_SLOT,
+    JSON.stringify({
+      slot_type: GATED_PREREQ_SLOT,
+      total_credits: 3,
+      explicit_courses: ["GC 3090"],
+      raw_text: "gated prereq test rule",
+    }),
+  );
   const UNPARSED_PREREQ_SLOT = "Unparsed Prereq Requirement";
   insertRule.run(
     2,
@@ -201,6 +222,15 @@ function buildGcAdvisorFixture(): void {
     "3080",
     "Junior standing and consent of instructor",
     null,
+  );
+  // A course AND a gate the code list cannot see (GC 4550 "GC 3500 and
+  // consent" live): the listed course done is not eligibility.
+  insertCourse.run(
+    "GC 3090",
+    "GC",
+    "3090",
+    "GC 3010 and consent of instructor",
+    JSON.stringify(["GC 3010"]),
   );
   // Two parsed prerequisites — the ALL-of fixture (T5).
   insertCourse.run(
@@ -380,6 +410,20 @@ const SNAP: ClemsonTermSnapshot = {
       title: "Unparsed Prereq Course",
       meetings: [meeting("W", "1600", "1650")],
     }),
+    section({
+      crn: "90024",
+      subjectCourse: "GC3095",
+      section: "001",
+      title: "Not In Catalog",
+      meetings: [meeting("W", "1800", "1850")],
+    }),
+    section({
+      crn: "90023",
+      subjectCourse: "GC3090",
+      section: "001",
+      title: "Gated Prereq Course",
+      meetings: [meeting("W", "1700", "1750")],
+    }),
     // GC3050: 16 sections (> querySectionsEngine's NARROW_THRESHOLD of 15) —
     // "Narrow Test Requirement"'s only explicit course, dedicated to the
     // narrowedCourses note test. Not referenced by SLOT, so it can't affect
@@ -439,8 +483,9 @@ const EXPECTED_DESCRIPTION =
   " student is eligible to take (prerequisites checked against complete" +
   'd_courses). `prereqEligible` is THREE-VALUED — "eligible", "not_elig' +
   'ible", or "undetermined" — never a boolean. "undetermined" means the' +
-  " stated rule cannot be decided from the structured data (it contains" +
-  " OR, a grade minimum, a standing or consent gate, or did not parse);" +
+  " stated rule cannot be decided from the structured data (an OR it" +
+  " cannot settle, a standing, consent, major or admission gate, text" +
+  " that did not parse, or a course not in the catalog);" +
   " READ `prereqText` and say what the rule actually is rather than rep" +
   "orting the student ineligible. Roughly a third of Clemson courses wi" +
   "th prerequisites fall in this class. Requires requirement — the requ" +
@@ -907,4 +952,26 @@ test("unparsed prereq text is undetermined, NOT prereq-free", async () => {
     "a rule we cannot read must not be reported as no rule at all",
   );
   assert.equal(s.prereqText, "Junior standing and consent of instructor");
+});
+
+test("listed course done but a consent gate left is undetermined, not eligible (2026-11-25)", async () => {
+  const out = await call({
+    requirement: "Gated Prereq Requirement",
+    program: PROGRAM,
+    completed_courses: ["GC 3010"],
+  });
+  const s = out.sections.find((x: any) => x.crn === "90023");
+  assert.ok(s, "the gated-prereq fixture section must be returned");
+  assert.equal(s.prereqEligible, "undetermined");
+});
+
+test("a course missing from the catalog is undetermined, not eligible (2026-11-25)", async () => {
+  const out = await call({
+    requirement: "Uncatalogued Requirement",
+    program: PROGRAM,
+    completed_courses: [],
+  });
+  const s = out.sections.find((x: any) => x.crn === "90024");
+  assert.ok(s, "the uncatalogued fixture section must be returned");
+  assert.equal(s.prereqEligible, "undetermined");
 });

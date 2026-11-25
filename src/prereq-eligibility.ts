@@ -24,11 +24,6 @@ import {
 } from "./prereq-expr.js";
 import { reviewedRules } from "./reviewed-prereq.js";
 
-/** Wording a flat code list cannot decide: any of these and a partial match
- *  is "undetermined", never "not_eligible". */
-export const PREREQ_UNDETERMINABLE =
-  /\bor\b|\bconcurrent|\bconsent\b|\bpermission\b|\bstanding\b|\bminimum grade\b|\bgrade of\b|\bC or better\b/i;
-
 export interface CourseRuleFacts {
   prereqText: string | null;
   /** The catalog's flat prereq_parsed codes, "GC 3400" form. */

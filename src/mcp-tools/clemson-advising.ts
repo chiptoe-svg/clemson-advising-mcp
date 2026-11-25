@@ -20,7 +20,7 @@ import { querySectionsEngine, type EngineSection } from "./section-query.js";
 import { resolveTerm } from "../term-resolve.js";
 import { getGcRequirementRules as getGcRequirementRulesLive } from "../gc-curriculum.js";
 import { UNTIMED_FILTER_NOTE } from "./section-query.js";
-import { PREREQ_UNDETERMINABLE } from "../prereq-eligibility.js";
+import { prereqEligibility } from "../prereq-eligibility.js";
 import { assertMcpOperation } from "./permissions.js";
 import { registerTools } from "./server.js";
 import { err, okJson, permissionErr, type McpToolDefinition } from "./types.js";
@@ -195,39 +195,27 @@ function getRequirementRule(
  */
 export type PrereqEligibility = "eligible" | "not_eligible" | "undetermined";
 
-/** OR / grade / standing / consent markers that a flat code list cannot express. */
-
 export function checkPrereqEligible(
   prereqParsed: string | null,
   completedCourses: Set<string>,
   prereqText: string | null = null,
+  inCatalog = true,
 ): PrereqEligibility {
-  // No stated prerequisite at all: genuinely eligible.
-  const hasText = typeof prereqText === "string" && prereqText.trim() !== "";
-  if (!prereqParsed) {
-    // Text present but nothing parsed (820 courses) — the rule exists and we
-    // cannot read it. Reporting "eligible" here is a false POSITIVE.
-    return hasText ? "undetermined" : "eligible";
-  }
-  let codes: string[];
+  // One reader for every tool (find-alternatives too): a flat list fully met
+  // is eligible only when the text names nothing else — no standing, consent,
+  // major or admission gate (2026-11-25 review). completedCourses is
+  // normalized (spaceless upper), so the parsed codes are too.
+  let codes: string[] | null = null;
   try {
-    codes = JSON.parse(prereqParsed) as string[];
+    const p = prereqParsed ? JSON.parse(prereqParsed) : null;
+    codes = Array.isArray(p) ? p.map((c) => normCode(String(c))) : null;
   } catch {
-    return hasText ? "undetermined" : "eligible";
+    codes = null;
   }
-  if (!Array.isArray(codes) || codes.length === 0) {
-    return hasText ? "undetermined" : "eligible";
-  }
-  // completedCourses is already normalized (spaceless upper); normalize each code too.
-  const satisfiedAll = codes.every((c) => completedCourses.has(normCode(c)));
-  // ALL of a flat list satisfied implies the rule holds under any reading —
-  // an OR is satisfied a fortiori — so "eligible" is safe even when the text
-  // carries structure this function cannot parse.
-  if (satisfiedAll) return "eligible";
-  // Not all satisfied. Only a text we can be confident is a pure conjunction
-  // justifies "not_eligible"; anything else is undetermined.
-  if (hasText && PREREQ_UNDETERMINABLE.test(prereqText)) return "undetermined";
-  return "not_eligible";
+  return prereqEligibility(
+    inCatalog ? { prereqText, flat: codes, reviewed: null } : null,
+    { completed: completedCourses, inProgress: new Set(), sameTerm: new Set() },
+  ).prereq_eligibility;
 }
 
 // ---------------------------------------------------------------------------
@@ -257,8 +245,9 @@ export function makeFindRequirementSections(
         'completed_courses). `prereqEligible` is THREE-VALUED — "eligible", ' +
         '"not_eligible", or "undetermined" — never a boolean. ' +
         '"undetermined" means the stated rule cannot be decided from the ' +
-        "structured data (it contains OR, a grade minimum, a standing or consent " +
-        "gate, or did not parse); READ `prereqText` and say what the rule " +
+        "structured data (an OR it cannot settle, a standing, consent, major " +
+        "or admission gate, text that did not parse, or a course not in the " +
+        "catalog); READ `prereqText` and say what the rule " +
         "actually is rather than reporting the student ineligible. Roughly a " +
         "third of Clemson courses with prerequisites fall in this class. " +
         "Requires requirement — the requirement slot " +
@@ -625,6 +614,7 @@ export function makeFindRequirementSections(
               courseInfo?.prereq_parsed ?? null,
               completedSet,
               courseInfo?.prereq_text ?? null,
+              courseInfo !== undefined,
             ),
             prereqText: courseInfo?.prereq_text ?? null,
           };
